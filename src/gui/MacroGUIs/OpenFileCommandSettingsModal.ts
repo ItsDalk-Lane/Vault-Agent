@@ -69,7 +69,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setName(t("macro.filePath.name"))
 			.setDesc(t("macro.filePath.desc"))
 			.addText(text => text
-				.setPlaceholder("{{DATE}}todo.md")
+				.setPlaceholder(t("macro.filePath.placeholder"))
 				.setValue(this.command.filePath)
 				.onChange(value => {
 					this.command.filePath = value;

@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { log } from "src/logger/logManager";
+import { t } from "src/i18n";
 import type { AIProvider } from "./Provider";
 
 const SECRET_PREFIX = "quickadd-ai";
@@ -27,7 +28,10 @@ async function readSecretStorageEntry(
 		return await Promise.resolve(app.secretStorage.getSecret(secretName));
 	} catch (err) {
 		log.logWarning(
-			`Failed to read SecretStorage entry "${secretName}": ${(err as Error).message ?? err}`,
+			t("errors.secretStorageReadFailed", {
+				name: secretName,
+				error: (err as Error).message ?? String(err),
+			}),
 		);
 		return null;
 	}
@@ -74,7 +78,10 @@ export async function storeProviderApiKeyInSecretStorage(
 		return candidate;
 	} catch (err) {
 		log.logWarning(
-			`Failed to write SecretStorage entry "${candidate}": ${(err as Error).message ?? err}`,
+			t("errors.secretStorageWriteFailed", {
+				name: candidate,
+				error: (err as Error).message ?? String(err),
+			}),
 		);
 		return null;
 	}

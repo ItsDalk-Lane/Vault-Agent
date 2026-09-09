@@ -1,5 +1,6 @@
 import { createOwnedElement, getOwnerWindow } from "./utils/activeWindow";
 import { log } from "./logger/logManager";
+import { t } from "./i18n";
 
 /**
  * Canonical documentation URLs.
@@ -36,7 +37,7 @@ export function openDocsUrl(url: string, owner?: Node): void {
 		const win = owner ? getOwnerWindow(owner) : window;
 		win.open(url, "_blank", "noopener,noreferrer");
 	} catch (error) {
-		log.logError(`QuickAdd: Failed to open documentation (${url}): ${error}`);
+		log.logError(t("errors.openDocsFailed", { url, error: String(error) }));
 	}
 }
 

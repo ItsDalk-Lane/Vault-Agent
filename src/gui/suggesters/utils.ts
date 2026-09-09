@@ -2,6 +2,7 @@ import type { Instruction, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
 import { createOwnedElement, createOwnedTextNode } from "src/utils/activeWindow";
 import { toError } from "src/utils/errorUtils";
+import { t } from "src/i18n";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -59,11 +60,11 @@ export function installSkipAffordance(
 			cls: "qa-suggester-skip-bar",
 		});
 		const skipButton = skipBar.createEl("button", {
-			text: "Skip (leave empty)",
+			text: t("input.skipLeaveEmpty"),
 			cls: "qa-suggester-skip-button",
 		});
 		skipButton.type = "button";
-		skipButton.setAttribute("aria-label", "Skip and leave empty");
+		skipButton.setAttribute("aria-label", t("input.skipTooltipFull"));
 		skipButton.addEventListener("click", (evt) => {
 			evt.preventDefault();
 			onSkip();

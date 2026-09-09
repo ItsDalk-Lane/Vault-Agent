@@ -8,6 +8,7 @@ import {
 	TextAreaComponent,
 } from "obsidian";
 import { getQuickAddInstance } from "../quickAddInstance";
+import { t } from "../i18n";
 import { LATEX_CURSOR_MOVE_HERE } from "../LaTeXSymbols";
 import { LaTeXSuggester } from "./suggesters/LaTeXSuggester";
 import { promptCancelled } from "../errors/UserCancelError";
@@ -76,7 +77,7 @@ export class MathModal extends Modal {
 		tc.inputEl.addEventListener("keydown", this.keybindListener);
 
 		const hintEl = this.contentEl.createDiv({
-			text: "Ctrl/Cmd+Enter to submit · Tab to jump to the cursor marker",
+			text: t("mathModal.submitHint"),
 			cls: "setting-item-description",
 		});
 		hintEl.setCssStyles({ marginTop: "0.5rem" });

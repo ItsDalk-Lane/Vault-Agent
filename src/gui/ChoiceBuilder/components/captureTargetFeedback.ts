@@ -18,14 +18,21 @@ function compact(values: readonly string[] | undefined): string[] {
 	return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 }
 
-function formatList(values: readonly string[], finalJoiner = "or"): string {
+function formatList(values: readonly string[], finalJoiner?: string): string {
+	const NS = "choiceBuilder.captureTargetFeedback";
+	const joiner = finalJoiner ?? t(`${NS}.joinerOr`);
 	if (values.length <= 1) return values[0] ?? "";
-	if (finalJoiner === "+") return values.join(" + ");
-	if (values.length === 2) return `${values[0]} ${finalJoiner} ${values[1]}`;
-	return `${values.slice(0, -1).join(", ")}, ${finalJoiner} ${values[values.length - 1]}`;
+	if (joiner === "+") return values.join(" + ");
+	if (values.length === 2) return `${values[0]} ${joiner} ${values[1]}`;
+	return `${values.slice(0, -1).join(t(`${NS}.listJoinMiddle`))} ${joiner} ${values[values.length - 1]}`;
+}
+
+function plural(count: number, baseKey: string): string {
+	return t(`${baseKey}.${count === 1 ? "one" : "other"}`);
 }
 
 function summarizeFilter(filter: FieldFilter): string {
+	const NS = "choiceBuilder.captureTargetFeedback";
 	const folders = compact(filter.folders ?? (filter.folder ? [filter.folder] : []));
 	const tags = compact(filter.tags);
 	const excludedFolders = compact(filter.excludeFolders);
@@ -34,30 +41,39 @@ function summarizeFilter(filter: FieldFilter): string {
 	const parts: string[] = [];
 
 	if (folders.length > 0) {
-		parts.push(
-			`${folders.length === 1 ? "folder" : "folders"} ${formatList(folders)}`,
-		);
+		parts.push(`${plural(folders.length, `${NS}.folder`)} ${formatList(folders)}`);
 	}
 	if (tags.length > 0) {
-		parts.push(`${tags.length === 1 ? "tag" : "tags"} ${formatList(tags, "+")}`);
+		parts.push(`${plural(tags.length, `${NS}.tag`)} ${formatList(tags, "+")}`);
 	}
 	if (excludedFolders.length > 0) {
 		parts.push(
-			`excluding ${excludedFolders.length === 1 ? "folder" : "folders"} ${formatList(excludedFolders)}`,
+			t(`${NS}.excluding`, {
+				noun: plural(excludedFolders.length, `${NS}.folder`),
+				list: formatList(excludedFolders),
+			}),
 		);
 	}
 	if (excludedTags.length > 0) {
 		parts.push(
-			`excluding ${excludedTags.length === 1 ? "tag" : "tags"} ${formatList(excludedTags, "+")}`,
+			t(`${NS}.excluding`, {
+				noun: plural(excludedTags.length, `${NS}.tag`),
+				list: formatList(excludedTags, "+"),
+			}),
 		);
 	}
 	if (excludedFiles.length > 0) {
 		parts.push(
-			`excluding ${excludedFiles.length === 1 ? "file" : "files"} ${formatList(excludedFiles)}`,
+			t(`${NS}.excluding`, {
+				noun: plural(excludedFiles.length, `${NS}.file`),
+				list: formatList(excludedFiles),
+			}),
 		);
 	}
 
-	return parts.length > 0 ? parts.join("; ") : "all notes";
+	return parts.length > 0
+		? parts.join(t(`${NS}.partSeparator`))
+		: t(`${NS}.allNotes`);
 }
 
 export function getCaptureTargetFeedback(
@@ -76,16 +92,26 @@ export function getCaptureTargetFeedback(
 		}
 
 		const propertySummary = propertyTarget.value
-			? `frontmatter ${propertyTarget.field} = ${propertyTarget.value}`
-			: `frontmatter field ${propertyTarget.field}`;
+			? t("choiceBuilder.captureTargetFeedback.frontmatterWithValue", {
+					field: propertyTarget.field,
+					value: propertyTarget.value,
+				})
+			: t("choiceBuilder.captureTargetFeedback.frontmatterFieldOnly", {
+					field: propertyTarget.field,
+				});
 		const filterSummary = summarizeFilter(propertyTarget.filter);
-		const suffix = filterSummary === "all notes" ? "" : `; ${filterSummary}`;
+		const suffix =
+			filterSummary === t("choiceBuilder.captureTargetFeedback.allNotes")
+				? ""
+				: `${t("choiceBuilder.captureTargetFeedback.partSeparator")}${filterSummary}`;
 
 		return {
 			recognized: true,
 			valid: true,
 			variant: "success",
-			message: `Recognized property target: ${propertySummary}${suffix}.`,
+			message: t("choiceBuilder.captureTargetFeedback.recognizedProperty", {
+				summary: `${propertySummary}${suffix}`,
+			}),
 		};
 	}
 
@@ -97,8 +123,7 @@ export function getCaptureTargetFeedback(
 			recognized: true,
 			valid: false,
 			variant: "error",
-			message:
-				"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+			message: t("choiceBuilder.captureTargetFeedback.filtersDesc"),
 		};
 	}
 
@@ -106,6 +131,8 @@ export function getCaptureTargetFeedback(
 		recognized: true,
 		valid: true,
 		variant: "success",
-		message: `Recognized filtered picker: ${summarizeFilter(fileFilterTarget.filter)}.`,
+		message: t("choiceBuilder.captureTargetFeedback.recognizedPicker", {
+			summary: summarizeFilter(fileFilterTarget.filter),
+		}),
 	};
 }

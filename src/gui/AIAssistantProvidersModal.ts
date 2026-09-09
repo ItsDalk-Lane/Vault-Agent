@@ -69,7 +69,7 @@ export class AIAssistantProvidersModal extends Modal {
 	private display(): void {
 		const modalName = this.selectedProvider
 			? `${this.selectedProvider.name}`
-			: "Providers";
+			: t("ai.providersTitle.name");
 
 		this.contentEl.createEl("h2", {
 			text: modalName,
@@ -307,7 +307,7 @@ export class AIAssistantProvidersModal extends Modal {
 
                     const trimmedName = modelName.trim();
                     if (!trimmedName) {
-                        new Notice("Model name cannot be empty.");
+                        new Notice(t("ai.modelNameEmpty"));
                         return;
                     }
 
@@ -315,7 +315,7 @@ export class AIAssistantProvidersModal extends Modal {
                     // accept "10abc" as 10. Require a plain positive integer.
                     const normalizedMaxTokens = maxTokens.trim();
                     if (!/^[1-9]\d*$/.test(normalizedMaxTokens)) {
-                        new Notice("Max tokens must be a positive number.");
+                        new Notice(t("ai.maxTokensPositive"));
                         return;
                     }
                     const parsedMaxTokens = Number(normalizedMaxTokens);

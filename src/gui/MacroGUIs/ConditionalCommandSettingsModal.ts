@@ -249,7 +249,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			.addText((text) => {
 				input = text;
 				text
-					.setPlaceholder("scripts/myCheck.js or Notes/myCheck.md")
+					.setPlaceholder(t("macro.scriptPath.placeholder"))
 					.setValue(condition.scriptPath)
 					.onChange((value) => {
 						condition.scriptPath = value.trim();

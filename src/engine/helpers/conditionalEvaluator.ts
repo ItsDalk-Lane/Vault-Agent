@@ -10,6 +10,7 @@ import {
 	normalizeVariableValue,
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
+import { t } from "../../i18n";
 
 export interface EvaluateConditionContext {
 	variables: Record<string, unknown>;
@@ -35,14 +36,14 @@ function evaluateVariableCondition(
 
 	if (!variableName) {
 		log.logWarning(
-			"Conditional command skipped: No variable name configured."
+			t("errors.conditionalNoVariableName")
 		);
 		return false;
 	}
 
 	if (!(variableName in variables)) {
 		log.logWarning(
-			`Conditional command skipped: Variable '${variableName}' is not defined.`
+			t("errors.conditionalVariableNotDefined", { name: variableName })
 		);
 		return false;
 	}
@@ -61,7 +62,9 @@ function evaluateVariableCondition(
 
 		if (expected === undefined) {
 			log.logWarning(
-				`Conditional command: Operator '${condition.operator}' requires a comparison value.`
+				t("errors.conditionalOperatorRequiresValue", {
+					operator: condition.operator,
+				})
 			);
 			return false;
 		}
@@ -89,7 +92,7 @@ function evaluateContains(
 
 	if (typeof expected === "string" && expected.length === 0) {
 		log.logWarning(
-			"Conditional command: 'contains' operator requires a non-empty comparison value."
+			t("errors.conditionalContainsRequiresNonEmpty")
 		);
 		return false;
 	}
@@ -152,7 +155,7 @@ function compareNumbers(
 
 	if (Number.isNaN(actualNumber) || Number.isNaN(expectedNumber)) {
 		log.logWarning(
-			"Conditional command numeric comparison failed: non-numeric value encountered."
+			t("errors.conditionalNumericComparisonFailed")
 		);
 		return false;
 	}

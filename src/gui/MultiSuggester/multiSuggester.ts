@@ -200,7 +200,7 @@ export default class MultiSuggester extends Modal {
 	private commitDraft(): boolean {
 		const trimmed = this.draft.trim();
 		if (!trimmed) {
-			new Notice("Enter a value to add.");
+			new Notice(t("common.enterValueToAdd"));
 			return false;
 		}
 		const alreadySelected =

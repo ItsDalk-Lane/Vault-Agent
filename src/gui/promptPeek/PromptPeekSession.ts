@@ -148,7 +148,7 @@ export class PromptPeekSession {
 			});
 			chip.createEl("p", {
 				cls: "qa-peek-chip-hint",
-				text: "Look at the note, copy or select text, then come back. Your draft is still there.",
+				text: t("promptPeek.hint"),
 			});
 		}
 
@@ -173,7 +173,7 @@ export class PromptPeekSession {
 			.setTooltip(t("promptPeek.cancelTooltip"))
 			.onClick(() => this.cancel());
 		cancel.buttonEl.addClass("qa-peek-chip-cancel");
-		cancel.buttonEl.setAttribute("aria-label", "Cancel this run");
+		cancel.buttonEl.setAttribute("aria-label", t("promptPeek.cancelAria"));
 		if (this.compactChrome) {
 			const cancelIcon = createOwnedElement(cancel.buttonEl, "span");
 			cancelIcon.className = "qa-peek-chip-cancel-icon";

@@ -39,7 +39,7 @@ export class AIAssistantSettingsModal extends Modal {
 		this.contentEl.addClass("qa-ai-scroll-content");
 
 		this.contentEl.createEl("h2", {
-			text: "AI Assistant settings",
+			text: t("ai.settingsTitle"),
 			cls: "qa-modal-title",
 		});
 

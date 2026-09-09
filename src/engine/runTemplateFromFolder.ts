@@ -8,6 +8,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { normalizeTemplateFolderPaths } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { t } from "../i18n";
 import { openQuickAddSettings } from "../utils/openPluginSettings";
 
 export interface RunTemplateFromFolderParams {
@@ -110,19 +111,14 @@ export async function runTemplateFromFolder(
 
 		if (!templatePath) {
 			if (!hasConfiguredTemplateFolders(plugin)) {
-				new Notice(
-					"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & properties to use “New note from template”.",
-					8000,
-				);
+				new Notice(t("command.setTemplateFolder"), 8000);
 				openQuickAddSettings(app, plugin.manifest.id, { notice: false });
 				return;
 			}
 
 			const files = plugin.getTemplateFiles();
 			if (files.length === 0) {
-				new Notice(
-					"QuickAdd: No template files found in your configured template folder(s).",
-				);
+				new Notice(t("command.noTemplateFiles"));
 				return;
 			}
 

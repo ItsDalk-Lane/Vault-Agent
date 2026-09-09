@@ -19,6 +19,7 @@ import { commandListOf, isCommandLike } from "../utils/macroUtils";
 import { decodeFromBase64 } from "../utils/base64";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import { t } from "../i18n";
 
 /**
  * Pure, App-free analysis of a QuickAdd package for the import preview.
@@ -55,115 +56,60 @@ export type PreviewFlag =
 	| "editor-command"
 	| "open-file";
 
-interface FlagMeta {
-	severity: PreviewSeverity;
-	/** Short uppercase pill label. */
-	label: string;
-	/** Plain-language hover explanation. */
-	description: string;
-}
+// Severity per flag. The user-facing label/description live in the i18n locale
+// tables (`packageManager.flag.*`) and are resolved at CALL time — a module-level
+// record would freeze whatever locale was active at import time.
+const FLAG_SEVERITY: Record<PreviewFlag, PreviewSeverity> = {
+	"user-script": "critical",
+	"conditional-script": "critical",
+	"bundled-script": "critical",
+	"run-on-startup": "critical",
+	"mislabeled-executable": "critical",
+	"registers-command": "warning",
+	"obsidian-command": "warning",
+	ai: "warning",
+	"ai-tools": "critical",
+	"capture-writes": "warning",
+	"template-write": "warning",
+	"overwrites-existing-choice": "warning",
+	"overwrites-existing-file": "warning",
+	"missing-reference": "warning",
+	"unknown-command": "warning",
+	"editor-command": "info",
+	"open-file": "info",
+};
 
-// One row per flag — severity, pill label, and hover description in lockstep so
-// adding a capability can't half-define it across parallel tables.
-const FLAG_META: Record<PreviewFlag, FlagMeta> = {
-	"user-script": {
-		severity: "critical",
-		label: "SCRIPT",
-		description: "Runs custom JavaScript with full access to your vault and the network.",
-	},
-	"conditional-script": {
-		severity: "critical",
-		label: "CONDITIONAL",
-		description: "Runs custom JavaScript to decide which branch executes.",
-	},
-	"bundled-script": {
-		severity: "critical",
-		label: "SCRIPT FILE",
-		description: "Bundles a file that will be written to your vault and can be run as code.",
-	},
-	"run-on-startup": {
-		severity: "critical",
-		label: "STARTUP",
-		description: "Runs automatically every time Obsidian starts.",
-	},
-	"mislabeled-executable": {
-		severity: "critical",
-		label: "EXECUTABLE",
-		description: "A bundled file is run as code even though it is labeled a template.",
-	},
-	"registers-command": {
-		severity: "warning",
-		label: "COMMAND",
-		description: "Adds a command to the command palette.",
-	},
-	"obsidian-command": {
-		severity: "warning",
-		label: "OBSIDIAN",
-		description: "Triggers another Obsidian command.",
-	},
-	ai: {
-		severity: "warning",
-		label: "AI",
-		description: "Sends note content to your AI provider over the network.",
-	},
-	"ai-tools": {
-		severity: "critical",
-		label: "AI TOOLS",
-		description:
-			"Lets an AI model read and write your vault: the script gives the model tools (functions) it calls with model-chosen arguments.",
-	},
-	"capture-writes": {
-		severity: "warning",
-		label: "WRITES",
-		description: "Writes captured text into your notes.",
-	},
-	"template-write": {
-		severity: "warning",
-		label: "TEMPLATE",
-		description: "Creates notes from a bundled template.",
-	},
-	"overwrites-existing-choice": {
-		severity: "warning",
-		label: "OVERWRITES",
-		description: "Replaces a choice that already exists in your vault.",
-	},
-	"overwrites-existing-file": {
-		severity: "warning",
-		label: "OVERWRITES",
-		description: "Overwrites a file that already exists in your vault.",
-	},
-	"missing-reference": {
-		severity: "warning",
-		label: "MISSING",
-		description: "References a file that is not bundled in this package.",
-	},
-	"unknown-command": {
-		severity: "warning",
-		label: "UNKNOWN",
-		description: "An unrecognised command type. Review it manually.",
-	},
-	"editor-command": {
-		severity: "info",
-		label: "EDITOR",
-		description: "Runs a built-in editor command.",
-	},
-	"open-file": {
-		severity: "info",
-		label: "OPEN FILE",
-		description: "Opens a file in your vault.",
-	},
+/** Maps a flag id to its camelCase key under `packageManager.flag.*`. */
+const FLAG_I18N_KEY: Record<PreviewFlag, string> = {
+	"user-script": "userScript",
+	"conditional-script": "conditionalScript",
+	"bundled-script": "bundledScript",
+	"run-on-startup": "runOnStartup",
+	"mislabeled-executable": "mislabeledExecutable",
+	"registers-command": "registersCommand",
+	"obsidian-command": "obsidianCommand",
+	ai: "ai",
+	"ai-tools": "aiTools",
+	"capture-writes": "captureWrites",
+	"template-write": "templateWrite",
+	"overwrites-existing-choice": "overwritesExistingChoice",
+	"overwrites-existing-file": "overwritesExistingFile",
+	"missing-reference": "missingReference",
+	"unknown-command": "unknownCommand",
+	"editor-command": "editorCommand",
+	"open-file": "openFile",
 };
 
 export function flagSeverity(flag: PreviewFlag): PreviewSeverity {
-	return FLAG_META[flag].severity;
+	return FLAG_SEVERITY[flag];
 }
 
 export function flagLabel(flag: PreviewFlag): string {
-	return FLAG_META[flag].label;
+	return t(`packageManager.flag.${FLAG_I18N_KEY[flag]}.label`);
 }
 
 export function flagDescription(flag: PreviewFlag): string {
-	return FLAG_META[flag].description;
+	return t(`packageManager.flag.${FLAG_I18N_KEY[flag]}.description`);
 }
 
 function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
@@ -373,7 +319,7 @@ function commandLabel(command: ICommand): string {
 
 function conditionSummary(condition: ConditionalCondition): string {
 	if (condition.mode === "script") {
-		return `script: ${condition.scriptPath}${
+		return `${t("packageManager.conditionScriptPrefix")} ${condition.scriptPath}${
 			condition.exportName ? ` (${condition.exportName})` : ""
 		}`;
 	}
@@ -426,7 +372,9 @@ function walkPackage(pkg: QuickAddPackage): PackageWalk {
 
 	for (const entry of pkg.choices) {
 		const choice = entry.choice;
-		const location = joinCrumb(entry.pathHint.slice(0, -1)) || "Root";
+		const location =
+			joinCrumb(entry.pathHint.slice(0, -1)) ||
+			t("packageManager.rootLocation");
 		const walk: ChoiceWalk = {
 			choiceId: choice.id,
 			name: choice.name,
@@ -465,7 +413,7 @@ function collectChoice(
 			walk.rows.push({
 				flag: "run-on-startup",
 				severity: "critical",
-				title: "Runs automatically every time Obsidian starts",
+				title: t("packageManager.row.runOnStartup"),
 				detail: joinCrumb(crumbs),
 			});
 		}
@@ -479,7 +427,7 @@ function collectChoice(
 				path: choice.templatePath,
 				asScript: false,
 				impliedKind: "template",
-				breadcrumb: joinCrumb([...crumbs, "template"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.template")]),
 			});
 		}
 		if (templateModifiesExisting(choice)) {
@@ -500,7 +448,10 @@ function collectChoice(
 				path: createCfg.template,
 				asScript: false,
 				impliedKind: "capture-template",
-				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
+				breadcrumb: joinCrumb([
+					...crumbs,
+					t("packageManager.crumb.newFileTemplate"),
+				]),
 			});
 		}
 	}
@@ -553,7 +504,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "user-script",
 						severity: "critical",
-						title: "Runs custom JavaScript with full access to your vault and the network",
+						title: t("packageManager.row.userScript"),
 						detail: `${joinCrumb(commandCrumbs)} (${script.path})`,
 						scriptPath: script.path,
 					});
@@ -587,7 +538,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "conditional-script",
 						severity: "critical",
-						title: "Runs custom JavaScript chosen by a condition",
+						title: t("packageManager.row.conditionalScript"),
 						detail: `${joinCrumb(commandCrumbs)} (${scriptPath})`,
 						scriptPath,
 					});
@@ -595,14 +546,14 @@ function collectCommands(
 				collectCommands(
 					conditional.thenCommands ?? [],
 					walk,
-					[...commandCrumbs, "then"],
+					[...commandCrumbs, t("packageManager.crumb.then")],
 					entryIds,
 					depth + 1,
 				);
 				collectCommands(
 					conditional.elseCommands ?? [],
 					walk,
-					[...commandCrumbs, "else"],
+					[...commandCrumbs, t("packageManager.crumb.else")],
 					entryIds,
 					depth + 1,
 				);
@@ -631,7 +582,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "obsidian-command",
 					severity: "warning",
-					title: "Triggers another Obsidian command",
+					title: t("packageManager.row.obsidianCommand"),
 					detail: `${joinCrumb(commandCrumbs)}${
 						obsidian.commandId ? ` (${obsidian.commandId})` : ""
 					}`,
@@ -644,7 +595,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "ai",
 					severity: "warning",
-					title: "Sends note content to your AI provider over the network",
+					title: t("packageManager.row.ai"),
 					detail: joinCrumb(commandCrumbs),
 				});
 				break;
@@ -676,7 +627,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "unknown-command",
 						severity: "warning",
-						title: "Unknown capability. Review it manually.",
+						title: t("packageManager.row.unknownCommand"),
 						detail: `${joinCrumb(commandCrumbs)} (${String(command.type)})`,
 					});
 				} else {
@@ -823,7 +774,7 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "mislabeled-executable",
 			severity: "critical",
-			title: "Runs a file as code even though it is labeled a template",
+			title: t("packageManager.row.mislabeledExecutable"),
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});
@@ -841,7 +792,7 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "bundled-script",
 			severity: "critical",
-			title: "Bundles a file that will be written to your vault and can be run as code",
+			title: t("packageManager.row.bundledScript"),
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});
@@ -859,7 +810,7 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "ai-tools",
 			severity: "critical",
-			title: "Lets an AI model read and write your vault",
+			title: t("packageManager.row.aiTools"),
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});
@@ -870,10 +821,13 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "registers-command",
 			severity: "warning",
-			title: "Adds commands to the command palette",
-			detail: `${registersCommandCount} choice${
-				registersCommandCount === 1 ? "" : "s"
-			}`,
+			title: t("packageManager.row.registersCommand"),
+			detail: t(
+				registersCommandCount === 1
+					? "packageManager.choiceCount.one"
+					: "packageManager.choiceCount.other",
+				{ count: registersCommandCount },
+			),
 		});
 	}
 
@@ -882,10 +836,13 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "overwrites-existing-choice",
 			severity: "warning",
-			title: "Replaces choices that already exist in your vault",
-			detail: `${overwriteChoiceCount} choice${
-				overwriteChoiceCount === 1 ? "" : "s"
-			}`,
+			title: t("packageManager.row.overwritesChoices"),
+			detail: t(
+				overwriteChoiceCount === 1
+					? "packageManager.choiceCount.one"
+					: "packageManager.choiceCount.other",
+				{ count: overwriteChoiceCount },
+			),
 		});
 	}
 
@@ -894,8 +851,13 @@ export function buildPackagePreview(
 		capabilityRows.push({
 			flag: "overwrites-existing-file",
 			severity: "warning",
-			title: "Overwrites existing files in your vault",
-			detail: `${overwriteFileCount} file${overwriteFileCount === 1 ? "" : "s"}`,
+			title: t("packageManager.row.overwritesFiles"),
+			detail: t(
+				overwriteFileCount === 1
+					? "packageManager.fileCount.one"
+					: "packageManager.fileCount.other",
+				{ count: overwriteFileCount },
+			),
 		});
 	}
 
@@ -908,11 +870,14 @@ export function buildPackagePreview(
 			severity: scriptMissing > 0 ? "critical" : "warning",
 			title:
 				scriptMissing > 0
-					? "References scripts that are not bundled, so they run from whatever exists at those paths after import"
-					: "References files that are not bundled and not in your vault",
-			detail: `${missingReferences.length} reference${
-				missingReferences.length === 1 ? "" : "s"
-			}`,
+					? t("packageManager.row.missingRefsScript")
+					: t("packageManager.row.missingRefsFile"),
+			detail: t(
+				missingReferences.length === 1
+					? "packageManager.referenceCount.one"
+					: "packageManager.referenceCount.other",
+				{ count: missingReferences.length },
+			),
 		});
 	}
 
@@ -1011,7 +976,7 @@ export function decodeAssetPreview(
 			truncated: false,
 			sizeBytes: 0,
 			looksMinified: false,
-			error: "File is not bundled in this package.",
+			error: t("packageManager.errorNotBundled"),
 		};
 	}
 

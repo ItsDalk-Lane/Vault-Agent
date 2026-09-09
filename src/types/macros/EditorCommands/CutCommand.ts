@@ -2,6 +2,7 @@ import { EditorCommandType } from "./EditorCommandType";
 import type { App } from "obsidian";
 import { EditorCommand } from "./EditorCommand";
 import { log } from "../../../logger/logManager";
+import { t } from "../../../i18n";
 
 export class CutCommand extends EditorCommand {
 	constructor() {
@@ -13,7 +14,7 @@ export class CutCommand extends EditorCommand {
 		const activeView = EditorCommand.getActiveMarkdownView(app);
 
 		if (!selectedText) {
-			log.logError("nothing selected.");
+			log.logError(t("errors.nothingSelected"));
 			return;
 		}
 

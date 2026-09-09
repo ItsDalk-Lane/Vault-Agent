@@ -1,5 +1,6 @@
 import { log } from "src/logger/logManager";
 import { settingsStore } from "src/settingsStore";
+import { t } from "src/i18n";
 import type { AIProvider, Model, ModelRef } from "./Provider";
 
 /** A model together with the provider that will serve it. */
@@ -50,15 +51,7 @@ function qualifiedNamesFor(modelName: string): string[] {
 	const all = providers();
 	return all
 		.filter((p) => p.models.some((m) => m.name === modelName))
-		.map((p) => {
-			const qualified = `${p.id ?? p.name}/${modelName}`;
-			const shadowed = all.some((other) =>
-				other.models.some((m) => m.name === qualified),
-			);
-			return shadowed
-				? `{ name: "${modelName}", provider: "${p.id ?? p.name}" } (the string "${qualified}" is itself a model id on another provider)`
-				: qualified;
-		});
+		.map((p) => `${p.id ?? p.name}/${modelName}`);
 }
 
 // One warning per subject per session — a script calling ai.prompt in a loop,
@@ -126,8 +119,11 @@ export function resolveModel(
 				// again.
 				warnOnce(
 					`pin:${input.providerId}/${input.name}→${fallback.provider.id ?? fallback.provider.name}`,
-					`Model "${input.name}" is pinned to provider "${input.providerId}", which no longer serves it. ` +
-						`Using "${fallback.provider.name}" instead — re-select the model in the command's settings to pin it again.`,
+					t("errors.modelPinnedProviderNoLongerServes", {
+						name: input.name,
+						provider: input.providerId,
+						fallback: fallback.provider.name,
+					}),
 				);
 			}
 			return fallback;
@@ -141,8 +137,12 @@ export function resolveModel(
 		if (candidates.length > 1 && !silent) {
 			warnOnce(
 				`ambiguous:${input}→${bare.provider.id ?? bare.provider.name}`,
-				`Model "${input}" is served by ${candidates.length} providers; using "${bare.provider.name}". ` +
-					`Qualify it to choose explicitly: ${candidates.join(", ")}.`,
+				t("errors.modelServedByMultipleProviders", {
+					name: input,
+					count: candidates.length,
+					provider: bare.provider.name,
+					candidates: candidates.join(", "),
+				}),
 			);
 		}
 		return bare;

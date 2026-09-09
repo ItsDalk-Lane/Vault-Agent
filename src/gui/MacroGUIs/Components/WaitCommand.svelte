@@ -3,6 +3,7 @@
     import DragHandle from "../../components/DragHandle.svelte";
     import { onMount, untrack } from "svelte";
     import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
+    import { t } from "../../../i18n";
 
     let {
         command,
@@ -48,7 +49,7 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel">{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" min="0" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds">ms</span>
+    <span class="quickAddCommandLabel">{command.name} {t("macro.wait.for")} <input bind:this={inputEl} oninput={onTimeInput} type="number" min="0" placeholder="   " value={time} class="dotInput" aria-label={t("macro.wait.durationAria")}>ms</span>
     <div class="quickAddCommandControls">
         <IconButton
             iconId="trash-2"

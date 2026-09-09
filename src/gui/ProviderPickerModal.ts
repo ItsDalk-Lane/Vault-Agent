@@ -30,7 +30,7 @@ export class ProviderPickerModal extends Modal {
 
   private addHeader(container: HTMLElement) {
     container.createEl("h2", {
-      text: "Add a provider",
+      text: t("ai.addProviderTitle"),
       cls: "qa-modal-title",
     });
   }
@@ -54,7 +54,7 @@ export class ProviderPickerModal extends Modal {
       });
 
       if (preset.doc) {
-        const doc = card.createEl("a", { text: "Docs", href: preset.doc });
+        const doc = card.createEl("a", { text: t("ai.docsLink"), href: preset.doc });
         doc.target = "_blank";
         doc.rel = "noopener noreferrer";
       }
@@ -158,7 +158,7 @@ export class ProviderPickerModal extends Modal {
         b.setButtonText(t("ai.customProvider.addButton")).onClick(() => {
           const provider: AIProvider = { id: uniqueProviderId("custom", this.providers), name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
-          new Notice("Custom provider added. Click Edit to configure.");
+          new Notice(t("ai.customProviderAdded"));
           this.close();
         });
       });

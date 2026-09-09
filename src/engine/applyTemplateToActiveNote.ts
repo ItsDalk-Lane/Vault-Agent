@@ -18,6 +18,7 @@ import {
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { t } from "../i18n";
 import {
 	TemplateInsertEngine,
 	templateInsertModes,
@@ -121,7 +122,7 @@ export async function applyTemplateToNote(
 ): Promise<TFile | null> {
 	const file = params.file ?? app.workspace.getActiveFile();
 	if (!file || file.extension !== "md") {
-		new Notice("QuickAdd: No active markdown note to apply a template to.");
+		new Notice(t("command.applyTemplateNoActiveNote"));
 		return null;
 	}
 
@@ -215,9 +216,7 @@ export async function applyTemplateToNote(
 		// check above only catches a literal canvas/base extension.
 		const resolvedTemplatePath = await engine.getResolvedTemplatePath();
 		if (!isMarkdownTemplatePath(resolvedTemplatePath)) {
-			new Notice(
-				"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
-			);
+			new Notice(t("command.applyTemplateNotMarkdown"));
 			return null;
 		}
 
@@ -270,9 +269,7 @@ async function pickTemplate(
 	);
 
 	if (items.length === 0) {
-		new Notice(
-			"QuickAdd: No Template choices or template files found. Create a Template choice or set the template folder path in settings.",
-		);
+		new Notice(t("command.noTemplateChoices"));
 		return null;
 	}
 
@@ -350,6 +347,6 @@ async function maybeReconcileNoteLocation(
 		await app.fileManager.renameFile(file, targetPath);
 	} catch (error) {
 		if (isCancellationError(error) || isAbortError(error)) return;
-		log.logWarning(`Could not move note to match choice settings: ${error}`);
+		log.logWarning(t("errors.moveNoteFailed", { error: String(error) }));
 	}
 }

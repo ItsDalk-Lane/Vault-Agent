@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 export interface ScriptExtractionResult {
 	/**
 	 * The runnable JavaScript body, or `null` when the note has no JS fence.
@@ -21,10 +23,6 @@ export interface ScriptExtractionResult {
 // then the info string. Spaces only — tabs/blockquote(`>`)/callout prefixes are
 // intentionally NOT treated as fences (documented as out of scope for v1).
 const FENCE_LINE = /^ {0,3}(`{3,})(.*)$/;
-
-const NO_FENCE_ERROR =
-	"No ```js (or ```javascript) code block found in the note.";
-const EMPTY_FENCE_ERROR = "The ```js code block is empty.";
 
 /**
  * Extract the script body from a markdown note for use as a QuickAdd user script.
@@ -89,12 +87,12 @@ export function extractScriptFromMarkdown(
 		return finish(content.slice(bodyStartOffset), linesBeforeBody);
 	}
 
-	return { code: null, error: NO_FENCE_ERROR };
+	return { code: null, error: t("errors.noJsCodeBlock") };
 }
 
 function finish(body: string, linesBeforeBody: number): ScriptExtractionResult {
 	if (body.trim().length === 0) {
-		return { code: "", error: EMPTY_FENCE_ERROR };
+		return { code: "", error: t("errors.emptyJsCodeBlock") };
 	}
 	return { code: "\n".repeat(linesBeforeBody) + body };
 }

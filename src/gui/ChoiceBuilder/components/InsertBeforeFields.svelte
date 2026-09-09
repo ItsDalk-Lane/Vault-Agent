@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { App } from "obsidian";
 import type QuickAdd from "../../../main";
+import { t } from "../../../i18n";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -47,23 +48,23 @@ const suggesters = [
 ];
 
 const createLocationOptions = [
-	{ value: CREATE_IF_NOT_FOUND_TOP, label: "Top" },
-	{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: "Bottom" },
-	{ value: CREATE_IF_NOT_FOUND_CURSOR, label: "Cursor" },
+	{ value: CREATE_IF_NOT_FOUND_TOP, label: t("choiceBuilder.insertBefore.locationTop") },
+	{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: t("choiceBuilder.insertBefore.locationBottom") },
+	{ value: CREATE_IF_NOT_FOUND_CURSOR, label: t("choiceBuilder.insertBefore.locationCursor") },
 ];
 </script>
 
 <LabeledField
-	name="Insert before"
-	desc="Insert capture before specified text. Accepts format syntax."
+	name={t("choiceBuilder.insertBefore.label")}
+	desc={t("choiceBuilder.insertBefore.labelDesc")}
 >
 	{#snippet children(id)}
 		<ValidatedInput
 			{id}
 			bind:value={insertBefore.before}
-			placeholder="Insert before"
+			placeholder={t("choiceBuilder.placeholder.insertBefore")}
 			required
-			requiredMessage="Insert before text is required"
+			requiredMessage={t("choiceBuilder.insertBefore.required")}
 			makeSuggesters={suggesters}
 		/>
 		<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
@@ -71,8 +72,8 @@ const createLocationOptions = [
 </LabeledField>
 
 <SettingItem
-	name="Create line if not found"
-	desc="Creates the 'insert before' line if it is not found."
+	name={t("choiceBuilder.insertBefore.createLine")}
+	desc={t("choiceBuilder.insertBefore.createLineDesc")}
 >
 	{#snippet control()}
 		<Toggle bind:checked={insertBefore.createIfNotFound} />

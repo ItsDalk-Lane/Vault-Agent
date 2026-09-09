@@ -1,6 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log } from "src/logger/logManager";
+import { t } from "../../i18n";
 import {
 	createRenderFallbackWarner,
 	installSkipAffordance,
@@ -31,7 +32,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private items: T[];
 	private warnedOnEmptyDisplay = false;
 	private warnRenderItemFailure = createRenderFallbackWarner(
-		"Custom renderItem threw an error; falling back to default rendering",
+		t("errors.customRenderItemFailed"),
 	);
 
 
@@ -175,9 +176,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 
 		if (hasEmptyDisplay) {
 			this.warnedOnEmptyDisplay = true;
-			log.logWarning(
-				"QuickAdd suggester received empty display values. Check your displayItems mapping.",
-			);
+			log.logWarning(t("errors.suggesterEmptyDisplayValues"));
 		}
 	}
 }

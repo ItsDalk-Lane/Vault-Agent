@@ -1,7 +1,11 @@
 import { FuzzySuggestModal, setIcon, type App, type FuzzyMatch } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { promptCancelled } from "src/errors/UserCancelError";
-import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import {
+	existingNoteActionVerb,
+	getExistingNoteAction,
+} from "src/template/fileExistsPolicy";
+import { t } from "../i18n";
 import {
 	createTemplateNoteSelection,
 	decodeTemplateNoteSelection,
@@ -22,18 +26,21 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 	private settled = false;
 	private readonly rows: DiscoveryRow[];
 	private readonly action: string;
+	private readonly isOpenAction: boolean;
 
 	constructor(app: App, choice: ITemplateChoice, candidates: DiscoveryCandidate[]) {
 		super(app);
 		this.rows = candidates.map(candidate => ({ kind: "candidate", candidate }));
 		this.action = existingNoteActionVerb(choice.existingNoteAction);
+		// Compare the action ID, never the localized verb string.
+		this.isOpenAction = getExistingNoteAction(choice.existingNoteAction) === "open";
 		this.promise = new Promise<DiscoveryRow>((resolve, reject) => {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		}).then(row => row.kind === "candidate"
 			? decodeTemplateNoteSelection(row.candidate.item)
 			: createTemplateNoteSelection(row.title));
-		this.setPlaceholder(`Search notes or create ${choice.name}`);
+		this.setPlaceholder(t("templateDiscovery.searchOrCreate", { name: choice.name }));
 		this.open();
 	}
 
@@ -59,17 +66,17 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 		if (row.kind === "candidate" && row.candidate.renderPath) {
 			const candidate = row.candidate;
 			renderNotePathSuggestion(el, row.candidate.renderPath);
-			if (this.action !== "Open") el.querySelector(".suggestion-title")?.prepend(`${this.action}: `);
-			if (candidate.renderAlias) el.querySelector(".suggestion-content")?.createDiv({ cls: "suggestion-note", text: `Alias: ${candidate.renderAlias}` });
+			if (!this.isOpenAction) el.querySelector(".suggestion-title")?.prepend(`${this.action}: `);
+			if (candidate.renderAlias) el.querySelector(".suggestion-content")?.createDiv({ cls: "suggestion-note", text: t("templateDiscovery.aliasLabel", { alias: candidate.renderAlias }) });
 			return;
 		}
 		el.addClass("mod-complex");
 		const content = el.createDiv({ cls: "suggestion-content" });
-		content.createDiv({ cls: "suggestion-title", text: row.kind === "create" ? `Create new note: ${row.title}` : row.candidate.unresolvedTitle ?? row.candidate.title });
+		content.createDiv({ cls: "suggestion-title", text: row.kind === "create" ? t("templateDiscovery.createNewNote", { title: row.title }) : row.candidate.unresolvedTitle ?? row.candidate.title });
 		if (row.kind === "create") {
 			setIcon(el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" }), "file-plus");
 		} else {
-			content.createDiv({ cls: "suggestion-note", text: "Unresolved link" });
+			content.createDiv({ cls: "suggestion-note", text: t("templateDiscovery.unresolvedLink") });
 		}
 	}
 

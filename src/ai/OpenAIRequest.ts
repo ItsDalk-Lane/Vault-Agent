@@ -9,6 +9,7 @@ import {
 	stripSamplingParams,
 } from "./samplingParams";
 import { settingsStore } from "src/settingsStore";
+import { t } from "src/i18n";
 import {
 	beginAIRequestLogEntry,
 	finishAIRequestLogEntry,
@@ -479,13 +480,12 @@ export function OpenAIRequest(
 					`[AI Request ${requestLogId}] ${modelProvider.name} rejected ${labels}; retrying without sampling parameters.`
 				);
 				new Notice(
-					`${model.name} doesn't accept the ${labels} setting${
-						sentKeys.length > 1 ? "s" : ""
-					}, so QuickAdd retried without ${
-						sentKeys.length > 1 ? "them" : "it"
-					}. You can remove ${
-						sentKeys.length > 1 ? "them" : "it"
-					} from this command's advanced settings.`
+					t("ai.samplingParamsRejected", {
+						model: model.name,
+						labels,
+						labelSuffix: sentKeys.length > 1 ? "s" : "",
+						pronoun: sentKeys.length > 1 ? "them" : "it",
+					}),
 				);
 				response = await attempt(stripSamplingParams(initialParams));
 			}
@@ -679,11 +679,12 @@ export async function chatRequest(
 				`[AI Chat ${requestLogId}] ${modelProvider.name} rejected ${labels}; retrying without sampling parameters.`,
 			);
 			new Notice(
-				`${model.name} doesn't accept the ${labels} setting${
-					samplingKeysSent.length > 1 ? "s" : ""
-				}, so QuickAdd retried without ${
-					samplingKeysSent.length > 1 ? "them" : "it"
-				}.`,
+				t("ai.samplingParamsRejectedChat", {
+					model: model.name,
+					labels,
+					labelSuffix: samplingKeysSent.length > 1 ? "s" : "",
+					pronoun: samplingKeysSent.length > 1 ? "them" : "it",
+				}),
 			);
 			const strippedBody = buildChatBody(
 				kind,

@@ -3,6 +3,7 @@
 	import { Notice, Platform, prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
+	import { t } from "../../i18n";
 	import { tick, untrack } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
@@ -496,7 +497,7 @@
 		     add controls are not rendered here, so there's no duplicate). -->
 		<div class="choiceEmptyState">
 			<ObsidianIcon iconId="folder-plus" size={28} />
-			<div class="choiceEmptyTitle">No choices yet</div>
+			<div class="choiceEmptyTitle">{t("choiceView.empty")}</div>
 			<p class="choiceEmptyBody">
 				A choice is an action QuickAdd can run: create a note, capture
 				text, or run a macro. Group them with folders.
@@ -506,7 +507,7 @@
 					class="quickadd-docs-link"
 					href={DOCS_URLS.gettingStarted}
 					target="_blank"
-					rel="noopener noreferrer">Learn more</a
+					rel="noopener noreferrer">{t("choiceView.emptyLink")}</a
 				>
 			</p>
 			<div class="choiceEmptyActions">
@@ -521,7 +522,7 @@
 			<div class="search-input-container choiceFilterInput">
 				<input
 					type="search"
-					placeholder="Filter choices..."
+					placeholder={t("choiceView.filterPlaceholder")}
 					bind:value={filterQuery}
 					autocapitalize="off"
 					autocorrect="off"
@@ -537,7 +538,7 @@
 				{#if filterQuery}
 					<button
 						class="search-input-clear-button qaFilterClearButton"
-						aria-label="Clear filter"
+						aria-label={t("choiceView.clearFilterAria")}
 						onclick={() => (filterQuery = "")}
 					></button>
 				{/if}
@@ -555,7 +556,7 @@
 			{@const filtered = filterChoices(choices, filterQuery)}
 			{#if filtered.length === 0}
 				<div class="choiceFilterEmpty">
-					No choices match your filter.
+					{t("choiceView.noMatch")}
 				</div>
 			{:else}
 				<ChoiceList
@@ -576,8 +577,8 @@
 				<button
 					type="button"
 					class="qaAIAssistantBtn clickable-icon"
-					aria-label="Configure AI Assistant"
-					title="Configure AI Assistant"
+					aria-label={t("choiceView.configureAi")}
+					title={t("choiceView.configureAi")}
 					onclick={openAISettings}
 				>
 					<ObsidianIcon iconId="sparkles" size={16} />

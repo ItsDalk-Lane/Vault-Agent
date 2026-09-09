@@ -1,24 +1,28 @@
 <script lang="ts">
 	import CapabilityTag from "./CapabilityTag.svelte";
 	import type { PreviewCommand } from "../../services/packagePreview";
+	import { t } from "../../i18n";
 
 	let { commands }: { commands: PreviewCommand[] } = $props();
 
-	const HUMAN_COMMAND_TYPE: Record<string, string> = {
-		UserScript: "User script",
-		Conditional: "Conditional",
-		NestedChoice: "Nested choice",
-		Obsidian: "Obsidian command",
-		Choice: "Choice",
-		Wait: "Wait",
-		EditorCommand: "Editor command",
-		AIAssistant: "AI assistant",
-		OpenFile: "Open file",
-	};
-
+	// Resolved at call time so the label follows the locale active when the
+	// modal opens — a module-level record would freeze the import-time locale.
 	function humanCommandType(type: string): string {
-		return HUMAN_COMMAND_TYPE[type] ?? type;
+		const mapped = COMMAND_TYPE_KEY[type];
+		return mapped ? t(`packageManager.commandType.${mapped}`) : type;
 	}
+
+	const COMMAND_TYPE_KEY: Record<string, string> = {
+		UserScript: "userScript",
+		Conditional: "conditional",
+		NestedChoice: "nestedChoice",
+		Obsidian: "obsidian",
+		Choice: "choice",
+		Wait: "wait",
+		EditorCommand: "editorCommand",
+		AIAssistant: "aiAssistant",
+		OpenFile: "openFile",
+	};
 </script>
 
 <ul class="macroCommands">

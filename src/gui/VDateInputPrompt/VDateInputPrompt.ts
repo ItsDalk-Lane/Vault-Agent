@@ -9,6 +9,7 @@ import {
 	formatDateAliasInline,
 	getOrderedDateAliases,
 } from "../../utils/dateAliases";
+import { t } from "../../i18n";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	protected supportsPeek(): boolean {
@@ -143,7 +144,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		const previewContainer = container.createDiv("vdate-preview-container");
 		
 		previewContainer.createEl("div", {
-			text: "Preview:",
+			text: t("datePicker.previewLabel"),
 			cls: "vdate-preview-label"
 		});
 		

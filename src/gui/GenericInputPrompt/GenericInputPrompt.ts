@@ -143,7 +143,7 @@ export default class GenericInputPrompt extends Modal {
 
 		if (this.isOptionalPrompt) {
 			const hintEl = this.contentEl.createDiv({
-				text: "Optional — leave empty, press Skip, or ctrl/cmd+shift+↵.",
+				text: t("input.optionalHint"),
 				cls: "setting-item-description",
 			});
 			hintEl.setCssStyles({ marginBottom: "0.75rem" });

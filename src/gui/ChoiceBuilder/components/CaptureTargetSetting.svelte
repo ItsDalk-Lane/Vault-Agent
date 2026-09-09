@@ -10,6 +10,7 @@ import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import LabeledField from "./LabeledField.svelte";
+import { t } from "../../../i18n";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 import FormatTokenHint from "./FormatTokenHint.svelte";
 import CanvasNodePicker from "./CanvasNodePicker.svelte";
@@ -112,7 +113,7 @@ function validateCaptureTo(value: string) {
 		if (!value.trim()) {
 			return {
 				valid: true,
-				message: "Leave empty to pick the note each time this choice runs.",
+				message: t("choiceBuilder.captureTarget.emptyTargetHint"),
 			};
 		}
 		return true;
@@ -127,8 +128,8 @@ function validateCaptureTo(value: string) {
 </script>
 
 <SettingItem
-	name="Capture to active file"
-	desc="Capture into whichever note is open when the choice runs, instead of a fixed target."
+	name={t("choiceBuilder.captureTarget.toActiveFile")}
+	desc={t("choiceBuilder.captureTarget.toActiveFileDesc")}
 >
 	{#snippet control()}
 		<Toggle
@@ -140,8 +141,8 @@ function validateCaptureTo(value: string) {
 
 {#if !choice.captureToActiveFile}
 	<LabeledField
-		name="Capture to"
-		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
+		name={t("choiceBuilder.captureTarget.captureTo")}
+		desc={t("choiceBuilder.captureTarget.captureToDesc")}
 	>
 		{#snippet children(id)}
 			<ValidatedInput
@@ -170,23 +171,23 @@ function validateCaptureTo(value: string) {
 
 	{#if isCanvasTarget}
 		<SettingItem
-			name="Target canvas node"
-			desc="Choose a card from the canvas below, or paste an exact node id."
+			name={t("choiceBuilder.captureTarget.targetCanvasNode")}
+			desc={t("choiceBuilder.captureTarget.targetCanvasNodeDesc")}
 		>
 			{#snippet control()}
 				<ValidatedInput
 					value={choice.captureToCanvasNodeId ?? ""}
-					placeholder="Canvas node id"
-					ariaLabel="Canvas node id"
+					placeholder={t("choiceBuilder.placeholder.canvasNodeId")}
+					ariaLabel={t("choiceBuilder.placeholder.canvasNodeId")}
 					required
-					requiredMessage="A canvas capture target requires a node id — pick a card below or paste an exact node id."
+					requiredMessage={t("choiceBuilder.captureTarget.canvasNodeIdRequired")}
 					onChange={(value) => (choice.captureToCanvasNodeId = value.trim())}
 				/>
 			{/snippet}
 		</SettingItem>
 
 		<div class="qa-canvas-node-helper">
-			Tip: open this canvas and select one card to grab its id instantly.
+			{t("choiceBuilder.captureTarget.canvasTip")}
 		</div>
 
 		{#key choice.captureTo}

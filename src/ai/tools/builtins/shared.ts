@@ -1,4 +1,5 @@
 import { log } from "src/logger/logManager";
+import { t } from "src/i18n";
 import type { QATool, ToolSet } from "../aiToolTypes";
 
 export type ToolSetMap = ToolSet;
@@ -59,8 +60,10 @@ function warnUnknownNames(
 	const unknown = names.filter((name) => !known.has(name));
 	if (unknown.length === 0) return;
 	log.logWarning(
-		`AI tools: ${option} listed unknown tool name(s) ${unknown
-			.map((n) => `"${n}"`)
-			.join(", ")}. Valid names: ${[...known].join(", ")}.`,
+		t("errors.unknownToolNames", {
+			option,
+			names: unknown.map((n) => `"${n}"`).join(", "),
+			validNames: [...known].join(", "),
+		}),
 	);
 }

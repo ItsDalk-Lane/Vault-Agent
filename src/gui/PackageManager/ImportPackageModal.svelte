@@ -43,6 +43,7 @@
 		ChoiceDecisions,
 		ExistsProbe,
 	} from "./importDecisions";
+	import { t } from "../../i18n";
 
 	let { app, close }: { app: App; close: () => void } = $props();
 
@@ -120,27 +121,43 @@
 		if (!s) return "";
 		const parts: string[] = [];
 		if (s.added)
-			parts.push(`${s.added} choice${s.added === 1 ? "" : "s"} added`);
-		if (s.overwritten) parts.push(`${s.overwritten} overwritten`);
+			parts.push(
+				t(
+					s.added === 1
+						? "packageManager.summary.choicesAdded.one"
+						: "packageManager.summary.choicesAdded.other",
+					{ count: s.added },
+				),
+			);
+		if (s.overwritten)
+			parts.push(
+				t("packageManager.summary.overwritten", { count: s.overwritten }),
+			);
 		if (s.assetsWritten)
 			parts.push(
-				`${s.assetsWritten} file${s.assetsWritten === 1 ? "" : "s"} written`,
+				t(
+					s.assetsWritten === 1
+						? "packageManager.summary.filesWritten.one"
+						: "packageManager.summary.filesWritten.other",
+					{ count: s.assetsWritten },
+				),
 			);
 		const skipped = s.skipped + s.assetsSkipped;
-		if (skipped) parts.push(`${skipped} skipped`);
+		if (skipped)
+			parts.push(t("packageManager.summary.skipped", { count: skipped }));
 		return parts.length
-			? `Imported: ${parts.join(", ")}.`
-			: "Nothing was imported.";
+			? t("packageManager.summary.prefix", { parts: parts.join(", ") })
+			: t("packageManager.summary.nothing");
 	});
 
 	const ackLabel = $derived(
 		criticalScriptCount > 0
 			? hasUnbundledScript
-				? "I have reviewed each bundled script above and trust the source, including scripts that are not included and cannot be shown."
-				: "I have reviewed each script above and trust the source."
+				? t("packageManager.ackReviewedWithUnbundled")
+				: t("packageManager.ackReviewed")
 			: hasUnbundledScript
-				? "This package runs scripts that are not included and cannot be reviewed. I trust the source."
-				: "I understand this package can run code, and I trust the source.",
+				? t("packageManager.ackUnbundled")
+				: t("packageManager.ackGeneric"),
 	);
 
 	function markReviewed(path: string) {
@@ -328,18 +345,18 @@
 	}
 
 	function formatPathHint(pathHint: string[]): string {
-		if (!pathHint || pathHint.length === 0) return "Root";
-		return pathHint.slice(0, -1).join(" › ") || "Root";
+		if (!pathHint || pathHint.length === 0) return t("packageManager.rootLocation");
+		return pathHint.slice(0, -1).join(" › ") || t("packageManager.rootLocation");
 	}
 
 	async function handleImport() {
 		if (hasImported) {
-			new Notice("This package has already been imported.");
+			new Notice(t("packageManager.noticeAlreadyImported"));
 			return;
 		}
 
 		if (!loadedPackage || !analysis) {
-			new Notice("Load a package before importing.");
+			new Notice(t("packageManager.noticeLoadFirst"));
 			return;
 		}
 
@@ -376,18 +393,25 @@
 			};
 			hasImported = true;
 
+			const importedCount =
+				result.addedChoiceIds.length + result.overwrittenChoiceIds.length;
 			new Notice(
-				`Imported ${result.addedChoiceIds.length + result.overwrittenChoiceIds.length} choice${
-					result.addedChoiceIds.length +
-						result.overwrittenChoiceIds.length ===
-					1
-						? ""
-						: "s"
-				} successfully.`,
+				t("packageManager.noticeImported", {
+					choices: t(
+						importedCount === 1
+							? "packageManager.choiceCount.one"
+							: "packageManager.choiceCount.other",
+						{ count: importedCount },
+					),
+				}),
 			);
 		} catch (error) {
 			console.error(error);
-			new Notice(`Import failed: ${(error as Error)?.message ?? error}`);
+			new Notice(
+				t("packageManager.noticeImportFailed", {
+					error: (error as Error)?.message ?? String(error),
+				}),
+			);
 		} finally {
 			isImporting = false;
 		}
@@ -396,53 +420,57 @@
 
 <div class="importPackageModal">
 	<header>
-		<h2>Import QuickAdd package</h2>
-		<p>Review what this package adds and runs before importing.</p>
+		<h2>{t("packageManager.importTitle")}</h2>
+		<p>{t("packageManager.importDesc")}</p>
 	</header>
 
 	<section class="pasteSection">
 		<label>
-			<span>Paste package JSON</span>
+			<span>{t("packageManager.pasteJson")}</span>
 			<textarea
 				bind:value={pastedContent}
 				oninput={handleContentInput}
-				placeholder="Paste the contents of a .quickadd.json package here"
+				placeholder={t("packageManager.pastePlaceholder")}
 				rows="8"
 			></textarea>
 		</label>
 		{#if loadError}
 			<div class="errorMessage">{loadError}</div>
 		{:else if isAnalyzing}
-			<div class="info">Analyzing package…</div>
+			<div class="info">{t("packageManager.analyzing")}</div>
 		{/if}
 	</section>
 
 	{#if loadedPackage && analysis}
 		<section class="packageMeta">
 			<span
-				><span class="metaLabel">Version</span>
+				><span class="metaLabel">{t("packageManager.metaVersion")}</span>
 				{loadedPackage.pkg.quickAddVersion}</span
 			>
 			<span class="metaSep" aria-hidden="true">·</span>
 			<span
-				><span class="metaLabel">Created</span>
+				><span class="metaLabel">{t("packageManager.metaCreated")}</span>
 				{new Date(
 					loadedPackage.pkg.createdAt,
 				).toLocaleDateString()}</span
 			>
 			<span class="metaSep" aria-hidden="true">·</span>
 			<span
-				>{analysis.choiceConflicts.length} choice{analysis
-					.choiceConflicts.length === 1
-					? ""
-					: "s"}</span
+				>{t(
+					analysis.choiceConflicts.length === 1
+						? "packageManager.choiceCount.one"
+						: "packageManager.choiceCount.other",
+					{ count: analysis.choiceConflicts.length },
+				)}</span
 			>
 			<span class="metaSep" aria-hidden="true">·</span>
 			<span
-				>{loadedPackage.pkg.assets.length} file{loadedPackage.pkg.assets
-					.length === 1
-					? ""
-					: "s"}</span
+				>{t(
+					loadedPackage.pkg.assets.length === 1
+						? "packageManager.fileCount.one"
+						: "packageManager.fileCount.other",
+					{ count: loadedPackage.pkg.assets.length },
+				)}</span
 			>
 		</section>
 
@@ -451,9 +479,9 @@
 		{/if}
 
 		<section class="choicesSection">
-			<h3>Choices</h3>
+			<h3>{t("packageManager.choicesHeading")}</h3>
 			{#if analysis.choiceConflicts.length === 0}
-				<p>No choices found in this package.</p>
+				<p>{t("packageManager.noChoices")}</p>
 			{:else}
 				<table>
 					<colgroup>
@@ -463,9 +491,9 @@
 					</colgroup>
 					<thead>
 						<tr>
-							<th>Name</th>
-							<th>Location</th>
-							<th>Action</th>
+							<th>{t("packageManager.colName")}</th>
+							<th>{t("packageManager.colLocation")}</th>
+							<th>{t("packageManager.colAction")}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -480,13 +508,13 @@
 							)}
 							{@const hasMacro = (pc?.commands?.length ?? 0) > 0}
 							<tr>
-								<td data-label="Name">
+								<td data-label={t("packageManager.colName")}>
 									<div class="choiceName">
 										{conflict.name}
 									</div>
 									{#if conflict.exists}
 										<div class="choiceExists">
-											already in vault
+											{t("packageManager.alreadyInVault")}
 										</div>
 									{/if}
 									{#if hasMacro}
@@ -502,15 +530,15 @@
 											{expandedMacros.has(
 												conflict.choiceId,
 											)
-												? "Hide macro"
-												: "Show macro"}
+												? t("packageManager.hideMacro")
+												: t("packageManager.showMacro")}
 										</button>
 									{/if}
 								</td>
-								<td data-label="Location"
+								<td data-col="location" data-label={t("packageManager.colLocation")}
 									>{formatPathHint(conflict.pathHint)}</td
 								>
-								<td data-label="Action">
+								<td data-col="action" data-label={t("packageManager.colAction")}>
 									<select
 										class="dropdown"
 										value={effectiveMode}
@@ -520,16 +548,16 @@
 												event,
 											)}
 									>
-										<option value="import">Import</option>
+										<option value="import">{t("packageManager.importAction")}</option>
 										{#if conflict.exists}
 											<option value="overwrite"
-												>Overwrite</option
+												>{t("packageManager.overwriteAction")}</option
 											>
 										{/if}
 										<option value="duplicate"
-											>Duplicate</option
+											>{t("packageManager.duplicateAction")}</option
 										>
-										<option value="skip">Skip</option>
+										<option value="skip">{t("packageManager.skipAction")}</option>
 									</select>
 								</td>
 							</tr>
@@ -550,13 +578,13 @@
 
 		{#if loadedPackage}
 			<section class="filesSection">
-				<h3>Files</h3>
+				<h3>{t("packageManager.filesHeading")}</h3>
 				{#if fileRows.length === 0}
-					<p>No files bundled with this package.</p>
+					<p>{t("packageManager.noFiles")}</p>
 				{:else}
 					{#if addedFileRows.length > 0}
 						<h4 class="filesGroupHeading">
-							Added ({addedFileRows.length})
+							{t("packageManager.filesAdded", { count: addedFileRows.length })}
 						</h4>
 						<div class="fileRows">
 							{#each addedFileRows as row (row.conflict.originalPath)}
@@ -590,7 +618,7 @@
 					{/if}
 					{#if overwriteFileRows.length > 0}
 						<h4 class="filesGroupHeading overwrite">
-							Will overwrite ({overwriteFileRows.length})
+							{t("packageManager.filesWillOverwrite", { count: overwriteFileRows.length })}
 						</h4>
 						<div class="fileRows">
 							{#each overwriteFileRows as row (row.conflict.originalPath)}
@@ -629,14 +657,14 @@
 				<section class="warningsBand">
 					{#if preview.missingReferences.length > 0}
 						<div class="warnItem">
-							<h4>Missing files</h4>
+							<h4>{t("packageManager.missingFiles")}</h4>
 							<ul>
 								{#each preview.missingReferences as ref (ref.path)}
 									<li class:script={ref.asScript}>
 										<code>{ref.path}</code>:
 										{ref.asScript
-											? "not bundled, so it runs from whatever file exists at that path after import"
-											: "not bundled and not in your vault"}
+											? t("packageManager.missingRefScript")
+											: t("packageManager.missingRefFile")}
 										<span class="warnLoc"
 											>{ref.breadcrumb}</span
 										>
@@ -647,12 +675,11 @@
 					{/if}
 					{#if preview.orphanAssets.length > 0}
 						<div class="warnItem">
-							<h4>Unreferenced files</h4>
+							<h4>{t("packageManager.unreferencedFiles")}</h4>
 							<ul>
 								{#each preview.orphanAssets as path (path)}
 									<li>
-										<code>{path}</code>: bundled but not
-										used by any choice
+										<code>{path}</code>: {t("packageManager.orphanAssetDesc")}
 									</li>
 								{/each}
 							</ul>
@@ -690,8 +717,14 @@
 			</label>
 			{#if criticalScriptCount > 0 && !fullyReviewed}
 				<p id="qa-import-ack-hint" class="ackGate-hint">
-					Open “View contents” on each of the {criticalScriptCount} executable
-					script{criticalScriptCount === 1 ? "" : "s"} above to enable this.
+					{t("packageManager.ackHint", {
+						scripts: t(
+							criticalScriptCount === 1
+								? "packageManager.scriptCount.one"
+								: "packageManager.scriptCount.other",
+							{ count: criticalScriptCount },
+						),
+					})}
 				</p>
 			{/if}
 		</section>
@@ -704,7 +737,7 @@
 			class="secondary"
 			disabled={isImporting}
 		>
-			Cancel
+			{t("common.cancel")}
 		</button>
 		<button
 			type="button"
@@ -712,15 +745,15 @@
 			class="primary"
 			disabled={isImporting || (!hasImported && !canImport)}
 			title={!hasImported && requiresAck && fullyReviewed && !acknowledged
-				? "Confirm the acknowledgement above to continue"
+				? t("packageManager.ackConfirmTooltip")
 				: undefined}
 		>
 			{#if isImporting}
-				Importing…
+				{t("packageManager.importing")}
 			{:else if hasImported}
-				Close
+				{t("common.close")}
 			{:else}
-				Import package
+				{t("packageManager.importPackageButton")}
 			{/if}
 		</button>
 	</section>
@@ -963,21 +996,24 @@
 			padding: 0.15rem 0;
 		}
 
-		.choicesSection td[data-label="Location"]::before,
-		.choicesSection td[data-label="Action"]::before {
+		/* data-col is the STABLE selector key; data-label is localized, so the
+		   mobile ::before text (attr(data-label)) follows the locale while these
+		   selectors keep matching in every language. */
+		.choicesSection td[data-col="location"]::before,
+		.choicesSection td[data-col="action"]::before {
 			content: attr(data-label) ": ";
 			font-weight: 600;
 			color: var(--text-muted);
 		}
 
-		.choicesSection td[data-label="Action"] {
+		.choicesSection td[data-col="action"] {
 			display: flex;
 			align-items: center;
 			gap: 0.4rem;
 			margin-top: 0.25rem;
 		}
 
-		.choicesSection td[data-label="Action"] select {
+		.choicesSection td[data-col="action"] select {
 			flex: 1;
 		}
 

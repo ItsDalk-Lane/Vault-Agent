@@ -1,6 +1,7 @@
 import { MarkdownView, type App, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
+import { t } from "../i18n";
 
 export type TemplaterPluginLike = {
 	settings?: {
@@ -139,7 +140,7 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		}
 	} catch (err) {
 		// Non-fatal – we'll fall back to immediate processing.
-		log.logWarning(`waitForFileSettle: fallback due to adapter/stat failure – ${(err as Error).message}`);
+		log.logWarning(t("templater.settleAdapterFallback", { error: (err as Error).message }));
 	}
 }
 
@@ -246,9 +247,7 @@ async function maybeTeardownTemplaterAfterSuppression(
 			app.workspace.trigger("templater:all-templates-executed");
 			await plugin.templater?.functions_generator?.teardown?.();
 		} catch (err) {
-			log.logWarning(
-				`withTemplaterFileCreationSuppressed: teardown failed – ${(err as Error).message}`,
-			);
+			log.logWarning(t("templater.teardownFailed", { error: (err as Error).message }));
 		}
 	})();
 
@@ -373,9 +372,7 @@ export async function waitForFileToStopChanging(
 			pollIntervalMs = Math.min(Math.floor(pollIntervalMs * 1.5), 200);
 		}
 	} catch (err) {
-		log.logWarning(
-			`waitForFileToStopChanging: fallback due to adapter/stat failure – ${(err as Error).message}`,
-		);
+		log.logWarning(t("templater.stopChangingFallback", { error: (err as Error).message }));
 	}
 }
 
@@ -457,9 +454,7 @@ export async function overwriteTemplaterOnce(
 			try {
 				await app.vault.modify(file, original);
 			} catch (rollbackErr) {
-				log.logWarning(
-					`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`,
-				);
+				log.logWarning(t("templater.rollbackFailed", { path: file.path, error: (rollbackErr as Error).message }));
 			}
 			reportError(
 				err as Error,
@@ -521,9 +516,7 @@ export async function jumpToNextTemplaterCursorIfPossible(
 				getActiveEditorSnapshot(app, file),
 			);
 		} catch (err) {
-			log.logWarning(
-				`jumpToNextTemplaterCursorIfPossible: API failed – ${(err as Error).message}`,
-			);
+			log.logWarning(t("templater.cursorJumpApiFailed", { error: (err as Error).message }));
 		}
 	}
 

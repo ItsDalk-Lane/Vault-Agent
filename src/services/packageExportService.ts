@@ -16,6 +16,7 @@ import {
 } from "../utils/packageTraversal";
 import { log } from "../logger/logManager";
 import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { t } from "../i18n";
 import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { isChoiceLike } from "../utils/choiceUtils";
@@ -162,7 +163,7 @@ async function encodeAssets(
 			const exists = await app.vault.adapter.exists(path);
 			if (!exists) {
 				missingAssets.push({ path, kind });
-				log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
+				log.logWarning(t("update.exportSkippedMissing", { kind, path }));
 				continue;
 			}
 
@@ -177,9 +178,11 @@ async function encodeAssets(
 		} catch (error) {
 			missingAssets.push({ path, kind });
 			log.logWarning(
-				`QuickAdd export failed to read ${kind} '${path}': ${
-					(error as Error)?.message ?? error
-				}`,
+				t("update.exportReadFailed", {
+					kind,
+					path,
+					error: (error as Error)?.message ?? String(error),
+				}),
 			);
 		}
 	}
@@ -208,9 +211,10 @@ function buildSecretOptionNamesByPath(
 			);
 		} catch (error) {
 			log.logWarning(
-				`QuickAdd export could not inspect user-script settings '${asset.originalPath}': ${
-					(error as Error)?.message ?? error
-				}`,
+				t("update.exportUserScriptInspectFailed", {
+					path: asset.originalPath,
+					error: (error as Error)?.message ?? String(error),
+				}),
 			);
 		}
 	}
@@ -262,8 +266,8 @@ async function defaultConfirmOverwrite(
 ): Promise<boolean> {
 	return GenericYesNoPrompt.Prompt(
 		app,
-		"Overwrite existing file?",
-		`A file already exists at '${normalizedPath}'. Saving the package will overwrite it. Continue?`,
+		t("packageManager.exportConfirmOverwriteTitle"),
+		t("packageManager.exportConfirmOverwriteBody", { path: normalizedPath }),
 	);
 }
 
@@ -275,7 +279,7 @@ export async function writePackageToVault(
 ): Promise<WritePackageResult> {
 	const normalizedPath = normalizePath(outputPath.trim());
 	if (!normalizedPath) {
-		throw new Error("Output path cannot be empty.");
+		throw new Error(t("packageManager.exportPathEmpty"));
 	}
 
 	const overwriting = await app.vault.adapter.exists(normalizedPath);

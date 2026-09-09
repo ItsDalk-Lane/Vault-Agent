@@ -1,6 +1,7 @@
 import { EditorCommandType } from "./EditorCommandType";
 import type { App } from "obsidian";
 import { log } from "../../../logger/logManager";
+import { t } from "../../../i18n";
 import { EditorCommand } from "./EditorCommand";
 
 export class PasteCommand extends EditorCommand {
@@ -13,7 +14,7 @@ export class PasteCommand extends EditorCommand {
 		const activeView = EditorCommand.getActiveMarkdownView(app);
 
 		if (!activeView) {
-			log.logError("no active markdown view.");
+			log.logError(t("errors.noActiveMarkdownView"));
 			return;
 		}
 

@@ -15,6 +15,7 @@ import {
 	type FileExistsModeId,
 } from "../template/fileExistsPolicy";
 import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
+import { t } from "../i18n";
 import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
@@ -196,7 +197,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "base"))
 				) {
 					this.failRun(
-						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
+						t("errors.fileExistsUnresolvable", { path: targetFilePath }),
 					);
 					return;
 				}
@@ -216,7 +217,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						this.failRun(this.lastTemplateFileFailure, "none");
 					} else {
 						this.failRun(
-							`Could not resolve file exists behavior for '${targetFilePath}'.`,
+							t("errors.resolveFileExistsBehaviorFailed", {
+								path: targetFilePath,
+							}),
 							"warning",
 						);
 					}
@@ -280,11 +283,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						throw linkError;
 					}
 					log.logWarning(
-						`Created '${createdFile.basename}' but could not insert the link: ${
-							linkError instanceof Error
-								? linkError.message
-								: String(linkError)
-						}`,
+						t("errors.createdButLinkInsertFailed", {
+							name: createdFile.basename,
+							error:
+								linkError instanceof Error
+									? linkError.message
+									: String(linkError),
+						}),
 					);
 				}
 			}
@@ -294,9 +299,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					await copyFileLinkToClipboard(createdFile);
 				} catch (error) {
 					log.logWarning(
-						`Could not copy link to clipboard for '${createdFile.path}': ${
-							error instanceof Error ? error.message : String(error)
-						}`,
+						t("errors.copyLinkToClipboardFailed", {
+							path: createdFile.path,
+							error: error instanceof Error ? error.message : String(error),
+						}),
 					);
 				}
 			}
@@ -471,7 +477,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 
 		const promptModes = getPromptModes();
-		const placeholder = "If the target file already exists";
+		const placeholder = t("fileExists.promptPlaceholder");
 
 		return (await routePrompt(this.choiceExecutor, {
 			// An interactive run drives this from the client, like every other prompt
@@ -623,7 +629,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// whose caller owns the run's outcome, and it carries the most actionable
 			// sentence of any of them (it names the fix). A CLI or interactive caller
 			// would otherwise be told "Could not resolve file exists behavior" (#1603).
-			this.lastTemplateFileFailure = `Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`;
+			this.lastTemplateFileFailure = t("errors.cannotAppendToNonMarkdown", {
+				path: existingFile.path,
+				extension: existingFile.extension,
+			});
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			log.logError(this.lastTemplateFileFailure);
 			return null;
@@ -710,7 +719,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		if (matches.length > 1) {
 			const matchList = matches.map((match) => match.path).join(", ");
 			log.logError(
-				`Multiple files match '${filePath}' when ignoring case: ${matchList}`,
+				t("errors.multipleFilesMatchCaseInsensitive", {
+					path: filePath,
+					matches: matchList,
+				}),
 			);
 		}
 
@@ -785,7 +797,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
-					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
+					t("errors.noActiveFileForSameFolder"),
 				);
 				return "";
 			}

@@ -5,6 +5,7 @@ import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { getTemplateFile } from "../../utilityObsidian";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { t } from "../../i18n";
 import SettingItem from "../components/SettingItem.svelte";
 import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
@@ -56,18 +57,18 @@ function validateTemplate(
 	// only resolves when the capture runs, so show a neutral hint rather than
 	// flagging it "not found" (issue #620).
 	if (hasTemplatePathSyntax(value)) {
-		return { valid: true, message: "Contains format syntax — resolved at run time." };
+		return { valid: true, message: t("choiceBuilder.captureForm.templateFormatSyntaxHint") };
 	}
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership (templates outside the configured folders are
 	// valid). Mirrors templateChoiceBuilder (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
+	return getTemplateFile(app, value) !== null || t("choiceBuilder.captureForm.templateNotFound");
 }
 
 const selectionOptions = [
-	{ value: "", label: "Follow global setting" },
-	{ value: "enabled", label: "Use selection" },
-	{ value: "disabled", label: "Ignore selection" },
+	{ value: "", label: t("choiceBuilder.captureForm.selectionFollowGlobal") },
+	{ value: "enabled", label: t("choiceBuilder.captureForm.selectionUse") },
+	{ value: "disabled", label: t("choiceBuilder.captureForm.selectionIgnore") },
 ];
 const selectionOverride = $derived(
 	typeof choice.useSelectionAsCaptureValue === "boolean"
@@ -93,11 +94,11 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
 
-<SettingItem name="Location" heading />
+<SettingItem name={t("choiceBuilder.captureForm.headingLocation")} heading />
 <CaptureTargetSetting bind:choice {app} {plugin} />
 
 {#if !choice.captureToActiveFile}
-	<SettingItem name="Create file if it doesn't exist">
+	<SettingItem name={t("choiceBuilder.captureForm.createFileIfMissing")}>
 		{#snippet control()}
 			<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
 		{/snippet}
@@ -105,8 +106,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 	{#if choice.createFileIfItDoesntExist.enabled}
 		<LabeledField
-			name="Create file with a template"
-			desc="Path to the template QuickAdd applies to the new file."
+			name={t("choiceBuilder.captureForm.createWithTemplate")}
+			desc={t("choiceBuilder.captureForm.createWithTemplateDesc")}
 			bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
 		>
 			{#snippet control()}
@@ -118,7 +119,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 				<ValidatedInput
 					{id}
 					value={choice.createFileIfItDoesntExist.template}
-					placeholder="Template path"
+					placeholder={t("choiceBuilder.placeholder.templatePath")}
 					{app}
 					suggestions={templateFilePaths}
 					maxSuggestions={50}
@@ -131,14 +132,14 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/if}
 {/if}
 
-<SettingItem name="Position" heading />
+<SettingItem name={t("choiceBuilder.captureForm.headingPosition")} heading />
 <WritePositionSetting bind:choice {app} {plugin} />
 
-<SettingItem name="Linking" heading />
+<SettingItem name={t("choiceBuilder.captureForm.headingLinking")} heading />
 <AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
 <SettingItem
-	name="Copy link to clipboard"
-	desc="Copy a link to the captured file after the Capture choice runs."
+	name={t("choiceBuilder.captureForm.copyLinkToClipboard")}
+	desc={t("choiceBuilder.captureForm.copyLinkToClipboardDesc")}
 >
 	{#snippet control()}
 		<Toggle
@@ -148,9 +149,9 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-<SettingItem name="Content" heading />
+<SettingItem name={t("choiceBuilder.captureForm.headingContent")} heading />
 {#if !choice.propertyCapture}
-<SettingItem name="Task" desc="Formats the value as a task.">
+<SettingItem name={t("choiceBuilder.captureForm.task")} desc={t("choiceBuilder.captureForm.taskDesc")}>
 	{#snippet control()}
 		<Toggle bind:checked={choice.task} />
 	{/snippet}
@@ -158,8 +159,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 {/if}
 
 <LabeledField
-	name="Capture format"
-	desc={"Set the format of the capture. When off, QuickAdd captures {{VALUE}} on its own - what you type at the prompt, or the current selection."}
+	name={t("choiceBuilder.captureForm.captureFormat")}
+	desc={t("choiceBuilder.captureForm.captureFormatDesc")}
 	bodyVisible={choice.format.enabled}
 >
 	{#snippet control()}
@@ -170,9 +171,9 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 			{id}
 			inputKind="textarea"
 			bind:value={choice.format.format}
-			placeholder="Format"
+			placeholder={t("choiceBuilder.placeholder.format")}
 			required
-			requiredMessage="Capture format is required when enabled"
+			requiredMessage={t("choiceBuilder.captureForm.captureFormatRequired")}
 			makeSuggesters={formatSuggesters}
 		/>
 		<FormatTokenHint value={choice.format.format} />
@@ -180,17 +181,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </LabeledField>
 
-<SettingItem name="Behavior" heading />
+<SettingItem name={t("choiceBuilder.captureForm.headingBehavior")} heading />
 {#if !choice.captureToActiveFile}
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured file." />
+	<OpenFileSetting bind:openFile={choice.openFile} description={t("choiceBuilder.captureForm.openFileDesc")} />
 	{#if choice.openFile}
 		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
 	{/if}
 {/if}
 
 <SettingItem
-	name="Use editor selection as default value"
-	desc={"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}."}
+	name={t("choiceBuilder.captureForm.editorSelection")}
+	desc={t("choiceBuilder.captureForm.editorSelectionDesc")}
 >
 	{#snippet control()}
 		<Dropdown
@@ -203,8 +204,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 {#if !choice.propertyCapture}
 <SettingItem
-	name="Run Templater on entire destination file after capture"
-	desc="Advanced / legacy: this executes any <% %> anywhere in the destination file (including inside code blocks)."
+	name={t("choiceBuilder.captureForm.templaterAfterCapture")}
+	desc={t("choiceBuilder.captureForm.templaterAfterCaptureDesc")}
 >
 	{#snippet control()}
 		<Toggle

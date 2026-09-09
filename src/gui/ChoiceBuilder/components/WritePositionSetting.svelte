@@ -9,6 +9,7 @@ import Dropdown from "../../components/Dropdown.svelte";
 import InsertAfterFields from "./InsertAfterFields.svelte";
 import InsertBeforeFields from "./InsertBeforeFields.svelte";
 import PropertyCaptureFields from "./PropertyCaptureFields.svelte";
+import { t } from "../../../i18n";
 
 /**
  * Reactive port of captureChoiceBuilder.addWritePositionSetting. The write-position
@@ -46,18 +47,18 @@ const current = $derived.by(() => {
 });
 
 const options = $derived([
-	{ value: "top", label: isActiveFile ? "At cursor" : "Top of file" },
+	{ value: "top", label: isActiveFile ? t("choiceBuilder.writePosition.optionCursor") : t("choiceBuilder.writePosition.optionTop") },
 	...(isActiveFile
 		? [
-				{ value: "activeTop", label: "Top of file (after frontmatter)" },
-				{ value: "newLineAbove", label: "New line above cursor" },
-				{ value: "newLineBelow", label: "New line below cursor" },
+				{ value: "activeTop", label: t("choiceBuilder.writePosition.optionActiveTop") },
+				{ value: "newLineAbove", label: t("choiceBuilder.writePosition.optionNewLineAbove") },
+				{ value: "newLineBelow", label: t("choiceBuilder.writePosition.optionNewLineBelow") },
 			]
 		: []),
-	{ value: "after", label: "After line…" },
-	{ value: "before", label: "Before line…" },
-	{ value: "bottom", label: "Bottom of file" },
-	{ value: "property", label: "Property" },
+	{ value: "after", label: t("choiceBuilder.writePosition.optionAfter") },
+	{ value: "before", label: t("choiceBuilder.writePosition.optionBefore") },
+	{ value: "bottom", label: t("choiceBuilder.writePosition.optionBottom") },
+	{ value: "property", label: t("choiceBuilder.writePosition.optionProperty") },
 ]);
 
 function onWritePositionChange(value: string) {
@@ -148,10 +149,10 @@ const showCanvasNotice = $derived.by(() => {
 </script>
 
 <SettingItem
-	name="Write position"
+	name={t("choiceBuilder.writePosition.label")}
 	desc={isActiveFile
-		? "Where to place the capture in the current file."
-		: "Where to place the capture in the target file."}
+		? t("choiceBuilder.writePosition.descActiveFile")
+		: t("choiceBuilder.writePosition.descTargetFile")}
 >
 	{#snippet control()}
 		<Dropdown value={current} {options} onchange={onWritePositionChange} />
@@ -172,8 +173,6 @@ const showCanvasNotice = $derived.by(() => {
 
 {#if showCanvasNotice}
 	<div class="setting-item-description">
-		Canvas note: 'At cursor' and 'New line above/below cursor' are not supported
-		for Canvas card capture. Use top, bottom, insert-after, or insert-before
-		placement.
+		{t("choiceBuilder.writePosition.canvasNotice")}
 	</div>
 {/if}

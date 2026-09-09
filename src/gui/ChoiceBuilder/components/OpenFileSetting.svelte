@@ -1,6 +1,7 @@
 <script lang="ts">
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
+import { t } from "../../../i18n";
 
 /**
  * Replaces ChoiceBuilder.addOpenFileSetting. The former `reload()` is gone —
@@ -15,7 +16,7 @@ let {
 } = $props();
 </script>
 
-<SettingItem name="Open" desc={description}>
+<SettingItem name={t("choiceBuilder.openFileSetting.name")} desc={description}>
 	{#snippet control()}
 		<Toggle bind:checked={openFile} />
 	{/snippet}

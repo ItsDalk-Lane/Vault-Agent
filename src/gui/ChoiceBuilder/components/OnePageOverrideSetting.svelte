@@ -1,6 +1,7 @@
 <script lang="ts">
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
+import { t } from "../../../i18n";
 
 /** Replaces ChoiceBuilder.addOnePageOverrideSetting. */
 let {
@@ -10,9 +11,9 @@ let {
 } = $props();
 
 const options = [
-	{ value: "", label: "Follow global setting" },
-	{ value: "always", label: "Always" },
-	{ value: "never", label: "Never" },
+	{ value: "", label: t("macro.onePageInputFollow") },
+	{ value: "always", label: t("macro.onePageInputAlways") },
+	{ value: "never", label: t("macro.onePageInputNever") },
 ];
 
 const selected = $derived((onePageInput ?? "") as string);
@@ -24,8 +25,8 @@ function onChange(value: string) {
 </script>
 
 <SettingItem
-	name="One-page input override"
-	desc="Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally."
+	name={t("macro.onePageInputOverride")}
+	desc={t("choiceBuilder.onePageOverride.desc")}
 >
 	{#snippet control()}
 		<Dropdown value={selected} {options} onchange={onChange} />

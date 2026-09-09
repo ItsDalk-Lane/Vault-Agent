@@ -1,5 +1,6 @@
 import { type App, htmlToMarkdown } from "obsidian";
 import { log } from "../../../logger/logManager";
+import { t } from "../../../i18n";
 import { EditorCommand } from "./EditorCommand";
 import { EditorCommandType } from "./EditorCommandType";
 
@@ -12,7 +13,7 @@ export class PasteWithFormatCommand extends EditorCommand {
 		const activeView = EditorCommand.getActiveMarkdownView(app);
 
 		if (!activeView) {
-			log.logError("no active markdown view.");
+			log.logError(t("errors.noActiveMarkdownView"));
 			return;
 		}
 
@@ -47,12 +48,12 @@ export class PasteWithFormatCommand extends EditorCommand {
 			activeView.editor.replaceSelection(content);
 		} catch (error) {
 			// Fallback to regular text paste if formatted clipboard reading fails
-			log.logWarning(`Formatted paste failed. Falling back to plain text: ${error}`);
+			log.logWarning(t("errors.formattedPasteFailed", { error: String(error) }));
 			try {
 				const textContent = await navigator.clipboard.readText();
 				activeView.editor.replaceSelection(textContent);
 			} catch (textError) {
-				log.logError(`Failed to read clipboard text: ${textError}`);
+				log.logError(t("errors.readClipboardTextFailed", { error: String(textError) }));
 			}
 		}
 	}

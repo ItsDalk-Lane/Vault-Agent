@@ -2,6 +2,7 @@
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import CapabilityTag from "./CapabilityTag.svelte";
 	import type { PackagePreview } from "../../services/packagePreview";
+	import { t } from "../../i18n";
 
 	let { preview }: { preview: PackagePreview } = $props();
 
@@ -14,13 +15,13 @@
 <section
 	class="qa-import-banner"
 	class:critical={preview.summary.hasCritical}
-	aria-label="What this package can do"
+	aria-label={t("packageManager.capabilityBanner.aria")}
 >
 	<div class="qa-import-banner-head">
 		<span class="qa-import-banner-icon">
 			<ObsidianIcon iconId="alert-triangle" size={17} />
 		</span>
-		<h3>What this package can do</h3>
+		<h3>{t("packageManager.capabilityBanner.title")}</h3>
 	</div>
 
 	<ul class="qa-import-banner-rows">
@@ -42,7 +43,7 @@
 
 	{#if showReloadNote}
 		<p class="qa-import-banner-note">
-			Takes effect after you reload the plugin or restart Obsidian.
+			{t("packageManager.capabilityBanner.reloadNote")}
 		</p>
 	{/if}
 </section>

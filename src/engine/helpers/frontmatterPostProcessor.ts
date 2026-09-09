@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import { log } from "../../logger/logManager";
 import { coerceYamlValue } from "../../utils/yamlValues";
 import { TemplatePropertyCollector } from "../../utils/TemplatePropertyCollector";
+import { t } from "../../i18n";
 
 /**
  * Post-processing of newly written front matter for QuickAdd's template
@@ -196,7 +197,7 @@ export async function postProcessFrontMatter(
 	// Log any validation warnings
 	if (validation.warnings.length > 0) {
 		for (const warning of validation.warnings) {
-			log.logWarning(`Structured variable validation warning: ${warning}`);
+			log.logWarning(t("errors.structuredVariableValidationWarning", { warning }));
 		}
 	}
 
@@ -204,10 +205,11 @@ export async function postProcessFrontMatter(
 	if (!validation.isValid) {
 		const errorSummary = validation.errors.join("; ");
 		log.logError(
-			`Cannot post-process front matter for file ${file.path} due to validation errors: ${errorSummary}. ` +
-			`The file was created successfully, but some structured variables may not be properly formatted. ` +
-			`Please check the variable values and ensure they don't contain circular references, ` +
-			`exceed nesting depth of ${VALIDATION_LIMITS.MAX_NESTING_DEPTH}, or contain unsupported types (functions, symbols).`
+			t("errors.cannotPostProcessFrontMatter", {
+				path: file.path,
+				summary: errorSummary,
+				depth: VALIDATION_LIMITS.MAX_NESTING_DEPTH,
+			})
 		);
 		return;
 	}
@@ -231,10 +233,10 @@ export async function postProcessFrontMatter(
 	} catch (err) {
 		// Improved error message with actionable information
 		log.logError(
-			`Failed to post-process front matter for file ${file.path}: ${err}. ` +
-			`The file was created successfully, but structured variables may not be properly formatted. ` +
-			`This usually happens when variable values contain unexpected types or when Obsidian's YAML processor encounters an issue. ` +
-			`Check the console for more details about which variables caused the problem.`
+			t("errors.postProcessFrontMatterFailed", {
+				path: file.path,
+				error: String(err),
+			})
 		);
 		// Don't throw - the file was still created successfully
 	}
@@ -285,7 +287,7 @@ export function assignFrontmatterValue(
 	// rather than the file's own front matter, so we drop the assignment.
 	if (hasUnsafeFrontmatterKey(path)) {
 		log.logWarning(
-			`Skipping front matter assignment for unsafe key path "${path.join(".")}" to avoid prototype pollution.`,
+			t("errors.skipUnsafeFrontmatterKeyPath", { path: path.join(".") }),
 		);
 		return;
 	}

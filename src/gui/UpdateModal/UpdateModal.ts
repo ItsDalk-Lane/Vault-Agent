@@ -213,7 +213,7 @@ export class UpdateModal extends Modal {
 				this.display();
 			})
 			.catch((err) => {
-				log.logError(`Failed to fetch release notes: ${err as string}`);
+				log.logError(t("update.fetchReleaseNotesFailed", { error: String(err) }));
 			});
 	}
 
@@ -221,7 +221,7 @@ export class UpdateModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.createEl("h1", {
-			text: "Fetching release notes...",
+			text: t("update.fetchingReleaseNotes"),
 		});
 		// Always offer a reachable exit, even while fetching or if the fetch fails.
 		this.addCloseFooter();

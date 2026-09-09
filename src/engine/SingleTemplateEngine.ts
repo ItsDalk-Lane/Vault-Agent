@@ -6,6 +6,7 @@ import { log } from "../logger/logManager";
 import type { TemplateInclusionState } from "../formatters/formatter";
 import type { PromptScopeKind } from "../formatters/promptScope";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
+import { t } from "../i18n";
 
 export class SingleTemplateEngine extends TemplateEngine {
 	/**
@@ -41,7 +42,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 			resolvedTemplatePath
 		);
 		if (!templateContent) {
-			log.logError(`Template ${resolvedTemplatePath} not found.`);
+			log.logError(t("errors.templateNotFound", { path: resolvedTemplatePath }));
 		}
 
 		templateContent = await this.formatter.withTemplatePropertyCollection(() =>

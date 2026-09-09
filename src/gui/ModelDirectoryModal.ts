@@ -50,7 +50,7 @@ export class ModelDirectoryModal extends Modal {
     this.contentEl.addClass("qa-ai-scroll-content");
 
     this.contentEl.createEl("h2", {
-      text: `Browse models for ${this.provider.name}`,
+      text: t("ai.browseModelsTitle", { provider: this.provider.name }),
       cls: "qa-modal-title",
     });
 
@@ -146,14 +146,14 @@ export class ModelDirectoryModal extends Modal {
 
   private importSelected() {
     if (this.selectedIds.size === 0) {
-      new Notice("Select at least one model.");
+      new Notice(t("ai.selectOneModel"));
       return;
     }
     try {
       const selection = this.allModels.filter((m) => this.selectedIds.has(m.name));
       const qaModels = selection.map((model) => ({ ...model }));
       if (!qaModels.length) {
-        new Notice("No models selected to import.");
+        new Notice(t("ai.noModelsSelected"));
         return;
       }
       this.resolved = true;

@@ -8,6 +8,7 @@
 	import type { AssetImportMode } from "../../services/packageImportService";
 	import type { QuickAddPackage } from "../../types/packages/QuickAddPackage";
 	import { tooltip } from "../shared/tooltip";
+	import { t } from "../../i18n";
 
 	let {
 		file,
@@ -71,7 +72,9 @@
 			size={16}
 		/>
 		<span class="qa-import-file-status" class:overwrite={destinationExists}>
-			{destinationExists ? "Will overwrite" : "New file"}
+			{destinationExists
+				? t("packageManager.fileRow.statusWillOverwrite")
+				: t("packageManager.fileRow.statusNewFile")}
 		</span>
 		<span class="qa-import-file-arrow" aria-hidden="true">→</span>
 		<span class="qa-import-file-dest">{destinationPath}</span>
@@ -81,20 +84,21 @@
 		{#if file.executable}
 			<span
 				class="qa-import-file-exec"
-				use:tooltip={"Runs as code when its choice runs. It can read, change, or delete files in your vault and access the network."}
-				>Executable</span
+				use:tooltip={t("packageManager.fileRow.executableTooltip")}
+				>{t("packageManager.fileRow.executableBadge")}</span
 			>
 		{/if}
 		{#if reviewed && mode !== "skip" && file.requiresReview}
 			<span class="qa-import-file-reviewed">
-				<ObsidianIcon iconId="check" size={12} /> Reviewed
+				<ObsidianIcon iconId="check" size={12} />
+				{t("packageManager.fileRow.reviewedBadge")}
 			</span>
 		{/if}
 		{#if file.orphan}
 			<span
 				class="qa-import-file-orphan"
-				use:tooltip={"Bundled in this package but not referenced by any choice."}
-				>Unused</span
+				use:tooltip={t("packageManager.fileRow.unusedTooltip")}
+				>{t("packageManager.fileRow.unusedBadge")}</span
 			>
 		{/if}
 		<span class="qa-import-file-size">{formatBytes(file.sizeBytes)}</span>
@@ -102,7 +106,7 @@
 
 	<div class="qa-import-file-fields">
 		<label class="qa-import-file-field">
-			<span class="qa-import-file-field-name">Destination</span>
+			<span class="qa-import-file-field-name">{t("packageManager.fileRow.destinationField")}</span>
 			<input
 				type="text"
 				value={destinationPath}
@@ -112,22 +116,20 @@
 			/>
 		</label>
 		<label class="qa-import-file-field">
-			<span class="qa-import-file-field-name">Action</span>
+			<span class="qa-import-file-field-name">{t("packageManager.colAction")}</span>
 			<select class="dropdown" value={mode} onchange={onActionChange}>
-				<option value="write">Write</option>
+				<option value="write">{t("packageManager.fileRow.writeAction")}</option>
 				{#if destinationExists}
-					<option value="overwrite">Overwrite</option>
+					<option value="overwrite">{t("packageManager.overwriteAction")}</option>
 				{/if}
-				<option value="skip">Skip</option>
+				<option value="skip">{t("packageManager.skipAction")}</option>
 			</select>
 		</label>
 	</div>
 
 	{#if file.requiresReview && mode === "skip"}
 		<p class="qa-import-file-skip-warn" role="note">
-			Won't be written. Any choice that uses this script will run whatever
-			file already exists at this path after import, not the contents you
-			reviewed.
+			{t("packageManager.fileRow.skipWarning")}
 		</p>
 	{/if}
 
@@ -141,7 +143,7 @@
 		<span class="qa-import-file-chevron" class:open={expanded}>
 			<ObsidianIcon iconId="chevron-right" size={14} />
 		</span>
-		<span>{expanded ? "Hide contents" : "View contents"}</span>
+		<span>{expanded ? t("packageManager.fileRow.hideContents") : t("packageManager.fileRow.viewContents")}</span>
 	</button>
 
 	<div
@@ -154,13 +156,12 @@
 				<div class="qa-import-file-preview">
 					{#if content.error}
 						<p class="qa-import-file-error">
-							Preview unavailable: {content.error}
+							{t("packageManager.fileRow.previewUnavailable", { error: content.error })}
 						</p>
 					{:else}
 						{#if content.looksMinified}
 							<p class="qa-import-file-warn">
-								Minified: cannot be visually reviewed. Import
-								only if you trust the source.
+								{t("packageManager.fileRow.minifiedWarning")}
 							</p>
 						{/if}
 						<!-- Focusable so keyboard users can scroll long scripts. -->
@@ -169,12 +170,12 @@
 							class="qa-import-file-code"
 							tabindex="0"
 							role="region"
-							aria-label="Contents of {file.originalPath}">{content.text}</pre>
+							aria-label={t("packageManager.fileRow.contentsAria", { path: file.originalPath })}>{content.text}</pre>
 						{#if content.truncated}
 							<p class="qa-import-file-warn">
-								Preview truncated. The full {file.executable
-									? "script will run"
-									: "file will be imported"}.
+								{file.executable
+									? t("packageManager.fileRow.truncatedScript")
+									: t("packageManager.fileRow.truncatedFile")}
 							</p>
 						{/if}
 					{/if}

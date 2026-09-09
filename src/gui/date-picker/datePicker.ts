@@ -1,3 +1,5 @@
+import { t } from "../../i18n";
+
 export type DatePickerSelectSource = "picker" | "action";
 
 export interface DatePickerController {
@@ -136,7 +138,7 @@ export const createDatePicker = (
 		text: "‹",
 	});
 	prevBtn.type = "button";
-	prevBtn.setAttr("aria-label", "Previous month");
+	prevBtn.setAttr("aria-label", t("datePicker.previousMonthAria"));
 
 	const label = header.createDiv({ cls: "qa-date-picker__label" });
 
@@ -145,7 +147,7 @@ export const createDatePicker = (
 		text: "›",
 	});
 	nextBtn.type = "button";
-	nextBtn.setAttr("aria-label", "Next month");
+	nextBtn.setAttr("aria-label", t("datePicker.nextMonthAria"));
 
 	const weekdayRow = root.createDiv({ cls: "qa-date-picker__weekdays" });
 	weekdayLabels.forEach((day) => {
@@ -158,13 +160,13 @@ export const createDatePicker = (
 	const actions = root.createDiv({ cls: "qa-date-picker__actions" });
 	const todayBtn = actions.createEl("button", {
 		cls: "qa-date-picker__action",
-		text: "Today",
+		text: t("datePicker.today"),
 	});
 	todayBtn.type = "button";
 
 	const clearBtn = actions.createEl("button", {
 		cls: "qa-date-picker__action",
-		text: "Clear",
+		text: t("common.clear"),
 	});
 	clearBtn.type = "button";
 
@@ -173,7 +175,7 @@ export const createDatePicker = (
 		const timeRow = root.createDiv({ cls: "qa-date-picker__time" });
 		timeRow.createEl("label", {
 			cls: "qa-date-picker__time-label",
-			text: "Time",
+			text: t("datePicker.time"),
 		});
 		timeInput = timeRow.createEl("input", { cls: "qa-date-picker__time-input" });
 		timeInput.type = "time";

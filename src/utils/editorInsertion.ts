@@ -2,6 +2,7 @@ import type { App, Editor, EditorPosition, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 import {
 	DEFAULT_FRONTMATTER_HANDLING,
 	normalizeAppendLinkOptions,
@@ -35,14 +36,14 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 		const activeView = getActiveMarkdownEditorView(app);
 
 		if (!activeView) {
-			log.logError(`unable to append '${toAppend}' to current line.`);
+			log.logError(t("errors.appendToCurrentLineFailed", { text: toAppend }));
 			return false;
 		}
 
 		activeView.editor.replaceSelection(toAppend);
 		return true;
 	} catch {
-		log.logError(`unable to append '${toAppend}' to current line.`);
+		log.logError(t("errors.appendToCurrentLineFailed", { text: toAppend }));
 		return false;
 	}
 }
@@ -53,7 +54,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		const activeView = getActiveMarkdownEditorView(app);
 
 		if (!activeView) {
-			log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
+			log.logError(t("errors.insertOnNewLineFailed", { text: toInsert, direction }));
 			return false;
 		}
 
@@ -78,7 +79,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		}
 		return true;
 	} catch {
-		log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
+		log.logError(t("errors.insertOnNewLineFailed", { text: toInsert, direction }));
 		return false;
 	}
 }

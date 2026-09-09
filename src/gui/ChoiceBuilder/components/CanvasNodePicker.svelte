@@ -41,24 +41,26 @@ const selectedNodeId = $derived((nodeId ?? "").trim());
 
 const statusText = $derived(
 	phase === "ready"
-		? `Showing ${filteredOptions.length} of ${nodeOptions.length} nodes`
+		? t("choiceBuilder.canvasPicker.statusShowing", {
+				filtered: filteredOptions.length,
+				total: nodeOptions.length,
+			})
 		: phase === "empty"
 			? emptyMessage
-			: "Loading canvas nodes…",
+			: t("choiceBuilder.canvasPicker.statusLoading"),
 );
 
 onMount(() => {
 	void (async () => {
 		const canvasFile = resolveStaticCanvasTargetFile(app, canvasTargetPath);
 		if (!canvasFile) {
-			emptyMessage =
-				"Node picker works for direct .canvas paths that already exist in your vault. Format syntax paths cannot be listed here.";
+			emptyMessage = t("choiceBuilder.canvasPicker.emptyFormatPath");
 			phase = "empty";
 			return;
 		}
 		nodeOptions = await readCanvasNodeOptions(app, canvasFile);
 		if (nodeOptions.length === 0) {
-			emptyMessage = "No selectable nodes found in the target canvas.";
+			emptyMessage = t("choiceBuilder.canvasPicker.emptyNoNodes");
 			phase = "empty";
 			return;
 		}
@@ -88,9 +90,7 @@ function useActiveSelection() {
 		canvasTargetPath,
 	);
 	if (!activeSelectionNodeId) {
-		new Notice(
-			"Open the target canvas and select exactly one card to use this action.",
-		);
+		new Notice(t("choiceBuilder.canvasPicker.noticeSelectOneCard"));
 		return;
 	}
 	const selectedOption = nodeOptions.find(
@@ -99,8 +99,8 @@ function useActiveSelection() {
 	if (!selectedOption) {
 		new Notice(
 			phase === "ready"
-				? "The selected node was not found in the loaded canvas."
-				: "Canvas nodes are still loading. Wait a moment and try again.",
+				? t("choiceBuilder.canvasPicker.noticeNodeNotFound")
+				: t("choiceBuilder.canvasPicker.noticeStillLoading"),
 		);
 		return;
 	}
@@ -115,7 +115,7 @@ function copyNodeId(id: string) {
 	void (async () => {
 		try {
 			await navigator.clipboard.writeText(id);
-			new Notice(`Copied node id ${id}`);
+			new Notice(t("choiceBuilder.canvasPicker.noticeCopiedNodeId", { id }));
 		} catch {
 			new Notice(t("choiceBuilder.canvasPicker.copyNodeFailed"));
 		}
@@ -123,24 +123,28 @@ function copyNodeId(id: string) {
 }
 
 function typeLabel(type: CanvasNodeOption["type"]): string {
-	return type === "text" ? "TEXT" : type === "file" ? "FILE" : "NODE";
+	return type === "text"
+		? t("choiceBuilder.canvasPicker.typeText")
+		: type === "file"
+			? t("choiceBuilder.canvasPicker.typeFile")
+			: t("choiceBuilder.canvasPicker.typeNode");
 }
 </script>
 
 <div class="qa-canvas-node-picker">
 	<div class="qa-canvas-node-actions">
-		<button type="button" onclick={openCanvas}>Open target canvas</button>
+		<button type="button" onclick={openCanvas}>{t("choiceBuilder.canvasPicker.openCanvas")}</button>
 		<button type="button" onclick={useActiveSelection}>
-			Use selected in open canvas
+			{t("choiceBuilder.canvasPicker.useSelected")}
 		</button>
-		<button type="button" onclick={() => applyNodeId("")}>Clear</button>
+		<button type="button" onclick={() => applyNodeId("")}>{t("common.clear")}</button>
 	</div>
 
 	<div class="qa-canvas-node-filter">
 		<input
 			type="text"
-			placeholder="Filter by card text, file path, or node id…"
-			aria-label="Filter canvas nodes"
+			placeholder={t("choiceBuilder.canvasPicker.filterPlaceholder")}
+			aria-label={t("choiceBuilder.canvasPicker.filterAria")}
 			bind:value={filterQuery}
 		/>
 	</div>
@@ -151,7 +155,7 @@ function typeLabel(type: CanvasNodeOption["type"]): string {
 		{#if phase === "empty"}
 			<div class="qa-canvas-node-empty">{emptyMessage}</div>
 		{:else if phase === "ready" && filteredOptions.length === 0}
-			<div class="qa-canvas-node-empty">No nodes match the current filter.</div>
+			<div class="qa-canvas-node-empty">{t("choiceBuilder.canvasPicker.noMatch")}</div>
 		{:else}
 			{#each filteredOptions as option (option.id)}
 				{@const isSelected = selectedNodeId === option.id}
@@ -171,15 +175,17 @@ function typeLabel(type: CanvasNodeOption["type"]): string {
 								class:mod-cta={isSelected}
 								onclick={() => applyNodeId(option.id)}
 							>
-								{isSelected ? "Selected" : "Use node"}
+								{isSelected
+									? t("choiceBuilder.canvasPicker.selected")
+									: t("choiceBuilder.canvasPicker.useNode")}
 							</button>
 						{:else}
 							<button type="button" disabled title={option.capturableReason}>
-								Unavailable
+								{t("choiceBuilder.canvasPicker.unavailable")}
 							</button>
 						{/if}
 						<button type="button" onclick={() => copyNodeId(option.id)}>
-							Copy ID
+							{t("choiceBuilder.canvasPicker.copyId")}
 						</button>
 					</div>
 				</div>

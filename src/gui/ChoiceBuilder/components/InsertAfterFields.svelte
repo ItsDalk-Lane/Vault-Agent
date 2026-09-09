@@ -2,6 +2,7 @@
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
 import type QuickAdd from "../../../main";
+import { t } from "../../../i18n";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import type { SectionOrdering } from "../../../types/choices/ICaptureChoice";
 import {
@@ -63,9 +64,9 @@ const suggesters = [
 ];
 
 const blankLineOptions = [
-	{ value: "auto", label: "Auto (headings only)" },
-	{ value: "skip", label: "Always skip" },
-	{ value: "none", label: "Never skip" },
+	{ value: "auto", label: t("choiceBuilder.insertAfter.blankLineAuto") },
+	{ value: "skip", label: t("choiceBuilder.insertAfter.blankLineSkip") },
+	{ value: "none", label: t("choiceBuilder.insertAfter.blankLineNone") },
 ];
 
 // Inline same-line insertion and ordered section placement are mutually
@@ -74,35 +75,35 @@ const blankLineOptions = [
 const createLocationOptions = $derived(
 	insertAfter.inline
 		? [
-				{ value: CREATE_IF_NOT_FOUND_TOP, label: "Top" },
-				{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: "Bottom" },
-				{ value: CREATE_IF_NOT_FOUND_CURSOR, label: "Cursor" },
+				{ value: CREATE_IF_NOT_FOUND_TOP, label: t("choiceBuilder.insertAfter.locationTop") },
+				{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: t("choiceBuilder.insertAfter.locationBottom") },
+				{ value: CREATE_IF_NOT_FOUND_CURSOR, label: t("choiceBuilder.insertAfter.locationCursor") },
 			]
 		: [
-				{ value: CREATE_IF_NOT_FOUND_TOP, label: "Top" },
-				{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: "Bottom" },
-				{ value: CREATE_IF_NOT_FOUND_CURSOR, label: "Cursor" },
+				{ value: CREATE_IF_NOT_FOUND_TOP, label: t("choiceBuilder.insertAfter.locationTop") },
+				{ value: CREATE_IF_NOT_FOUND_BOTTOM, label: t("choiceBuilder.insertAfter.locationBottom") },
+				{ value: CREATE_IF_NOT_FOUND_CURSOR, label: t("choiceBuilder.insertAfter.locationCursor") },
 				{
 					value: CREATE_IF_NOT_FOUND_ORDERED,
-					label: "Ordered (place new section among siblings)",
+					label: t("choiceBuilder.insertAfter.locationOrdered"),
 				},
 			],
 );
 
 const orderByOptions = [
-	{ value: "insertion", label: "Insertion order (no sorting)" },
-	{ value: "lexical", label: "Text (A→Z)" },
-	{ value: "numeric", label: "Number" },
-	{ value: "date", label: "Date" },
-	{ value: "semver", label: "Version (semver)" },
+	{ value: "insertion", label: t("choiceBuilder.insertAfter.orderByInsertion") },
+	{ value: "lexical", label: t("choiceBuilder.insertAfter.orderByLexical") },
+	{ value: "numeric", label: t("choiceBuilder.insertAfter.orderByNumeric") },
+	{ value: "date", label: t("choiceBuilder.insertAfter.orderByDate") },
+	{ value: "semver", label: t("choiceBuilder.insertAfter.orderBySemver") },
 ];
 const orderDirectionOptions = [
-	{ value: "desc", label: "Newest / highest first" },
-	{ value: "asc", label: "Oldest / lowest first" },
+	{ value: "desc", label: t("choiceBuilder.insertAfter.directionDesc") },
+	{ value: "asc", label: t("choiceBuilder.insertAfter.directionAsc") },
 ];
 const unparseableOptions = [
-	{ value: "bottom", label: "Sort existing unparseable headings to bottom" },
-	{ value: "top", label: "Sort existing unparseable headings to top" },
+	{ value: "bottom", label: t("choiceBuilder.insertAfter.unparseableToBottom") },
+	{ value: "top", label: t("choiceBuilder.insertAfter.unparseableToTop") },
 ];
 
 // Tracks whether the ordering descriptor is "pinned" — either the user explicitly
@@ -224,9 +225,7 @@ function onConsiderSubsectionsToggle(value: boolean) {
 	if (value && !insertAfter.after.startsWith("#")) {
 		// Two-way bind syncs the toggle back to off when the target isn't a heading.
 		insertAfter.considerSubsections = false;
-		new Notice(
-			"Consider subsections requires the target to be a heading (starts with #)",
-		);
+		new Notice(t("choiceBuilder.insertAfter.considerSubsectionsNotice"));
 	}
 }
 
@@ -241,8 +240,8 @@ function onPromptHeadingToggle(value: boolean) {
 </script>
 
 <SettingItem
-	name="Choose heading when capturing"
-	desc="Instead of typing a target line now, show a dropdown of the target note's headings when you run this capture and insert under the one you pick."
+	name={t("choiceBuilder.insertAfter.chooseHeading")}
+	desc={t("choiceBuilder.insertAfter.chooseHeadingDesc")}
 >
 	{#snippet control()}
 		<Toggle
@@ -254,22 +253,20 @@ function onPromptHeadingToggle(value: boolean) {
 
 {#if insertAfter.promptHeading}
 	<div class="setting-item-description">
-		You'll pick a heading from the target note when you run this capture, and the
-		text is inserted under it. Use the toggles below to control placement within that
-		section.
+		{t("choiceBuilder.insertAfter.chooseHeadingHint")}
 	</div>
 {:else}
 	<LabeledField
-		name="Insert after"
-		desc="Insert capture after specified text. Accepts format syntax. Tip: use a heading (starts with #) to target a section. Blank line handling is configurable below."
+		name={t("choiceBuilder.insertAfter.label")}
+		desc={t("choiceBuilder.insertAfter.labelDesc")}
 	>
 		{#snippet children(id)}
 			<ValidatedInput
 				{id}
 				bind:value={insertAfter.after}
-				placeholder="Insert after"
+				placeholder={t("choiceBuilder.placeholder.insertAfter")}
 				required
-				requiredMessage="Insert after text is required"
+				requiredMessage={t("choiceBuilder.insertAfter.required")}
 				makeSuggesters={suggesters}
 			/>
 			<FormatPreviewField value={insertAfter.after} formatterKind="lineTarget" {app} {plugin} />
@@ -277,10 +274,10 @@ function onPromptHeadingToggle(value: boolean) {
 	</LabeledField>
 
 	<SettingItem
-		name="Inline insertion"
+		name={t("choiceBuilder.insertAfter.inline")}
 		desc={orderedSelected
-			? "Inline insertion can't be combined with ordered placement."
-			: "Insert captured content on the same line, immediately after the matched text (no newline added)."}
+			? t("choiceBuilder.insertAfter.inlineDescOrdered")
+			: t("choiceBuilder.insertAfter.inlineDesc")}
 	>
 		{#snippet control()}
 			<Toggle bind:checked={insertAfter.inline} disabled={orderedSelected} />
@@ -289,16 +286,15 @@ function onPromptHeadingToggle(value: boolean) {
 
 	{#if inlineTargetHasLinebreak}
 		<div class="setting-item-description">
-			Inline insertion needs a single-line target. The line break (\n) can't be
-			matched on the same line — remove it, or turn off "Inline insertion".
+			{t("choiceBuilder.insertAfter.inlineLinebreakWarning")}
 		</div>
 	{/if}
 {/if}
 
 {#if insertAfter.inline}
 	<SettingItem
-		name="Replace existing value"
-		desc="Replace everything after the matched text up to end-of-line."
+		name={t("choiceBuilder.insertAfter.replaceExisting")}
+		desc={t("choiceBuilder.insertAfter.replaceExistingDesc")}
 	>
 		{#snippet control()}
 			<Toggle bind:checked={insertAfter.replaceExisting} />
@@ -306,8 +302,8 @@ function onPromptHeadingToggle(value: boolean) {
 	</SettingItem>
 {:else}
 	<SettingItem
-		name="Insert at end of section"
-		desc="Place the text at the end of the matched section instead of the top."
+		name={t("choiceBuilder.insertAfter.insertAtEnd")}
+		desc={t("choiceBuilder.insertAfter.insertAtEndDesc")}
 	>
 		{#snippet control()}
 			<Toggle bind:checked={insertAfter.insertAtEnd} />
@@ -315,10 +311,10 @@ function onPromptHeadingToggle(value: boolean) {
 	</SettingItem>
 
 	<SettingItem
-		name="Blank lines after match"
+		name={t("choiceBuilder.insertAfter.blankLines")}
 		desc={insertAfter.insertAtEnd
-			? "Not used when inserting at end of section."
-			: "Controls whether Insert After skips existing blank lines after the matched line."}
+			? t("choiceBuilder.insertAfter.blankLinesDescUnused")
+			: t("choiceBuilder.insertAfter.blankLinesDesc")}
 	>
 		{#snippet control()}
 			<Dropdown
@@ -335,12 +331,12 @@ function onPromptHeadingToggle(value: boolean) {
 	</SettingItem>
 
 	<SettingItem
-		name="Consider subsections"
+		name={t("choiceBuilder.insertAfter.considerSubsections")}
 		desc={!insertAfter.insertAtEnd
-			? "Only affects placement when “Insert at end of section” is on."
+			? t("choiceBuilder.insertAfter.considerSubsectionsDescInactive")
 			: insertAfter.promptHeading
-				? "Also include the chosen heading’s subsections (nested headings inside its section)."
-				: "Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."}
+				? t("choiceBuilder.insertAfter.considerSubsectionsDescHeading")
+				: t("choiceBuilder.insertAfter.considerSubsectionsDesc")}
 	>
 		{#snippet control()}
 			<Toggle
@@ -353,8 +349,8 @@ function onPromptHeadingToggle(value: boolean) {
 {/if}
 
 <SettingItem
-	name="Create line if not found"
-	desc="Creates the 'insert after' line if it is not found."
+	name={t("choiceBuilder.insertAfter.createLine")}
+	desc={t("choiceBuilder.insertAfter.createLineDesc")}
 >
 	{#snippet control()}
 		<Toggle bind:checked={insertAfter.createIfNotFound} />
@@ -368,14 +364,10 @@ function onPromptHeadingToggle(value: boolean) {
 
 {#if isOrdered && insertAfter.orderBy}
 	<div class="setting-item-description">
-		The "Insert after" heading is created at its sorted position among ALL
-		same-level headings in the note (it is not scoped to one parent section). It
-		does NOT re-sort headings you already have; only the new one is placed. Use
-		"Insert at end of section" above for newest-on-top vs. appended entries within
-		each section.
+		{t("choiceBuilder.insertAfter.orderedHint")}
 	</div>
 
-	<SettingItem name="Sort sections by">
+	<SettingItem name={t("choiceBuilder.insertAfter.sortBy")}>
 		{#snippet control()}
 			<Dropdown
 				value={ordering.by}
@@ -385,7 +377,7 @@ function onPromptHeadingToggle(value: boolean) {
 		{/snippet}
 	</SettingItem>
 
-	<SettingItem name="Section order">
+	<SettingItem name={t("choiceBuilder.insertAfter.sectionOrder")}>
 		{#snippet control()}
 			<Dropdown
 				value={ordering.direction}
@@ -401,14 +393,14 @@ function onPromptHeadingToggle(value: boolean) {
 
 	{#if ordering.by === "date"}
 		<SettingItem
-			name="Date format"
-			desc="Moment format used to parse existing heading dates for sorting (e.g. YYYY-MM-DD)."
+			name={t("choiceBuilder.insertAfter.dateFormat")}
+			desc={t("choiceBuilder.insertAfter.dateFormatDesc")}
 		>
 			{#snippet control()}
 				<ValidatedInput
 					value={ordering.dateFormat ?? ""}
 					placeholder="YYYY-MM-DD"
-					ariaLabel="Date format"
+					ariaLabel={t("choiceBuilder.insertAfter.dateFormat")}
 					onChange={(value) => {
 						// A deliberate format edit pins the descriptor so the after-keyed
 						// seeder stops re-deriving dateFormat from the token.
@@ -422,8 +414,8 @@ function onPromptHeadingToggle(value: boolean) {
 
 	{#if ordering.by === "date" || ordering.by === "numeric" || ordering.by === "semver"}
 		<SettingItem
-			name="Existing unparseable headings"
-			desc="Where to rank EXISTING headings whose text can't be parsed for this sort. (A new heading that can't be parsed is appended at the end.)"
+			name={t("choiceBuilder.insertAfter.unparseable")}
+			desc={t("choiceBuilder.insertAfter.unparseableDesc")}
 		>
 			{#snippet control()}
 				<Dropdown
@@ -441,15 +433,13 @@ function onPromptHeadingToggle(value: boolean) {
 
 	{#if ordering.by === "insertion"}
 		<div class="setting-item-description">
-			No sorting: newest-first prepends the new section above existing ones;
-			oldest-first appends it below.
+			{t("choiceBuilder.insertAfter.insertionHint")}
 		</div>
 	{/if}
 
 	{#if showInsertionFallbackWarning}
 		<div class="setting-item-description">
-			This heading uses a date token QuickAdd can't auto-read for sorting. Pick
-			"Date" and enter the format, or sections stay in insertion order.
+			{t("choiceBuilder.insertAfter.insertionFallbackWarning")}
 		</div>
 	{/if}
 {/if}

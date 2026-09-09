@@ -274,7 +274,7 @@ export default class QuickAdd extends Plugin {
 			}
 
 			if (!parameters.choice) {
-				log.logWarning("URI was executed without a `choice` parameter.");
+				log.logWarning(t("uri.noChoiceParameter"));
 				this.fireUriError(targets, "choice-not-found");
 				return;
 			}
@@ -282,7 +282,7 @@ export default class QuickAdd extends Plugin {
 			const choice = this.getChoice("name", parameters.choice);
 			if (!choice) {
 				log.logWarning(
-					`URI could not find any choice named '${parameters.choice}'`,
+					t("uri.choiceNotFound", { name: parameters.choice }),
 				);
 				this.fireUriError(targets, "choice-not-found");
 				return;
@@ -412,7 +412,7 @@ export default class QuickAdd extends Plugin {
 	 * callbacks are disabled or no x-* params were provided (backward-compatible). */
 	private async runUriChoiceLegacy(parameters: UriParameters): Promise<void> {
 		if (!parameters.choice) {
-			log.logWarning("URI was executed without a `choice` parameter.");
+			log.logWarning(t("uri.noChoiceParameter"));
 			return;
 		}
 		const choice = this.getChoice("name", parameters.choice);
@@ -724,7 +724,7 @@ export default class QuickAdd extends Plugin {
 		const matches = this.countChoicesByName(name);
 		if (matches > 1) {
 			log.logWarning(
-				`QuickAdd URI: ${matches} choices are named '${name}'. Ran the first match — rename choices to keep names unique so URIs target the right one.`,
+				t("uri.ambiguousChoice", { count: matches, name }),
 			);
 		}
 	}

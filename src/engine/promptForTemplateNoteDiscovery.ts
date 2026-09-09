@@ -9,7 +9,11 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "src/utils/errorUtils";
 import { UserCancelError } from "src/errors/UserCancelError";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import {
+	existingNoteActionVerb,
+	getExistingNoteAction,
+} from "src/template/fileExistsPolicy";
+import { t } from "../i18n";
 
 import {
 	buildDiscoveryCandidates,
@@ -26,8 +30,12 @@ export async function promptForTemplateNoteDiscovery(
 ): Promise<TemplateNoteDiscoveryResult> {
 	const { candidates } = buildDiscoveryCandidates(app, choice);
 
-	const placeholder = `Search notes or create ${choice.name}`;
+	const placeholder = t("templateDiscovery.searchOrCreate", {
+		name: choice.name,
+	});
 	const action = existingNoteActionVerb(choice.existingNoteAction);
+	// Compare the action ID, never the localized verb string.
+	const isOpenAction = getExistingNoteAction(choice.existingNoteAction) === "open";
 
 	try {
 		const selected = await routePrompt(executor, {
@@ -35,7 +43,7 @@ export async function promptForTemplateNoteDiscovery(
 				const result = await promptEngineChoice(provider, {
 					items: candidates.map((candidate) => ({
 						value: decodeTemplateNoteSelection(candidate.item),
-						title: candidate.renderPath && action !== "Open" ? `${action}: ${candidate.title}` : candidate.title,
+						title: candidate.renderPath && !isOpenAction ? `${action}: ${candidate.title}` : candidate.title,
 					})),
 					placeholder,
 					// "Create new note" - the whole point of the picker.

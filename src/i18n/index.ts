@@ -33,12 +33,25 @@ type LocaleTable = { readonly [key: string]: unknown };
  *   3. The key itself (so a typo / missing entry surfaces as a visible string
  *      the user can search for, rather than `undefined` blowing up a render)
  *
- * No parameter interpolation yet — QuickAdd's strings are mostly short labels
- * and don't need it. Add `params` later if a string ever needs it.
+ * Parameter interpolation: `{name}` placeholders in the locale string are
+ * replaced from `params`. Unknown placeholders are left as-is so a typo shows
+ * up in the UI instead of vanishing. Plurals are handled by separate locale
+ * keys (e.g. `choiceCount.one` / `choiceCount.other`) selected by the caller,
+ * not by magic inside `t()`.
  */
-export function t(key: string): string {
-	const value = lookup(currentLocale, key) ?? lookup(FALLBACK_LOCALE, key);
-	return value ?? key;
+export function t(key: string, params?: Record<string, string | number>): string {
+	let value = lookup(currentLocale, key) ?? lookup(FALLBACK_LOCALE, key);
+	if (value === undefined) return key;
+	if (!params) return value;
+	// `{{name}}` in a locale value is an ESCAPED literal `{name}` — the caller
+	// needs to render something like `{ name: "x", provider: "y" }` whose own
+	// braces would otherwise be re-interpreted as placeholders. After parameter
+	// substitution, drop the doubling so the output reads correctly.
+	return value
+		.replace(/\{(\w+)\}/g, (match, name: string) =>
+			name in params ? String(params[name]) : match,
+		)
+		.replace(/\{\{(\w+)\}\}/g, "{$1}");
 }
 
 /** Current locale — exposed so callers (e.g. Svelte stores) can react to it. */

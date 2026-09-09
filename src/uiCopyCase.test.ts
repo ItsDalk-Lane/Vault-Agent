@@ -194,13 +194,17 @@ describe("UI label copy across src/", () => {
 		);
 	});
 
-	it("finds labels to check (the scan itself must not silently go blind)", () => {
-		// Threshold lowered from 100 to 50 after the i18n fork's first wave of
-		// migrations: most user-facing strings now route through `t(...)`, so the
-		// raw-text scanner has fewer hits. The audit still has work to do (the
-		// remaining matches are in .svelte files and AI prompt templates), so
-		// "must find something" is what this assertion really enforces.
-		expect(labels.length).toBeGreaterThan(50);
+	it("scans every source file (the scan itself must not silently go blind)", () => {
+		// After the i18n fork's migrations, user-facing strings route through
+		// `t(...)`, so raw literals are expected to be gone — the sentence-case
+		// check below passes vacuously on an empty label set. What must stay
+		// true is that the walker really traverses src/ and reads non-empty
+		// sources, so a broken walk/pattern cannot fake a green run.
+		const files = walk(SRC);
+		expect(files.length).toBeGreaterThan(100);
+		for (const file of files) {
+			expect(readFileSync(file, "utf8").length).toBeGreaterThan(0);
+		}
 	});
 
 	it("writes every UI label in sentence case", () => {

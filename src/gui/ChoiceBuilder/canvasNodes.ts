@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../../constants";
+import { t } from "../../i18n";
 
 /**
  * Pure (App-seam) canvas-target helpers extracted verbatim from
@@ -180,11 +181,16 @@ export async function readCanvasNodeOptions(
 						.map((line) => line.trim())
 						.filter((line) => line.length > 0);
 					const title = truncatePickerText(
-						lines[0] ?? "(empty text card)",
+						lines[0] ?? t("choiceBuilder.canvasPicker.emptyTextCard"),
 						90,
 					);
 					const subtitleParts = [
-						`${lines.length} line${lines.length === 1 ? "" : "s"}`,
+						t(
+							lines.length === 1
+								? "choiceBuilder.canvasPicker.lineCount.one"
+								: "choiceBuilder.canvasPicker.lineCount.other",
+							{ count: lines.length },
+						),
 					];
 					if (coords) {
 						subtitleParts.push(coords);
@@ -206,7 +212,7 @@ export async function readCanvasNodeOptions(
 					const isMarkdownFile = MARKDOWN_FILE_EXTENSION_REGEX.test(filePath);
 					const capturableReason = isMarkdownFile
 						? ""
-						: "Canvas file cards must link to markdown files (.md).";
+						: t("choiceBuilder.canvasPicker.reasonMarkdownOnly");
 					const title = truncatePickerText(
 						filePath.split("/").pop() ?? filePath,
 						90,
@@ -216,7 +222,9 @@ export async function readCanvasNodeOptions(
 						subtitleParts.push(coords);
 					}
 					if (!isMarkdownFile) {
-						subtitleParts.push("Not capturable in this version");
+						subtitleParts.push(
+							t("choiceBuilder.canvasPicker.reasonNotCapturableVersion"),
+						);
 					}
 					const subtitle = subtitleParts.join(" · ");
 					return {
@@ -233,9 +241,12 @@ export async function readCanvasNodeOptions(
 				const nodeTypeLabel =
 					typeof node.type === "string" && node.type.length > 0
 						? node.type
-						: "unknown";
-				const title = `Unsupported node (${nodeTypeLabel})`;
-				const subtitle = coords || "Type is not currently capturable";
+						: t("choiceBuilder.canvasPicker.typeUnknown");
+				const title = t("choiceBuilder.canvasPicker.titleUnsupported", {
+					type: nodeTypeLabel,
+				});
+				const subtitle =
+					coords || t("choiceBuilder.canvasPicker.reasonTypeNotCapturable");
 				return {
 					id: node.id,
 					type: nodeType,
@@ -243,7 +254,9 @@ export async function readCanvasNodeOptions(
 					subtitle,
 					searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
 					capturable: false,
-					capturableReason: "This Canvas node type is not capturable.",
+					capturableReason: t(
+						"choiceBuilder.canvasPicker.reasonNodeTypeNotCapturable",
+					),
 				};
 			});
 

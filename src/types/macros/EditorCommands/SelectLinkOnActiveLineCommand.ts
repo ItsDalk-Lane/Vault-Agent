@@ -3,6 +3,7 @@ import { EditorCommandType } from "./EditorCommandType";
 import type { App } from "obsidian";
 import { WIKI_LINK_REGEX } from "../../../constants";
 import { log } from "../../../logger/logManager";
+import { t } from "../../../i18n";
 
 export class SelectLinkOnActiveLineCommand extends EditorCommand {
 	constructor() {
@@ -17,7 +18,7 @@ export class SelectLinkOnActiveLineCommand extends EditorCommand {
 
 		const match = WIKI_LINK_REGEX.exec(line);
 		if (!match) {
-			log.logError(`no internal link found on line ${lineNumber}.`);
+			log.logError(t("errors.noInternalLinkOnLine", { line: lineNumber }));
 			return;
 		}
 

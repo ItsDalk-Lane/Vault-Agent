@@ -111,6 +111,7 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { t } from "../i18n";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -214,7 +215,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		if (wasNewFile) {
 			new Notice(
-				`Created and captured to ${fileName}`,
+				t("command.createdAndCaptured", { fileName }),
 				DEFAULT_NOTICE_DURATION,
 			);
 			return;
@@ -282,8 +283,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const fileName = `'${file.basename}'`;
 		new Notice(
 			wasNewFile
-				? `Created ${fileName} — nothing to capture (no content)`
-				: `Nothing to capture — ${fileName} unchanged`,
+				? t("command.createdNothingToCapture", { fileName })
+				: t("command.nothingToCapture", { fileName }),
 			DEFAULT_NOTICE_DURATION,
 		);
 	}
@@ -330,7 +331,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		) {
 			if (this.plugin.settings.showCaptureNotification) {
 				new Notice(
-					"Canvas capture skipped link insertion because no Markdown editor is focused.",
+					t("command.canvasCaptureNoLinkInsert"),
 					DEFAULT_NOTICE_DURATION,
 				);
 			}
@@ -355,9 +356,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			await copyFileLinkToClipboard(file);
 		} catch (error) {
 			log.logWarning(
-				`Could not copy link to clipboard for '${file.path}': ${
-					error instanceof Error ? error.message : String(error)
-				}`,
+				t("errors.copyLinkToClipboardFailed", {
+					path: file.path,
+					error: error instanceof Error ? error.message : String(error),
+				}),
 			);
 		}
 	}
@@ -377,7 +379,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		this.failRun(
-			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
+			t("errors.appendLinkTargetNotFound", {
+				path: linkOptions.destination.path,
+			}),
 		);
 		return false;
 	}
@@ -536,7 +540,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
+					t("errors.multiSelectFormatWarning"),
 				);
 			}
 
@@ -612,7 +616,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					// failure instead of falling through to the success notice/callback.
 					await this.cleanupCreatedClipboardAttachments();
 					this.failRun(
-						`Capture "${this.choice.name}": no active Markdown editor to insert into.`,
+						t("errors.noActiveMarkdownEditor", { name: this.choice.name }),
 					);
 					return;
 				}
@@ -879,7 +883,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 			} catch (error) {
 				log.logWarning(
-					`QuickAdd: failed to clean up clipboard attachment '${path}': ${String(error)}`,
+					t("errors.cleanupClipboardAttachmentFailed", {
+						path,
+						error: String(error),
+					}),
 				);
 			}
 		}

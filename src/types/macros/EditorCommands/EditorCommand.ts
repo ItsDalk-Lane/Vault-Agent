@@ -6,6 +6,7 @@ import type { App } from "obsidian";
 import type { MarkdownView } from "obsidian";
 import { getActiveMarkdownEditorView } from "../../../utils/activeMarkdownEditor";
 import { log } from "../../../logger/logManager";
+import { t } from "../../../i18n";
 
 export abstract class EditorCommand extends Command implements IEditorCommand {
 	editorCommandType: EditorCommandType;
@@ -24,7 +25,7 @@ export abstract class EditorCommand extends Command implements IEditorCommand {
 		const activeView = getActiveMarkdownEditorView(app);
 
 		if (!activeView) {
-			log.logError("no active markdown editor.");
+			log.logError(t("errors.noActiveMarkdownEditorCommand"));
 			throw new Error("no active markdown editor.");
 		}
 

@@ -1,3 +1,5 @@
+import { t } from "../../i18n";
+
 export interface SearchableMultiSelectItem<T> {
 	/** Selection identity. Rows with the same key share selected state. */
 	key: string;
@@ -66,7 +68,7 @@ export default class SearchableMultiSelect<T> {
 		this.searchInputEl.type = "search";
 		this.searchInputEl.name = `qa-multi-select-search-${this.instanceId}`;
 		this.searchInputEl.placeholder =
-			options.searchPlaceholder ?? "Search options...";
+			options.searchPlaceholder ?? t("common.searchOptionsPlaceholder");
 		this.searchInputEl.setAttribute("aria-label", this.searchInputEl.placeholder);
 		this.searchInputEl.setAttribute("autocomplete", "off");
 		this.searchInputEl.setAttribute("spellcheck", "false");
@@ -79,7 +81,7 @@ export default class SearchableMultiSelect<T> {
 		this.listEl = document.createElement("div");
 		this.listEl.className = "qa-searchable-multi-select__list";
 		this.listEl.setAttribute("role", "group");
-		this.listEl.setAttribute("aria-label", "Options");
+		this.listEl.setAttribute("aria-label", t("common.optionsListAria"));
 
 		this.rootEl.append(searchContainer, this.summaryEl, this.listEl);
 		containerEl.appendChild(this.rootEl);

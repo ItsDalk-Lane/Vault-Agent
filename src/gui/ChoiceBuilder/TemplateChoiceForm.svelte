@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
+import { t } from "../../i18n";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type {
 	FileExistsBehaviorCategoryId,
@@ -78,12 +79,12 @@ function validateTemplatePath(
 	// can only be resolved when the choice runs, so don't flag it "not found";
 	// show a neutral hint instead (issue #620).
 	if (hasTemplatePathSyntax(value)) {
-		return { valid: true, message: "Contains format syntax — resolved at run time." };
+		return { valid: true, message: t("choiceBuilder.templateForm.templateFormatSyntaxHint") };
 	}
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership: a template outside the configured folders
 	// still runs fine and must not be flagged "not found" (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
+	return getTemplateFile(app, value) !== null || t("choiceBuilder.templateForm.templateNotFound");
 }
 
 // --- File name format ----------------------------------------------------
@@ -101,8 +102,8 @@ const discoverySupported = $derived(
 );
 const discoveryDescription = $derived(
 	discoverySupported
-		? "Show matching notes and unresolved links in the note-title prompt."
-		: "Only available when the file name prompt is the default note title: no custom format, {{VALUE}}, or {{NAME}}.",
+		? t("choiceBuilder.templateForm.searchExistingDesc")
+		: t("choiceBuilder.templateForm.searchExistingUnsupportedDesc"),
 );
 
 // --- Folder selector -----------------------------------------------------
@@ -149,7 +150,7 @@ function addFolder() {
 	// Treat a blank Add as a no-op.
 	if (!input) return;
 	if (choice.folder.folders.some((folder) => folder === input)) {
-		log.logWarning("cannot add same folder twice.");
+		log.logWarning(t("choiceBuilder.templateForm.duplicateFolderWarning"));
 		return;
 	}
 	choice.folder.folders.push(input);
@@ -191,14 +192,17 @@ function onModeChange(value: string) {
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
 
-<SettingItem name="Template" heading />
+<SettingItem name={t("choiceBuilder.templateForm.headingTemplate")} heading />
 
-<LabeledField name="Template path" desc="Path to the template this choice creates notes from.">
+<LabeledField
+	name={t("choiceBuilder.templateForm.templatePath")}
+	desc={t("choiceBuilder.templateForm.templatePathDesc")}
+>
 	{#snippet children(id)}
 		<ValidatedInput
 			{id}
 			value={choice.templatePath}
-			placeholder="Template path"
+			placeholder={t("choiceBuilder.placeholder.templatePath")}
 			{app}
 			suggestions={templatePaths}
 			maxSuggestions={50}
@@ -209,8 +213,8 @@ function onModeChange(value: string) {
 </LabeledField>
 
 <LabeledField
-	name="File name format"
-	desc="Set the file name format. When off, QuickAdd asks for the note title."
+	name={t("choiceBuilder.templateForm.fileNameFormat")}
+	desc={t("choiceBuilder.templateForm.fileNameFormatDesc")}
 	bodyVisible={choice.fileNameFormat.enabled}
 >
 	{#snippet control()}
@@ -220,7 +224,7 @@ function onModeChange(value: string) {
 		<ValidatedInput
 			{id}
 			bind:value={choice.fileNameFormat.format}
-			placeholder="File name format"
+			placeholder={t("choiceBuilder.placeholder.fileNameFormat")}
 			makeSuggesters={fileNameSuggesters}
 		/>
 		<FormatTokenHint value={choice.fileNameFormat.format} />
@@ -234,14 +238,14 @@ function onModeChange(value: string) {
 	{/snippet}
 </LabeledField>
 
-<SettingItem name="Location" heading />
+<SettingItem name={t("choiceBuilder.templateForm.headingLocation")} heading />
 
-<SettingItem name="New note location" desc={folderModeDesc}>
+<SettingItem name={t("choiceBuilder.templateForm.newNoteLocation")} desc={folderModeDesc}>
 	{#snippet control()}
 		<Dropdown
 			value={folderMode}
 			options={folderModeOptions()}
-			ariaLabel="New note location"
+			ariaLabel={t("choiceBuilder.templateForm.newNoteLocation")}
 			onchange={onFolderModeChange}
 		/>
 	{/snippet}
@@ -259,26 +263,25 @@ function onModeChange(value: string) {
 			<input
 				type="text"
 				class="qa-folder-path-input"
-				placeholder="Folder path"
-				aria-label="Folder path"
+				placeholder={t("choiceBuilder.placeholder.folderPath")}
+				aria-label={t("choiceBuilder.placeholder.folderPath")}
 				bind:value={folderInputValue}
 				onkeypress={onFolderInputKeypress}
 				use:suggester={attachFolderSuggester}
 			/>
-			<button type="button" class="mod-cta" onclick={addFolder}>Add</button>
+			<button type="button" class="mod-cta" onclick={addFolder}>{t("common.add")}</button>
 		</div>
 	</div>
 
 	{#if needsFolderList}
 		<div class="qa-folder-mode-warning">
-			Add at least one folder. With none, the note falls back to the active
-			file's folder (or you'll be prompted to pick one if no file is open).
+			{t("choiceBuilder.templateForm.emptyFolderListWarning")}
 		</div>
 	{/if}
 
 	<SettingItem
-		name="Include subfolders"
-		desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
+		name={t("choiceBuilder.templateForm.includeSubfolders")}
+		desc={t("choiceBuilder.templateForm.includeSubfoldersDesc")}
 	>
 		{#snippet control()}
 			<Toggle bind:checked={choice.folder.chooseFromSubfolders} />
@@ -286,11 +289,11 @@ function onModeChange(value: string) {
 	</SettingItem>
 {/if}
 
-<SettingItem name="Linking" heading />
+<SettingItem name={t("choiceBuilder.templateForm.headingLinking")} heading />
 <AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" {app} />
 <SettingItem
-	name="Copy link to clipboard"
-	desc="Copy a link to the created file after the Template choice runs."
+	name={t("choiceBuilder.templateForm.copyLinkToClipboard")}
+	desc={t("choiceBuilder.templateForm.copyLinkToClipboardDesc")}
 >
 	{#snippet control()}
 		<Toggle
@@ -300,10 +303,10 @@ function onModeChange(value: string) {
 	{/snippet}
 </SettingItem>
 
-<SettingItem name="Behavior" heading />
+<SettingItem name={t("choiceBuilder.templateForm.headingBehavior")} heading />
 
 <SettingItem
-	name="Search existing notes before creating"
+	name={t("choiceBuilder.templateForm.searchExisting")}
 	desc={discoveryDescription}
 >
 	{#snippet control()}
@@ -321,7 +324,7 @@ function onModeChange(value: string) {
 </SettingItem>
 
 {#if discoverySupported && choice.discoverExistingNotesBeforeCreate}
-	<SettingItem name="When selecting an existing note">
+	<SettingItem name={t("choiceBuilder.templateForm.whenSelectingExisting")}>
 		{#snippet control()}
 			<Dropdown
 				value={choice.existingNoteAction ?? "open"}
@@ -337,9 +340,9 @@ function onModeChange(value: string) {
 
 <SettingItem
 	name={discoverySupported && choice.discoverExistingNotesBeforeCreate
-		? "If a new note's path already exists"
-		: "If the target file already exists"}
-	desc="Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file."
+		? t("choiceBuilder.templateForm.ifNewNotePathExists")
+		: t("choiceBuilder.templateForm.ifTargetFileExists")}
+	desc={t("choiceBuilder.templateForm.fileExistsDesc")}
 >
 	{#snippet control()}
 		<Dropdown
@@ -355,7 +358,7 @@ function onModeChange(value: string) {
 
 {#if showModeRow}
 	<SettingItem
-		name={behaviorCategory === "update" ? "Update action" : "New file naming"}
+		name={behaviorCategory === "update" ? t("choiceBuilder.templateForm.updateAction") : t("choiceBuilder.templateForm.newFileNaming")}
 		desc={getFileExistsMode(selectedMode).description}
 	>
 		{#snippet control()}
@@ -371,7 +374,7 @@ function onModeChange(value: string) {
 	</SettingItem>
 {/if}
 
-<OpenFileSetting bind:openFile={choice.openFile} description="Open the created file." />
+<OpenFileSetting bind:openFile={choice.openFile} description={t("choiceBuilder.templateForm.openFileDesc")} />
 {#if choice.openFile}
 	<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 {/if}

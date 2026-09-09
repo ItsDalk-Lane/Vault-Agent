@@ -1,6 +1,7 @@
 import { FuzzySuggestModal, setIcon } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log } from "src/logger/logManager";
+import { t } from "../../i18n";
 import {
 	createRenderFallbackWarner,
 	installSkipAffordance,
@@ -61,10 +62,10 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	private items: string[];
 	private warnedOnEmptyDisplay = false;
 	private warnRenderItemFailure = createRenderFallbackWarner(
-		"Custom renderItem threw an error; falling back to default rendering",
+		t("errors.customRenderItemFailed"),
 	);
 	private warnCustomValueFailure = createRenderFallbackWarner(
-		"Custom create-row rendering threw an error; falling back to default rendering",
+		t("errors.customCreateRowRenderFailed"),
 	);
 	private allowCustomValue = true;
 	private customValueLabel?: (value: string) => string;
@@ -298,9 +299,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 
 		if (hasEmptyDisplay) {
 			this.warnedOnEmptyDisplay = true;
-			log.logWarning(
-				"QuickAdd suggester received empty display values. Check your displayItems mapping.",
-			);
+			log.logWarning(t("errors.suggesterEmptyDisplayValues"));
 		}
 	}
 }

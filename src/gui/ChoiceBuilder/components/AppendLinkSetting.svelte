@@ -3,6 +3,7 @@ import { TFile, type App } from "obsidian";
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
+import { t } from "../../../i18n";
 import type {
 	AppendLinkOptions,
 	FrontmatterHandling,
@@ -60,35 +61,67 @@ const destinationMode = $derived(normalized.destination.type);
 const markdownFilePaths = $derived(
 	app ? app.vault.getMarkdownFiles().map((file) => file.path) : [],
 );
+const fileLabelText = $derived(
+	fileLabel === "captured"
+		? t("choiceBuilder.appendLink.fileLabelCaptured")
+		: t("choiceBuilder.appendLink.fileLabelCreated"),
+);
 
 const modeOptions = [
-	{ value: "required", label: "Enabled (strict)" },
-	{ value: "optional", label: "Enabled (skip if unavailable)" },
-	{ value: "disabled", label: "Disabled" },
+	{ value: "required", label: t("choiceBuilder.appendLink.modeRequired") },
+	{ value: "optional", label: t("choiceBuilder.appendLink.modeOptional") },
+	{ value: "disabled", label: t("choiceBuilder.appendLink.modeDisabled") },
 ];
 const destinationOptions = [
-	{ value: "activeFile", label: "Current note" },
-	{ value: "specifiedFile", label: "Specified note" },
+	{
+		value: "activeFile",
+		label: t("choiceBuilder.appendLink.destinationCurrentNote"),
+	},
+	{
+		value: "specifiedFile",
+		label: t("choiceBuilder.appendLink.destinationSpecifiedNote"),
+	},
 ];
 const placementOptions = [
-	{ value: "replaceSelection", label: "Replace selection" },
-	{ value: "afterSelection", label: "After selection" },
-	{ value: "endOfLine", label: "End of line" },
-	{ value: "newLine", label: "New line" },
-	{ value: "inFrontmatter", label: "In frontmatter property" },
+	{
+		value: "replaceSelection",
+		label: t("choiceBuilder.appendLink.placementReplaceSelection"),
+	},
+	{
+		value: "afterSelection",
+		label: t("choiceBuilder.appendLink.placementAfterSelection"),
+	},
+	{
+		value: "endOfLine",
+		label: t("choiceBuilder.appendLink.placementEndOfLine"),
+	},
+	{ value: "newLine", label: t("choiceBuilder.appendLink.placementNewLine") },
+	{
+		value: "inFrontmatter",
+		label: t("choiceBuilder.appendLink.placementInFrontmatter"),
+	},
 ];
 const linkTypeOptions = [
-	{ value: "link", label: "Link" },
-	{ value: "embed", label: "Embed" },
+	{ value: "link", label: t("choiceBuilder.appendLink.linkTypeLink") },
+	{ value: "embed", label: t("choiceBuilder.appendLink.linkTypeEmbed") },
 ];
 const displayTextOptions = [
-	{ value: "none", label: "Default" },
-	{ value: "selection", label: "Selected text" },
+	{ value: "none", label: t("choiceBuilder.appendLink.displayTextDefault") },
+	{
+		value: "selection",
+		label: t("choiceBuilder.appendLink.displayTextSelection"),
+	},
 ];
 const frontmatterHandlingOptions = [
-	{ value: "alwaysAppend", label: "Create or convert" },
-	{ value: "createProperty", label: "Create if missing" },
-	{ value: "error", label: "Require list" },
+	{
+		value: "alwaysAppend",
+		label: t("choiceBuilder.appendLink.handlingAlwaysAppend"),
+	},
+	{
+		value: "createProperty",
+		label: t("choiceBuilder.appendLink.handlingCreateProperty"),
+	},
+	{ value: "error", label: t("choiceBuilder.appendLink.handlingError") },
 ];
 
 function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
@@ -192,7 +225,7 @@ function onDestinationPathChange(value: string) {
 
 function validateDestinationFile(raw: string) {
 	const value = raw.trim();
-	if (!value) return "Destination file is required";
+	if (!value) return t("choiceBuilder.appendLink.destinationFileRequired");
 	if (!app) return true;
 
 	const target = app.vault.getAbstractFileByPath(
@@ -200,13 +233,13 @@ function validateDestinationFile(raw: string) {
 	);
 	return target instanceof TFile && target.extension === "md"
 		? true
-		: "Markdown file not found";
+		: t("choiceBuilder.appendLink.destinationFileNotFound");
 }
 </script>
 
 <SettingItem
-	name={`Link to ${fileLabel} file`}
-	desc={`Choose whether QuickAdd should insert a link to the ${fileLabel} file.`}
+	name={t("choiceBuilder.appendLink.linkTo.name", { file: fileLabelText })}
+	desc={t("choiceBuilder.appendLink.linkTo.desc", { file: fileLabelText })}
 >
 	{#snippet control()}
 		<Dropdown value={currentMode} options={modeOptions} onchange={onModeChange} />
@@ -215,8 +248,10 @@ function validateDestinationFile(raw: string) {
 
 {#if currentMode !== "disabled"}
 	<SettingItem
-		name="Link destination"
-		desc={`Where QuickAdd writes the link to the ${fileLabel} file.`}
+		name={t("choiceBuilder.appendLink.destination.name")}
+		desc={t("choiceBuilder.appendLink.destination.desc", {
+			file: fileLabelText,
+		})}
 	>
 		{#snippet control()}
 			<Dropdown
@@ -229,8 +264,8 @@ function validateDestinationFile(raw: string) {
 
 	{#if destinationMode === "activeFile"}
 		<SettingItem
-			name="Link placement"
-			desc="Where to place the link when appending"
+			name={t("choiceBuilder.appendLink.placement.name")}
+			desc={t("choiceBuilder.appendLink.placement.desc")}
 		>
 			{#snippet control()}
 				<Dropdown
@@ -243,8 +278,8 @@ function validateDestinationFile(raw: string) {
 
 		{#if placementSupportsEmbed(normalized.placement)}
 			<SettingItem
-				name="Link type"
-				desc="Choose whether to insert a link or an embed. Embeds transclude the note's contents at the placement position."
+				name={t("choiceBuilder.appendLink.linkType.name")}
+				desc={t("choiceBuilder.appendLink.linkType.desc")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -258,8 +293,8 @@ function validateDestinationFile(raw: string) {
 
 		{#if placementSupportsSelectionAlias(normalized.placement) && normalizedLinkType === "link"}
 			<SettingItem
-				name="Link display text"
-				desc="What the inserted link displays. 'Selected text' keeps the highlighted text as the link's display text; with nothing selected, the plain link is inserted."
+				name={t("choiceBuilder.appendLink.displayText.name")}
+				desc={t("choiceBuilder.appendLink.displayText.desc")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -273,15 +308,15 @@ function validateDestinationFile(raw: string) {
 
 		{#if placementSupportsFrontmatter(normalized.placement)}
 			<SettingItem
-				name="Frontmatter property"
-				desc="Required property to insert the link into."
+				name={t("choiceBuilder.appendLink.frontmatterProperty.name")}
+				desc={t("choiceBuilder.appendLink.frontmatterProperty.desc")}
 			>
 				{#snippet control()}
 					<input
 						type="text"
 						class="text-input"
 						value={normalized.frontmatterProperty ?? ""}
-						aria-label="Frontmatter property"
+						aria-label={t("choiceBuilder.placeholder.frontmatterPropertyAria")}
 						aria-invalid={!(normalized.frontmatterProperty?.trim())}
 						placeholder="related"
 						required
@@ -291,8 +326,8 @@ function validateDestinationFile(raw: string) {
 			</SettingItem>
 
 			<SettingItem
-				name="Property handling"
-				desc="Choose how strict QuickAdd should be when the property is missing or not a list."
+				name={t("choiceBuilder.appendLink.propertyHandling.name")}
+				desc={t("choiceBuilder.appendLink.propertyHandling.desc")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -305,8 +340,8 @@ function validateDestinationFile(raw: string) {
 		{/if}
 	{:else}
 		<SettingItem
-			name="Destination file"
-			desc="Existing Markdown note that receives the link at the bottom."
+			name={t("choiceBuilder.appendLink.destinationFile.name")}
+			desc={t("choiceBuilder.appendLink.destinationFile.desc")}
 		>
 			{#snippet control()}
 				<ValidatedInput
@@ -316,9 +351,11 @@ function validateDestinationFile(raw: string) {
 					suggestions={markdownFilePaths}
 					maxSuggestions={50}
 					required
-					requiredMessage="Destination file is required"
+					requiredMessage={t(
+						"choiceBuilder.appendLink.destinationFileRequired",
+					)}
 					validator={validateDestinationFile}
-					ariaLabel="Append link destination file"
+					ariaLabel={t("choiceBuilder.appendLink.destinationFileAria")}
 					onChange={onDestinationPathChange}
 				/>
 			{/snippet}

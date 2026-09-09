@@ -38,6 +38,7 @@ import { getDate } from "../utilityObsidian";
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
@@ -495,7 +496,11 @@ export abstract class Formatter {
 		if (!style) return value;
 		if (!isSupportedCaseStyle(style)) {
 			this.warn(
-				`QuickAdd: Unsupported |case style "${style}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+				t("errors.unsupportedCaseStyle", {
+					style,
+					token: tokenDisplay,
+					styles: SUPPORTED_CASE_STYLES.join(", "),
+				}),
 			);
 			return value;
 		}
@@ -1233,7 +1238,9 @@ export abstract class Formatter {
 			// every message, and it bypassed this hook, so a preview would still
 			// have written one line per keystroke to devtools.
 			this.warn(
-				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
+				t("errors.namedValueConflictingOptionLists", {
+					name: parsed.variableKey,
+				}),
 			);
 		}
 	}
@@ -1913,14 +1920,19 @@ export abstract class Formatter {
 			this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
 
 			if (this.templateInclusion.visited.has(templatePath)) {
-				const placeholder = `[QuickAdd: template inclusion cycle detected at "${templatePath}"]`;
+				const placeholder = t("errors.templateInclusionCycle", {
+					path: templatePath,
+				});
 				this.reportProblem(placeholder);
 				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
 				continue;
 			}
 
 			if (this.templateInclusion.depth >= MAX_TEMPLATE_INCLUSION_DEPTH) {
-				const placeholder = `[QuickAdd: max template inclusion depth (${MAX_TEMPLATE_INCLUSION_DEPTH}) exceeded at "${templatePath}"]`;
+				const placeholder = t("errors.templateInclusionDepthExceeded", {
+					depth: MAX_TEMPLATE_INCLUSION_DEPTH,
+					path: templatePath,
+				});
 				this.reportProblem(placeholder);
 				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
 				continue;

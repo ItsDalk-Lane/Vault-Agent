@@ -49,7 +49,10 @@ import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInput
 import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { acceptsDiscoverySelection, resolveDiscoveryFieldRequirement, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
 import { t } from "../i18n";
-import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import {
+	existingNoteActionVerb,
+	getExistingNoteAction,
+} from "src/template/fileExistsPolicy";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -189,7 +192,7 @@ export class OnePageInputModal extends Modal {
 		);
 		this.peek = new InputPromptPeek({
 			app,
-			title: "Provide inputs",
+			title: t("onePageInput.provideInputs"),
 			containerEl: this.containerEl,
 			scope: this.scope,
 			getField: () => this.insertTarget()?.el,
@@ -227,7 +230,7 @@ export class OnePageInputModal extends Modal {
 		if (this.discoveryForm) this.containerEl.addClass("qa-discovery-form");
 		this.contentEl.empty();
 
-		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
+		const title = this.contentEl.createEl("h2", { text: t("onePageInput.provideInputs") });
 		title.addClass("qa-onepage-title");
 
 		// Optional live preview area. Created (empty and collapsed) before the
@@ -447,21 +450,24 @@ export class OnePageInputModal extends Modal {
 		selected.setAttribute("aria-live", "polite");
 		const input = new TextComponent(container).setPlaceholder(t("onePageInput.notePlaceholder"));
 		input.inputEl.addClass("qa-onepage-file-picker__input");
-		input.inputEl.setAttribute("aria-label", `Note for ${note.choice.name}`);
+		input.inputEl.setAttribute("aria-label", t("templateDiscovery.noteForAria", { name: note.choice.name }));
 		let suggester: NoteDiscoveryInputSuggest | undefined;
 		const showSelection = (selection: TemplateNoteSelection) => {
 			suggester?.close();
 			this.discoverySelections.set(note.id, selection);
 			selected.empty();
 			const action = existingNoteActionVerb(note.choice.existingNoteAction);
+			// Compare the action ID, never the localized verb string.
+			const isOpenAction =
+				getExistingNoteAction(note.choice.existingNoteAction) === "open";
 			const label = selection.kind === "existing"
-				? `${action === "Open" ? "" : `${action}: `}${selection.path.replace(/\.md$/i, "")}`
-				: `Create: ${selection.title}`;
+				? `${isOpenAction ? "" : `${action}: `}${selection.path.replace(/\.md$/i, "")}`
+				: t("templateDiscovery.createLabel", { title: selection.title });
 			const chip = selected.createDiv({ cls: "qa-onepage-file-picker__chip" });
 			chip.createSpan({ cls: "qa-onepage-file-picker__chip-label", text: label });
 			const change = chip.createEl("button", { cls: "qa-onepage-file-picker__remove", text: "×" });
 			change.type = "button";
-			change.setAttribute("aria-label", "Change note");
+			change.setAttribute("aria-label", t("templateDiscovery.changeNoteAria"));
 			change.addEventListener("click", () => {
 				this.discoverySelections.delete(note.id);
 				selected.empty();
@@ -477,7 +483,7 @@ export class OnePageInputModal extends Modal {
 			suggester = new NoteDiscoveryInputSuggest(this.app, input.inputEl, note.choice, showSelection, this.scope);
 			this.discoverySuggesters.push(suggester);
 		} catch {
-			new Notice("Note search is unavailable. Type a new note title.");
+			new Notice(t("onePageInput.noteSearchUnavailable"));
 		}
 		this.discoveryInputs.set(note.id, {
 			input: input.inputEl,
@@ -1166,7 +1172,7 @@ export class OnePageInputModal extends Modal {
 			const field = this.discoveryInputs.get(note.id);
 			if (!field) continue;
 			if (!field.input.value.trim()) {
-				new Notice("Enter a note title or choose an existing note.");
+				new Notice(t("onePageInput.enterNoteTitle"));
 				field.input.focus();
 				return;
 			}

@@ -8,6 +8,7 @@ import Dropdown from "../../components/Dropdown.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import LabeledField from "./LabeledField.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
+import { t } from "../../../i18n";
 
 let { config = $bindable(), app, plugin }: {
 	config: PropertyCapture;
@@ -19,10 +20,10 @@ const suggesters = [(el: HTMLInputElement | HTMLTextAreaElement) => new FormatSy
 let lastNamedFormat = "";
 </script>
 
-<LabeledField name="Property" bodyVisible={config.property.kind === "named"}>
+<LabeledField name={t("choiceBuilder.propertyCapture.property")} bodyVisible={config.property.kind === "named"}>
 	{#snippet control()}
 		<Dropdown value={config.property.kind}
-			options={[{ value: "named", label: "Named property" }, { value: "prompt", label: "Choose when capturing" }]}
+			options={[{ value: "named", label: t("choiceBuilder.propertyCapture.kindNamed") }, { value: "prompt", label: t("choiceBuilder.propertyCapture.kindPrompt") }]}
 			onchange={(value) => {
 				if (config.property.kind === "named") lastNamedFormat = config.property.format;
 				config.property = value === "prompt" ? { kind: "prompt" } : { kind: "named", format: lastNamedFormat };
@@ -30,23 +31,23 @@ let lastNamedFormat = "";
 	{/snippet}
 	{#snippet children(id)}
 		{#if config.property.kind === "named"}
-			<ValidatedInput {id} bind:value={config.property.format} placeholder="Property name"
-				required requiredMessage="Property name is required" makeSuggesters={suggesters} />
+			<ValidatedInput {id} bind:value={config.property.format} placeholder={t("choiceBuilder.placeholder.propertyName")}
+				required requiredMessage={t("choiceBuilder.propertyCapture.propertyNameRequired")} makeSuggesters={suggesters} />
 		{/if}
 	{/snippet}
 </LabeledField>
 
-<SettingItem name="Action" desc={config.action === "addToList"
-	? "Add captured values to the property's list, keeping existing items and skipping duplicates."
-	: "Replace the property's value with the captured value."}>
+<SettingItem name={t("choiceBuilder.propertyCapture.action")} desc={config.action === "addToList"
+	? t("choiceBuilder.propertyCapture.actionDescAddToList")
+	: t("choiceBuilder.propertyCapture.actionDescSet")}>
 	{#snippet control()}
 		<Dropdown value={config.action}
-			options={[{ value: "set", label: "Set value" }, { value: "addToList", label: "Add to list" }]}
+			options={[{ value: "set", label: t("choiceBuilder.propertyCapture.actionSet") }, { value: "addToList", label: t("choiceBuilder.propertyCapture.actionAddToList") }]}
 			onchange={(value) => { config.action = value === "addToList" ? "addToList" : "set"; }} />
 	{/snippet}
 </SettingItem>
 
-<SettingItem name="Create property if missing">
+<SettingItem name={t("choiceBuilder.propertyCapture.createIfMissing")}>
 	{#snippet control()}
 		<Toggle bind:checked={config.createIfMissing} />
 	{/snippet}

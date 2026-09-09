@@ -21,6 +21,7 @@ import {
 	isCommandLike,
 } from "../utils/macroUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { t } from "../i18n";
 
 // Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
 // `settings` (consumed by initializeUserScriptSettings), `entry` (the object-export entrypoint
@@ -129,7 +130,7 @@ export class SingleMacroEngine {
 
 			if (ciMatches.length > 1) {
 				log.logError(
-					`Ambiguous macro reference '${macroName}'. Multiple choices match when ignoring case.`,
+					t("errors.ambiguousMacroReference", { name: macroName }),
 				);
 				throw new Error(
 					`Ambiguous macro reference '${macroName}'. Please disambiguate by renaming macros.`,
@@ -140,7 +141,7 @@ export class SingleMacroEngine {
 		}
 
 		if (!macroChoice) {
-			log.logError(`macro '${macroName}' does not exist.`);
+			log.logError(t("errors.macroNotFound", { name: macroName }));
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
@@ -184,9 +185,10 @@ export class SingleMacroEngine {
 			const lookup = this.resolveMemberAccess(result, memberAccess);
 			if (!lookup.found) {
 				log.logWarning(
-					`Macro '${macroChoice.name}' was asked for member '${memberAccess.join(
-						"::",
-					)}', but it has no user script exporting it; the result is empty.`,
+					t("errors.macroMemberNotExported", {
+						name: macroChoice.name,
+						member: memberAccess.join("::"),
+					}),
 				);
 			}
 			result = lookup.value;
@@ -534,11 +536,12 @@ export class SingleMacroEngine {
 			.join(", ");
 
 		log.logWarning(
-			`Macro '${macroChoice.name}': multiple user scripts export '${memberAccess.join(
-				"::",
-			)}' (${names}); using '${chosen.command.name}'. Disambiguate with '{{MACRO:${macroChoice.name}::<Script Name>::${memberAccess.join(
-				"::",
-			)}}}'.`,
+			t("errors.multipleScriptsExportMember", {
+				name: macroChoice.name,
+				member: memberAccess.join("::"),
+				names,
+				chosen: chosen.command.name,
+			}),
 		);
 	}
 

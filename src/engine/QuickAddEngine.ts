@@ -4,6 +4,7 @@ import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { t } from "../i18n";
 
 export abstract class QuickAddEngine {
 	public app: App;
@@ -47,12 +48,12 @@ export abstract class QuickAddEngine {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
 		if (!file) {
-			log.logError(`${filePath} not found`);
+			log.logError(t("errors.fileNotFound", { path: filePath }));
 			throw new Error(`${filePath} not found`);
 		}
 
 		if (file instanceof TFolder) {
-			log.logError(`${filePath} found but it's a folder`);
+			log.logError(t("errors.pathIsFolder", { path: filePath }));
 			throw new Error(`${filePath} found but it's a folder`);
 		}
 

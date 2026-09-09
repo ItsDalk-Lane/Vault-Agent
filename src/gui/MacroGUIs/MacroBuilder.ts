@@ -386,12 +386,13 @@ export class MacroBuilder extends Modal {
 		command: IConditionalCommand,
 		branch: "then" | "else"
 	): Promise<boolean> {
-		const title = branch === "then" ? "Then branch" : "Else branch";
+		const branchLabel =
+			branch === "then" ? t("macro.branchThen") : t("macro.branchElse");
 		const modal = new ConditionalBranchEditorModal({
 			app: this.app,
 			plugin: this.plugin,
 			choices: this.choices,
-			title: `Edit ${title} commands`,
+			title: t("macro.editBranchTitle", { branch: branchLabel }),
 			commands: branch === "then" ? command.thenCommands : command.elseCommands,
 			conditionalHandlers: this.buildConditionalHandlers(),
 		});

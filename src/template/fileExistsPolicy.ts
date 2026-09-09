@@ -3,12 +3,36 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "src/constants";
+import { t } from "../i18n";
 
+// Labels/descriptions/verbs use getters so they resolve through t() at ACCESS
+// time. Module-level string literals would freeze the English fallback: this
+// module is imported before main.ts calls setLocale().
 export const fileExistsBehaviorCategoryOptions = [
-	{ id: "prompt", label: "Ask every time" },
-	{ id: "update", label: "Update existing file" },
-	{ id: "create", label: "Create another file" },
-	{ id: "keep", label: "Keep existing file" },
+	{
+		id: "prompt",
+		get label() {
+			return t("fileExists.category.prompt");
+		},
+	},
+	{
+		id: "update",
+		get label() {
+			return t("fileExists.category.update");
+		},
+	},
+	{
+		id: "create",
+		get label() {
+			return t("fileExists.category.create");
+		},
+	},
+	{
+		id: "keep",
+		get label() {
+			return t("fileExists.category.keep");
+		},
+	},
 ] as const;
 
 export type FileExistsBehaviorCategoryId =
@@ -22,51 +46,72 @@ export const fileExistsModes = [
 	{
 		id: "appendBottom",
 		category: "update",
-		label: "Append to bottom",
-		description: "Adds the template content to the end of the existing file.",
+		get label() {
+			return t("fileExists.mode.appendBottom.label");
+		},
+		get description() {
+			return t("fileExists.mode.appendBottom.description");
+		},
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
 	{
 		id: "appendTop",
 		category: "update",
-		label: "Append to top",
-		description:
-			"Adds the template content to the beginning of the existing file.",
+		get label() {
+			return t("fileExists.mode.appendTop.label");
+		},
+		get description() {
+			return t("fileExists.mode.appendTop.description");
+		},
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
 	{
 		id: "overwrite",
 		category: "update",
-		label: "Overwrite file",
-		description: "Replaces the existing file content with the template.",
+		get label() {
+			return t("fileExists.mode.overwrite.label");
+		},
+		get description() {
+			return t("fileExists.mode.overwrite.description");
+		},
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
 	{
 		id: "increment",
 		category: "create",
-		label: "Increment trailing number",
-		description:
-			"Changes trailing digits only. Example: Draft009.md -> Draft010.md.",
+		get label() {
+			return t("fileExists.mode.increment.label");
+		},
+		get description() {
+			return t("fileExists.mode.increment.description");
+		},
 		requiresExistingFile: false,
 		resolutionKind: "createNew",
 	},
 	{
 		id: "duplicateSuffix",
 		category: "create",
-		label: "Append duplicate suffix",
-		description:
-			"Keeps the original name and adds a duplicate marker. Example: Project Plan.md -> Project Plan (1).md.",
+		get label() {
+			return t("fileExists.mode.duplicateSuffix.label");
+		},
+		get description() {
+			return t("fileExists.mode.duplicateSuffix.description");
+		},
 		requiresExistingFile: false,
 		resolutionKind: "createNew",
 	},
 	{
 		id: "doNothing",
 		category: "keep",
-		label: "Do nothing",
-		description: "Leaves the file unchanged and opens the existing file.",
+		get label() {
+			return t("fileExists.mode.doNothing.label");
+		},
+		get description() {
+			return t("fileExists.mode.doNothing.description");
+		},
 		requiresExistingFile: true,
 		resolutionKind: "reuseExisting",
 	},
@@ -86,10 +131,42 @@ export type TemplateExistingNoteAction = "open" | Extract<
 >["id"];
 
 export const existingNoteActions = [
-	{ id: "open", label: "Open note", verb: "Open" },
-	{ id: "appendBottom", label: "Append template to bottom", verb: "Append to" },
-	{ id: "appendTop", label: "Insert template at top", verb: "Insert into" },
-	{ id: "overwrite", label: "Replace entire note", verb: "Replace" },
+	{
+		id: "open",
+		get label() {
+			return t("fileExists.existingNoteAction.open.label");
+		},
+		get verb() {
+			return t("fileExists.existingNoteAction.open.verb");
+		},
+	},
+	{
+		id: "appendBottom",
+		get label() {
+			return t("fileExists.existingNoteAction.appendBottom.label");
+		},
+		get verb() {
+			return t("fileExists.existingNoteAction.appendBottom.verb");
+		},
+	},
+	{
+		id: "appendTop",
+		get label() {
+			return t("fileExists.existingNoteAction.appendTop.label");
+		},
+		get verb() {
+			return t("fileExists.existingNoteAction.appendTop.verb");
+		},
+	},
+	{
+		id: "overwrite",
+		get label() {
+			return t("fileExists.existingNoteAction.overwrite.label");
+		},
+		get verb() {
+			return t("fileExists.existingNoteAction.overwrite.verb");
+		},
+	},
 ] satisfies Array<{ id: TemplateExistingNoteAction; label: string; verb: string }>;
 
 function existingNoteActionDefinition(value: unknown) {
@@ -122,6 +199,8 @@ const defaultModeByCategory: Record<FileExistsModeCategoryId, FileExistsModeId> 
 	keep: "doNothing",
 };
 
+// Keys are LEGACY PERSISTED STRINGS from saved choice data — never localize
+// them; they must match what old vaults stored, in English, forever.
 const legacyFileExistsModeMap: Record<string, FileExistsModeId> = {
 	"Append to the bottom of the file": "appendBottom",
 	"Append to the top of the file": "appendTop",

@@ -13,6 +13,7 @@ import {
 } from "../utils/clipboardImageAttachments";
 import { settingsStore } from "../settingsStore";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { t } from "../i18n";
 
 type PromptImage =
 	| {
@@ -112,8 +113,8 @@ export function attachImagePasteHandler(
 				if (pendingSave) {
 					new Notice(
 						channel === "paste"
-							? "QuickAdd: an image is still being saved — paste again in a moment."
-							: "QuickAdd: an image is still being saved — drop again in a moment.",
+							? t("common.imageIntakeBusyPaste")
+							: t("common.imageIntakeBusyDrop"),
 					);
 					return;
 				}
@@ -198,7 +199,7 @@ export function attachImagePasteHandler(
 			log.logError(
 				`Failed to save image: ${error instanceof Error ? error.message : String(error)}`,
 			);
-			new Notice("QuickAdd: failed to save image.");
+			new Notice(t("common.imageSaveFailed"));
 		} finally {
 			inputEl.readOnly = wasReadOnly;
 			inputEl.removeAttribute("aria-busy");
@@ -215,9 +216,7 @@ export function attachImagePasteHandler(
 			log.logError(
 				`Failed to insert image link: ${error instanceof Error ? error.message : String(error)}`,
 			);
-			new Notice(
-				"QuickAdd: saved the image but could not insert its link.",
-			);
+			new Notice(t("common.imageInsertLinkFailed"));
 			return "";
 		}
 	}
@@ -230,9 +229,7 @@ export function attachImagePasteHandler(
 			return "";
 		}
 		if (pendingSave) {
-			new Notice(
-				"QuickAdd: an image is still being saved — drop again in a moment.",
-			);
+			new Notice(t("common.imageIntakeBusyDrop"));
 			log.logMessage("QuickAdd: image ingest skipped (busy).");
 			return "";
 		}

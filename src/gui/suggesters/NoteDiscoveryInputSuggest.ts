@@ -1,6 +1,10 @@
 import { Notice, prepareFuzzySearch, type App, type Scope } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
+import {
+	existingNoteActionVerb,
+	getExistingNoteAction,
+} from "src/template/fileExistsPolicy";
+import { t } from "../../i18n";
 import {
 	buildDiscoveryCandidates,
 	createTemplateNoteSelection,
@@ -33,13 +37,16 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 		super(obsidianApp, input, parentScope);
 		this.existingKeys = existingKeys;
 		const action = existingNoteActionVerb(choice.existingNoteAction);
+		// Compare the action ID, never the localized verb string.
+		const isOpenAction =
+			getExistingNoteAction(choice.existingNoteAction) === "open";
 		this.options = candidates.map((candidate) => ({
 			item: candidate.item,
 			exactKeys: candidate.exactKeys,
 			label: candidate.renderPath
-				? `${action === "Open" ? "" : `${action}: `}${candidate.renderPath.split("/").at(-1)?.replace(/\.md$/i, "")}`
+				? `${isOpenAction ? "" : `${action}: `}${candidate.renderPath.split("/").at(-1)?.replace(/\.md$/i, "")}`
 				: candidate.unresolvedTitle ?? candidate.title,
-			detail: candidate.renderPath ?? "Unresolved link",
+			detail: candidate.renderPath ?? t("templateDiscovery.unresolvedLink"),
 			search: candidate.display,
 		}));
 	}

@@ -1,6 +1,7 @@
 import { log } from "src/logger/logManager";
 import type QuickAdd from "src/main";
 import { normalizeTemplateFolderPaths } from "src/utilityObsidian";
+import { t } from "src/i18n";
 
 export default {
 	description:
@@ -67,7 +68,7 @@ export default {
 				plugin.settings.templateFolderPaths = normalizedFolders;
 			}
 		} catch (error) {
-			log.logError("Failed to migrate template folder path.");
+			log.logError(t("errors.migrateTemplateFolderFailed"));
 
 			throw error;
 		}

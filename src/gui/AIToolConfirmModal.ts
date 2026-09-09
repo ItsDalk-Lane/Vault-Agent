@@ -52,7 +52,7 @@ export default class AIToolConfirmModal extends Modal {
 		this.titleEl.textContent = `Run AI tool: ${this.toolName}?`;
 
 		this.contentEl.createEl("p", {
-			text: "The AI requested this tool call with the arguments below.",
+			text: t("ai.toolConfirmArgs"),
 		});
 
 		// Surface the model-chosen target (path/heading) as a labeled line so the

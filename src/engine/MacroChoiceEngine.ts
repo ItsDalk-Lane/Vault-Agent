@@ -67,6 +67,7 @@ import {
 	hasCommandList,
 	isUnreadableCommandList,
 } from "../utils/macroUtils";
+import { t } from "../i18n";
 
 import { classifyStep } from "../preflight/macroCommandRole";
 import { isDiscoveryInputBoundary } from "../preflight/macroFormRoster";
@@ -294,7 +295,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			// Only a MISSING macro is worth saying anything about.
 			if (!hasCommandList(this.macro?.commands)) {
 				log.logError(
-					`No commands in the macro for choice '${this.choice.name}'`
+					t("errors.noCommandsInMacro", { name: this.choice.name })
 				);
 			}
 			return;
@@ -417,7 +418,11 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// last one there is no rest. What the user needs from the tail is that
 		// the macro was not aborted, so the result they get is a partial one.
 		log.logError(
-			`Skipped ${name} in the macro for '${this.choice.name}': ${reason} QuickAdd did not stop the macro, so its result may be incomplete.`
+			t("errors.skippedCommandInMacro", {
+				name,
+				choice: this.choice.name,
+				reason,
+			})
 		);
 	}
 
@@ -442,7 +447,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		if (!userScript) {
-			log.logError(`failed to load user script ${command.path}.`);
+			log.logError(t("errors.loadUserScriptFailed", { path: command.path }));
 			return;
 		}
 
@@ -560,7 +565,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				break;
 			default:
 				log.logError(
-					`user script in macro for '${this.choice.name}' is invalid`
+					t("errors.invalidUserScript", { name: this.choice.name })
 				);
 		}
 	}
@@ -652,7 +657,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// so surface a clear error instead of letting the macro look successful.
 		if (registry && !registry[command.commandId]) {
 			log.logError(
-				`Obsidian command '${command.name}' is no longer available.`
+				t("errors.obsidianCommandUnavailable", { name: command.name })
 			);
 			return;
 		}
@@ -674,7 +679,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const message = error instanceof Error ? error.message : String(error);
 			if (!/not found/i.test(message)) throw error;
 			log.logError(
-				`choice '${command.name}' could not be found.`
+				t("errors.choiceNotFound", { name: command.name })
 			);
 			return;
 		}
@@ -689,7 +694,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private async executeNestedChoice(command: INestedChoiceCommand) {
 		const choice: IChoice = command.choice;
 		if (!choice) {
-			log.logError(`choice in ${command.name} is invalid`);
+			log.logError(t("errors.choiceInvalid", { name: command.name }));
 			return;
 		}
 
@@ -961,7 +966,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		if (typeof result !== "boolean") {
 			log.logWarning(
-				`Conditional script '${condition.scriptPath}' must return a boolean result.`
+				t("errors.conditionalScriptMustReturnBoolean", {
+					path: condition.scriptPath,
+				})
 			);
 			return false;
 		}
@@ -1045,14 +1052,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					(segment === "" && index !== 0 && index !== segments.length - 1)
 			);
 			if (hasTraversal) {
-				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
+				log.logError(t("errors.openFilePathTraversal", { path: normalizedPath }));
 				return;
 			}
 
 			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 
 			if (!file || !(file instanceof TFile)) {
-				log.logError(`OpenFile: '${normalizedPath}' does not exist or is not a file`);
+				log.logError(t("errors.openFileNotFound", { path: normalizedPath }));
 				return;
 			}
 
@@ -1063,7 +1070,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				originLeaf: this.originLeaf,
 			});
 		} catch (error) {
-			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
+			log.logError(t("errors.openFileFailed", { path: command.filePath, error: error.message }));
 		}
 	}
 }

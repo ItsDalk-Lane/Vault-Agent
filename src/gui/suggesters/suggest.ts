@@ -5,6 +5,7 @@ import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
 import { getOwnerDocument, getOwnerWindow } from "src/utils/activeWindow";
 import { renderExactHighlight } from "./utils";
+import { t } from "src/i18n";
 
 const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
@@ -268,7 +269,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.listboxId = `qa-suggest-listbox-${++textInputSuggestSeq}`;
 		suggestion.id = this.listboxId;
 		suggestion.setAttribute("role", "listbox");
-		suggestion.setAttribute("aria-label", "Suggestions");
+		suggestion.setAttribute("aria-label", t("common.suggestionsAria"));
 
 		this.suggest = new Suggest(
 			this,

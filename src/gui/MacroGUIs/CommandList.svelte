@@ -241,7 +241,7 @@ function getChoiceBuilder(choice: IChoice) {
 async function configureScript(command: IUserScript) {
 	const userScript = await getUserScript(command, app);
 	if (!userScript) {
-		log.logWarning(`${command.name} could not be loaded.`);
+		log.logWarning(t("errors.commandLoadFailed", { name: command.name }));
 		return;
 	}
 

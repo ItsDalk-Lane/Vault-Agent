@@ -2,6 +2,7 @@ import type { App, TAbstractFile } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
@@ -155,7 +156,7 @@ export async function getUserScript(
 	// @ts-ignore
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
-		log.logError(`failed to load file ${command.path}.`);
+		log.logError(t("errors.loadUserScriptFileFailed", { path: command.path }));
 		return;
 	}
 

@@ -20,6 +20,7 @@ import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
+import { t } from "../i18n";
 
 export const templateInsertModes = [
 	{
@@ -396,7 +397,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 			parsed = parseYaml(frontmatterYaml);
 		} catch (err) {
 			log.logWarning(
-				`Could not parse template frontmatter for merging: ${err}`,
+				t("errors.parseTemplateFrontmatterFailed", { error: String(err) }),
 			);
 			return;
 		}
@@ -428,7 +429,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 					// template front matter authored elsewhere.
 					if (hasUnsafeFrontmatterKey([key])) {
 						log.logWarning(
-							`Skipping front matter merge for unsafe key "${key}" to avoid prototype pollution.`,
+							t("errors.skipUnsafeFrontmatterKey", { key }),
 						);
 						continue;
 					}

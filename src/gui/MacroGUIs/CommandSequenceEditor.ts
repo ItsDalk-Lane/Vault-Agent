@@ -204,14 +204,14 @@ export class CommandSequenceEditor {
 				const command = this.commandsRef.find((c) => c.id === commandId);
 
 				if (!command) {
-					log.logError("command not found");
-					throw new Error("command not found");
+					log.logError(t("errors.commandNotFound"));
+					throw new Error(t("errors.commandNotFound"));
 				}
 
 				const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
 					this.app,
-					"Are you sure you wish to delete this command?",
-					`If you click yes, you will delete '${command.name}'.`
+					t("packageManager.confirmDeleteTitle"),
+					t("packageManager.confirmDeleteBody", { name: command.name }),
 				);
 				if (!promptAnswer) return;
 
@@ -274,7 +274,7 @@ export class CommandSequenceEditor {
 			const obsidianCommand = this.obsidianCommands.find((v) => v.name === value);
 
 			if (!obsidianCommand) {
-				log.logError(`Could not find Obsidian command with name "${value}"`);
+				log.logError(t("errors.obsidianCommandNotFound", { name: value }));
 				return;
 			}
 
@@ -356,8 +356,8 @@ export class CommandSequenceEditor {
 					command = new MoveCursorToLineEndCommand();
 					break;
 				default:
-					log.logError("invalid editor command type");
-					throw new Error("invalid editor command type");
+					log.logError(t("errors.invalidEditorCommandType"));
+					throw new Error(t("errors.invalidEditorCommandType"));
 			}
 
 			this.addCommand(command);
