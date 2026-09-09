@@ -4,6 +4,7 @@ import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFil
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { OpenLocation } from "../../types/fileOpening";
 import { CommandType } from "../../types/macros/CommandType";
+import { t } from "../../i18n";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -53,7 +54,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.contentEl.empty();
 
 		const headerEl = this.contentEl.createEl("h2");
-		headerEl.textContent = "Open file command settings";
+		headerEl.textContent = t("openFile.title");
 		headerEl.addClass("qa-modal-title");
 
 		this.addFilePathSetting();
@@ -65,7 +66,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addFilePathSetting() {
 		new Setting(this.contentEl)
-			.setName("File path")
+			.setName(t("macro.filePath.name"))
 			.setDesc("Path to the file. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
 			.addText(text => text
 				.setPlaceholder("{{DATE}}todo.md")
@@ -90,7 +91,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		];
 
 		new Setting(this.contentEl)
-			.setName("Where to open")
+			.setName(t("macro.whereToOpen.name"))
 			.setDesc("Choose tab, split, window, or sidebar")
 			.addDropdown((dropdown) => {
 				for (const { value, label } of locationOptions) {
@@ -133,7 +134,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addDirectionSetting() {
 		new Setting(this.contentEl)
-			.setName("Split direction")
+			.setName(t("macro.splitDirection.name"))
 			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
 				dropdown
@@ -148,7 +149,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addFocusSetting() {
 		new Setting(this.contentEl)
-			.setName("Focus opened file")
+			.setName(t("macro.focusOpenedFile.name"))
 			.setDesc("Bring the opened file to the foreground")
 			.addToggle((toggle) =>
 				toggle
@@ -176,7 +177,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		const cancelButton = new ButtonComponent(buttonContainer);
 		cancelButton
-			.setButtonText("Cancel")
+			.setButtonText(t("common.cancel"))
 			.onClick(() => {
 				// Return null to indicate cancellation
 				this.resolveWithGuard(null);
@@ -185,7 +186,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		const saveButton = new ButtonComponent(buttonContainer);
 		saveButton
-			.setButtonText("Save")
+			.setButtonText(t("common.save"))
 			.setCta()
 			.onClick(() => {
 				this.resolveWithGuard(this.command);

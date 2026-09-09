@@ -48,6 +48,196 @@ const en = {
 		note: "Note",
 		notePlaceholder: "Search notes or create new note",
 	},
+	macro: {
+		// CommandSequenceEditor.ts — left column "Add command" pickers
+		obsidianCommand: {
+			name: "Obsidian command",
+			desc: "Add an Obsidian command",
+			placeholder: "Obsidian command",
+		},
+		editorCommand: {
+			name: "Editor commands",
+			desc: "Add editor command",
+		},
+		userScript: {
+			name: "User scripts",
+			desc: "Add a .js file or a note with a ```js code block - type the name or click Browse",
+			placeholder: "Start typing script name...",
+			browse: "Browse",
+			browseTooltip: "Browse and select a script (.js file or note)",
+		},
+		choice: {
+			name: "Choices",
+			desc: "Add existing choice",
+			placeholder: "Choice",
+		},
+		addOpenFileTooltip: "Add open file command",
+		addAiAssistantTooltip: "Add AI Assistant command",
+		addWaitTooltip: "Add wait command",
+		addConditionalTooltip: "Add conditional command",
+		selectCommand: "Select command",
+
+		// MacroBuilder.ts
+		onePageInputOverride: "One-page input override",
+		onePageInputFollow: "Follow global setting",
+		onePageInputAlways: "Always",
+		onePageInputNever: "Never",
+		runOnStartup: {
+			name: "Run on startup",
+			desc: "Execute this macro when Obsidian starts",
+		},
+		relativeOffsetPlaceholder: "-2",
+		relativeOffsetUnitPlaceholder: "day",
+
+		// ConditionalBranchEditorModal.ts
+		closeButton: "Close",
+
+		// ConditionalCommandSettingsModal.ts
+		configureTitle: "Configure conditional command",
+		conditionType: {
+			name: "Condition type",
+			desc: "Choose how this condition should be evaluated.",
+		},
+		variableName: {
+			name: "Variable name",
+			desc: "Name of the macro variable to inspect (without the $ prefix).",
+			placeholder: "e.g. projectStatus",
+		},
+		operator: {
+			name: "Operator",
+			desc: "How to compare the variable value.",
+		},
+		valueType: {
+			name: "Value type",
+			desc: "How to interpret the comparison value.",
+		},
+		kind: {
+			variable: "Macro variable",
+			script: "Run script",
+		},
+		operators: {
+			equals: "Equals",
+			notEquals: "Does not equal",
+			lessThan: "Less than",
+			lessThanOrEqual: "Less than or equal",
+			greaterThan: "Greater than",
+			greaterThanOrEqual: "Greater than or equal",
+			contains: "Contains",
+			notContains: "Does not contain",
+			isTruthy: "Is truthy",
+			isFalsy: "Is falsy",
+		},
+		valueTypes: {
+			string: "Text",
+			number: "Number",
+			boolean: "Boolean",
+		},
+		expectedBool: {
+			name: "Expected value",
+			desc: "Choose true or false.",
+			true: "True",
+			false: "False",
+		},
+		expectedValue: {
+			name: "Expected value",
+			desc: "Value to compare against.",
+			placeholder: "Enter comparison value",
+		},
+		scriptPath: {
+			name: "Script path",
+			desc: "Vault-relative path to a .js file or a note with a ```js code block.",
+			placeholder: "scripts/myCheck.js or Notes/myCheck.md",
+			browse: "Browse",
+			browseTooltip: "Select a script (.js file or note)",
+			browseEmpty: "No scripts found in your vault",
+			browseLabel: "Select a script (.js file or note with a ```js block)",
+		},
+		exportName: {
+			name: "Export name",
+			desc: "Optional export or member to call (use :: to access nested members).",
+			placeholder: "default",
+		},
+		notices: {
+			enterVariableName: "QuickAdd: Enter a variable name before saving.",
+			enterScriptPath: "QuickAdd: Enter a script path before saving.",
+		},
+
+		// UserScriptSettingsModal.ts
+		saveSecretTooltip: "Save secret",
+		clearSecretTooltip: "Clear secret",
+
+		// OpenFileCommandSettingsModal.ts
+		filePath: {
+			name: "File path",
+			desc: "Path to the file. Supports formatting like {{DATE}}, {{VALUE}}, etc.",
+			placeholder: "{{DATE}}todo.md",
+		},
+		whereToOpen: {
+			name: "Where to open",
+			desc: "Choose tab, split, window, or sidebar",
+		},
+		splitDirection: {
+			name: "Split direction",
+			desc: "How to arrange the new pane relative to the current one",
+		},
+		focusOpenedFile: {
+			name: "Focus opened file",
+			desc: "Bring the opened file to the foreground",
+		},
+
+		// AIAssistantCommandSettingsModal.ts
+		aiModel: {
+			name: "Model",
+			desc: "The model the AI Assistant will use",
+		},
+		systemPrompt: {
+			name: "System prompt",
+			desc: "The system prompt for the AI Assistant",
+		},
+		showAdvancedSettings: "Show advanced settings",
+		promptTemplate: {
+			name: "Prompt template",
+			desc: "Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use.",
+		},
+		outputVariableName: {
+			name: "Output variable name",
+			desc: "The name of the variable used to store the AI Assistant output, i.e. {{value:output}}.",
+		},
+		newName: "New name",
+		systemPromptAria: "System prompt",
+		advancedSettings: {
+			desc: "Sampling settings such as temperature and top p. Untouched settings use the provider's defaults.",
+		},
+		estimatedLocally: "Estimated locally. Providers enforce exact context limits.",
+	},
+
+	openFile: {
+		title: "Open file command settings",
+		whereToOpen: {
+			reuse: "Reuse active tab",
+			tab: "New tab",
+			split: "Split",
+			window: "New window",
+			leftSidebar: "Left sidebar",
+			rightSidebar: "Right sidebar",
+		},
+		splitDirection: {
+			right: "Split right",
+			down: "Split down",
+		},
+	},
+
+	userScript: {
+		saveSecretTooltip: "Save secret",
+		clearSecretTooltip: "Clear secret",
+		pasteSecret: "Paste secret",
+		pasteSecretPlaceholder: "Paste a secret before saving.",
+		secretSaved: "Secret saved.",
+		secretCleared: "Secret cleared.",
+		secretSavedShort: "Secret saved",
+		secretStorageUnavailableSave: "SecretStorage is unavailable. Secret was not saved.",
+		secretStorageUnavailableClear: "SecretStorage is unavailable. Secret was not cleared.",
+	},
 	settings: {
 		language: {
 			name: "Language",

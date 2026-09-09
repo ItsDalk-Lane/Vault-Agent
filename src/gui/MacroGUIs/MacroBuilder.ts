@@ -23,6 +23,7 @@ import {
 	isMacroObject,
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
+import { t } from "../../i18n";
 import type { ICommand } from "../../types/macros/ICommand";
 import { v4 as uuidv4 } from "uuid";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
@@ -157,12 +158,12 @@ export class MacroBuilder extends Modal {
 
 	private addOnePageInputSetting(): void {
 		new Setting(this.contentEl)
-			.setName("One-page input override")
+			.setName(t("macro.onePageInputOverride"))
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption("", "Follow global setting")
-					.addOption("always", "Always")
-					.addOption("never", "Never")
+					.addOption("", t("macro.onePageInputFollow"))
+					.addOption("always", t("macro.onePageInputAlways"))
+					.addOption("never", t("macro.onePageInputNever"))
 					.setValue(this.choice.onePageInput ?? "")
 					.onChange((value) => {
 						this.choice.onePageInput =
@@ -219,7 +220,7 @@ export class MacroBuilder extends Modal {
 				.setDesc(CUSTOM_OFFSET_SETTING_DESC)
 				.addText((text) => {
 					text.setValue(String(current.offset));
-					text.setPlaceholder("-2");
+					text.setPlaceholder(t("macro.relativeOffsetPlaceholder"));
 					text.onChange((value) => {
 						const origin = this.choice.dateOrigin;
 						if (origin?.kind !== "relative") return;
@@ -252,7 +253,7 @@ export class MacroBuilder extends Modal {
 				.setDesc(VARIABLE_SETTING_DESC)
 				.addText((text) => {
 					text.setValue(name);
-					text.setPlaceholder("day");
+					text.setPlaceholder(t("macro.relativeOffsetUnitPlaceholder"));
 					text.onChange((value) => {
 						this.choice.dateOrigin = { kind: "variable", name: value };
 					});
@@ -290,8 +291,8 @@ export class MacroBuilder extends Modal {
 
 	private addRunOnStartupSetting(): void {
 		new Setting(this.contentEl)
-			.setName("Run on startup")
-			.setDesc("Execute this macro when Obsidian starts")
+			.setName(t("macro.runOnStartup.name"))
+			.setDesc(t("macro.runOnStartup.desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.choice.runOnStartup)
 				.onChange(value => {

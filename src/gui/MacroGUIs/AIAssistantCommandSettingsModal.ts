@@ -8,6 +8,7 @@ import { settingsStore } from "src/settingsStore";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { addSamplingParamSettings } from "./samplingParamSettings";
+import { t } from "../../i18n";
 import { populateModelDropdown } from "../modelSelect";
 import { activeModelRef } from "src/ai/Provider";
 
@@ -89,7 +90,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				try {
 					const newName = await GenericInputPrompt.Prompt(
 						this.app,
-						"New name",
+						t("macro.newName"),
 						this.settings.name,
 						this.settings.name
 					);
@@ -166,7 +167,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		).map((f) => f.name);
 
 		new Setting(container)
-			.setName("Prompt template")
+			.setName(t("macro.promptTemplate.name"))
 			.setDesc(
 				"Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use."
 			)
@@ -193,7 +194,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	addModelSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Model")
+			.setName(t("macro.aiModel.name"))
 			.setDesc("The model the AI Assistant will use")
 			.addDropdown((dropdown) => {
 				populateModelDropdown(dropdown, this.settings, (selection) => {
@@ -207,7 +208,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	addOutputVariableNameSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Output variable name")
+			.setName(t("macro.outputVariableName.name"))
 			.setDesc(
 				"The name of the variable used to store the AI Assistant output, i.e. {{value:output}}."
 			)
@@ -222,15 +223,15 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	addSystemPromptSetting(contentEl: HTMLElement) {
 		new Setting(contentEl)
-			.setName("System prompt")
-			.setDesc("The system prompt for the AI Assistant");
+			.setName(t("macro.systemPrompt.name"))
+			.setDesc(t("macro.systemPrompt.desc"));
 
 		const container = this.contentEl.createEl("div");
 		const tokenCount = container.createEl("span", {
 			cls: "qa-ai-token-count",
 		});
 		const tokenCountNote = container.createEl("div", {
-			text: "Estimated locally. Providers enforce exact context limits.",
+			text: t("macro.estimatedLocally"),
 			cls: "qa-ai-token-note",
 		});
 
@@ -241,7 +242,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
 		// Appended to contentEl rather than the Setting's controlEl (it needs the
 		// full modal width), so nothing associates it with the name above.
-		textAreaComponent.inputEl.setAttribute("aria-label", "System prompt");
+		textAreaComponent.inputEl.setAttribute("aria-label", t("macro.systemPromptAria"));
 
 		// No format preview and no `{{` token autocomplete here: the system prompt
 		// is sent to the model verbatim (see mountSystemPromptLiteralNote). The
@@ -270,7 +271,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	addShowAdvancedSettingsToggle(container: HTMLElement) {
 		new Setting(container)
-			.setName("Show advanced settings")
+			.setName(t("macro.showAdvancedSettings"))
 			.setDesc(
 				"Sampling settings such as temperature and top p. Untouched settings use the provider's defaults."
 			)

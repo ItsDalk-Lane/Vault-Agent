@@ -29,6 +29,7 @@ import {
 } from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { t } from "../../i18n";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
@@ -289,12 +290,12 @@ export class CommandSequenceEditor {
 		};
 
 		new Setting(parent)
-			.setName("Obsidian command")
-			.setDesc("Add an Obsidian command")
+			.setName(t("macro.obsidianCommand.name"))
+			.setDesc(t("macro.obsidianCommand.desc"))
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.addClass("qa-command-sequence-input");
-				textComponent.setPlaceholder("Obsidian command");
+				textComponent.setPlaceholder(t("macro.obsidianCommand.placeholder"));
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
@@ -311,7 +312,7 @@ export class CommandSequenceEditor {
 				);
 			})
 			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addObsidianCommandFromInput)
+				button.setCta().setButtonText(t("common.add")).onClick(addObsidianCommandFromInput)
 			);
 	}
 
@@ -364,13 +365,13 @@ export class CommandSequenceEditor {
 		};
 
 		new Setting(parent)
-			.setName("Editor commands")
-			.setDesc("Add editor command")
+			.setName(t("macro.editorCommand.name"))
+			.setDesc(t("macro.editorCommand.desc"))
 			.addDropdown((dropdown) => {
 				dropdownComponent = dropdown;
 				dropdown.selectEl.addClass("qa-command-sequence-input");
 				dropdown
-					.addOption("", "Select command")
+					.addOption("", t("macro.selectCommand"))
 					.addOption(EditorCommandType.Copy, EditorCommandType.Copy)
 					.addOption(EditorCommandType.Cut, EditorCommandType.Cut)
 					.addOption(EditorCommandType.Paste, EditorCommandType.Paste)
@@ -404,7 +405,7 @@ export class CommandSequenceEditor {
 					);
 			})
 			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addEditorCommandFromDropdown)
+				button.setCta().setButtonText(t("common.add")).onClick(addEditorCommandFromDropdown)
 			);
 	}
 
@@ -451,12 +452,12 @@ export class CommandSequenceEditor {
 		};
 
 		new Setting(parent)
-			.setName("User scripts")
-			.setDesc("Add a .js file or a note with a ```js code block - type the name or click Browse")
+			.setName(t("macro.userScript.name"))
+			.setDesc(t("macro.userScript.desc"))
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.addClass("qa-command-sequence-input");
-				textComponent.setPlaceholder("Start typing script name...");
+				textComponent.setPlaceholder(t("macro.userScript.placeholder"));
 
 				new GenericTextSuggester(
 					this.app,
@@ -475,8 +476,8 @@ export class CommandSequenceEditor {
 			})
 			.addButton((button) =>
 				button
-					.setButtonText("Browse")
-					.setTooltip("Browse and select a script (.js file or note)")
+					.setButtonText(t("macro.userScript.browse"))
+					.setTooltip(t("macro.userScript.browseTooltip"))
 					.onClick(async () => {
 						const selected = await this.showScriptPicker();
 						if (selected) {
@@ -490,7 +491,7 @@ export class CommandSequenceEditor {
 			.addButton((button) => {
 				addButton = button;
 				button
-					.setButtonText("Add")
+					.setButtonText(t("common.add"))
 					.setCta()
 					.onClick(() => void addUserScriptFromInput());
 				button.buttonEl.addClass("qa-hidden");
@@ -519,12 +520,12 @@ export class CommandSequenceEditor {
 		};
 
 		new Setting(parent)
-			.setName("Choices")
-			.setDesc("Add existing choice")
+			.setName(t("macro.choice.name"))
+			.setDesc(t("macro.choice.desc"))
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.addClass("qa-command-sequence-input");
-				textComponent.setPlaceholder("Choice");
+				textComponent.setPlaceholder(t("macro.choice.placeholder"));
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
@@ -538,7 +539,7 @@ export class CommandSequenceEditor {
 				});
 			})
 			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addChoiceFromInput)
+				button.setCta().setButtonText(t("common.add")).onClick(addChoiceFromInput)
 			);
 	}
 
@@ -564,7 +565,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setIcon("file-search")
-			.setTooltip("Add open file command")
+			.setTooltip(t("macro.addOpenFileTooltip"))
 			.onClick(() => {
 				this.addCommand(new OpenFileCommand());
 			});
@@ -574,7 +575,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setIcon("bot" as IconType)
-			.setTooltip("Add AI Assistant command")
+			.setTooltip(t("macro.addAiAssistantTooltip"))
 			.onClick(() => {
 				this.addCommand(new AIAssistantCommand());
 			});
@@ -584,7 +585,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setIcon("clock")
-			.setTooltip("Add wait command")
+			.setTooltip(t("macro.addWaitTooltip"))
 			.onClick(() => {
 				this.addCommand(new WaitCommand(100));
 			});
@@ -594,7 +595,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setIcon("git-branch")
-			.setTooltip("Add conditional command")
+			.setTooltip(t("macro.addConditionalTooltip"))
 			.onClick(() => {
 				this.addCommand(new ConditionalCommand());
 			});

@@ -9,6 +9,7 @@ import {
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
+import { t } from "../../i18n";
 import {
 	clearUserScriptSecret,
 	createUserScriptSecretRef,
@@ -220,8 +221,8 @@ export class UserScriptSettingsModal extends Modal {
 		const updatePlaceholder = () => {
 			if (!inputEl) return;
 			inputEl.placeholder = hasSecret()
-				? "Secret saved"
-				: (placeholder ?? "Paste secret");
+				? t("userScript.secretSavedShort")
+				: (placeholder ?? t("userScript.pasteSecret"));
 		};
 
 		setting.addText((input) => {
@@ -238,9 +239,9 @@ export class UserScriptSettingsModal extends Modal {
 		});
 
 		setting.addButton((button) => {
-			button.setIcon("save").setTooltip("Save secret").onClick(async () => {
+			button.setIcon("save").setTooltip(t("userScript.saveSecretTooltip")).onClick(async () => {
 				if (pendingValue.length === 0) {
-					new Notice("Paste a secret before saving.");
+					new Notice(t("userScript.pasteSecretPlaceholder"));
 					return;
 				}
 
@@ -254,7 +255,7 @@ export class UserScriptSettingsModal extends Modal {
 				);
 
 				if (!secretRef) {
-					new Notice("SecretStorage is unavailable. Secret was not saved.");
+					new Notice(t("userScript.secretStorageUnavailableSave"));
 					return;
 				}
 
@@ -263,18 +264,18 @@ export class UserScriptSettingsModal extends Modal {
 				if (inputEl) inputEl.value = "";
 				updatePlaceholder();
 				this.onCommandChange?.();
-				new Notice("Secret saved.");
+				new Notice(t("userScript.secretSaved"));
 			});
 			button.buttonEl.setAttribute("aria-label", `Save ${name}`);
 		});
 
 		setting.addButton((button) => {
-			button.setIcon("trash-2").setTooltip("Clear secret").onClick(async () => {
+			button.setIcon("trash-2").setTooltip(t("userScript.clearSecretTooltip")).onClick(async () => {
 				const secretRef = getSecretRefFromCommandSetting(this.command, name);
 				if (secretRef) {
 					const cleared = await clearUserScriptSecret(this.app, secretRef);
 					if (!cleared) {
-						new Notice("SecretStorage is unavailable. Secret was not cleared.");
+						new Notice(t("userScript.secretStorageUnavailableClear"));
 						return;
 					}
 				}
@@ -284,7 +285,7 @@ export class UserScriptSettingsModal extends Modal {
 				if (inputEl) inputEl.value = "";
 				updatePlaceholder();
 				this.onCommandChange?.();
-				new Notice("Secret cleared.");
+				new Notice(t("userScript.secretCleared"));
 			});
 			button.buttonEl.setAttribute("aria-label", `Clear ${name}`);
 		});

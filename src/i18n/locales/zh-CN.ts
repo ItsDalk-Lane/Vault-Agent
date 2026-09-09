@@ -45,6 +45,189 @@ const zhCN = {
 		note: "笔记",
 		notePlaceholder: "搜索笔记或新建笔记",
 	},
+	macro: {
+		obsidianCommand: {
+			name: "Obsidian 命令",
+			desc: "添加一个 Obsidian 命令",
+			placeholder: "Obsidian 命令",
+		},
+		editorCommand: {
+			name: "编辑器命令",
+			desc: "添加编辑器命令",
+		},
+		userScript: {
+			name: "用户脚本",
+			desc: "添加一个 .js 文件或带 ```js 代码块的笔记——输入名称或点击「浏览」",
+			placeholder: "开始输入脚本名称...",
+			browse: "浏览",
+			browseTooltip: "浏览并选择脚本（.js 文件或笔记）",
+		},
+		choice: {
+			name: "选项",
+			desc: "添加已有选项",
+			placeholder: "选项",
+		},
+		addOpenFileTooltip: "添加打开文件命令",
+		addAiAssistantTooltip: "添加 AI 助手命令",
+		addWaitTooltip: "添加等待命令",
+		addConditionalTooltip: "添加条件命令",
+		selectCommand: "选择命令",
+
+		onePageInputOverride: "单页输入覆盖",
+		onePageInputFollow: "跟随全局设置",
+		onePageInputAlways: "总是启用",
+		onePageInputNever: "从不启用",
+		runOnStartup: {
+			name: "启动时运行",
+			desc: "Obsidian 启动时执行此 Macro",
+		},
+		relativeOffsetPlaceholder: "-2",
+		relativeOffsetUnitPlaceholder: "天",
+
+		closeButton: "关闭",
+
+		configureTitle: "配置条件命令",
+		conditionType: {
+			name: "条件类型",
+			desc: "选择此条件的求值方式。",
+		},
+		variableName: {
+			name: "变量名",
+			desc: "要检查的 Macro 变量名（不带 $ 前缀）。",
+			placeholder: "例如 projectStatus",
+		},
+		operator: {
+			name: "运算符",
+			desc: "如何比较变量值。",
+		},
+		valueType: {
+			name: "值类型",
+			desc: "如何解释比较值。",
+		},
+		kind: {
+			variable: "Macro 变量",
+			script: "运行脚本",
+		},
+		operators: {
+			equals: "等于",
+			notEquals: "不等于",
+			lessThan: "小于",
+			lessThanOrEqual: "小于等于",
+			greaterThan: "大于",
+			greaterThanOrEqual: "大于等于",
+			contains: "包含",
+			notContains: "不包含",
+			isTruthy: "为真",
+			isFalsy: "为假",
+		},
+		valueTypes: {
+			string: "文本",
+			number: "数字",
+			boolean: "布尔",
+		},
+		expectedBool: {
+			name: "期望值",
+			desc: "选择 true 或 false。",
+			true: "True",
+			false: "False",
+		},
+		expectedValue: {
+			name: "期望值",
+			desc: "用于比较的值。",
+			placeholder: "输入比较值",
+		},
+		scriptPath: {
+			name: "脚本路径",
+			desc: "Vault 相对路径，指向 .js 文件或带 ```js 代码块的笔记。",
+			placeholder: "scripts/myCheck.js 或 Notes/myCheck.md",
+			browse: "浏览",
+			browseTooltip: "选择脚本（.js 文件或笔记）",
+			browseEmpty: "未在 vault 中找到脚本",
+			browseLabel: "选择脚本（.js 文件或带 ```js 块的笔记）",
+		},
+		exportName: {
+			name: "导出名",
+			desc: "可选的导出或成员调用（用 :: 访问嵌套成员）。",
+			placeholder: "default",
+		},
+		notices: {
+			enterVariableName: "QuickAdd：请在保存前输入变量名。",
+			enterScriptPath: "QuickAdd：请在保存前输入脚本路径。",
+		},
+
+		saveSecretTooltip: "保存密钥",
+		clearSecretTooltip: "清除密钥",
+
+		filePath: {
+			name: "文件路径",
+			desc: "文件路径。支持 {{DATE}}、{{VALUE}} 等格式。",
+			placeholder: "{{DATE}}todo.md",
+		},
+		whereToOpen: {
+			name: "打开位置",
+			desc: "选择标签页、分屏、窗口或侧边栏",
+		},
+		splitDirection: {
+			name: "分屏方向",
+			desc: "新面板相对于当前面板的排列方式",
+		},
+		focusOpenedFile: {
+			name: "聚焦打开的文件",
+			desc: "将打开的文件置于前台",
+		},
+
+		aiModel: {
+			name: "模型",
+			desc: "AI 助手将使用的模型",
+		},
+		systemPrompt: {
+			name: "系统提示",
+			desc: "AI 助手的系统提示",
+		},
+		showAdvancedSettings: "显示高级设置",
+		promptTemplate: {
+			name: "提示模板",
+			desc: "启用后，助手将使用你指定的提示模板。如果禁用，助手会询问使用哪个提示模板。",
+		},
+		outputVariableName: {
+			name: "输出变量名",
+			desc: "用于存储 AI 助手输出的变量名，即 {{value:output}}。",
+		},
+		newName: "新名称",
+		systemPromptAria: "系统提示",
+		advancedSettings: {
+			desc: "采样设置，如 temperature 和 top p。未修改的设置使用提供商的默认值。",
+		},
+		estimatedLocally: "本地估算。提供商强制实施精确的上下文限制。",
+	},
+
+	openFile: {
+		title: "打开文件命令设置",
+		whereToOpen: {
+			reuse: "复用当前标签页",
+			tab: "新标签页",
+			split: "分屏",
+			window: "新窗口",
+			leftSidebar: "左侧边栏",
+			rightSidebar: "右侧边栏",
+		},
+		splitDirection: {
+			right: "向右分屏",
+			down: "向下分屏",
+		},
+	},
+
+	userScript: {
+		saveSecretTooltip: "保存密钥",
+		clearSecretTooltip: "清除密钥",
+		pasteSecret: "粘贴密钥",
+		pasteSecretPlaceholder: "保存前请先粘贴密钥。",
+		secretSaved: "密钥已保存。",
+		secretCleared: "密钥已清除。",
+		secretSavedShort: "密钥已保存",
+		secretStorageUnavailableSave: "SecretStorage 不可用。密钥未保存。",
+		secretStorageUnavailableClear: "SecretStorage 不可用。密钥未清除。",
+	},
 	settings: {
 		language: {
 			name: "语言",
