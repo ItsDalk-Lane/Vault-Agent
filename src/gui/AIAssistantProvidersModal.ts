@@ -12,6 +12,7 @@ import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
 import type { IconType } from "src/types/IconType";
+import { t } from "../i18n";
 
 export class AIAssistantProvidersModal extends Modal {
 	public waitForClose: Promise<AIProvider[]>;
@@ -92,10 +93,10 @@ export class AIAssistantProvidersModal extends Modal {
 
 	addProvidersSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Providers")
-			.setDesc("Providers for the AI Assistant")
+			.setName(t("ai.providersTitle.name"))
+			.setDesc(t("ai.providersTitle.desc"))
             .addButton((button) => {
-                button.setButtonText("Add provider").onClick(async () => {
+                button.setButtonText(t("ai.addProvider")).onClick(async () => {
                     await new ProviderPickerModal(this.app, this.providers).waitForClose;
                     this.reload();
                 });
@@ -128,7 +129,7 @@ export class AIAssistantProvidersModal extends Modal {
 					button.setIcon("trash" as IconType);
 				})
 					.addButton((button) => {
-						button.setButtonText("Edit").onClick(() => {
+						button.setButtonText(t("ai.editProvider")).onClick(() => {
 							this.selectedProvider = provider;
 							this._selectedProviderClone = deepClone(provider);
 
@@ -155,7 +156,7 @@ export class AIAssistantProvidersModal extends Modal {
 	addNameSetting(container: HTMLElement) {
 		const providerId = this.selectedProvider!.id;
 		new Setting(container)
-			.setName("Name")
+			.setName(t("ai.providerName"))
 			.setDesc(
 				providerId
 					? `The display name of the provider. Its stable ID is "${providerId}" — use that to qualify models in scripts, e.g. ai.prompt with "${providerId}/model-name".`
@@ -170,8 +171,8 @@ export class AIAssistantProvidersModal extends Modal {
 
 	addEndpointSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Endpoint")
-			.setDesc("The endpoint for the AI Assistant")
+			.setName(t("ai.endpoint.name"))
+			.setDesc(t("ai.endpoint.desc"))
 			.addText((text) => {
 				text.setValue(this.selectedProvider!.endpoint).onChange(
 					(value) => {
@@ -189,7 +190,7 @@ export class AIAssistantProvidersModal extends Modal {
 			: "Select a secret from SecretStorage";
 
 		new Setting(container)
-			.setName("API key")
+			.setName(t("ai.apiKey"))
 			.setDesc(description)
 			.addComponent((el) =>
 				new SecretComponent(this.app, el)
@@ -204,7 +205,7 @@ export class AIAssistantProvidersModal extends Modal {
 
 	addKindSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Provider type")
+			.setName(t("ai.providerType"))
 			.setDesc(
 				"The request format this provider expects. Auto-detect recognizes the official Anthropic and Gemini endpoints and treats everything else as OpenAI-compatible; pick a type explicitly for a proxy or custom endpoint.",
 			)
@@ -226,7 +227,7 @@ export class AIAssistantProvidersModal extends Modal {
 	addModelSourceSetting(container: HTMLElement) {
 		const provider = this.selectedProvider;
 		new Setting(container)
-			.setName("Model source")
+			.setName(t("ai.modelSource"))
 			.setDesc(
 				"Choose where QuickAdd looks when browsing or syncing models for this provider.",
 			)
@@ -285,9 +286,9 @@ export class AIAssistantProvidersModal extends Modal {
         });
 
         new Setting(modelsContainer)
-            .setName("Add model")
+            .setName(t("ai.addModel.name"))
             .addButton((button) => {
-                button.setButtonText("Add model").onClick(async () => {
+                button.setButtonText(t("ai.addModel.button")).onClick(async () => {
                     let modelName: string;
                     let maxTokens: string;
                     try {
@@ -333,10 +334,10 @@ export class AIAssistantProvidersModal extends Modal {
 	addImportModelsFromDirectorySetting(container: HTMLElement) {
 		const sourceDescription = this.describeModelSource(this.selectedProvider);
 		new Setting(container)
-			.setName("Import models")
+			.setName(t("ai.importModels.name"))
 			.setDesc(`Browse and import models from ${sourceDescription}.`)
 			.addButton((button) => {
-				button.setButtonText("Browse models").onClick(async () => {
+				button.setButtonText(t("ai.importModels.browseButton")).onClick(async () => {
 					const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
                     if (!res) return;
                     const { imported, mode } = res;
@@ -360,7 +361,7 @@ export class AIAssistantProvidersModal extends Modal {
 	addAutoSyncSetting(container: HTMLElement) {
 		const sourceDescription = this.describeModelSource(this.selectedProvider);
 		new Setting(container)
-			.setName("Auto-sync models")
+			.setName(t("ai.autoSyncModels.name"))
 			.setDesc(
 				`Keep this provider's models current automatically: QuickAdd imports new models and refreshed context limits from ${sourceDescription} once a day and when these settings open.`,
 			)
@@ -371,7 +372,7 @@ export class AIAssistantProvidersModal extends Modal {
 				});
 			})
 			.addButton((button) => {
-				button.setButtonText("Sync now").onClick(async () => {
+				button.setButtonText(t("ai.autoSyncModels.syncNowButton")).onClick(async () => {
 					try {
 						const { added, updated } = await syncProviderModels(
 							this.app,
@@ -416,7 +417,7 @@ export class AIAssistantProvidersModal extends Modal {
 		});
 
 		const CancelButton = new ButtonComponent(buttonRow);
-		CancelButton.setButtonText("Cancel");
+		CancelButton.setButtonText(t("common.cancel"));
 		CancelButton.setDestructive();
 		CancelButton.onClick(() => {
 			// Cancel always returns to the provider list, discarding edits. We
@@ -428,7 +429,7 @@ export class AIAssistantProvidersModal extends Modal {
 		});
 
 		const SaveButton = new ButtonComponent(buttonRow);
-		SaveButton.setButtonText("Save");
+		SaveButton.setButtonText(t("common.save"));
 		SaveButton.setCta();
 		SaveButton.onClick(() => {
 			this.selectedProvider = null;

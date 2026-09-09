@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
+import { t } from "../i18n";
 
 export type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
 
@@ -81,18 +82,18 @@ export default class AIToolConfirmModal extends Modal {
 		});
 
 		const abortBtn = new ButtonComponent(buttons)
-			.setButtonText("Abort run")
+			.setButtonText(t("ai.abortRun"))
 			.onClick(() => this.submit("abort"));
 		const denyBtn = new ButtonComponent(buttons)
-			.setButtonText("Deny")
+			.setButtonText(t("ai.deny"))
 			.onClick(() => this.submit("deny"));
 		const allowAllBtn = new ButtonComponent(buttons)
-			.setButtonText("Approve all this run")
+			.setButtonText(t("ai.approveAllRun"))
 			.onClick(() => this.submit("allow-all"));
 		// Deliberately NOT .setCta(): Approve runs a model-chosen action, so it must
 		// not be the bright primary button competing with the focused, safe Deny.
 		const allowBtn = new ButtonComponent(buttons)
-			.setButtonText("Approve")
+			.setButtonText(t("ai.approve"))
 			.onClick(() => this.submit("allow"));
 
 		// Focus the safe option.

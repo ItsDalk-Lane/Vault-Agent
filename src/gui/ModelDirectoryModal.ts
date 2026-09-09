@@ -3,6 +3,7 @@ import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
 import { discoverProviderModels } from "src/ai/modelDiscoveryService";
 import { resolveProviderApiKey } from "src/ai/providerSecrets";
+import { t } from "../i18n";
 
 export class ModelDirectoryModal extends Modal {
   public waitForClose: Promise<{ imported: Model[]; mode: "add" | "replace" } | null>;
@@ -55,9 +56,9 @@ export class ModelDirectoryModal extends Modal {
 
     // Search/filter
     new Setting(this.contentEl)
-      .setName("Search")
+      .setName(t("ai.search.name"))
       .addText((text) => {
-        text.setPlaceholder("Filter by name").onChange((value) => {
+        text.setPlaceholder(t("ai.search.placeholder")).onChange((value) => {
           const q = value.trim().toLowerCase();
           this.filtered = this.allModels.filter((m) => m.name.toLowerCase().includes(q));
           this.renderList();
@@ -65,7 +66,7 @@ export class ModelDirectoryModal extends Modal {
       })
       .addExtraButton((btn) => {
         btn.setIcon("check");
-        btn.setTooltip("Select all");
+        btn.setTooltip(t("ai.selectAll"));
         btn.onClick(() => {
           this.filtered.forEach((m) => this.selectedIds.add(m.name));
           this.renderList();
@@ -73,7 +74,7 @@ export class ModelDirectoryModal extends Modal {
       })
       .addExtraButton((btn) => {
         btn.setIcon("x");
-        btn.setTooltip("Clear selection");
+        btn.setTooltip(t("ai.clearSelection"));
         btn.onClick(() => {
           this.selectedIds.clear();
           this.renderList();
@@ -82,8 +83,8 @@ export class ModelDirectoryModal extends Modal {
 
     // Mode toggle
     new Setting(this.contentEl)
-      .setName("Import mode")
-      .setDesc("Add will append new models. Replace will overwrite existing models with the selected list.")
+      .setName(t("ai.importMode.name"))
+      .setDesc(t("ai.importMode.desc"))
       .addDropdown((dd) => {
         dd.addOption("add", "Add only");
         dd.addOption("replace", "Replace existing");
@@ -91,7 +92,7 @@ export class ModelDirectoryModal extends Modal {
         dd.onChange((v) => (this.mode = v as "add" | "replace"));
       })
       .addButton((b) => {
-        b.setButtonText("Import selected").setCta().onClick(() => this.importSelected());
+        b.setButtonText(t("ai.importSelected")).setCta().onClick(() => this.importSelected());
       });
 
     // List container

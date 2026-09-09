@@ -228,6 +228,83 @@ const zhCN = {
 		secretStorageUnavailableSave: "SecretStorage 不可用。密钥未保存。",
 		secretStorageUnavailableClear: "SecretStorage 不可用。密钥未清除。",
 	},
+
+	ai: {
+		providers: {
+			name: "AI 提供商",
+			desc: "AI 助手使用的提供商",
+			editButton: "编辑提供商",
+		},
+		defaultModel: {
+			name: "默认模型",
+			desc: "AI 助手的默认模型",
+		},
+		promptTemplateFolderPath: {
+			name: "提示模板文件夹路径",
+			desc: "包含提示模板的文件夹路径",
+		},
+		showAssistant: {
+			name: "显示助手",
+			desc: "显示 AI 助手的状态消息",
+		},
+		confirmToolCalls: "确认 AI 工具调用",
+		defaultSystemPrompt: {
+			name: "默认系统提示",
+			desc: "AI 助手的默认系统提示",
+		},
+
+		search: {
+			name: "搜索",
+			placeholder: "按名称筛选",
+		},
+		selectAll: "全选",
+		clearSelection: "清除选择",
+		importMode: {
+			name: "导入模式",
+			desc: "Add 将追加新模型。Replace 将用所选列表覆盖现有模型。",
+		},
+		importSelected: "导入所选",
+
+		providersTitle: {
+			name: "提供商",
+			desc: "AI 助手的提供商",
+		},
+		addProvider: "添加提供商",
+		editProvider: "编辑",
+		providerName: "名称",
+		endpoint: {
+			name: "端点",
+			desc: "AI 助手的端点",
+		},
+		apiKey: "API 密钥",
+		apiKeyDesc: "从 SecretStorage 选择密钥",
+		providerType: "提供商类型",
+		modelSource: "模型来源",
+		addModel: {
+			name: "添加模型",
+			button: "添加模型",
+		},
+		importModels: {
+			name: "导入模型",
+			browseButton: "浏览模型",
+		},
+		autoSyncModels: {
+			name: "自动同步模型",
+			syncNowButton: "立即同步",
+		},
+		connect: "连接",
+		connecting: "正在连接...",
+		customProvider: {
+			name: "自定义提供商",
+			desc: "创建任何自定义端点（OpenAI 兼容或其他）",
+			addButton: "添加自定义...",
+		},
+
+		abortRun: "中止运行",
+		deny: "拒绝",
+		approveAllRun: "本次运行全部批准",
+		approve: "批准",
+	},
 	settings: {
 		language: {
 			name: "语言",

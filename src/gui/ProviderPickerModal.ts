@@ -5,6 +5,7 @@ import { cloneModelSeeds, uniqueProviderId } from "src/ai/Provider";
 import { syncProviderModels } from "src/ai/modelSyncService";
 import type { ProviderPreset } from "src/ai/providerPresets";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
+import { t } from "../i18n";
 
 export class ProviderPickerModal extends Modal {
   public waitForClose: Promise<AIProvider[] | null>;
@@ -60,8 +61,8 @@ export class ProviderPickerModal extends Modal {
 
       let apiKeyRef = "";
       const apiSetting = new Setting(card)
-        .setName("API key")
-        .setDesc("Select a secret from SecretStorage")
+        .setName(t("ai.apiKey"))
+        .setDesc(t("ai.apiKeyDesc"))
         .addComponent((el) => new SecretComponent(this.app, el)
           .setValue(apiKeyRef)
           .onChange((value) => {
@@ -71,7 +72,7 @@ export class ProviderPickerModal extends Modal {
       apiSetting.settingEl.addClass("qa-provider-api-setting");
 
       apiSetting.addButton((b) => {
-          b.setButtonText("Connect").setCta().onClick(async () => {
+          b.setButtonText(t("ai.connect")).setCta().onClick(async () => {
             try {
               const selectedSecret = apiKeyRef.trim();
 
@@ -133,7 +134,7 @@ export class ProviderPickerModal extends Modal {
 
               // Import the provider's current models right away — connecting a
               // provider should end with working models, not a manual sync step.
-              b.setButtonText("Connecting...");
+              b.setButtonText(t("ai.connecting"));
               b.setDisabled(true);
               await this.importInitialModels(provider, preset);
 
@@ -142,7 +143,7 @@ export class ProviderPickerModal extends Modal {
               // a stray second click can't push a duplicate.
               this.close();
             } catch (err) {
-              b.setButtonText("Connect");
+              b.setButtonText(t("ai.connect"));
               b.setDisabled(false);
               new Notice(`Failed to add provider: ${(err as { message?: string }).message ?? err}`);
             }
@@ -151,10 +152,10 @@ export class ProviderPickerModal extends Modal {
     }
 
     new Setting(this.contentEl)
-      .setName("Custom provider")
-      .setDesc("Create any custom endpoint (OpenAI-compatible or otherwise)")
+      .setName(t("ai.customProvider.name"))
+      .setDesc(t("ai.customProvider.desc"))
       .addButton((b) => {
-        b.setButtonText("Add custom...").onClick(() => {
+        b.setButtonText(t("ai.customProvider.addButton")).onClick(() => {
           const provider: AIProvider = { id: uniqueProviderId("custom", this.providers), name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
           new Notice("Custom provider added. Click Edit to configure.");

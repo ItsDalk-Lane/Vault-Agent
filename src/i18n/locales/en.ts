@@ -238,6 +238,87 @@ const en = {
 		secretStorageUnavailableSave: "SecretStorage is unavailable. Secret was not saved.",
 		secretStorageUnavailableClear: "SecretStorage is unavailable. Secret was not cleared.",
 	},
+
+	ai: {
+		// AIAssistantSettingsModal.ts (settings tab — settings.ai.* namespace already covers some, this is the modal overlay)
+		providers: {
+			name: "Providers",
+			desc: "The providers for the AI Assistant",
+			editButton: "Edit providers",
+		},
+		defaultModel: {
+			name: "Default model",
+			desc: "The default model for the AI Assistant",
+		},
+		promptTemplateFolderPath: {
+			name: "Prompt template folder path",
+			desc: "Path to your folder with prompt templates",
+		},
+		showAssistant: {
+			name: "Show assistant",
+			desc: "Show status messages from the AI Assistant",
+		},
+		confirmToolCalls: "Confirm AI tool calls",
+		defaultSystemPrompt: {
+			name: "Default system prompt",
+			desc: "The default system prompt for the AI Assistant",
+		},
+
+		// ModelDirectoryModal.ts
+		search: {
+			name: "Search",
+			placeholder: "Filter by name",
+		},
+		selectAll: "Select all",
+		clearSelection: "Clear selection",
+		importMode: {
+			name: "Import mode",
+			desc: "Add will append new models. Replace will overwrite existing models with the selected list.",
+		},
+		importSelected: "Import selected",
+
+		// AIAssistantProvidersModal.ts
+		providersTitle: {
+			name: "Providers",
+			desc: "Providers for the AI Assistant",
+		},
+		addProvider: "Add provider",
+		editProvider: "Edit",
+		providerName: "Name",
+		endpoint: {
+			name: "Endpoint",
+			desc: "The endpoint for the AI Assistant",
+		},
+		apiKey: "API key",
+		apiKeyDesc: "Select a secret from SecretStorage",
+		providerType: "Provider type",
+		modelSource: "Model source",
+		addModel: {
+			name: "Add model",
+			button: "Add model",
+		},
+		importModels: {
+			name: "Import models",
+			browseButton: "Browse models",
+		},
+		autoSyncModels: {
+			name: "Auto-sync models",
+			syncNowButton: "Sync now",
+		},
+		connect: "Connect",
+		connecting: "Connecting...",
+		customProvider: {
+			name: "Custom provider",
+			desc: "Create any custom endpoint (OpenAI-compatible or otherwise)",
+			addButton: "Add custom...",
+		},
+
+		// AIToolConfirmModal.ts
+		abortRun: "Abort run",
+		deny: "Deny",
+		approveAllRun: "Approve all this run",
+		approve: "Approve",
+	},
 	settings: {
 		language: {
 			name: "Language",

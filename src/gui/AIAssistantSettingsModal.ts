@@ -6,6 +6,7 @@ import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { populateModelDropdown } from "./modelSelect";
 import { GenericTextSuggester } from "./suggesters/genericTextSuggester";
 import { getAllFolderPathsInVault } from "src/utilityObsidian";
+import { t } from "../i18n";
 
 type AIAssistantSettings = QuickAddSettings["ai"];
 
@@ -59,10 +60,10 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addProvidersSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Providers")
-			.setDesc("The providers for the AI Assistant")
+			.setName(t("ai.providers.name"))
+			.setDesc(t("ai.providers.desc"))
 			.addButton((button) => {
-				button.setButtonText("Edit providers").onClick(() => {
+				button.setButtonText(t("ai.providers.editButton")).onClick(() => {
 					void new AIAssistantProvidersModal(
 						this.settings.providers,
 						this.app
@@ -75,8 +76,8 @@ export class AIAssistantSettingsModal extends Modal {
  
 	addDefaultModelSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Default model")
-			.setDesc("The default model for the AI Assistant")
+			.setName(t("ai.defaultModel.name"))
+			.setDesc(t("ai.defaultModel.desc"))
 			.addDropdown((dropdown) => {
 				populateModelDropdown(
 					dropdown,
@@ -94,8 +95,8 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addPromptTemplateFolderPathSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Prompt template folder path")
-			.setDesc("Path to your folder with prompt templates")
+			.setName(t("ai.promptTemplateFolderPath.name"))
+			.setDesc(t("ai.promptTemplateFolderPath.desc"))
 			.addText((text) => {
 				text.setValue(this.settings.promptTemplatesFolderPath).onChange(
 					(value) => {
@@ -113,8 +114,8 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addShowAssistantSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Show assistant")
-			.setDesc("Show status messages from the AI Assistant")
+			.setName(t("ai.showAssistant.name"))
+			.setDesc(t("ai.showAssistant.desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.settings.showAssistant);
 				toggle.onChange((value) => {
@@ -125,7 +126,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addConfirmToolCallsSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Confirm AI tool calls")
+			.setName(t("ai.confirmToolCalls"))
 			.setDesc(
 				"When an AI agent runs script-defined or built-in tools, ask before executing. 'Destructive only' confirms tools not marked read-only; 'Always' confirms every tool; 'Never' defers to each tool's own setting. A tool that requires approval is always confirmed regardless.",
 			)
@@ -143,8 +144,8 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addDefaultSystemPromptSetting(contentEl: HTMLElement) {
 		new Setting(contentEl)
-			.setName("Default system prompt")
-			.setDesc("The default system prompt for the AI Assistant");
+			.setName(t("ai.defaultSystemPrompt.name"))
+			.setDesc(t("ai.defaultSystemPrompt.desc"));
 
 		const textAreaComponent = new TextAreaComponent(contentEl);
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
