@@ -43,13 +43,13 @@ import { t } from "./i18n";
  * `control` keys so a mistyped key is caught at compile time. */
 type SettingsKey = Extract<keyof QuickAddSettings, string>;
 
-/**
- * Shared by the Packages definition (which is what the settings search indexes)
- * and by the rendered description (which the row rewrites as the export state
- * changes), so the two can never drift.
- */
-const PACKAGES_DESC =
-	"Bundle or import QuickAdd automations as reusable packages.";
+/** Settings-tab heading: "Choices & packages" — the "packages" UI is shared by the
+ * Packages definition (which is what the settings search indexes) and by the
+ * rendered description (which the row rewrites as the export state changes),
+ * so the two can never drift. t() is computed inside the group builder so the
+ * locale module is loaded before the key resolves. */
+const PACKAGES_DESC_KEY = "settings.packages.desc";
+const PACKAGES_DESC_NEEDS_CHOICE_KEY = "settings.packages.descNeedsChoice";
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
@@ -156,7 +156,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private choicesAndPackagesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Choices & packages",
+			heading: t("settings.group.choicesAndPackages"),
 			// QuickAdd's power surface is syntax you have to learn ({{VALUE}},
 			// {{DATE}}, capture targets, ...) and until now the manual was reachable
 			// from exactly one place in the whole plugin (issue #1541). A help icon
@@ -166,19 +166,19 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				(button) =>
 					button
 						.setIcon("help-circle")
-						.setTooltip("QuickAdd documentation")
+						.setTooltip(t("settings.docs.quickAddTooltip"))
 						.onClick(() =>
 							openDocsUrl(DOCS_URLS.gettingStarted, button.extraSettingsEl),
 						),
 			],
 			items: [
 				{
-					name: "Choices",
+					name: t("settings.choices.name"),
 					render: (setting) => this.renderChoicesView(setting),
 				},
 				{
-					name: "Packages",
-					desc: PACKAGES_DESC,
+					name: t("settings.packages.name"),
+					desc: t(PACKAGES_DESC_KEY),
 					render: (setting) => this.renderPackages(setting),
 				},
 			],
@@ -188,27 +188,27 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private choicePickerGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Choice picker",
+			heading: t("settings.group.choicePicker"),
 			items: [
 				{
-					name: "Search nested choices",
+					name: t("settings.items.searchNestedChoices.name"),
 					// "Multi" is the internal type id; every other user-facing string
 					// says folder (see src/utils/choiceNoun.ts), and this was the one
 					// place in the whole settings surface that leaked it.
-					desc: "When searching in the choice picker, also match choices nested inside folders and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.",
+					desc: t("settings.items.searchNestedChoices.desc"),
 					control: { type: "toggle", key: "searchNestedChoices" },
 				},
 				{
-					name: "“New note from template” in the launcher",
-					desc: "Add a row to Run QuickAdd that lists templates from your configured template folder, so you can create a note from a template without a dedicated Template choice. Only appears when a template folder is configured; the command palette entry works regardless.",
+					name: t("settings.items.templateFolderLauncherRow.name"),
+					desc: t("settings.items.templateFolderLauncherRow.desc"),
 					control: {
 						type: "dropdown",
 						key: "templateFolderLauncherRow",
 						defaultValue: "bottom",
 						options: {
-							bottom: "Show at the bottom (keeps your top choice first)",
-							top: "Show at the top",
-							off: "Hide",
+							bottom: t("settings.items.templateFolderLauncherRow.bottom"),
+							top: t("settings.items.templateFolderLauncherRow.top"),
+							off: t("settings.items.templateFolderLauncherRow.off"),
 						},
 					},
 				},
@@ -219,44 +219,42 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private inputGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Input",
+			heading: t("settings.group.input"),
 			items: [
 				{
-					name: "Use multi-line input prompt",
-					desc: "Use multi-line input prompt instead of single-line input prompt. Submit multi-line prompts with Ctrl/Cmd+Enter; Enter inserts a newline.",
+					name: t("settings.items.useMultiLine.name"),
+					desc: t("settings.items.useMultiLine.desc"),
 					control: { type: "toggle", key: "inputPrompt" },
 				},
 				{
-					name: "Persist input prompt drafts",
-					desc: "Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
+					name: t("settings.items.persistDrafts.name"),
+					desc: t("settings.items.persistDrafts.desc"),
 					control: { type: "toggle", key: "persistInputPromptDrafts" },
 				},
 				{
-					name: "Use editor selection as default Capture value",
-					desc: "When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}.",
+					name: t("settings.items.useSelection.name"),
+					desc: t("settings.items.useSelection.desc"),
 					control: { type: "toggle", key: "useSelectionAsCaptureValue" },
 				},
 				{
-					name: "Name pasted images after the note title",
-					desc: "When on, clipboard images saved by QuickAdd (pasting into a prompt, or {{CLIPBOARD}} with an image and no text) are named after the destination note. When the destination is not yet known, QuickAdd keeps the timestamp name. Duplicate names are handled by Obsidian's attachment folder setting.",
+					name: t("settings.items.namePastedImages.name"),
+					desc: t("settings.items.namePastedImages.desc"),
 					control: { type: "toggle", key: "namePastedImagesAfterNoteTitle" },
 				},
 				{
-					name: "One-page input for choices",
+					name: t("settings.items.onePageInput.name"),
 					// The trailing sentence used to read "See One-page Inputs in the
 					// docs." as plain, unlinked prose (issue #1541).
 					desc: this.descWithDocsLink(
-						"Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. ",
+						t("settings.items.onePageInput.descPrefix"),
 						DOCS_URLS.onePageInputs,
-						"Learn more about one-page inputs",
+						t("settings.docs.learnMoreAboutOnePageInput"),
 					),
 					control: { type: "toggle", key: "onePageInputEnabled" },
 				},
 				{
-					name: "Date aliases",
-					desc:
-						"Shortcodes for natural language date parsing. " +
-						"One per line: alias = phrase. Example: tm = tomorrow.",
+					name: t("settings.items.dateAliases.name"),
+					desc: t("settings.items.dateAliases.desc"),
 					render: (setting) => this.renderDateAliases(setting),
 				},
 			],
@@ -266,19 +264,16 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private templatesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Templates & properties",
+			heading: t("settings.group.templatesAndProperties"),
 			items: [
 				{
-					name: "Template folder paths",
-					desc: "Folders where templates are stored. Used to suggest template files when configuring QuickAdd. Add as many as you like; leave empty to suggest every template file in the vault.",
+					name: t("settings.items.templateFolderPaths.name"),
+					desc: t("settings.items.templateFolderPaths.desc"),
 					render: (setting) => this.renderTemplateFolderPaths(setting),
 				},
 				{
-					name: "Convert string front matter variables to typed properties (Beta)",
-					desc:
-						"List/object values from scripts are always written as proper Obsidian properties (a list becomes a List). " +
-						"This toggle additionally converts string values into typed properties: a comma or bullet-list string becomes a List, " +
-						"\"42\" becomes a Number, \"true\" becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases.",
+					name: t("settings.items.convertStringTypes.name"),
+					desc: t("settings.items.convertStringTypes.desc"),
 					control: { type: "toggle", key: "enableTemplatePropertyTypes" },
 				},
 			],
@@ -288,31 +283,30 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private notificationsGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Notifications",
+			heading: t("settings.group.notifications"),
 			items: [
 				{
-					name: "Announce updates",
-					desc: "Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
+					name: t("settings.items.announceUpdates.name"),
+					desc: t("settings.items.announceUpdates.desc"),
 					control: {
 						type: "dropdown",
 						key: "announceUpdates",
 						defaultValue: "major",
 						options: {
-							all: "Show updates on each new release",
-							major:
-								"Show updates only on major releases (new features, breaking changes)",
-							none: "Don't show",
+							all: t("settings.items.announceUpdates.all"),
+							major: t("settings.items.announceUpdates.major"),
+							none: t("settings.items.announceUpdates.none"),
 						},
 					},
 				},
 				{
-					name: "Show capture notifications",
-					desc: "Display a notification when content is captured successfully to confirm the operation completed.",
+					name: t("settings.items.showCaptureNotifications.name"),
+					desc: t("settings.items.showCaptureNotifications.desc"),
 					control: { type: "toggle", key: "showCaptureNotification" },
 				},
 				{
-					name: "Show input cancellation notifications",
-					desc: "Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.",
+					name: t("settings.items.showInputCancellation.name"),
+					desc: t("settings.items.showInputCancellation.desc"),
 					control: {
 						type: "toggle",
 						key: "showInputCancellationNotification",
@@ -325,10 +319,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private globalVariablesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Global variables",
+			heading: t("settings.group.globalVariables"),
 			items: [
 				{
-					name: "Global variables",
+					name: t("settings.items.globalVariables.name"),
 					render: (setting) => this.renderGlobalVariablesView(setting),
 				},
 			],
@@ -338,16 +332,16 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private aiAndOnlineGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "AI & online",
+			heading: t("settings.group.aiAndOnline"),
 			items: [
 				{
-					name: "Disable AI & online features",
-					desc: "This prevents the plugin from making requests to external providers like OpenAI. You can still use user scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
+					name: t("settings.items.disableAI.name"),
+					desc: t("settings.items.disableAI.desc"),
 					control: { type: "toggle", key: "disableOnlineFeatures" },
 				},
 				{
-					name: "Allow URI x-callback-url",
-					desc: "When on, an obsidian://quickadd URI may open a callback URL (x-success / x-error / x-cancel) after a Template or Capture choice finishes — sending the outcome and the affected note's vault path and URL to that callback. While on, a URI that carries x-* callback params is restricted to Template and Capture choices (other choice types are warned and skipped). Off by default because the callback URL is set by whoever creates the obsidian:// link. Only shortcuts: and obsidian: callback URLs are permitted.",
+					name: t("settings.items.allowUriCallbacks.name"),
+					desc: t("settings.items.allowUriCallbacks.desc"),
 					control: { type: "toggle", key: "enableUriCallbacks" },
 				},
 			],
@@ -385,11 +379,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private developerGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Developer",
+			heading: t("settings.group.developer"),
 			items: [
 				{
-					name: "Development information",
-					desc: "Git information for developers.",
+					name: t("settings.items.development.name"),
+					desc: t("settings.items.development.desc"),
 					render: (setting) => this.renderDevInfo(setting),
 				},
 			],
@@ -410,11 +404,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private descWithDocsLink(
 		text: string,
 		url: string,
-		linkText = "Learn more",
+		linkText?: string,
 	): DocumentFragment {
 		const fragment = document.createDocumentFragment();
 		fragment.append(document.createTextNode(text));
-		createDocsLink(fragment, url, linkText);
+		createDocsLink(fragment, url, linkText ?? t("settings.docs.learnMore"));
 		return fragment;
 	}
 
@@ -503,10 +497,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
 		return this.descWithDocsLink(
 			hasNothingToExport
-				? `${PACKAGES_DESC} Export becomes available once you have a choice. `
-				: `${PACKAGES_DESC} `,
+				? `${t(PACKAGES_DESC_NEEDS_CHOICE_KEY)} `
+				: `${t(PACKAGES_DESC_KEY)} `,
 			DOCS_URLS.packages,
-			"Learn more about packages",
+			t("settings.docs.packagesLink"),
 		);
 	}
 
@@ -518,7 +512,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		let exportButton: ButtonComponent | undefined;
 		setting.addButton((button) => {
 			exportButton = button;
-			button.setButtonText("Export package…").onClick(() => {
+			button.setButtonText(t("settings.packages.exportButton")).onClick(() => {
 				const choicesSnapshot = rootChoicesOf(
 					settingsStore.getState().choices,
 				);
@@ -534,7 +528,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// is one of the most useful things a brand-new user can do, so the block as
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
-			button.setButtonText("Import package…").onClick(() => {
+			button.setButtonText(t("settings.packages.importButton")).onClick(() => {
 				new ImportPackageModal(this.app).open();
 			}),
 		);
@@ -548,7 +542,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			if (!exportButton) return;
 			exportButton.setDisabled(hasNothingToExport);
 			if (hasNothingToExport) {
-				exportButton.setTooltip("Nothing to export yet");
+				exportButton.setTooltip(t("settings.packages.nothingToExport"));
 			} else {
 				// setTooltip("") is unspecified; Obsidian's tooltip is driven by
 				// aria-label, so drop the attribute outright.
@@ -588,7 +582,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.addTextArea((textArea) => {
 			textAreaRef = textArea;
 			textArea
-				.setPlaceholder("t = today\ntm = tomorrow\nyd = yesterday")
+				.setPlaceholder(t("settings.items.dateAliases.placeholder"))
 				.setValue(
 					formatDateAliasLines(settingsStore.getState().dateAliases),
 				)
@@ -601,10 +595,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 
 		setting.addButton((button) => {
-			button.setButtonText("Reset to defaults").onClick(() => {
-				settingsStore.setState({ dateAliases: DEFAULT_DATE_ALIASES });
-				textAreaRef?.setValue(formatDateAliasLines(DEFAULT_DATE_ALIASES));
-			});
+			button
+				.setButtonText(t("settings.items.dateAliases.resetButton"))
+				.onClick(() => {
+					settingsStore.setState({ dateAliases: DEFAULT_DATE_ALIASES });
+					textAreaRef?.setValue(formatDateAliasLines(DEFAULT_DATE_ALIASES));
+				});
 			button.buttonEl.addClass("qa-date-alias-reset");
 		});
 	}
@@ -629,7 +625,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			if (paths.length === 0) {
 				listEl.createDiv({
 					cls: "qa-template-folder-empty",
-					text: "No folders added yet.",
+					text: t("settings.items.templateFolderPaths.empty"),
 				});
 				return;
 			}
@@ -644,7 +640,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				});
 				new ExtraButtonComponent(row)
 					.setIcon("trash-2")
-					.setTooltip(`Remove ${folder}`)
+					.setTooltip(`${t("common.remove")} ${folder}`)
 					.onClick(() => {
 						setPaths(getPaths().filter((f) => f !== folder));
 						renderList();
@@ -654,7 +650,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		const inputRow = container.createDiv("qa-template-folder-input-row");
 		const input = new TextComponent(inputRow);
-		input.setPlaceholder("templates/");
+		input.setPlaceholder(t("settings.items.templateFolderPaths.placeholder"));
 		input.inputEl.addClass("qa-template-folder-input");
 		const suggester = new GenericTextSuggester(
 			this.app,
@@ -685,7 +681,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		input.inputEl.addEventListener("keydown", onKeydown);
 		new ButtonComponent(inputRow)
 			.setCta()
-			.setButtonText("Add")
+			.setButtonText(t("settings.items.templateFolderPaths.addButton"))
 			.onClick(() => addFolder());
 
 		renderList();
