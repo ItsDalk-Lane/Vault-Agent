@@ -48,6 +48,7 @@ import { decodeFileValue } from "src/utils/fileSyntax";
 import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInputSuggest";
 import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { acceptsDiscoverySelection, resolveDiscoveryFieldRequirement, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
+import { t } from "../i18n";
 import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
 
 type CompletionInputEvent = Event & {
@@ -266,18 +267,18 @@ export class OnePageInputModal extends Modal {
 			cls: "qa-prompt-actions-primary",
 		});
 		new ButtonComponent(primary)
-			.setButtonText("Submit")
+			.setButtonText(t("common.submit"))
 			.setCta()
 			.onClick(() => this.submit());
 		new ButtonComponent(primary)
-			.setButtonText("Cancel")
+			.setButtonText(t("common.cancel"))
 			.onClick(() => this.cancel());
 		const secondary = buttonBar.createDiv({
 			cls: "qa-prompt-actions-secondary",
 		});
 		stylePeekButton(
 			new ButtonComponent(secondary)
-				.setButtonText("Peek at note")
+				.setButtonText(t("common.peekAtNote"))
 				.onClick(() => this.peek.peek()),
 		);
 	}
@@ -439,12 +440,12 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private renderNoteField(note: DiscoveryNoteField): void {
-		const setting = new Setting(this.contentEl).setName("Note");
+		const setting = new Setting(this.contentEl).setName(t("onePageInput.note"));
 		setting.settingEl.addClass("qa-onepage-file-picker-setting");
 		const container = setting.controlEl.createDiv({ cls: "qa-onepage-file-picker" });
 		const selected = container.createDiv({ cls: "qa-onepage-file-picker__selection" });
 		selected.setAttribute("aria-live", "polite");
-		const input = new TextComponent(container).setPlaceholder("Search notes or create new note");
+		const input = new TextComponent(container).setPlaceholder(t("onePageInput.notePlaceholder"));
 		input.inputEl.addClass("qa-onepage-file-picker__input");
 		input.inputEl.setAttribute("aria-label", `Note for ${note.choice.name}`);
 		let suggester: NoteDiscoveryInputSuggest | undefined;
@@ -856,7 +857,7 @@ export class OnePageInputModal extends Modal {
 				const startingDisplay = valueToDisplay.get(starting) ?? starting;
 				const input = new TextComponent(setting.controlEl);
 				input
-					.setPlaceholder(req.placeholder ?? "Type to search...")
+					.setPlaceholder(req.placeholder ?? t("common.typeToSearch"))
 					.setValue(startingDisplay)
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addEventListener("input", (event) => {

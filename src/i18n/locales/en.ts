@@ -41,6 +41,12 @@ const en = {
 		submit: "Submit",
 		search: "Search",
 		loading: "Loading…",
+		peekAtNote: "Peek at note",
+		typeToSearch: "Type to search…",
+	},
+	onePageInput: {
+		note: "Note",
+		notePlaceholder: "Search notes or create new note",
 	},
 	settings: {
 		language: {

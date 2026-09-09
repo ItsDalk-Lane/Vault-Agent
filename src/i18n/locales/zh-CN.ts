@@ -38,6 +38,12 @@ const zhCN = {
 		submit: "提交",
 		search: "搜索",
 		loading: "加载中…",
+		peekAtNote: "预览笔记",
+		typeToSearch: "输入以搜索…",
+	},
+	onePageInput: {
+		note: "笔记",
+		notePlaceholder: "搜索笔记或新建笔记",
 	},
 	settings: {
 		language: {
