@@ -608,6 +608,8 @@ const zhCN = {
 			createIfMissing: "属性不存在时创建",
 			addRow: "添加属性",
 			removeRow: "删除此属性",
+			collapseRow: "折叠此属性",
+			expandRow: "展开此属性",
 			valueFormat: "值格式（可选）",
 			valueFormatDesc: "留空则使用“捕获格式”作为缺省值。支持格式语法。",
 			multiDesc: "按列表顺序写入属性。删除最后一行即关闭属性捕获。",

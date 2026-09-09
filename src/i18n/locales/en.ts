@@ -641,6 +641,8 @@ const en = {
 			createIfMissing: "Create property if missing",
 			addRow: "Add property",
 			removeRow: "Remove property",
+			collapseRow: "Collapse property",
+			expandRow: "Expand property",
 			valueFormat: "Value format (optional)",
 			valueFormatDesc: "Leave empty to use the capture format as the default. Supports format syntax.",
 			multiDesc: "Properties are written in list order. Deleting the last row turns off property capture.",

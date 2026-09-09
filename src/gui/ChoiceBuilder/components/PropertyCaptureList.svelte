@@ -4,7 +4,6 @@ import type QuickAdd from "../../../main";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
 import { setPropertyCaptures } from "../../../types/choices/ICaptureChoice";
 import type { PropertyCapture } from "../../../types/choices/ICaptureChoice";
-import ObsidianIcon from "../../components/ObsidianIcon.svelte";
 import PropertyCaptureFields from "./PropertyCaptureFields.svelte";
 import { t } from "../../../i18n";
 
@@ -46,21 +45,11 @@ function removeRow(index: number) {
 
 <p class="qa-property-capture-multi-desc">{t("choiceBuilder.propertyCapture.multiDesc")}</p>
 
-{#each rows as row, i (i)}
+<!-- Keyed by the row object (not its index): PropertyCaptureFields keeps its
+	collapsed/open state internally, so the key must travel with the row itself
+	or deleting a middle row would shuffle sibling collapse states. -->
+{#each rows as row, i (row)}
 	<div class="qa-property-capture-card">
-		<div class="qa-property-capture-card-head">
-			<span class="qa-property-capture-card-title">
-				{t("choiceBuilder.propertyCapture.property")} {i + 1}
-			</span>
-			<button
-				type="button"
-				class="qa-property-capture-remove"
-				aria-label={t("choiceBuilder.propertyCapture.removeRow")}
-				onclick={() => removeRow(i)}
-			>
-				<ObsidianIcon iconId="trash-2" size={14} />
-			</button>
-		</div>
 		<div class="qa-property-capture-card-body">
 			<PropertyCaptureFields
 				config={row}
@@ -72,6 +61,7 @@ function removeRow(index: number) {
 				single={rows.length === 1}
 				index={rows.length > 1 ? i : undefined}
 				fallbackFormat={captureFormat}
+				onremove={() => removeRow(i)}
 			/>
 		</div>
 	</div>
@@ -97,36 +87,14 @@ function removeRow(index: number) {
 		margin-bottom: 0.75rem;
 	}
 
-	.qa-property-capture-card-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding-top: 0.35rem;
-	}
-
-	.qa-property-capture-card-title {
-		font-weight: 600;
-		color: var(--text-muted);
-	}
-
-	.qa-property-capture-remove {
-		display: inline-flex;
-		align-items: center;
-		background: none;
-		border: none;
-		color: var(--text-muted);
-		cursor: pointer;
-		padding: 2px;
-		border-radius: var(--radius-s);
-	}
-
-	.qa-property-capture-remove:hover {
-		color: var(--text-error);
-		background: var(--background-modifier-hover);
-	}
-
 	.qa-property-capture-actions {
 		display: flex;
 		justify-content: flex-end;
+	}
+
+	/* The delete chevron lives on the property row now; tint it toward the
+		danger color on hover like the old header button did. */
+	.qa-property-capture-card :global(.qa-property-capture-remove:hover) {
+		color: var(--text-error);
 	}
 </style>

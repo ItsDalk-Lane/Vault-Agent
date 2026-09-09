@@ -160,7 +160,7 @@ describe("CaptureChoiceForm", () => {
 	});
 
 	it("edits multi-property rows with unique labels and persists canonical shapes", async () => {
-		const { container, props, getByLabelText, getByText, getAllByLabelText } = mountForm();
+		const { container, props, getByLabelText, queryByLabelText, getByText, getAllByLabelText } = mountForm();
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
 		// Entering property mode starts as ONE canonical row (no valueFormat key).
@@ -181,6 +181,19 @@ describe("CaptureChoiceForm", () => {
 		]);
 		await fireEvent.input(getByLabelText("Property 2"), { target: { value: "project" } });
 		flushSync();
+
+		// Rows collapse independently: a collapsed row hides its fields but keeps
+		// its delete button reachable, and the label folds in a summary.
+		const collapseButtons = getAllByLabelText("Collapse property");
+		expect(collapseButtons).toHaveLength(2);
+		await fireEvent.click(collapseButtons[1]);
+		flushSync();
+		expect(queryByLabelText("Property 2")).toBeNull();
+		expect(container.textContent).toContain("Property 2 · project");
+		expect(getAllByLabelText("Remove property")).toHaveLength(2);
+		await fireEvent.click(getByLabelText("Expand property"));
+		flushSync();
+		expect(getByLabelText("Property 2")).toHaveValue("project");
 
 		// Removing a row folds a 2-row list back into the single-object shape.
 		await fireEvent.click(getAllByLabelText("Remove property")[0]);
