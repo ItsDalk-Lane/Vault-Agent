@@ -35,26 +35,32 @@ let {
 	/** Alias for `control` so the row can be used with default slot content. */
 	children?: Snippet | undefined;
 	/**
-	 * Mouse-only affordance: clicking anywhere in the info area (name +
-	 * description) fires this — used for collapsible rows. Opt-in, so plain
-	 * rows keep inert info areas. Keyboard users toggle through a real button
-	 * in the control area; the click handler should preventDefault so a name
-	 * rendered as `<label for>` does not ALSO focus its input.
+	 * Mouse-only affordance: clicking anywhere on the row — name, description,
+	 * or dead space between name and controls — fires this (used for collapsible
+	 * rows). Opt-in, so plain rows keep inert rows. The control area stops
+	 * propagation, so its dropdowns/buttons never fire the row handler. Keyboard
+	 * users toggle through a real button in the control area; the click handler
+	 * should preventDefault so a name rendered as `<label for>` does not ALSO
+	 * focus its input.
 	 */
 	onInfoClick?: ((event: MouseEvent) => void) | undefined;
 } = $props();
 </script>
 
-<div class="setting-item" class:setting-item-heading={heading}>
-	<!-- Mouse-only affordance: keyboard users toggle through a real button in
-		the control area (see onInfoClick), same pattern as the choice list rows. -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<div
-		class="setting-item-info"
-		class:qa-setting-info-clickable={!!onInfoClick}
-		onclick={onInfoClick}
-	>
+<!-- Mouse-only affordance, on the WHOLE row: clicking any dead space between
+	the name and the controls toggles (see onInfoClick). The control area
+	stops propagation so its real controls (dropdowns, buttons) never fire
+	the row handler. Keyboard users toggle through a real button in the
+	control area — same pattern as the choice list rows. -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<div
+	class="setting-item"
+	class:setting-item-heading={heading}
+	class:qa-setting-info-clickable={!!onInfoClick}
+	onclick={onInfoClick}
+>
+	<div class="setting-item-info">
 		{#if name}
 			{#if labelFor}
 				<label class="setting-item-name" for={labelFor}>{name}</label>
@@ -64,7 +70,10 @@ let {
 		{/if}
 		{#if desc}<div class="setting-item-description">{desc}</div>{/if}
 	</div>
-	<div class="setting-item-control">
+	<div
+		class="setting-item-control"
+		onclick={(event) => { if (onInfoClick) event.stopPropagation(); }}
+	>
 		{@render (control ?? children)?.()}
 	</div>
 </div>

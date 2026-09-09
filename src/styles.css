@@ -2552,10 +2552,24 @@ textarea.is-valid {
 	display: none !important;
 }
 
-/* Clickable setting-item info areas (collapsible rows): the whole name +
-   description block toggles on click; a real button in the control area
-   stays the keyboard path. */
+/* Clickable setting rows (collapsible property capture rows): the whole row
+   toggles on click; a real button in the control area stays the keyboard path.
+   Controls (select/button) keep their own cursors, so only dead space shows
+   the pointer. */
 .qa-setting-info-clickable {
 	cursor: pointer;
 	user-select: none;
+}
+
+/* Property capture card: center the row that carries the collapse chevron,
+   kind dropdown and remove button against the title, whatever alignment the
+   theme gives `.setting-item` — a screenshot showed the controls sinking
+   below the name line. The control's own flex children center too. */
+.quickAddModal .qa-property-capture-card .setting-item {
+	align-items: center;
+}
+
+.quickAddModal .qa-property-capture-card .setting-item-control {
+	align-items: center;
+	gap: var(--size-2-2);
 }
