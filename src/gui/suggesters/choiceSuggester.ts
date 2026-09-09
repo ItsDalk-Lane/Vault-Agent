@@ -13,6 +13,7 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import { t } from "../../i18n";
 import { createRenderFallbackWarner } from "./utils";
 import { reportUnlessCancelled } from "../../utils/errorUtils";
 import { promptCancelled } from "../../errors/UserCancelError";
@@ -40,7 +41,7 @@ const backLabel = "← Back";
  * (issue #1540). Nested levels override this with the folder's name or its
  * custom placeholder.
  */
-const DEFAULT_PLACEHOLDER = "Select a choice";
+const DEFAULT_PLACEHOLDER = "";
 
 /**
  * Shared wording for "you opened a folder that has nothing in it", so the
@@ -61,8 +62,13 @@ export function emptyFolderNoticeText(folder: IChoice): string {
  * Trailing marker on a folder row the picker cannot drill into. Same word the
  * settings tree already uses for this exact state ("Empty — add a choice or drag
  * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
+ *
+ * Computed lazily via folderFlairFor so the locale module has been initialized
+ * by the time the user sees it — a module-level t() call would freeze English.
  */
-export const EMPTY_FOLDER_FLAIR = "Empty";
+function emptyFolderFlair(): string {
+	return t("choiceSuggester.emptyFlair");
+}
 
 /**
  * The same marker for a folder the picker cannot drill into because its contents
@@ -70,14 +76,16 @@ export const EMPTY_FOLDER_FLAIR = "Empty";
  * contradict the settings list, which says the contents are still in data.json
  * (#1566).
  */
-export const UNREADABLE_FOLDER_FLAIR = "Unreadable";
+function unreadableFolderFlair(): string {
+	return t("choiceSuggester.unreadableFlair");
+}
 
 /** The trailing marker for a folder row that cannot be opened, or "" for one that can. */
 export function folderFlairFor(choice: IChoice): string {
 	if (!isEmptyFolderChoice(choice)) return "";
 	return hasUnreadableChildren(choice)
-		? UNREADABLE_FOLDER_FLAIR
-		: EMPTY_FOLDER_FLAIR;
+		? unreadableFolderFlair()
+		: emptyFolderFlair();
 }
 
 /**
@@ -227,7 +235,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// long-lived plugin instance.
 	private readonly markdownComponent = new Component();
 	private readonly warnRenderFailure = createRenderFallbackWarner(
-		"Could not render a choice name as Markdown; showing it as plain text",
+		t("choiceSuggester.couldNotRenderName"),
 	);
 
 	public static Open(
@@ -264,7 +272,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
-		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
+		this.currentPlaceholder =
+			options?.placeholder?.trim() ||
+			t("choiceSuggester.defaultPlaceholder");
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
@@ -509,7 +519,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				runTemplateFromFolder(this.app, this.plugin, {
 					choiceExecutor: this.choiceExecutor,
 				}),
-				"Could not run a template from that folder",
+				t("choiceSuggester.couldNotRunTemplate"),
 			);
 			return;
 		}

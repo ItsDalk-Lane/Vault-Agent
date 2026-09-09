@@ -7,6 +7,7 @@ import {
   isChoiceLike,
   rootChoicesOf,
 } from "src/utils/choiceUtils";
+import { t } from "../../i18n";
 
 export type MoveTarget = { id: string; path: string };
 
@@ -118,15 +119,15 @@ function buildChoiceMenu(
     .addItem((item) =>
       item
         .setTitle(
-          choice.command ? "Disable in command palette" : "Enable in command palette",
+          choice.command ? t("contextMenu.disableInPalette") : t("contextMenu.enableInPalette"),
         )
         .setIcon("zap")
         .onClick(actions.onToggle),
     )
-    .addItem((item) => item.setTitle("Rename").setIcon("pencil").onClick(actions.onRename))
-    .addItem((item) => item.setTitle("Configure").setIcon("settings").onClick(actions.onConfigure))
-    .addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(actions.onDuplicate))
-    .addItem((item) => item.setTitle("Delete").setIcon("trash-2").onClick(actions.onDelete))
+    .addItem((item) => item.setTitle(t("contextMenu.rename")).setIcon("pencil").onClick(actions.onRename))
+    .addItem((item) => item.setTitle(t("contextMenu.configure")).setIcon("settings").onClick(actions.onConfigure))
+    .addItem((item) => item.setTitle(t("contextMenu.duplicate")).setIcon("copy").onClick(actions.onDuplicate))
+    .addItem((item) => item.setTitle(t("contextMenu.delete")).setIcon("trash-2").onClick(actions.onDelete))
     .addSeparator();
 
   // Offer a way back OUT of a folder for keyboard/menu users (cross-zone drag is
@@ -134,7 +135,7 @@ function buildChoiceMenu(
   if (isChoiceNested(choice, roots)) {
     menu.addItem((item) =>
       item
-        .setTitle("Move to: (root)")
+        .setTitle(t("contextMenu.moveToRoot"))
         .setIcon("folder-up")
         .onClick(() => actions.onMove(MOVE_TO_ROOT_TARGET_ID)),
     );
@@ -143,15 +144,15 @@ function buildChoiceMenu(
   const targets = computeEligibleMultiTargets(choice, roots);
   if (targets.length === 0) {
     menu.addItem((item) =>
-      item.setTitle("Move to: (no folders)").setDisabled(true).setIcon("folder"),
+      item.setTitle(t("contextMenu.moveToNoFolders")).setDisabled(true).setIcon("folder"),
     );
   } else {
-    targets.forEach((t) =>
+    targets.forEach((target) =>
       menu.addItem((item) =>
         item
-          .setTitle(`Move to: ${t.path}`)
+          .setTitle(`${t("contextMenu.moveToPrefix")}${target.path}`)
           .setIcon("folder-open")
-          .onClick(() => actions.onMove(t.id)),
+          .onClick(() => actions.onMove(target.id)),
       ),
     );
   }

@@ -195,7 +195,12 @@ describe("UI label copy across src/", () => {
 	});
 
 	it("finds labels to check (the scan itself must not silently go blind)", () => {
-		expect(labels.length).toBeGreaterThan(100);
+		// Threshold lowered from 100 to 50 after the i18n fork's first wave of
+		// migrations: most user-facing strings now route through `t(...)`, so the
+		// raw-text scanner has fewer hits. The audit still has work to do (the
+		// remaining matches are in .svelte files and AI prompt templates), so
+		// "must find something" is what this assertion really enforces.
+		expect(labels.length).toBeGreaterThan(50);
 	});
 
 	it("writes every UI label in sentence case", () => {

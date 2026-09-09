@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import type { App } from "obsidian";
 import { getActiveEditorSelection } from "../../utils/activeMarkdownEditor";
+import { t } from "../../i18n";
 import { createOwnedElement } from "../../utils/activeWindow";
 import {
 	PEEK_SHORTCUT_KEY,
@@ -156,7 +157,7 @@ export class PromptPeekSession {
 		this.insertButton = new ButtonComponent(actions)
 			.setButtonText(this.compactChrome ? "Insert" : "Insert selection")
 			.setCta()
-			.setTooltip("Drop the selected text into your draft and return")
+			.setTooltip(t("promptPeek.dropTooltip"))
 			.onClick(() => this.insertSelectionAndResume());
 		this.insertButton.buttonEl.setAttribute(
 			"aria-label",
@@ -164,12 +165,12 @@ export class PromptPeekSession {
 		);
 
 		new ButtonComponent(actions)
-			.setButtonText("Return")
-			.setTooltip("Go back to the prompt without inserting")
+			.setButtonText(t("promptPeek.returnButton"))
+			.setTooltip(t("promptPeek.returnTooltip"))
 			.onClick(() => this.resume());
 
 		const cancel = new ButtonComponent(actions)
-			.setTooltip("Discard this run")
+			.setTooltip(t("promptPeek.cancelTooltip"))
 			.onClick(() => this.cancel());
 		cancel.buttonEl.addClass("qa-peek-chip-cancel");
 		cancel.buttonEl.setAttribute("aria-label", "Cancel this run");
@@ -180,7 +181,7 @@ export class PromptPeekSession {
 			setIcon(cancelIcon, "x");
 			cancel.buttonEl.replaceChildren(cancelIcon);
 		} else {
-			cancel.setButtonText("Cancel");
+			cancel.setButtonText(t("common.cancel"));
 		}
 
 		if (!Platform.isMobile) {

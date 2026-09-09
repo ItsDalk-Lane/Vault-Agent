@@ -347,6 +347,55 @@ const en = {
 			filtersDesc: "Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
 		},
 	},
+
+	input: {
+		optionalHint: "Optional — leave empty, press Skip, or ctrl/cmd+shift+↵.",
+		skipTooltip: "Leave this field empty",
+		skipTooltipFull: "Skip and leave empty",
+	},
+
+	datePicker: {
+		title: "Edit folder",
+		name: "Name",
+		placeholder: {
+			name: "Placeholder",
+			desc: "Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
+			value: "Defaults to the folder name",
+		},
+		unableToParseDate: "Unable to parse date",
+	},
+
+	promptPeek: {
+		returnButton: "Return",
+		returnTooltip: "Go back to the prompt without inserting",
+		dropTooltip: "Drop the selected text into your draft and return",
+		cancelTooltip: "Discard this run",
+	},
+
+	choiceSuggester: {
+		defaultPlaceholder: "Select a choice",
+		previewPlaceholder: "Preview will appear here",
+		previewLabel: "Preview:",
+		willBeLeftEmpty: "Will be left empty",
+		newNoteFromTemplate: "New note from template…",
+		emptyFlair: "Empty",
+		unreadableFlair: "Unreadable",
+		emptyNoticePrefix: "is empty. Add a choice or drag one in.",
+		couldNotRenderName: "Could not render a choice name as Markdown; showing it as plain text",
+		couldNotRunTemplate: "Could not run a template from that folder",
+	},
+
+	contextMenu: {
+		enableInPalette: "Enable in command palette",
+		disableInPalette: "Disable in command palette",
+		rename: "Rename",
+		configure: "Configure",
+		duplicate: "Duplicate",
+		delete: "Delete",
+		moveToRoot: "Move to: (root)",
+		moveToNoFolders: "Move to: (no folders)",
+		moveToPrefix: "Move to: ",
+	},
 	settings: {
 		language: {
 			name: "Language",

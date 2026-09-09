@@ -333,6 +333,55 @@ const zhCN = {
 			filtersDesc: "捕获目标过滤器选择一个目标文件。在捕获格式中使用 {{FILE:...|multi}} 以支持多值元数据。",
 		},
 	},
+
+	input: {
+		optionalHint: "可选——留空、按「跳过」或按 Ctrl/Cmd+Shift+↵。",
+		skipTooltip: "将此字段留空",
+		skipTooltipFull: "跳过并留空",
+	},
+
+	datePicker: {
+		title: "编辑文件夹",
+		name: "名称",
+		placeholder: {
+			name: "占位符",
+			desc: "在该文件夹打开时显示在选项选择器的搜索框中。留空则使用文件夹名。",
+			value: "默认为文件夹名",
+		},
+		unableToParseDate: "无法解析日期",
+	},
+
+	promptPeek: {
+		returnButton: "返回",
+		returnTooltip: "返回提示而不插入",
+		dropTooltip: "将所选文本放入草稿并返回",
+		cancelTooltip: "放弃此次运行",
+	},
+
+	choiceSuggester: {
+		defaultPlaceholder: "选择一个选项",
+		previewPlaceholder: "预览将显示在此处",
+		previewLabel: "预览：",
+		willBeLeftEmpty: "将留空",
+		newNoteFromTemplate: "从模板新建笔记…",
+		emptyFlair: "空",
+		unreadableFlair: "无法读取",
+		emptyNoticePrefix: "为空。请添加选项或拖入一个。",
+		couldNotRenderName: "无法将选项名称渲染为 Markdown；以纯文本显示",
+		couldNotRunTemplate: "无法从该文件夹运行模板",
+	},
+
+	contextMenu: {
+		enableInPalette: "在命令面板中启用",
+		disableInPalette: "在命令面板中禁用",
+		rename: "重命名",
+		configure: "配置",
+		duplicate: "复制",
+		delete: "删除",
+		moveToRoot: "移动到：(根)",
+		moveToNoFolders: "移动到：(无文件夹)",
+		moveToPrefix: "移动到：",
+	},
 	settings: {
 		language: {
 			name: "语言",

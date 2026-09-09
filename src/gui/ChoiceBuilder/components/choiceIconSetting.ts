@@ -44,7 +44,9 @@ export function addChoiceIconSetting(
 	}
 
 	setting.addText((text) => {
-		text.setPlaceholder(t("choiceBuilder.icon.placeholder"));
+		// Placeholder is the actual default icon name (e.g. "folder") — a hint
+		// not a label, so it stays in English even when the locale switches.
+		text.setPlaceholder(defaultIcon);
 		text.setValue(typeof state.icon === "string" ? state.icon : "");
 		text.inputEl.addClass("qa-choice-icon-input");
 		text.inputEl.setAttribute("aria-label", t("choiceBuilder.icon.aria"));
