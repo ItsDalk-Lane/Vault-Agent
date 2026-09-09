@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../../main";
+import { t } from "../../../i18n";
 import { mountComponent, type MountHandle } from "../../svelte/mountComponent";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
@@ -66,7 +67,7 @@ export function mountFormatPreview(
 	});
 
 	const mounted: MountHandle = mountComponent(host, FormatPreviewField, props, {
-		what: "the preview for this field",
+		what: t("svelteCards.whatFieldPreview"),
 	});
 	let destroyed = false;
 

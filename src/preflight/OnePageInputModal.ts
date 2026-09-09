@@ -628,7 +628,7 @@ export class OnePageInputModal extends Modal {
 					// first real option stays preselected: adding |optional must
 					// not silently change what an untouched submit yields.
 					if (req.optional) {
-						dropdown.addOption("", "Skip (leave empty)");
+						dropdown.addOption("", t("input.skipLeaveEmpty"));
 					}
 					options.forEach((opt, index) => {
 						const display = displayOptions[index] ?? opt;
@@ -702,7 +702,7 @@ export class OnePageInputModal extends Modal {
 					aliasDetails.addClass("qa-date-alias-details");
 
 					const aliasSummary = aliasDetails.createEl("summary", {
-						text: `Aliases (${aliasEntries.length})`,
+						text: t("datePicker.aliasesSummary", { count: aliasEntries.length }),
 					});
 					aliasSummary.addClass("qa-date-alias-summary");
 
@@ -1214,7 +1214,7 @@ export class OnePageInputModal extends Modal {
 		);
 		if (erroredDate) {
 			new Notice(
-				`QuickAdd: "${erroredDate.label}" is not a valid date. Fix it or clear it before submitting.`,
+				t("datePicker.invalidDateNotice", { label: erroredDate.label }),
 			);
 			return;
 		}

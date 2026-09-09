@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { t } from "../../i18n";
 
 	let {
 		what,
@@ -27,7 +28,7 @@
 <div class="qaMountFailed">
 	<div class="qaMountFailedHead">
 		<ObsidianIcon iconId="alert-triangle" size={16} />
-		<span class="qaMountFailedTitle">QuickAdd couldn't display {what}</span>
+		<span class="qaMountFailedTitle">{t("svelteCards.couldNotDisplay", { what })}</span>
 	</div>
 	<!--
 	  The body claims only what this card can actually vouch for. Two earlier
@@ -41,8 +42,7 @@
 	  what happened, that the failure itself changed nothing, and what to report.
 	-->
 	<p class="qaMountFailedBody">
-		This part of QuickAdd could not be drawn, so it has been left out. Nothing
-		was changed by the error. Include the message below if you report this.
+		{t("svelteCards.mountFailedBody")}
 	</p>
 	{#if detail}
 		<pre class="qaMountFailedDetail">{detail}</pre>

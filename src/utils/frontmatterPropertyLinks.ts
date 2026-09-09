@@ -5,6 +5,7 @@ import {
 	type FrontmatterHandling,
 } from "../types/linkPlacement";
 import { getOwnerDocument } from "./activeWindow";
+import { t } from "../i18n";
 
 const FRONTMATTER_HANDLING_LABELS: Record<FrontmatterHandling, string> = {
 	alwaysAppend: "Create or convert",
@@ -66,7 +67,7 @@ export function appendFrontmatterPropertyLinkValue(
 ): void {
 	const requestedKey = propertyKey.trim();
 	if (!requestedKey) {
-		throw new Error("Cannot append link to an empty frontmatter property key.");
+		throw new Error(t("errors.appendLinkEmptyPropertyKey"));
 	}
 
 	const key = resolveFrontmatterPropertyKey(frontmatter, requestedKey);
@@ -87,7 +88,10 @@ export function appendFrontmatterPropertyLinkValue(
 	}
 
 	throw new Error(
-		`Cannot append link to frontmatter property '${key}' because it contains a ${typeof existing} value.`,
+		t("errors.appendLinkPropertyScalarValue", {
+			key,
+			type: typeof existing,
+		}),
 	);
 }
 
@@ -99,7 +103,7 @@ export function appendConfiguredFrontmatterPropertyLinkValue(
 ): void {
 	const requestedKey = propertyKey.trim();
 	if (!requestedKey) {
-		throw new Error("Cannot append link to an empty frontmatter property key.");
+		throw new Error(t("errors.appendLinkEmptyPropertyKey"));
 	}
 
 	const key = resolveFrontmatterPropertyKey(frontmatter, requestedKey);
@@ -116,23 +120,23 @@ export function appendConfiguredFrontmatterPropertyLinkValue(
 
 	if (existing === undefined) {
 		if (frontmatterHandling === "error") {
-			throw new Error(
-				`Cannot append link to frontmatter property '${key}' because it does not exist.`,
-			);
+			throw new Error(t("errors.appendLinkPropertyMissing", { key }));
 		}
 		frontmatter[key] = [linkText];
 		return;
 	}
 
 	if (typeof existing === "object") {
-		throw new Error(
-			`Cannot append link to frontmatter property '${key}' because it contains an object value.`,
-		);
+		throw new Error(t("errors.appendLinkPropertyObjectValue", { key }));
 	}
 
 	if (frontmatterHandling !== "alwaysAppend") {
 		throw new Error(
-			`Cannot append link to frontmatter property '${key}' because it is not a list and the link-handling mode is '${FRONTMATTER_HANDLING_LABELS[frontmatterHandling]}'. Choose '${FRONTMATTER_HANDLING_LABELS.alwaysAppend}' to convert it into a list and append.`,
+			t("errors.appendLinkPropertyNotList", {
+				key,
+				mode: FRONTMATTER_HANDLING_LABELS[frontmatterHandling],
+				alwaysAppend: FRONTMATTER_HANDLING_LABELS.alwaysAppend,
+			}),
 		);
 	}
 
@@ -150,7 +154,7 @@ function resolveFrontmatterPropertyKey(
 
 	if (matchingKeys.length > 1) {
 		throw new Error(
-			`Cannot append link to frontmatter property '${propertyKey}' because the note has multiple properties that normalize to that key.`,
+			t("errors.appendLinkPropertyAmbiguousKey", { key: propertyKey }),
 		);
 	}
 

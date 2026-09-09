@@ -4,6 +4,7 @@ import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import { escapesVaultBoundary } from "src/utils/vaultPathBoundary";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { t } from "src/i18n";
 
 const EXISTING_PREFIX = "@quickadd-existing-note:";
 const UNRESOLVED_PREFIX = "@quickadd-unresolved-note:";
@@ -222,10 +223,10 @@ export function resolveTemplateNoteSelection(
 	if (selection.kind === "existing") {
 		const file = app.vault.getAbstractFileByPath(selection.path);
 		if (!(file instanceof TFile)) {
-			throw new Error("Selected note no longer exists. Please run QuickAdd again.");
+			throw new Error(t("errors.templateNoteVanished"));
 		}
 		if (file.extension.toLowerCase() !== "md") {
-			throw new Error("Select a Markdown note to use with this Template choice.");
+			throw new Error(t("errors.templateNoteNotMarkdown"));
 		}
 		return { kind: "existing", file };
 	}

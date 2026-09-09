@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { CREATE_IF_NOT_FOUND_TOP } from "../../constants";
+import { t } from "../../i18n";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
@@ -75,7 +76,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.contentEl,
 			CaptureChoiceForm,
 			this.formProps,
-			{ what: "this capture choice's settings" },
+			{ what: t("svelteCards.whatCaptureSettings") },
 		);
 		// The form never rendered, so its $state clone of the choice holds no edits
 		// — only whatever normalizeChoice() and $state.snapshot() made of it. Drop it

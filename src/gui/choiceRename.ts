@@ -4,6 +4,7 @@ import { log } from "src/logger/logManager";
 import { isCancellationError, toError } from "../utils/errorUtils";
 import type { ChoiceType } from "../types/choices/choiceType";
 import { choiceNounCapitalized } from "../utils/choiceNoun";
+import { t } from "../i18n";
 
 /**
  * Header for the rename prompt: "Folder name" / "Choice name". Asking for a
@@ -11,7 +12,7 @@ import { choiceNounCapitalized } from "../utils/choiceNoun";
  * first interaction with the plugin (#1539). See {@link choiceNounCapitalized}.
  */
 function renamePromptHeader(type?: ChoiceType): string {
-	return `${choiceNounCapitalized(type)} name`;
+	return t("choiceRename.header", { noun: choiceNounCapitalized(type) });
 }
 
 export async function promptRenameChoice(

@@ -282,7 +282,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// Notice through the executor's error path.
 		if (isUnreadableCommandList(this.macro?.commands)) {
 			throw new Error(
-				`Could not read the commands for macro '${this.choice.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
+				t("errors.macroCommandsUnreadable", { name: this.choice.name })
 			);
 		}
 
@@ -381,9 +381,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
-					logPrefix: "Macro execution aborted",
-					noticePrefix: "Macro execution aborted",
-					defaultReason: "Macro execution aborted",
+					logPrefix: t("macroAbort.macroPrefix"),
+					noticePrefix: t("macroAbort.macroPrefix"),
+					defaultReason: t("macroAbort.macroPrefix"),
 				})
 			) {
 				this.choiceExecutor.signalAbort?.(error);
@@ -583,7 +583,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async onExportIsObject(obj: Record<string, unknown>) {
 		if (Object.keys(obj).length === 0) {
 			throw new Error(
-				`user script in macro for '${this.choice.name}' is an empty object`
+				t("errors.userScriptEmptyObject", { name: this.choice.name })
 			);
 		}
 
@@ -620,8 +620,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					headless: () => {
 						if (keys.length === 1) return Promise.resolve(keys[0]);
 						throw new ChoiceAbortError(
-							"This macro's user script exports multiple members and needs to ask which one to run, but this run is non-interactive. " +
-								"Reference a single member (e.g. myScript::start), or re-run with the ui flag.",
+							t("errors.nonInteractiveMacroMember")
 						);
 					},
 					app: () =>
@@ -634,7 +633,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			// that is not an exported script at all.
 			if (!Object.hasOwn(obj, selected)) {
 				throw new Error(
-					`This macro's user script does not export a member named "${selected}".`,
+					t("errors.macroMemberMissing", { member: selected }),
 				);
 			}
 			await this.userScriptDelegator(obj[selected]);
@@ -756,7 +755,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private async executeAIAssistant(command: IAIAssistantCommand) {
 		if (settingsStore.getState().disableOnlineFeatures) {
 			throw new Error(
-				"Blocking request: Online features are disabled in settings."
+				t("errors.onlineFeaturesDisabled")
 			);
 		}
 
@@ -775,7 +774,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 			if (!resolved) {
 				throw new Error(
-					`Model ${command.model} not found with any provider.`,
+					t("errors.modelNotFound", { name: command.model }),
 				);
 			}
 		}
@@ -842,7 +841,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		if (entries.length === 0) {
 			throw new Error(
-				"No AI models are configured. Add a provider with models in the AI Assistant settings.",
+				t("errors.noAiModelsConfigured")
 			);
 		}
 
@@ -858,7 +857,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 			const entry = entries.find((e) => e.qualified === picked);
 			if (!entry) {
-				throw new Error(`Model ${picked} not found with any provider.`);
+				throw new Error(t("errors.modelNotFound", { name: picked }));
 			}
 			return entry.resolved;
 		}
@@ -867,8 +866,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
 			// no one to answer it. Abort with an actionable error instead of hanging.
 			throw new ChoiceAbortError(
-				"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
-					"Pick a specific model in the command, or re-run with the ui flag.",
+				t("errors.nonInteractiveAiModel"),
 			);
 		}
 
@@ -909,7 +907,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// branch that never ran.
 		if (isUnreadableCommandList(branch)) {
 			throw new Error(
-				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
+				t("errors.conditionalCommandsUnreadable", {
+					branch: shouldRunThenBranch ? "then" : "else",
+					name: command.name,
+				})
 			);
 		}
 

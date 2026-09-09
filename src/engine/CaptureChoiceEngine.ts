@@ -424,7 +424,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			if (canvasTarget?.kind === "text") {
 				if (propertyCapture) {
-					throw new ChoiceAbortError("Property capture requires a Markdown note. Canvas text cards do not have note properties.");
+					throw new ChoiceAbortError(
+					t("errors.canvasPropertyCaptureNeedsMarkdown")
+				);
 				}
 				await this.handleCanvasTextCapture(
 					canvasTarget,
@@ -447,7 +449,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 						this.choice.insertBefore?.createIfNotFoundLocation === "cursor"))
 			) {
 				throw new ChoiceAbortError(
-					"Canvas file cards do not support creating missing line targets at cursor. Use top or bottom.",
+					t("errors.canvasFileCardCursorCreateUnsupported"),
 				);
 			}
 
@@ -464,7 +466,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				CANVAS_FILE_EXTENSION_REGEX.test(filePath)
 			) {
 				throw new ChoiceAbortError(
-					"Capture to a .canvas file requires a target canvas node id.",
+					t("errors.canvasTargetNodeIdRequired"),
 				);
 			}
 
@@ -553,7 +555,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				) as GetFileAndAddContentFn;
 			} else {
 				throw new ChoiceAbortError(
-					`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+					t("errors.targetFileMissing", { path: filePath }),
 				);
 			}
 
@@ -720,9 +722,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 			if (
 				handleMacroAbort(err, {
-					logPrefix: "Capture execution aborted",
-					noticePrefix: "Capture execution aborted",
-					defaultReason: "Capture aborted",
+					logPrefix: t("macroAbort.capturePrefix"),
+					noticePrefix: t("macroAbort.capturePrefix"),
+					defaultReason: t("macroAbort.captureAborted"),
 				})
 			) {
 				this.choiceExecutor.signalAbort?.(err);
@@ -753,10 +755,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}): Promise<void> {
 		const { filePath, fileAlreadyExists, config, linkOptions } = args;
 		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(filePath)) {
-			throw new ChoiceAbortError("Property capture requires a Markdown note.");
+			throw new ChoiceAbortError(t("errors.propertyCaptureRequiresMarkdown"));
 		}
 		if (!fileAlreadyExists && !this.choice.createFileIfItDoesntExist.enabled) {
-			throw new ChoiceAbortError(`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`);
+			throw new ChoiceAbortError(t("errors.targetFileMissing", { path: filePath }));
 		}
 		let file = fileAlreadyExists ? this.getFileByPath(filePath) : undefined;
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(filePath));
@@ -829,7 +831,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const persistedContent = await this.app.vault.read(file);
 		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
 		if (this.plugin.settings.showCaptureNotification) {
-			new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
+			new Notice(
+				t("runFeedback.capturedTo", { key, name: file.basename }),
+				DEFAULT_NOTICE_DURATION,
+			);
 		}
 		await this.copyCapturedFileLinkToClipboard(file);
 		await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
@@ -844,7 +849,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async promptForCaptureProperty(frontmatter: Record<string, unknown>, allowCreate: boolean): Promise<string> {
 		const keys = Object.keys(frontmatter).filter((key) => key !== "__proto__").sort((a, b) => a.localeCompare(b));
 		if (!allowCreate && keys.length === 0) {
-			throw new ChoiceAbortError("The capture target has no properties. Enable 'Create property if missing' to add one.");
+			throw new ChoiceAbortError(
+			t("errors.captureTargetNoProperties")
+		);
 		}
 		return await routePrompt(this.choiceExecutor, {
 			remote: (provider) => promptEngineChoice(provider, {
@@ -852,7 +859,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				placeholder: "Property", allowCustomInput: allowCreate, what: "the property picker",
 			}),
 			headless: async () => {
-				throw new ChoiceAbortError("Property capture needs a property selection. Configure a named property or run with the ui flag.");
+				throw new ChoiceAbortError(
+					t("errors.propertySelectionRequired"),
+				);
 			},
 			app: () => InputSuggester.Suggest(this.app, keys, keys, {
 				placeholder: "Property", allowCustomValue: allowCreate,
@@ -904,7 +913,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			action === "newLineBelow"
 		) {
 			throw new ChoiceAbortError(
-				"Canvas text cards support top, bottom, insert-after, and insert-before positions only.",
+				t("errors.canvasTextPositionsLimited"),
 			);
 		}
 
@@ -917,7 +926,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				this.choice.insertBefore?.createIfNotFoundLocation === "cursor")
 		) {
 			throw new ChoiceAbortError(
-				"Canvas text cards do not support creating missing line targets at cursor. Use top or bottom.",
+				t("errors.canvasTextCursorCreateUnsupported"),
 			);
 		}
 
@@ -1044,8 +1053,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private assertInteractiveCaptureTarget(): void {
 		if (this.choiceExecutor.interactive === false) {
 			throw new ChoiceAbortError(
-				`'${this.choice.name}' needs to ask which note to capture into, but this run is non-interactive. ` +
-					`Point "Capture to" at a specific file, or re-run with the ui flag.`,
+				t("errors.nonInteractiveCaptureTarget", { name: this.choice.name }),
 			);
 		}
 	}
@@ -1084,8 +1092,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// it would hang. Abort with an actionable error.
 				headless: () => {
 					throw new ChoiceAbortError(
-						`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
-							`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
+						t("errors.nonInteractiveCaptureHeading", {
+							name: this.choice.name,
+						}),
 					);
 				},
 				app: () =>
@@ -1372,7 +1381,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		invariant(
 			allowCreate || filesInFolder.length > 0,
-			`Folder ${folderPathSlash} is empty.`,
+			t("errors.captureFolderEmpty", { path: folderPathSlash }),
 		);
 
 
@@ -1455,7 +1464,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const files = getMarkdownFilesMatchingFilter(this.app, filter);
 		return this.selectFileFromSet(
 			files,
-			"No files matched the capture target filters.",
+			t("errors.captureFilterNoMatches"),
 		);
 	}
 
@@ -1474,7 +1483,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const propertyLabel = value !== undefined ? `${field}=${value}` : field;
 		return this.selectFileFromSet(
 			filesWithProperty,
-			`No notes with property ${propertyLabel}.`,
+			t("errors.capturePropertyNoNotes", { property: propertyLabel }),
 		);
 	}
 
@@ -1583,8 +1592,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					// a routed reply, mirroring `confinePreselectedToScope`.
 					if (!filePaths.includes(reply) && nameIsTaken(reply)) {
 						throw new Error(
-							`"${reply}" already exists but is not one of the notes this capture targets. ` +
-								`Pick one of the offered notes, or type a name that does not exist yet.`,
+							t("errors.captureReplyNameTaken", { reply }),
 						);
 					}
 					return reply;
@@ -1667,8 +1675,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			);
 			invariant(
 				res.isSuccess(),
-				() =>
-					`The file ${filePath} has been modified since the last read.\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.\nThis is in order to prevent data loss.`,
+				() => t("errors.mergeConflict", { path: filePath }),
 			);
 
 			newFileContent = res.joinedResults() as string;
@@ -1819,7 +1826,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
 			throw new ChoiceAbortError(
-				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
+				t("errors.captureBaseUnsupported", { path: normalizedPath }),
 			);
 		}
 		const finalPath = this.normalizeCaptureFilePathExtension(normalizedPath);
@@ -1829,7 +1836,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const basename = basenameWithoutMdOrCanvas(finalPath);
 		if (!basename.trim()) {
 			throw new ChoiceAbortError(
-				`Capture target file name is empty after formatting ('${finalPath}'). Make sure the tokens in 'Capture to' produce a value.`,
+				t("errors.captureFileNameEmpty", { path: finalPath }),
 			);
 		}
 
@@ -1841,7 +1848,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Template path's normalizeTemplateFilePath guard.
 		if (escapesVaultBoundary(finalPath)) {
 			throw new ChoiceAbortError(
-				`Refusing to capture to a file outside the vault: "${finalPath}".`,
+				t("errors.captureOutsideVault", { path: finalPath }),
 			);
 		}
 

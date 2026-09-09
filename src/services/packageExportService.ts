@@ -289,7 +289,9 @@ export async function writePackageToVault(
 			((path: string) => defaultConfirmOverwrite(app, path));
 		const confirmed = await confirm(normalizedPath);
 		if (!confirmed) {
-			throw new Error(`Save cancelled: '${normalizedPath}' already exists.`);
+			throw new Error(
+				t("errors.packageSaveCancelledExists", { path: normalizedPath }),
+			);
 		}
 	}
 

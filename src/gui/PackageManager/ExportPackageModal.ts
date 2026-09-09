@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
+import { t } from "../../i18n";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import ExportPackageModalComponent from "./ExportPackageModal.svelte";
@@ -27,7 +28,7 @@ export class ExportPackageModal extends Modal {
 				allChoices: this.choices,
 				close: () => this.close(),
 			},
-			{ what: "the package exporter" },
+			{ what: t("svelteCards.whatPackageExporter") },
 		);
 	}
 

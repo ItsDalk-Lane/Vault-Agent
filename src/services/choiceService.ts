@@ -29,6 +29,7 @@ import {
 	isChoiceLike,
 } from "../utils/choiceUtils";
 import { choiceNoun } from "../utils/choiceNoun";
+import { t } from "../i18n";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -49,7 +50,7 @@ const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 
 export function createChoice(type: ChoiceType, name: string): IChoice {
 	const Constructor = choiceConstructors[type];
-	if (!Constructor) throw new Error(`Unknown choice type: ${type}`);
+	if (!Constructor) throw new Error(t("errors.unknownChoiceType", { type }));
 	return new Constructor(name);
 }
 
@@ -301,7 +302,7 @@ export async function deleteChoiceWithConfirmation(
 
 	const userConfirmed = await GenericYesNoPrompt.Prompt(
 		app,
-		`Delete ${choiceNoun(choice.type)}`,
+		t("choiceService.deleteNoun", { noun: choiceNoun(choice.type) }),
 		body,
 	);
 
@@ -314,7 +315,9 @@ export async function deleteChoiceWithConfirmation(
 		});
 		if (!cleared) {
 			new Notice(
-				`Could not clear user script secrets. The ${choiceNoun(choice.type)} was not deleted.`,
+				t("choiceService.secretClearFailed", {
+					noun: choiceNoun(choice.type),
+				}),
 			);
 			return false;
 		}
@@ -344,7 +347,7 @@ export async function configureChoice(
 
 	const builder = getChoiceBuilder(choice, app, plugin);
 	if (!builder) {
-		throw new Error("Invalid choice type");
+		throw new Error(t("errors.invalidChoiceType"));
 	}
 
 	return await builder.waitForClose;

@@ -10,6 +10,7 @@ import {
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { t } from "../i18n";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
 import {
@@ -424,9 +425,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		const targetLines = positioning.toTargetLines(targetString);
 		if (positioning.isBlankTarget(targetLines)) {
-			throw new ChoiceAbortError(
-				"Insert-after target is empty after formatting.",
-			);
+			throw new ChoiceAbortError(t("errors.insertAfterTargetEmpty"));
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
@@ -448,7 +447,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			}
 
 			throw new ChoiceAbortError(
-				`Insert-after target not found: '${targetString}'.`,
+				t("errors.insertAfterTargetNotFound", { target: targetString })
 			);
 		}
 
@@ -497,7 +496,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async insertBeforeHandler(formatted: string) {
 		const insertBefore = this.choice.insertBefore;
 		if (!insertBefore) {
-			throw new ChoiceAbortError("Insert-before settings are missing.");
+			throw new ChoiceAbortError(t("errors.insertBeforeSettingsMissing"));
 		}
 
 		// Expand `\n` escapes before searching (symmetric with the create path)
@@ -508,9 +507,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		const targetLines = positioning.toTargetLines(targetString);
 		if (positioning.isBlankTarget(targetLines)) {
-			throw new ChoiceAbortError(
-				"Insert-before target is empty after formatting.",
-			);
+			throw new ChoiceAbortError(t("errors.insertBeforeTargetEmpty"));
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
@@ -524,7 +521,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			}
 
 			throw new ChoiceAbortError(
-				`Insert-before target not found: '${targetString}'.`,
+				t("errors.insertBeforeTargetNotFound", { target: targetString })
 			);
 		}
 
@@ -545,7 +542,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			// (parity with the block path's not-found abort) instead of searching for
 			// a literal `\n` or writing it verbatim on create-if-not-found (issue #468).
 			throw new ChoiceAbortError(
-				"Inline insert-after target must be a single line — remove the line break (\\n) or turn off inline insertion.",
+				t("errors.inlineInsertAfterMultiline")
 			);
 		}
 
@@ -559,7 +556,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			}
 
 			throw new ChoiceAbortError(
-				`Inline insert-after target not found: '${targetString}'.`,
+				t("errors.inlineInsertAfterTargetNotFound", { target: targetString })
 			);
 		}
 
@@ -616,7 +613,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			if (!activeView) {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
+					t("errors.insertLineNoEditor", {
+						line: this.choice.insertAfter.after,
+					}),
 				);
 			}
 
@@ -653,7 +652,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return newFileContent;
 			} catch {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
+					t("errors.insertLineFailed", {
+						line: this.choice.insertAfter.after,
+					}),
 				);
 			}
 		}
@@ -823,7 +824,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	) {
 		const insertBefore = this.choice.insertBefore;
 		if (!insertBefore) {
-			throw new ChoiceAbortError("Insert-before settings are missing.");
+			throw new ChoiceAbortError(t("errors.insertBeforeSettingsMissing"));
 		}
 
 		// `insertBeforeLine` is the resolved+escape-expanded target from
@@ -861,7 +862,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			if (!activeView) {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${insertBefore.before}' at cursor position: no active markdown editor.`,
+					t("errors.insertLineNoEditor", { line: insertBefore.before }),
 				);
 			}
 
@@ -876,7 +877,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 			} catch {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${insertBefore.before}' at cursor position.`,
+					t("errors.insertLineFailed", { line: insertBefore.before }),
 				);
 			}
 		}
@@ -917,7 +918,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			if (!activeView) {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
+					t("errors.insertLineNoEditor", {
+						line: this.choice.insertAfter.after,
+					}),
 				);
 			}
 
@@ -932,7 +935,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 			} catch {
 				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
+					t("errors.insertLineFailed", {
+						line: this.choice.insertAfter.after,
+					}),
 				);
 			}
 		}

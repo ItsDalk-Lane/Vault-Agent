@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
+import { t } from "../../i18n";
 import type IChoice from "../../types/choices/IChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
@@ -69,7 +70,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.contentEl,
 			TemplateChoiceForm,
 			this.formProps,
-			{ what: "this template choice's settings" },
+			{ what: t("svelteCards.whatTemplateSettings") },
 		);
 		// The form never rendered, so its $state clone of the choice holds no edits
 		// — only whatever normalizeChoice() and $state.snapshot() made of it. Drop it

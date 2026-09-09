@@ -1,6 +1,7 @@
 import { requestUrl } from "obsidian";
 import type { Model } from "./Provider";
 import { settingsStore } from "src/settingsStore";
+import { t } from "src/i18n";
 
 export type ModelsDevModel = {
   id: string;
@@ -34,7 +35,7 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
 
   if (settingsStore.getState().disableOnlineFeatures) {
     throw new Error(
-      "Fetching models directory is disabled: Online features are turned off."
+      t("errors.modelsDirectoryFetchDisabled")
     );
   }
 

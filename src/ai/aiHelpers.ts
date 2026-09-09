@@ -135,6 +135,14 @@ export function resolveModel(
 	if (bare) {
 		const candidates = qualifiedNamesFor(input);
 		if (candidates.length > 1 && !silent) {
+			// Prefer a qualified form that is itself shadowed by a literal model
+			// id elsewhere — the object form is the escape hatch that actually
+			// reaches that provider (see the test "suggests the object form...").
+			const shadowedQualified = candidates.find((q) =>
+				all.some((p) => p.models.some((m) => m.name === q)),
+			);
+			const exampleProvider = shadowedQualified?.split("/")[0] ??
+				bare.provider.id ?? bare.provider.name;
 			warnOnce(
 				`ambiguous:${input}→${bare.provider.id ?? bare.provider.name}`,
 				t("errors.modelServedByMultipleProviders", {
@@ -142,6 +150,7 @@ export function resolveModel(
 					count: candidates.length,
 					provider: bare.provider.name,
 					candidates: candidates.join(", "),
+					example: `{ name: "${input}", provider: "${exampleProvider}" }`,
 				}),
 			);
 		}
@@ -192,7 +201,7 @@ export function resolveModelInputOrThrow(
 	const name = typeof input === "string" ? input : input?.name;
 	if (!name) {
 		throw new Error(
-			`Invalid model parameter. Expected a string (e.g., "gpt-4o" or "openai/gpt-4o") or an object with a name property (e.g., {name: "gpt-4o", provider: "openai"})`,
+			t("errors.invalidModelParameter")
 		);
 	}
 
@@ -212,14 +221,17 @@ export function resolveModelInputOrThrow(
 			...(bareName !== name ? qualifiedNamesFor(bareName) : []),
 		];
 		const hint = candidates.length
-			? ` Did you mean ${candidates.join(" or ")}?`
+			? t("errors.modelNotFoundDidYouMean", { candidates: candidates.join(" or ") })
 			// There has never been an "AI" settings group. Providers live behind the
 			// sparkles "Configure AI Assistant" button under the choice list, and
 			// auto-sync is a per-provider flag in the same modal — so the old path
 			// sent people somewhere that does not exist.
-			: " Add it under Edit providers in QuickAdd's AI Assistant settings (the sparkles button below the choice list), or enable auto-sync for that provider.";
+			: t("errors.modelNotFoundAddToProviders");
 		throw new Error(
-			`Model '${typeof input === "string" ? input : `${input.provider ?? ""}/${name}`}' not found in configured providers.${hint}`,
+			t("errors.modelNotFoundInProviders", {
+				model: typeof input === "string" ? input : `${input.provider ?? ""}/${name}`,
+				hint,
+			}),
 		);
 	}
 
@@ -234,7 +246,9 @@ export function getModelMaxTokens(model: ModelInput) {
 	}
 
 	throw new Error(
-		`Model ${typeof model === "string" ? model : model.name} not found with any provider.`,
+		t("errors.modelNotFoundWithAnyProvider", {
+			model: typeof model === "string" ? model : model.name,
+		}),
 	);
 }
 

@@ -15,6 +15,7 @@ import type { AIProvider, Model } from "./Provider";
 import { makeNoticeHandler } from "./makeNoticeHandler";
 import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
 import { log } from "src/logger/logManager";
+import { t } from "src/i18n";
 import {
 	GLOBAL_VAR_REGEX,
 	INLINE_JAVASCRIPT_REGEX,
@@ -261,7 +262,7 @@ export async function runAIAssistant(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
+			t("errors.onlineFeaturesDisabledAIAssistant")
 		);
 	}
 
@@ -384,7 +385,7 @@ export async function Prompt(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
+			t("errors.onlineFeaturesDisabledAIAssistant")
 		);
 	}
 
@@ -643,7 +644,7 @@ function removeChunkProbeFromRenderedPrompt(renderedPrompt: string): string {
 function assertWithinChunkBudget(count: number): void {
 	if (count > MAX_CHUNKED_PROMPTS) {
 		throw new Error(
-			`QuickAdd would split this chunked AI request into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
+			t("errors.tooManyChunkedPrompts", { limit: MAX_CHUNKED_PROMPTS })
 		);
 	}
 }
@@ -844,7 +845,7 @@ export async function ChunkedPrompt(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
+			t("errors.onlineFeaturesDisabledAIAssistant")
 		);
 	}
 
@@ -886,7 +887,7 @@ export async function ChunkedPrompt(
 				renderedPromptContainsChunk(overheadProbe));
 		if (!hasChunkReference) {
 			throw new Error(
-				"The chunked prompt template does not reference the chunk text. Add {{VALUE:chunk}} to your prompt template so each chunk is inserted."
+				t("errors.chunkTemplateMissingChunkRef")
 			);
 		}
 
@@ -901,7 +902,10 @@ export async function ChunkedPrompt(
 		// still proceed with a minimal chunk budget and let the provider decide.
 		if (promptOverhead >= fullContextTokens) {
 			throw new Error(
-				`The estimated prompt overhead (${promptOverhead} tokens) exceeds the model's entire context window (${fullContextTokens} tokens). Shorten the system prompt or prompt template, or use a model with a larger context window.`
+				t("errors.promptOverheadExceedsContext", {
+					overhead: promptOverhead,
+					context: fullContextTokens,
+				})
 			);
 		}
 
@@ -959,7 +963,7 @@ export async function ChunkedPrompt(
 			const rendered = renderChain.then(() => {
 				if (hasTerminalFailure) {
 					throw new Error(
-						"Chunked prompt stopped after an earlier failure."
+						t("errors.chunkedPromptStoppedAfterFailure")
 					);
 				}
 				return formatter(promptTemplate, { chunk });
@@ -976,7 +980,7 @@ export async function ChunkedPrompt(
 			depth = 0
 		): Promise<string[]> => {
 			if (hasTerminalFailure) {
-				throw new Error("Chunked prompt stopped after an earlier failure.");
+				throw new Error(t("errors.chunkedPromptStoppedAfterFailure"));
 			}
 
 			// Render failures (e.g. a macro/inline-JS error in the template) are
@@ -994,14 +998,14 @@ export async function ChunkedPrompt(
 				const response = await rateLimiter.add(() => {
 					if (hasTerminalFailure) {
 						throw new Error(
-							"Chunked prompt stopped after an earlier failure."
+							t("errors.chunkedPromptStoppedAfterFailure")
 						);
 					}
 
 					providerRequestCount += 1;
 					if (providerRequestCount > MAX_CHUNKED_PROMPTS) {
 						throw new Error(
-							`Chunked AI request exceeded the safety limit of ${MAX_CHUNKED_PROMPTS} provider requests.`
+							t("errors.chunkedRequestExceededRequestLimit", { limit: MAX_CHUNKED_PROMPTS })
 						);
 					}
 

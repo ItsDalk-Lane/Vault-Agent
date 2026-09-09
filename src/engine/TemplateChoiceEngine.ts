@@ -146,7 +146,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choice.templatePath,
 			);
 			if (selectedUpdate && getTemplateFile(this.app, templatePath)?.path === selectedUpdate.file.path) {
-				throw new ChoiceAbortError("Cannot apply a template to its own template source.");
+				throw new ChoiceAbortError(
+				t("errors.templateSelfApply")
+			);
 			}
 
 			const targetFilePath = selectedUpdate?.file.path ?? await this.resolveNewNotePath({
@@ -166,7 +168,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let effect: ChoiceEffect = "created";
 			if (selectedUpdate) {
 				if (BASE_FILE_EXTENSION_REGEX.test(templatePath) || CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
-					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
+					throw new ChoiceAbortError(
+					t("errors.applySelectedNoteMarkdownOnly")
+				);
 				}
 				createdFile = await this.applyExistingFileUpdate(
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
@@ -332,14 +336,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				// The note was created but nothing else surfaces it (not opened, no
 				// link appended, not copied to clipboard). Confirm the creation so
 				// the run isn't silent — mirroring Capture's success notice.
-				new Notice(`Created '${createdFile.basename}'.`);
+				new Notice(t("runFeedback.created", { name: createdFile.basename }));
 			}
 		} catch (err) {
 			if (
 				handleMacroAbort(err, {
-					logPrefix: "Template execution aborted",
-					noticePrefix: "Template execution aborted",
-					defaultReason: "Template execution aborted",
+					logPrefix: t("macroAbort.templatePrefix"),
+					noticePrefix: t("macroAbort.templatePrefix"),
+					defaultReason: t("macroAbort.templatePrefix"),
 				})
 			) {
 				this.choiceExecutor.signalAbort?.(err);
@@ -498,8 +502,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// common non-interactive hang.
 			headless: () => {
 				throw new ChoiceAbortError(
-					`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
-						`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
+					t("errors.nonInteractiveFileExists", { name: this.choice.name }),
 				);
 			},
 			app: () =>
@@ -552,7 +555,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					nextFilePath !== targetFilePath &&
 					!this.choice.openFile
 				) {
-					new Notice(`Created '${createdFile.basename}'.`);
+					new Notice(t("runFeedback.created", { name: createdFile.basename }));
 				}
 
 				return {

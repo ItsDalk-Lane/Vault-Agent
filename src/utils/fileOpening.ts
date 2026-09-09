@@ -5,6 +5,7 @@ import type {
 	OpenFileOptions as FileOpenOptions,
 	FileViewMode2 as FileViewModeNew,
 } from "../types/fileOpening";
+import { t } from "../i18n";
 
 // Re-export types for convenience
 export type OpenLocation = FileOpenLocation;
@@ -196,7 +197,7 @@ export async function openFile(
 	if (!isTFileLike(file)) {
 		const fileLabel =
 			typeof fileOrPath === "string" ? fileOrPath : fileOrPath.path;
-		throw new Error(`File not found: ${fileLabel}`);
+		throw new Error(t("errors.openFileTargetNotFound", { path: fileLabel }));
 	}
 
 	const openOriginLeaf = originLeaf ?? getOpenFileOriginLeaf(app);

@@ -162,7 +162,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			});
 
 			const aliasSummary = aliasDetails.createEl("summary", {
-				text: `Aliases (${aliasEntries.length})`,
+				text: t("datePicker.aliasesSummary", { count: aliasEntries.length }),
 			});
 			aliasSummary.addClass("vdate-alias-summary");
 
@@ -327,7 +327,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			// but surface a notice so the user/caller is not left without any
 			// signal that the date could not be parsed.
 			new Notice(
-				`QuickAdd: "${trimmed}" could not be parsed as a date; using it as-is.`,
+				t("datePicker.parseFailedNotice", { value: trimmed }),
 			);
 		}
 		return input;

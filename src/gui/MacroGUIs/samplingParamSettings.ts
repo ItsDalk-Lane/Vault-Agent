@@ -23,12 +23,18 @@ interface SamplingSliderSpec {
 const SLIDER_SPECS: SamplingSliderSpec[] = [
 	{
 		key: "temperature",
-		name: "Temperature",
+		// Getters, not literals: this array is a module-level constant evaluated
+		// before setLocale(), so plain strings would freeze the English fallback.
+		get name() {
+			return t("ai.samplingTemperatureName");
+		},
 		// Deliberately capped at 1 even though OpenAI/Gemini accept up to 2:
 		// Anthropic's range ends at 1, and a value above a provider's range is a
 		// hard 400 that the unsupported-parameter recovery would answer by
 		// dropping the setting entirely. 0-1 is the range that works everywhere.
-		desc: "Sampling temperature (0-1, the range every provider accepts). Higher values like 0.8 make the output more random; lower values like 0.2 make it more focused and deterministic.",
+		get desc() {
+			return t("ai.samplingTemperatureDesc");
+		},
 		min: 0,
 		max: 1,
 		step: 0.1,
@@ -36,8 +42,12 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	},
 	{
 		key: "top_p",
-		name: "Top P",
-		desc: "Nucleus sampling - an alternative to temperature. The model considers only the tokens comprising the top P probability mass, so 0.1 means the top 10%.",
+		get name() {
+			return t("ai.samplingTopPName");
+		},
+		get desc() {
+			return t("ai.samplingTopPDesc");
+		},
 		min: 0,
 		max: 1,
 		step: 0.1,
@@ -45,8 +55,12 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	},
 	{
 		key: "frequency_penalty",
-		name: "Frequency penalty",
-		desc: "Positive values penalize tokens by how often they already appear, reducing verbatim repetition; negative values encourage it. Only sent to providers that support it.",
+		get name() {
+			return t("ai.samplingFrequencyPenaltyName");
+		},
+		get desc() {
+			return t("ai.samplingFrequencyPenaltyDesc");
+		},
 		min: -2,
 		max: 2,
 		step: 0.1,
@@ -54,8 +68,12 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	},
 	{
 		key: "presence_penalty",
-		name: "Presence penalty",
-		desc: "Positive values penalize tokens that have appeared at all, encouraging new topics; negative values do the opposite. Only sent to providers that support it.",
+		get name() {
+			return t("ai.samplingPresencePenaltyName");
+		},
+		get desc() {
+			return t("ai.samplingPresencePenaltyDesc");
+		},
 		min: -2,
 		max: 2,
 		step: 0.1,
@@ -81,7 +99,7 @@ export function addSamplingParamSettings(
 	const model = resolveModel(selectedModel, { silent: true })?.model;
 	if (model?.supportsTemperature === false) {
 		container.createEl("div", {
-			text: `${model.name} uses fixed sampling, so these settings are not sent to it.`,
+			text: t("ai.fixedSamplingNote", { name: model.name }),
 			cls: "setting-item-description",
 		});
 	}

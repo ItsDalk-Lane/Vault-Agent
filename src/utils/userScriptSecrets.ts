@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { macroCommandsValueOf } from "./macroUtils";
@@ -692,7 +693,10 @@ export async function resolveUserScriptSettings(
 			}
 
 			throw new Error(
-				`Secret setting "${name}" for user script "${command.name}" is unavailable. Re-enter it on this device.`,
+				t("errors.secretSettingUnavailable", {
+					name,
+					script: command.name,
+				}),
 			);
 		}
 

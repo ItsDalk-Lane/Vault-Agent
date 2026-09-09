@@ -362,12 +362,12 @@ export abstract class Formatter {
 			if (typeof value === "boolean") return value;
 			if (value === "true") return true;
 			if (value === "false") return false;
-			throw new Error("A checkbox property value must be true or false.");
+			throw new Error(t("errors.checkboxPropertyValueInvalid"));
 		}
 		if (inputType === "number" || inputType === "slider") {
 			if (typeof value === "number" && Number.isFinite(value)) return value;
 			if (typeof value !== "string" || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()) || !Number.isFinite(Number(value))) {
-				throw new Error("A number property value must be a finite number.");
+				throw new Error(t("errors.numberPropertyValueInvalid"));
 			}
 			return Number(value);
 		}
@@ -540,7 +540,15 @@ export abstract class Formatter {
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
+			if (!dateMatch)
+				throw new Error(
+					t("errors.dateFormatParseFailed", {
+						snippet: output.substring(
+							Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10),
+							Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30),
+						),
+					}),
+				);
 
 			const format = dateMatch[1];
 			let offset: number | undefined;
@@ -578,7 +586,15 @@ export abstract class Formatter {
 
 		while (TIME_REGEX.test(output)) {
 			const timeMatch = TIME_REGEX.exec(output);
-			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
+			if (!timeMatch)
+				throw new Error(
+					t("errors.timeFormatParseFailed", {
+						snippet: output.substring(
+							Math.max(0, output.search(TIME_REGEX) - 10),
+							Math.min(output.length, output.search(TIME_REGEX) + 30),
+						),
+					}),
+				);
 
 			const rendered = getDate({
 				format: "HH:mm",
@@ -593,7 +609,15 @@ export abstract class Formatter {
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
 			const timeMatch = TIME_REGEX_FORMATTED.exec(output);
-			if (!timeMatch) throw new Error(`Unable to parse formatted time. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30))}..."`);
+			if (!timeMatch)
+				throw new Error(
+					t("errors.formattedTimeParseFailed", {
+						snippet: output.substring(
+							Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10),
+							Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30),
+						),
+					}),
+				);
 
 			const format = timeMatch[1];
 
@@ -799,7 +823,7 @@ export abstract class Formatter {
 		const currentFilePathLink = this.getCurrentFileLink();
 		if (!currentFilePathLink) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+				throw new Error(t("errors.currentFilePathUnavailable"));
 			}
 			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
 		}
@@ -825,7 +849,7 @@ export abstract class Formatter {
 
 		if (!sectionLink) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+				throw new Error(t("errors.currentFilePathUnavailable"));
 			}
 			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
 		}
@@ -1021,8 +1045,7 @@ export abstract class Formatter {
 		// folder message instead of the file-name one. Acceptable: both point at
 		// the same remedy (open a file), and only the folder token carries the
 		// must-not-strip property that justifies preempting the behaviour check.
-		const activeFolderError =
-			"Unable to get the active file's folder. Make sure you have a file open in the editor.";
+		const activeFolderError = t("errors.activeFolderUnavailable");
 		if (missingActiveFolder && opts.activeFolder === "path") {
 			throw new Error(activeFolderError);
 		}
@@ -1035,9 +1058,9 @@ export abstract class Formatter {
 			if (this.linkToCurrentFileBehavior === "required") {
 				throw new Error(
 					missingLink
-						? "Unable to get current file path. Make sure you have a file open in the editor."
+						? t("errors.currentFilePathUnavailable")
 						: missingFileName
-							? "Unable to get current file name. Make sure you have a file open in the editor."
+							? t("errors.currentFileNameUnavailable")
 							: activeFolderError,
 				);
 			}
@@ -1402,12 +1425,26 @@ export abstract class Formatter {
 
 		while ((match = regex.exec(output)) !== null) {
 			if (!match[1]) {
-				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
+				throw new Error(
+					t("errors.variableParseFailed", {
+						snippet: output.substring(
+							Math.max(0, match.index - 10),
+							Math.min(output.length, match.index + 30),
+						),
+					}),
+				);
 			}
 
 			const parsed = parseValueToken(match[1], { warn: this.warnSink });
 			if (!parsed) {
-				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
+				throw new Error(
+					t("errors.variableParseFailed", {
+						snippet: output.substring(
+							Math.max(0, match.index - 10),
+							Math.min(output.length, match.index + 30),
+						),
+					}),
+				);
 			}
 
 			const { variableName } = parsed;
@@ -1858,7 +1895,7 @@ export abstract class Formatter {
 					this.variables.set(variableName, dateInput);
 				} else {
 					if (!this.dateParser)
-						throw new Error("Date parser is not available");
+						throw new Error(t("errors.dateParserUnavailable"));
 
 					const aliasMap = settingsStore.getState().dateAliases;
 					const normalizedInput = normalizeDateInput(
@@ -1875,12 +1912,13 @@ export abstract class Formatter {
 						);
 					} else {
 						throw new Error(
-							`unable to parse date variable ${dateInput}${
-								optional
-									? ""
-									: ". Tip: add |optional inside the {{VDATE}} token to allow leaving this date empty"
-							}`,
-						);
+								t("errors.vdateParseFailed", {
+									input: dateInput,
+									tip: optional
+										? ""
+										: t("errors.vdateOptionalTip"),
+								}),
+							);
 					}
 				}
 			}
@@ -2086,7 +2124,9 @@ export abstract class Formatter {
 
 			const length = parseInt(match[1]);
 			if (length <= 0 || length > 100) {
-				throw new Error(`Random string length must be between 1 and 100. Got: ${length}`);
+				throw new Error(
+					t("errors.randomStringLengthInvalid", { length })
+				);
 			}
 
 			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

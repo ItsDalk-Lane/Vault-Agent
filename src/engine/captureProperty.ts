@@ -1,12 +1,13 @@
 import { getFrontMatterInfo, parseYaml, stringifyYaml } from "obsidian";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
+import { t } from "../i18n";
 
 export type CapturePropertyValue = string | number | boolean | string[];
 
 export function validatePropertyName(input: string): string {
 	const key = input.trim();
 	if (!key || /[\r\n\0]/.test(key) || key === "__proto__") {
-		throw new Error("Property name must be nonempty and contain no line breaks or unsafe keys.");
+		throw new Error(t("errors.propertyNameInvalid"));
 	}
 	return key;
 }
@@ -14,7 +15,8 @@ export function validatePropertyName(input: string): string {
 export function resolveCapturePropertyKey(frontmatter: Record<string, unknown>, requested: string): string {
 	if (Object.prototype.hasOwnProperty.call(frontmatter, requested)) return requested;
 	const matches = Object.keys(frontmatter).filter((key) => key.trim().toLowerCase() === requested.trim().toLowerCase());
-	if (matches.length > 1) throw new Error(`Property '${requested}' matches multiple properties in the target note.`);
+	if (matches.length > 1)
+		throw new Error(t("errors.propertyAmbiguousMatch", { name: requested }));
 	return matches[0] ?? requested;
 }
 
@@ -22,7 +24,9 @@ function propertyValue(value: unknown, key: string): CapturePropertyValue {
 	if (typeof value === "string" || typeof value === "boolean") return value;
 	if (typeof value === "number" && Number.isFinite(value)) return value;
 	if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) return [...value];
-	throw new Error(`Property '${key}' supports text, finite numbers, checkboxes, and lists of text only.`);
+	throw new Error(
+		t("errors.propertyValueTypeUnsupported", { name: key }),
+	);
 }
 
 type PropertyType = "text" | "number" | "checkbox" | "list" | "date" | "datetime";
@@ -37,7 +41,8 @@ function propertyType(type: string | null, key: string): PropertyType | null {
 		case "list": case "multitext": case "tags": case "aliases": return "list";
 		case "date": return "date";
 		case "datetime": return "datetime";
-		default: throw new Error(`Property '${key}' has unsupported type '${type}'.`);
+		default:
+			throw new Error(t("errors.propertyTypeUnsupported", { name: key, type }));
 	}
 }
 
@@ -61,7 +66,9 @@ function validateType(value: CapturePropertyValue, type: PropertyType, key: stri
 	} else if (actual === type) {
 		return;
 	}
-	throw new Error(`Property '${key}' requires ${type}; the capture is ${actual}. Use a matching typed VALUE token or value.`);
+	throw new Error(
+		t("errors.propertyTypeMismatch", { name: key, type, actual }),
+	);
 }
 
 export function planPropertyUpdate(args: {
@@ -75,7 +82,9 @@ export function planPropertyUpdate(args: {
 	const key = resolveCapturePropertyKey(frontmatter, args.key);
 	const exists = Object.prototype.hasOwnProperty.call(frontmatter, key);
 	if (!exists && !config.createIfMissing) {
-		throw new Error(`Property '${key}' is missing. Enable 'Create property if missing' to add it.`);
+		throw new Error(
+			t("errors.propertyMissing", { name: key }),
+		);
 	}
 	const existing = exists ? frontmatter[key] : undefined;
 	const captured = propertyValue(args.value, key);
@@ -83,18 +92,29 @@ export function planPropertyUpdate(args: {
 	const type = propertyType(args.registeredType, key) ?? (current === null ? null : inferType(current));
 	if (config.action === "addToList") {
 		if (current !== null && !Array.isArray(current)) {
-			throw new Error(`Property '${key}' is ${inferType(current)}. 'Add to list' requires a list.`);
+			throw new Error(
+				t("errors.propertyAddToListRequiresList", {
+					name: key,
+					actual: inferType(current),
+				}),
+			);
 		}
 		if (type !== null && type !== "list") {
-			throw new Error(`Property '${key}' is ${type}. 'Add to list' requires a list.`);
+			throw new Error(
+				t("errors.propertyAddToListRequiresList", { name: key, actual: type }),
+			);
 		}
 		const items = typeof captured === "string" ? captured === "" ? [] : [captured] : captured;
-		if (!Array.isArray(items)) throw new Error(`Property '${key}' requires text or a list of text to add.`);
+		if (!Array.isArray(items)) throw new Error(
+			t("errors.propertyAddRequiresTextOrList", { name: key }),
+		);
 		if (items.length === 0) return current ?? [];
 		return [...new Set([...(current ?? []), ...items])];
 	}
 	if (type === "list" && current !== null && !Array.isArray(current)) {
-		throw new Error(`Property '${key}' contains ${inferType(current)}. Set a list only after correcting the existing property to a list.`);
+		throw new Error(
+			t("errors.propertyContainsNonList", { name: key, actual: inferType(current) }),
+		);
 	}
 	const next = type === "list" && typeof captured === "string"
 		? captured === "" ? [] : [captured]
@@ -109,7 +129,7 @@ export function readCaptureFrontmatter(content: string): Record<string, unknown>
 	const parsed: unknown = parseYaml(info.frontmatter);
 	if (parsed === null) return {};
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-		throw new Error("The capture target's frontmatter must be a property mapping.");
+		throw new Error(t("errors.captureFrontmatterNotMapping"));
 	}
 	return Object.fromEntries(Object.entries(parsed));
 }

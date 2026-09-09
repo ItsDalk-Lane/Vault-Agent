@@ -155,9 +155,7 @@ export async function applyTemplateToNote(
 			source.kind === "choice" ? source.choice.templatePath : source.path;
 
 		if (!isMarkdownTemplatePath(templatePath)) {
-			new Notice(
-				"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
-			);
+			new Notice(t("command.applyTemplateNotMarkdown"));
 			return null;
 		}
 
@@ -236,7 +234,7 @@ export async function applyTemplateToNote(
 		}
 
 		await jumpToNextTemplaterCursorIfPossible(app, file);
-		new Notice(`Applied template to '${file.basename}'.`);
+		new Notice(t("runFeedback.appliedTemplate", { name: file.basename }));
 		return file;
 	} catch (err) {
 		if (isCancellationError(err) || isAbortError(err)) {
@@ -333,8 +331,12 @@ async function maybeReconcileNoteLocation(
 
 		const shouldMove = await GenericYesNoPrompt.Prompt(
 			app,
-			"Move note to match choice settings?",
-			`'${choice.name}' creates notes at '${targetPath}'. Move '${file.path}' there? Links to the note will be updated.`,
+			t("svelteCards.moveNoteTitle"),
+			t("svelteCards.moveNoteBody", {
+				choice: choice.name,
+				target: targetPath,
+				path: file.path,
+			}),
 		);
 		if (!shouldMove) return;
 

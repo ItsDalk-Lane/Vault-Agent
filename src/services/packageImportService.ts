@@ -47,6 +47,7 @@ import {
 	collectReferencedAssetPaths,
 } from "./packagePreview";
 import type { PackagePreview } from "./packagePreview";
+import { t } from "../i18n";
 
 export interface LoadedQuickAddPackage {
 	pkg: QuickAddPackage;
@@ -124,15 +125,15 @@ export async function readQuickAddPackage(
 	// path must too, so every current and future caller inherits the protection.
 	if (escapesVaultBoundary(packagePath)) {
 		throw new Error(
-			`Refusing to read a package outside the vault: "${packagePath}".`,
+			t("errors.packageOutsideVault", { path: packagePath }),
 		);
 	}
 
 	const normalized = normalizePath(packagePath.trim());
-	if (!normalized) throw new Error("Package path cannot be empty.");
+	if (!normalized) throw new Error(t("errors.packagePathEmpty"));
 
 	const exists = await app.vault.adapter.exists(normalized);
-	if (!exists) throw new Error(`Package file not found: ${normalized}`);
+	if (!exists) throw new Error(t("errors.packageFileNotFound", { path: normalized }));
 
 	const raw = await app.vault.adapter.read(normalized);
 	const parsed = parseQuickAddPackage(raw);
@@ -149,17 +150,22 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		parsed = JSON.parse(raw);
 	} catch (error) {
 		throw new Error(
-			`Package content is not valid JSON: ${(error as Error)?.message ?? error}`,
+			t("errors.packageInvalidJson", {
+				error: (error as Error)?.message ?? String(error),
+			}),
 		);
 	}
 
 	if (!isQuickAddPackage(parsed)) {
-		throw new Error("Content is not a valid QuickAdd package.");
+		throw new Error(t("errors.packageInvalidFormat"));
 	}
 
 	if (parsed.schemaVersion > QUICKADD_PACKAGE_SCHEMA_VERSION) {
 		throw new Error(
-			`Package schema version ${parsed.schemaVersion} is newer than this plugin supports (${QUICKADD_PACKAGE_SCHEMA_VERSION}).`,
+			t("errors.packageSchemaTooNew", {
+				version: parsed.schemaVersion,
+				supported: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			}),
 		);
 	}
 
@@ -171,7 +177,7 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 	const duplicateAssetPath = findDuplicateAssetPath(parsed.assets);
 	if (duplicateAssetPath !== null) {
 		throw new Error(
-			`Package contains duplicate asset path "${duplicateAssetPath}". Each asset must have a unique path.`,
+			t("errors.packageDuplicateAssetPath", { path: duplicateAssetPath }),
 		);
 	}
 
@@ -194,7 +200,7 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 	const divergentChoiceId = findDivergentChoiceId(parsed.choices);
 	if (divergentChoiceId !== null) {
 		throw new Error(
-			`Package contains conflicting definitions for choice "${divergentChoiceId}". Each choice id must describe the same choice everywhere it appears.`,
+			t("errors.packageConflictingChoice", { id: divergentChoiceId }),
 		);
 	}
 
@@ -211,7 +217,7 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 	const uncarriedChildId = findUncarriedChildChoiceId(parsed.choices);
 	if (uncarriedChildId !== null) {
 		throw new Error(
-			`Package choice "${uncarriedChildId}" names a parent that does not list it as a child. Each parented choice must appear inside its parent.`,
+			t("errors.packageUncarriedChild", { id: uncarriedChildId }),
 		);
 	}
 
@@ -463,7 +469,7 @@ function validateAssetDestination(rawPath: string): string {
 	const rawDestination = rawPath ?? "";
 	const trimmedDestination = rawDestination.trim();
 	if (!trimmedDestination) {
-		throw new Error("Package asset has an empty destination path.");
+		throw new Error(t("errors.packageAssetEmptyPath"));
 	}
 
 	const slashNormalizedRawDestination = trimmedDestination.replace(/\\/g, "/");
@@ -472,19 +478,21 @@ function validateAssetDestination(rawPath: string): string {
 		/^[a-zA-Z]:/.test(slashNormalizedRawDestination)
 	) {
 		throw new Error(
-			`Refusing to import asset to an absolute path outside the vault: "${slashNormalizedRawDestination}".`,
+			t("errors.packageAssetAbsolutePath", {
+				path: slashNormalizedRawDestination,
+			}),
 		);
 	}
 
 	const normalized = normalizePath(trimmedDestination);
 	if (!normalized || normalized.trim() === "") {
-		throw new Error("Package asset has an empty destination path.");
+		throw new Error(t("errors.packageAssetEmptyPath"));
 	}
 
 	const segments = normalized.split("/").filter((segment) => segment.length > 0);
 	if (segments.some((segment) => segment === "..")) {
 		throw new Error(
-			`Refusing to import asset with a path-traversal segment ("..") in: "${normalized}".`,
+			t("errors.packageAssetPathTraversal", { path: normalized }),
 		);
 	}
 
@@ -501,7 +509,7 @@ function validateAssetDestination(rawPath: string): string {
 	);
 	if (configSegment) {
 		throw new Error(
-			`Refusing to import asset into a config directory: "${normalized}".`,
+			t("errors.packageAssetConfigDir", { path: normalized }),
 		);
 	}
 
@@ -783,7 +791,11 @@ export async function applyPackageImport(
 		const prior = destinationOwners.get(key);
 		if (prior) {
 			throw new Error(
-				`Refusing to import: assets "${prior.originalPath}" and "${asset.originalPath}" resolve to the same destination ("${destinationPath}"). Rename one so each imported file is unique.`,
+				t("errors.packageAssetCollision", {
+					sourceA: prior.originalPath,
+					sourceB: asset.originalPath,
+					destination: destinationPath,
+				}),
 			);
 		}
 		destinationOwners.set(key, {

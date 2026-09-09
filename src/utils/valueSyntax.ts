@@ -11,6 +11,7 @@ import {
 	type MultiValueFormat,
 } from "./multiValueFormat";
 import { NOTICE_WARN, SILENT_WARN, type WarnSink } from "./warnSink";
+import { t } from "../i18n";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
@@ -752,7 +753,7 @@ export function parseValueToken(
 	if (options.displayValuesRaw !== undefined) {
 		if (!hasOptions) {
 			throw new Error(
-				`QuickAdd: VALUE option "text" is only supported for option-list tokens in "${tokenDisplay}".`,
+				t("errors.valueTextNeedsOptionList", { token: tokenDisplay }),
 			);
 		}
 
@@ -762,13 +763,13 @@ export function parseValueToken(
 
 		if (displayValues.length !== suggestedValues.length) {
 			throw new Error(
-				`QuickAdd: VALUE token "${tokenDisplay}" must define the same number of text entries and item entries. To include a comma inside one entry, wrap it in double quotes, e.g. "a, b".`,
+				t("errors.valueTextCountMismatch", { token: tokenDisplay }),
 			);
 		}
 
 		if (new Set(displayValues).size !== displayValues.length) {
 			throw new Error(
-				`QuickAdd: VALUE token "${tokenDisplay}" has duplicate text entries. Text entries must be unique.`,
+				t("errors.valueTextDuplicates", { token: tokenDisplay }),
 			);
 		}
 	}
@@ -906,7 +907,7 @@ export function parseAnonymousValueOptions(
 	const options = parseOptions(parts, false, false, tokenDisplay, warn);
 	if (options.displayValuesRaw !== undefined) {
 		throw new Error(
-			`QuickAdd: VALUE option "text" is only supported for option-list tokens in "${tokenDisplay}".`,
+			t("errors.valueTextNeedsOptionList", { token: tokenDisplay }),
 		);
 	}
 	let { label, caseStyle, defaultValue } = options;

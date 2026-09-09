@@ -82,7 +82,7 @@ export class ProviderPickerModal extends Modal {
 
                 new URL(preset.endpoint);
               } catch {
-                new Notice(`Invalid endpoint URL for ${preset.name}.`);
+                new Notice(t("ai.invalidEndpoint", { name: preset.name }));
                 return;
               }
 
@@ -100,7 +100,7 @@ export class ProviderPickerModal extends Modal {
               ].some((s) => lower.includes(s));
 
               if (likelyRequiresKey && !selectedSecret) {
-                new Notice(`${preset.name} requires an API key.`);
+                new Notice(t("ai.requiresApiKey", { name: preset.name }));
                 return;
               }
 
@@ -116,7 +116,7 @@ export class ProviderPickerModal extends Modal {
                   normEndpoint(p.endpoint) === normEndpoint(preset.endpoint),
               );
               if (alreadyExists) {
-                new Notice(`${preset.name} is already configured.`);
+                new Notice(t("ai.alreadyConfigured", { name: preset.name }));
                 return;
               }
 
@@ -145,7 +145,7 @@ export class ProviderPickerModal extends Modal {
             } catch (err) {
               b.setButtonText(t("ai.connect"));
               b.setDisabled(false);
-              new Notice(`Failed to add provider: ${(err as { message?: string }).message ?? err}`);
+              new Notice(t("ai.addProviderFailed", { error: (err as { message?: string }).message ?? String(err) }));
             }
           });
         });
@@ -177,18 +177,18 @@ export class ProviderPickerModal extends Modal {
     try {
       await syncProviderModels(this.app, provider);
       new Notice(
-        `${preset.name} connected with ${provider.models.length} models.`,
+        t("ai.providerConnected", { name: preset.name, count: provider.models.length }),
       );
     } catch (err) {
       const message = (err as { message?: string }).message ?? String(err);
       if (preset.seedKey) {
         provider.models = cloneModelSeeds(preset.seedKey);
         new Notice(
-          `${preset.name} added with its built-in model list. Live model loading failed: ${message}`,
+          t("ai.providerAddedWithSeed", { name: preset.name, error: message }),
         );
       } else {
         new Notice(
-          `${preset.name} added, but loading models failed: ${message} Use "Sync now" in the provider's settings to retry.`,
+          t("ai.providerAddedLoadFailed", { name: preset.name, error: message }),
         );
       }
     }

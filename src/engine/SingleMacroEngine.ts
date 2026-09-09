@@ -133,7 +133,7 @@ export class SingleMacroEngine {
 					t("errors.ambiguousMacroReference", { name: macroName }),
 				);
 				throw new Error(
-					`Ambiguous macro reference '${macroName}'. Please disambiguate by renaming macros.`,
+					t("errors.ambiguousMacroDisambiguate", { name: macroName }),
 				);
 			}
 
@@ -142,7 +142,7 @@ export class SingleMacroEngine {
 
 		if (!macroChoice) {
 			log.logError(t("errors.macroNotFound", { name: macroName }));
-			throw new Error(`macro '${macroName}' does not exist.`);
+			throw new Error(t("errors.macroNotFound", { name: macroName }));
 		}
 
 		// Create a dedicated engine for this macro
@@ -282,7 +282,7 @@ export class SingleMacroEngine {
 				refreshedIndex >= 0 ? updatedCommands[refreshedIndex] : undefined;
 			if (!refreshedCandidate || refreshedCandidate.type !== CommandType.UserScript) {
 				throw new MacroAbortError(
-					`Could not resolve the member-access script for '${macroChoice.name}'.`,
+					t("errors.memberAccessScriptUnresolved", { name: macroChoice.name }),
 				);
 			}
 			const userScriptCommand = refreshedCandidate as IUserScript;
@@ -298,7 +298,10 @@ export class SingleMacroEngine {
 
 			if (exportsRef === undefined || exportsRef === null) {
 				throw new MacroAbortError(
-					`Macro '${macroChoice.name}' could not load '${userScriptCommand.name}' for member access.`,
+					t("errors.memberAccessLoadFailed", {
+						name: macroChoice.name,
+						script: userScriptCommand.name,
+					}),
 				);
 			}
 
@@ -320,9 +323,11 @@ export class SingleMacroEngine {
 
 			if (!resolvedMember.found) {
 				throw new MacroAbortError(
-					`Macro '${macroChoice.name}' routes member access to '${userScriptCommand.name}', but that script does not export '${selection.memberAccess.join(
-						"::",
-					)}'.`,
+					t("errors.memberAccessNotExported", {
+						name: macroChoice.name,
+						script: userScriptCommand.name,
+						member: selection.memberAccess.join("::"),
+					}),
 				);
 			}
 
@@ -371,9 +376,9 @@ export class SingleMacroEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
-					logPrefix: "Macro execution aborted",
-					noticePrefix: "Macro execution aborted",
-					defaultReason: "Macro execution aborted",
+					logPrefix: t("macroAbort.macroPrefix"),
+					noticePrefix: t("macroAbort.macroPrefix"),
+					defaultReason: t("macroAbort.macroPrefix"),
 				})
 			) {
 				this.choiceExecutor.signalAbort?.(error);
@@ -488,9 +493,10 @@ export class SingleMacroEngine {
 
 		if (matchingCandidates.length === 0) {
 			throw new MacroAbortError(
-				`Macro '${macroChoice.name}' could not find '${memberAccess.join(
-					"::",
-				)}' in any user script.`,
+				t("errors.memberNotFoundInScripts", {
+					name: macroChoice.name,
+					member: memberAccess.join("::"),
+				}),
 			);
 		}
 
@@ -514,11 +520,11 @@ export class SingleMacroEngine {
 			.join(", ");
 
 		throw new MacroAbortError(
-			`Macro '${macroChoice.name}' has multiple user scripts exporting '${memberAccess.join(
-				"::",
-			)}': ${matchingNames}. Disambiguate with '{{MACRO:${macroChoice.name}::<Script Name>::${memberAccess.join(
-				"::",
-			)}}}'.`,
+			t("errors.multipleExportersOfMember", {
+				name: macroChoice.name,
+				member: memberAccess.join("::"),
+				names: matchingNames,
+			}),
 		);
 	}
 
@@ -565,9 +571,11 @@ export class SingleMacroEngine {
 
 		if (matchingScripts.length > 1) {
 			throw new MacroAbortError(
-				`Macro '${macroChoice.name}' has multiple user scripts named '${selectorName}'. Rename one of them before using '{{MACRO:${macroChoice.name}::${selectorName}::${memberAccess
-					.slice(1)
-					.join("::")}}}'.`,
+				t("errors.duplicateUserScriptName", {
+					name: macroChoice.name,
+					selector: selectorName,
+					member: memberAccess.slice(1).join("::"),
+				}),
 			);
 		}
 

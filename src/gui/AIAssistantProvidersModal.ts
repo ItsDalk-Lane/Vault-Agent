@@ -116,7 +116,7 @@ export class AIAssistantProvidersModal extends Modal {
 					button.onClick(async () => {
 						const confirmation = await GenericYesNoPrompt.Prompt(
 							this.app,
-							`Are you sure you want to delete ${provider.name}?`
+							t("ai.deleteProviderConfirm", { name: provider.name })
 						);
 						if (!confirmation) {
 							return;
@@ -159,8 +159,8 @@ export class AIAssistantProvidersModal extends Modal {
 			.setName(t("ai.providerName"))
 			.setDesc(
 				providerId
-					? `The display name of the provider. Its stable ID is "${providerId}" — use that to qualify models in scripts, e.g. ai.prompt with "${providerId}/model-name".`
-					: "The display name of the provider",
+					? t("ai.providerNameDescWithId", { id: providerId })
+					: t("ai.providerNameDesc"),
 			)
 			.addText((text) => {
 				text.setValue(this.selectedProvider!.name).onChange((value) => {
@@ -186,8 +186,8 @@ export class AIAssistantProvidersModal extends Modal {
 		const hasLegacyKey =
 			!!this.selectedProvider?.apiKey && !this.selectedProvider?.apiKeyRef;
 		const description = hasLegacyKey
-			? "Legacy API key detected. Select a SecretStorage entry to migrate."
-			: "Select a secret from SecretStorage";
+			? t("ai.apiKeyLegacyDesc")
+			: t("ai.apiKeySelectDesc");
 
 		new Setting(container)
 			.setName(t("ai.apiKey"))
@@ -206,11 +206,9 @@ export class AIAssistantProvidersModal extends Modal {
 	addKindSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName(t("ai.providerType"))
-			.setDesc(
-				"The request format this provider expects. Auto-detect recognizes the official Anthropic and Gemini endpoints and treats everything else as OpenAI-compatible; pick a type explicitly for a proxy or custom endpoint.",
-			)
+			.setDesc(t("ai.requestFormatDesc"))
 			.addDropdown((dropdown) => {
-				dropdown.addOption("", "Auto-detect");
+				dropdown.addOption("", t("ai.autoDetect"));
 				dropdown.addOption("openai", "OpenAI-compatible");
 				dropdown.addOption("anthropic", "Anthropic");
 				dropdown.addOption("gemini", "Gemini");
@@ -228,18 +226,16 @@ export class AIAssistantProvidersModal extends Modal {
 		const provider = this.selectedProvider;
 		new Setting(container)
 			.setName(t("ai.modelSource"))
-			.setDesc(
-				"Choose where QuickAdd looks when browsing or syncing models for this provider.",
-			)
+			.setDesc(t("ai.modelSyncDesc"))
 			.addDropdown((dropdown) => {
 				dropdown.addOption(
 					"providerApi",
-					"Provider models endpoint (requires API key)",
+					t("ai.modelSourceProviderApi"),
 				);
-				dropdown.addOption("modelsDev", "models.dev directory");
+				dropdown.addOption("modelsDev", t("ai.modelSourceModelsDev"));
 				dropdown.addOption(
 					"auto",
-					"Automatic (try provider, fallback to models.dev)",
+					t("ai.modelSourceAuto"),
 				);
 				const current = provider?.modelSource ?? "providerApi";
 				dropdown.setValue(current);
@@ -271,7 +267,7 @@ export class AIAssistantProvidersModal extends Modal {
                     button.onClick(async () => {
                         const confirmation = await GenericYesNoPrompt.Prompt(
                             this.app,
-                            `Are you sure you want to delete ${model.name}?`
+                            t("svelteCards.deleteModelConfirm", { name: model.name })
                         );
                         if (!confirmation) {
                             return;
@@ -294,11 +290,11 @@ export class AIAssistantProvidersModal extends Modal {
                     try {
                         modelName = await GenericInputPrompt.Prompt(
                             this.app,
-                            "Model name"
+                            t("svelteCards.modelNamePrompt")
                         );
                         maxTokens = await GenericInputPrompt.Prompt(
                             this.app,
-                            "Max tokens"
+                            t("svelteCards.maxTokensPrompt")
                         );
                     } catch {
                         // Cancelling either prompt is a clean no-op.
@@ -335,7 +331,7 @@ export class AIAssistantProvidersModal extends Modal {
 		const sourceDescription = this.describeModelSource(this.selectedProvider);
 		new Setting(container)
 			.setName(t("ai.importModels.name"))
-			.setDesc(`Browse and import models from ${sourceDescription}.`)
+			.setDesc(t("ai.browseModelsDesc", { source: sourceDescription }))
 			.addButton((button) => {
 				button.setButtonText(t("ai.importModels.browseButton")).onClick(async () => {
 					const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
@@ -351,7 +347,7 @@ export class AIAssistantProvidersModal extends Modal {
                             imported
                         );
                     }
-                    new Notice(`Imported ${imported.length} models${mode === "replace" ? " (replaced)" : " (added)"}.`);
+                    new Notice(t(imported.length === 1 ? "ai.modelsImportedOne" : "ai.modelsImportedOther", { count: imported.length }) + (mode === "replace" ? t("ai.importModeReplaced") : t("ai.importModeAdded")));
                     this.reload();
                 });
                 button.setCta();
@@ -380,13 +376,13 @@ export class AIAssistantProvidersModal extends Modal {
 						);
 						new Notice(
 							added > 0 || updated > 0
-								? `Synced from ${sourceDescription}: ${added} new model(s), ${updated} updated.`
-								: `Synced from ${sourceDescription}: already up to date.`,
+								? t("ai.syncedFrom", { source: sourceDescription, added, updated })
+								: t("ai.syncedUpToDate", { source: sourceDescription }),
 						);
 						this.reload();
 					} catch (err) {
 						new Notice(
-							`Sync failed: ${(err as { message?: string }).message ?? err}`
+							t("ai.modelSyncFailed", { error: (err as { message?: string }).message ?? String(err) })
 						);
 					}
 				});
@@ -441,11 +437,11 @@ export class AIAssistantProvidersModal extends Modal {
 		const mode = provider?.modelSource ?? "providerApi";
 		switch (mode) {
 			case "modelsDev":
-				return "the models.dev directory";
+				return t("ai.sourceModelsDev");
 			case "auto":
-				return "the provider's models endpoint (falls back to models.dev)";
+				return t("ai.sourceAuto");
 			default:
-				return "the provider's models endpoint";
+				return t("ai.sourceProviderApi");
 		}
 	}
 

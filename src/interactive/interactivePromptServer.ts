@@ -22,6 +22,7 @@ import {
 	UserCancelError,
 } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { t } from "../i18n";
 
 // Minimal structural types for the slice of Node's `http` we use, declared
 // locally so this module never statically imports a Node builtin (keeps the
@@ -224,9 +225,7 @@ function randomId(): string {
 		const bytes = c.getRandomValues(new Uint8Array(16));
 		return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 	}
-	throw new Error(
-		"Interactive prompts require a secure random source (crypto), which is unavailable here.",
-	);
+	throw new Error(t("errors.interactiveCryptoUnavailable"));
 }
 
 /** Body of a `POST /reply`. Every field is untrusted JSON, hence the `unknown`s. */
@@ -322,9 +321,7 @@ class InteractivePromptServer {
 		if (this.startPromise) return this.startPromise;
 		const http = nodeRequire<HttpModule>("http");
 		if (!http) {
-			throw new Error(
-				"Interactive prompts require desktop Obsidian (Node http is unavailable).",
-			);
+			throw new Error(t("errors.interactiveDesktopRequired"));
 		}
 		const generation = this.generation;
 		this.startPromise = new Promise<number>((resolve, reject) => {
@@ -356,7 +353,7 @@ class InteractivePromptServer {
 
 	createSession(): { id: string; token: string } {
 		if (this.sessions.size >= MAX_SESSIONS) {
-			throw new Error("Too many active interactive sessions.");
+			throw new Error(t("errors.interactiveTooManySessions"));
 		}
 		const id = randomId();
 		const token = randomId() + randomId();
@@ -631,7 +628,7 @@ class InteractivePromptServer {
 		let size = 0;
 		for await (const chunk of req) {
 			size += (chunk as Buffer).length;
-			if (size > 1_000_000) throw new Error("Request body too large");
+			if (size > 1_000_000) throw new Error(t("errors.interactiveBodyTooLarge"));
 		}
 	}
 
@@ -641,7 +638,7 @@ class InteractivePromptServer {
 		for await (const chunk of req) {
 			size += (chunk as Buffer).length;
 			// Interactive replies are tiny; cap to avoid buffering junk.
-			if (size > 1_000_000) throw new Error("Request body too large");
+			if (size > 1_000_000) throw new Error(t("errors.interactiveBodyTooLarge"));
 			chunks.push(chunk as Buffer);
 		}
 		if (chunks.length === 0) return {};

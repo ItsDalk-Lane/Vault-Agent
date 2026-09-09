@@ -164,8 +164,8 @@ export class CommandSequenceEditor {
 		this.unreadableCardHandle = mountComponent(
 			cardEl,
 			DataUnreadable,
-			{ what: "this macro's commands" },
-			{ what: "this macro's commands" },
+			{ what: t("svelteCards.whatMacroCommands") },
+			{ what: t("svelteCards.whatMacroCommands") },
 		);
 	}
 
@@ -221,7 +221,7 @@ export class CommandSequenceEditor {
 				);
 				if (!secretsCleared) {
 					new Notice(
-						"Could not clear user script secrets. Command was not deleted."
+						t("macro.secretClearFailedCommand"),
 					);
 					return;
 				}
@@ -244,7 +244,7 @@ export class CommandSequenceEditor {
 			commandListEl,
 			CommandList,
 			this.commandListProps,
-			{ what: "this macro's commands" }
+			{ what: t("svelteCards.whatMacroCommands") },
 		);
 
 		return this.commandListHandle.ok;
@@ -430,7 +430,7 @@ export class CommandSequenceEditor {
 			);
 			if (!resolved) {
 				new Notice(
-					`QuickAdd: No script or js-block note named "${value}" found.`
+					t("macro.scriptNotFound", { name: value }),
 				);
 				return;
 			}
@@ -438,7 +438,7 @@ export class CommandSequenceEditor {
 			if (resolved.isMarkdown) {
 				const reason = await noteScriptError(this.app, resolved.file);
 				if (reason) {
-					new Notice(`QuickAdd: "${resolved.file.path}" — ${reason}`);
+					new Notice(t("macro.commandRunFailed", { path: resolved.file.path, reason }));
 					return;
 				}
 			}
@@ -510,7 +510,7 @@ export class CommandSequenceEditor {
 			const value: string = input.getValue();
 			const choice = this.choices.find((c) => c.name === value);
 			if (!choice) {
-				new Notice(`QuickAdd: No choice named "${value}".`);
+				new Notice(t("macro.noChoiceNamed", { name: value }));
 				return;
 			}
 
@@ -551,7 +551,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setButtonText(typeName)
-			.setTooltip(`Add ${typeName} choice`)
+			.setTooltip(t("macro.addTypeTooltip", { type: typeName }))
 			.onClick(() => {
 				// NOT lowercased with the tooltip above: this is a persisted choice
 				// NAME, not a label, so changing it would only split existing and
@@ -617,7 +617,7 @@ export class CommandSequenceEditor {
 			labels,
 			paths,
 			{
-				placeholder: "Select a script (.js file or note with a ```js block)",
+				placeholder: t("macro.scriptPath.browseLabel"),
 				emptyStateText: "No scripts found in your vault",
 			}
 		);
@@ -632,7 +632,7 @@ export class CommandSequenceEditor {
 		if (candidate.isMarkdown) {
 			const reason = await noteScriptError(this.app, candidate.file);
 			if (reason) {
-				new Notice(`QuickAdd: "${candidate.file.path}" — ${reason}`);
+				new Notice(t("macro.commandRunFailed", { path: candidate.file.path, reason }));
 				return null;
 			}
 		}

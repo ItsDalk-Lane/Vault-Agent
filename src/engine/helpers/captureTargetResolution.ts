@@ -5,6 +5,7 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../../constants";
 import { ChoiceAbortError } from "../../errors/ChoiceAbortError";
+import { t } from "../../i18n";
 import type { FieldFilter } from "../../utils/FieldSuggestionParser";
 import { parsePropertyTarget } from "../../utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "../../utils/captureFileFilterTarget";
@@ -63,7 +64,7 @@ export function resolveCaptureTarget(
 	if (propertyTarget) {
 		if (!propertyTarget.field) {
 			throw new ChoiceAbortError(
-				"Property capture target needs a field name, e.g. property:type=draft",
+				t("errors.propertyTargetNeedsField")
 			);
 		}
 		return {
@@ -78,7 +79,7 @@ export function resolveCaptureTarget(
 	if (fileFilterTarget) {
 		if (fileFilterTarget.multiSelect) {
 			throw new ChoiceAbortError(
-				"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+				t("errors.captureFilterSingleTarget")
 			);
 		}
 		return {
@@ -94,7 +95,7 @@ export function resolveCaptureTarget(
 
 	if (BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)) {
 		throw new ChoiceAbortError(
-			`Capture to '.base' files is not supported (${normalizedCaptureTo}). Use a Template choice instead.`,
+			t("errors.captureBaseUnsupported", { path: normalizedCaptureTo }),
 		);
 	}
 

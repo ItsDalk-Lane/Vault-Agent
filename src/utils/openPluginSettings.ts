@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 
 /** Opens a plugin's settings tab. Returns false if the internal API is unavailable or throws. */
 export function tryOpenPluginSettings(app: App, pluginId: string): boolean {
@@ -47,7 +48,7 @@ export function openQuickAddSettings(
 	const opened = tryOpenPluginSettings(app, pluginId);
 	if (!opened && options?.notice !== false) {
 		new Notice(
-			"QuickAdd: Unable to open settings automatically. Open Settings → QuickAdd manually.",
+			t("runFeedback.openSettingsFailed"),
 		);
 	}
 	return opened;

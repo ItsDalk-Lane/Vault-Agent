@@ -24,6 +24,7 @@
  */
 
 import { formatISODate } from "../utils/dateParser";
+import { t } from "../i18n";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import {
 	type FormField,
@@ -301,7 +302,9 @@ export class RemotePromptProvider implements PromptProvider {
 		if (answer === true || answer === "true") return true;
 		if (answer === false || answer === "false") return false;
 		throw new Error(
-			`A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeReply(answer)}.`,
+			t("errors.interactiveConfirmBooleanReply", {
+				reply: describeReply(answer),
+			}),
 		);
 	}
 

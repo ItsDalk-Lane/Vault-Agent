@@ -15,6 +15,7 @@ import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
+import { t } from "../../../i18n";
 import type { JSONSchema } from "../NormalizedTools";
 import type { QATool } from "../aiToolTypes";
 import { applyGroupOptions, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
@@ -227,7 +228,7 @@ export function createVaultTools(
 				await assertWriteStaysInVault(app, norm);
 				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
 				const target = headings.find((h) => h.heading === String(heading));
-				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);
+				if (!target) throw new Error(t("errors.headingNotFoundInNote", { heading: String(heading), path: norm }));
 				const body = await app.vault.read(file);
 				const next = insertUnderHeading(body, target.position.start.line, target.level, String(content), headings);
 				await app.vault.modify(file, next);
@@ -270,7 +271,7 @@ function ensureMarkdownPath(path: string): string {
 	if (/\.md$/i.test(path)) return path;
 	if (/\.[a-z0-9]+$/i.test(path)) {
 		throw new Error(
-			`This tool only operates on markdown notes (.md); refused path: "${path}".`,
+			t("errors.toolOnlyMarkdownNotes", { path }),
 		);
 	}
 	return `${path}.md`;
@@ -278,7 +279,7 @@ function ensureMarkdownPath(path: string): string {
 function requireFile(app: App, normalizedPath: string): TFile {
 	const file = app.vault.getAbstractFileByPath(normalizedPath);
 	if (!(file instanceof TFile)) {
-		throw new Error(`Note not found: ${normalizedPath}`);
+		throw new Error(t("errors.noteNotFound", { path: normalizedPath }));
 	}
 	return file;
 }

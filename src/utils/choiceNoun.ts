@@ -1,4 +1,5 @@
 import type { ChoiceType } from "../types/choices/choiceType";
+import { t } from "../i18n";
 
 /**
  * What the UI calls a choice of this type.
@@ -15,11 +16,15 @@ import type { ChoiceType } from "../types/choices/choiceType";
  * same bug shipped twice. This is the single source of that vocabulary, so the
  * next prompt gets it right for free.
  */
-export function choiceNoun(type?: ChoiceType): "folder" | "choice" {
-	return type === "Multi" ? "folder" : "choice";
+export function choiceNoun(type?: ChoiceType): string {
+	return t(type === "Multi" ? "common.nounFolder" : "common.nounChoice");
 }
 
 /** {@link choiceNoun}, capitalized for the start of a sentence or a heading. */
-export function choiceNounCapitalized(type?: ChoiceType): "Folder" | "Choice" {
-	return type === "Multi" ? "Folder" : "Choice";
+export function choiceNounCapitalized(type?: ChoiceType): string {
+	return t(
+		type === "Multi"
+			? "common.nounFolderCapitalized"
+			: "common.nounChoiceCapitalized",
+	);
 }

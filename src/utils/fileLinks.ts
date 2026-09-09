@@ -8,6 +8,7 @@ import type {
 	LinkType,
 } from "../types/linkPlacement";
 import { placementSupportsEmbed } from "../types/linkPlacement";
+import { t } from "../i18n";
 
 const CLIPBOARD_NOTICE_DURATION_MS = 4000;
 
@@ -151,7 +152,7 @@ export async function appendFileLinkToDestinationFile(
 	const targetFile = getAppendLinkDestinationFile(app, destination);
 	if (!targetFile) {
 		throw new Error(
-			`Append link target file not found or is not a Markdown file: ${destination.path}`,
+			t("errors.appendLinkTargetNotFound", { path: destination.path }),
 		);
 	}
 
@@ -197,14 +198,14 @@ export async function copyFileLinkToClipboard(file: TFile): Promise<boolean> {
 
 	if (copied) {
 		new Notice(
-			`Copied link to '${file.basename}' to clipboard.`,
+			t("runFeedback.copiedLink", { name: file.basename }),
 			CLIPBOARD_NOTICE_DURATION_MS,
 		);
 		return true;
 	}
 
 	new Notice(
-		`Created '${file.basename}', but QuickAdd could not copy its link to the clipboard.`,
+		t("runFeedback.copyLinkFailed", { name: file.basename }),
 		CLIPBOARD_NOTICE_DURATION_MS,
 	);
 	return false;

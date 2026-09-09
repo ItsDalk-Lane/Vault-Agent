@@ -1,5 +1,6 @@
 import type { moment } from "obsidian";
 import { parsePipeKeyValue } from "./pipeSyntax";
+import { t } from "../i18n";
 
 type Moment = ReturnType<typeof moment.unix>;
 type StartOf = NonNullable<Parameters<Moment["startOf"]>[0]>;
@@ -57,7 +58,10 @@ export function normalizeDateUnit(raw: string): StartOf {
 	const unit = UNIT_ALIASES[key];
 	if (!unit) {
 		throw new Error(
-			`Unknown date unit "${raw.trim()}". Valid units: ${VALID_DATE_SNAP_UNITS}.`,
+			t("errors.unknownDateUnit", {
+				unit: raw.trim(),
+				valid: VALID_DATE_SNAP_UNITS,
+			}),
 		);
 	}
 	return unit;

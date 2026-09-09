@@ -370,7 +370,7 @@
 			commandRegistry.enableCommand(newChoice);
 		}
 		save();
-		new Notice(`Duplicated "${sourceChoice.name}".`);
+		new Notice(t("choiceList.duplicated", { name: sourceChoice.name }));
 		await revealChoice(newChoice.id);
 	}
 
@@ -454,7 +454,10 @@
 		),
 		// Same noun rule, from the type being added rather than an existing row.
 		onAddChoice: (name, type, targetFolderId, skipConfigure) =>
-			reportingHandler(`Couldn't add that ${choiceNoun(type)}`, addChoiceToList)(
+			reportingHandler(
+				t("choiceRename.couldNotAdd", { noun: choiceNoun(type) }),
+				addChoiceToList,
+			)(
 				name,
 				type,
 				targetFolderId,

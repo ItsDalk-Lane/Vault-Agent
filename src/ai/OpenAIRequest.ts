@@ -371,7 +371,7 @@ export function OpenAIRequest(
 	return async function makeRequest(prompt: string): Promise<CommonResponse> {
 		if (settingsStore.getState().disableOnlineFeatures) {
 			throw new Error(
-				"Blocking request: Online features are disabled in settings."
+				t("errors.blockingRequestOnlineDisabled")
 			);
 		}
 
@@ -618,7 +618,7 @@ export async function chatRequest(
 	void app; // cursor handling is owned by the caller (Agent) for the whole loop
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Blocking request: Online features are disabled in settings.",
+			t("errors.blockingRequestOnlineDisabled"),
 		);
 	}
 

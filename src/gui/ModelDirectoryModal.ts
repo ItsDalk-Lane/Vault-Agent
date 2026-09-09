@@ -40,7 +40,7 @@ export class ModelDirectoryModal extends Modal {
       this.loadError = null;
     } catch (err) {
       this.loadError = `${(err as { message?: string }).message ?? err}`;
-      new Notice(`Failed to load model directory: ${this.loadError}`);
+      new Notice(t("ai.modelDirLoadFailed", { error: this.loadError }));
     }
   }
 
@@ -86,8 +86,8 @@ export class ModelDirectoryModal extends Modal {
       .setName(t("ai.importMode.name"))
       .setDesc(t("ai.importMode.desc"))
       .addDropdown((dd) => {
-        dd.addOption("add", "Add only");
-        dd.addOption("replace", "Replace existing");
+        dd.addOption("add", t("ai.addOnly"));
+        dd.addOption("replace", t("ai.replaceExisting"));
         dd.setValue(this.mode);
         dd.onChange((v) => (this.mode = v as "add" | "replace"));
       })
@@ -108,10 +108,10 @@ export class ModelDirectoryModal extends Modal {
 
     if (this.filtered.length === 0) {
       const message = this.loadError
-        ? `Couldn't load models: ${this.loadError}. Check the API key and endpoint.`
+        ? t("ai.couldNotLoadModels", { error: this.loadError })
         : this.allModels.length === 0
-          ? "No models available for this provider."
-          : "No models match your filter.";
+          ? t("ai.noModelsAvailable")
+          : t("ai.noModelsMatchFilter");
       (list as HTMLElement).createDiv({
         text: message,
         cls: "qa-model-directory-empty",
@@ -138,7 +138,7 @@ export class ModelDirectoryModal extends Modal {
       row.createDiv({ text: m.name, cls: "qa-model-row-title" });
 
       row.createDiv({
-        text: `${m.maxTokens.toLocaleString()} tokens max`,
+        text: t("ai.tokensMax", { count: m.maxTokens.toLocaleString() }),
         cls: "qa-model-row-meta",
       });
     }
@@ -160,7 +160,7 @@ export class ModelDirectoryModal extends Modal {
       this.resolvePromise({ imported: qaModels, mode: this.mode });
       this.close();
     } catch (err) {
-      new Notice(`Import failed: ${(err as { message?: string }).message ?? err}`);
+      new Notice(t("ai.modelImportFailed", { error: (err as { message?: string }).message ?? String(err) }));
     }
   }
 

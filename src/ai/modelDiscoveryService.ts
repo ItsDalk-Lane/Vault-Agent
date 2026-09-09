@@ -9,6 +9,7 @@ import {
 } from "./modelsDirectory";
 import { buildProviderError } from "./providerErrors";
 import { settingsStore } from "src/settingsStore";
+import { t } from "src/i18n";
 
 const DEFAULT_MAX_TOKENS = 128_000;
 
@@ -61,7 +62,7 @@ async function fetchViaModelsDev(provider: AIProvider, previousError?: unknown):
 		const key = mapEndpointToModelsDevKey(provider.endpoint);
 		if (!key || !(key in directory)) {
 			throw new Error(
-				`models.dev does not list a provider that matches ${provider.endpoint}.`
+				t("errors.modelsDevNoProviderMatch", { endpoint: provider.endpoint })
 			);
 		}
 		const models = Object.values(directory[key].models);
@@ -69,7 +70,10 @@ async function fetchViaModelsDev(provider: AIProvider, previousError?: unknown):
 	} catch (err) {
 		if (previousError) {
 			throw new Error(
-				`Provider API failed (${(previousError as Error).message}). Fallback to models.dev also failed: ${(err as Error).message}`,
+				t("errors.providerApiAndModelsDevFailed", {
+					error: (previousError as Error).message,
+					fallbackError: (err as Error).message,
+				})
 			);
 		}
 		throw err;
@@ -82,10 +86,10 @@ async function fetchViaProviderApi(
 ): Promise<Model[]> {
 	const { disableOnlineFeatures } = settingsStore.getState();
 	if (disableOnlineFeatures) {
-		throw new Error("Online features are disabled — enable them to browse provider models.");
+		throw new Error(t("errors.onlineFeaturesDisabledBrowseModels"));
 	}
 	if (!provider.endpoint) {
-		throw new Error("Provider is missing an endpoint URL.");
+		throw new Error(t("errors.providerMissingEndpoint"));
 	}
 	const apiKey = apiKeyOverride ?? provider.apiKey ?? "";
 
@@ -101,7 +105,7 @@ async function fetchViaProviderApi(
 				: await fetchOpenAICompatibleModels(provider, apiKey);
 
 	if (!models.length) {
-		throw new Error("The provider's models endpoint did not include any usable models.");
+		throw new Error(t("errors.providerModelsEndpointEmpty"));
 	}
 
 	// The native endpoints rarely report output caps or sampling support;
@@ -163,7 +167,7 @@ async function requestProviderJson<T>(
 		}
 		return (await response.json) as T;
 	} catch (err) {
-		throw new Error(`Provider rejected the models request: ${(err as Error).message}`);
+		throw new Error(t("errors.providerRejectedModelsRequest", { error: (err as Error).message }));
 	}
 }
 
@@ -309,7 +313,7 @@ function extractModelsArray(payload: ProviderApiResponse): ProviderApiModel[] {
 	if (payload && typeof payload === "object" && Array.isArray(payload.data)) {
 		return payload.data;
 	}
-	throw new Error("The provider's models response was not a list.");
+	throw new Error(t("errors.providerModelsResponseNotList"));
 }
 
 function mapProviderEntry(entry: ProviderApiModel): Model | null {

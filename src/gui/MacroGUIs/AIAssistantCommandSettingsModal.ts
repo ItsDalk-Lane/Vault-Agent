@@ -81,7 +81,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
 		const renameButton = header.createEl("button", {
 			cls: "qa-rename-title-button",
-			text: `${this.settings.name} settings`,
+			text: t("ai.settingsHeader", { name: this.settings.name }),
 			attr: { type: "button", "aria-label": `Rename ${this.settings.name}` },
 		});
 
@@ -168,9 +168,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		new Setting(container)
 			.setName(t("macro.promptTemplate.name"))
-			.setDesc(
-				"Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use."
-			)
+			.setDesc(t("macro.promptTemplate.desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.settings.promptTemplate.enable);
 				toggle.onChange((value) => {
@@ -209,9 +207,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	addOutputVariableNameSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName(t("macro.outputVariableName.name"))
-			.setDesc(
-				"The name of the variable used to store the AI Assistant output, i.e. {{value:output}}."
-			)
+			.setDesc(t("macro.outputVariableName.desc"))
 			.addText((text) => {
 				text.setValue(this.settings.outputVariableName).onChange(
 					(value) => {
@@ -272,9 +268,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	addShowAdvancedSettingsToggle(container: HTMLElement) {
 		new Setting(container)
 			.setName(t("macro.showAdvancedSettings"))
-			.setDesc(
-				"Sampling settings such as temperature and top p. Untouched settings use the provider's defaults."
-			)
+			.setDesc(t("macro.advancedSettings.desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.showAdvancedSettings);
 				toggle.onChange((value) => {

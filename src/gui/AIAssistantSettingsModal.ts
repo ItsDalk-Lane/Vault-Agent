@@ -127,13 +127,11 @@ export class AIAssistantSettingsModal extends Modal {
 	addConfirmToolCallsSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName(t("ai.confirmToolCalls"))
-			.setDesc(
-				"When an AI agent runs script-defined or built-in tools, ask before executing. 'Destructive only' confirms tools not marked read-only; 'Always' confirms every tool; 'Never' defers to each tool's own setting. A tool that requires approval is always confirmed regardless.",
-			)
+			.setDesc(t("ai.confirmToolCallsDesc"))
 			.addDropdown((dropdown) => {
-				dropdown.addOption("destructive", "Destructive tools only (recommended)");
-				dropdown.addOption("always", "Always confirm every tool");
-				dropdown.addOption("never", "Never (use each tool's own setting)");
+				dropdown.addOption("destructive", t("ai.confirmModeDestructive"));
+				dropdown.addOption("always", t("ai.confirmModeAlways"));
+				dropdown.addOption("never", t("ai.confirmModeNever"));
 				dropdown.setValue(this.settings.confirmToolCalls ?? "destructive");
 				dropdown.onChange((value) => {
 					this.settings.confirmToolCalls =
@@ -154,7 +152,7 @@ export class AIAssistantSettingsModal extends Modal {
 		// the "Default system prompt" name above.
 		textAreaComponent.inputEl.setAttribute(
 			"aria-label",
-			"Default system prompt",
+			t("ai.defaultSystemPrompt.name"),
 		);
 
 		// No format preview and no `{{` token autocomplete here: the system prompt

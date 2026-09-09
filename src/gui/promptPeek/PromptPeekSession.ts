@@ -64,7 +64,7 @@ export class PromptPeekSession {
 			// its prompt forever.
 			const title = displaced.handle.title;
 			displaced.cancel();
-			new Notice(`QuickAdd: cancelled the peeked prompt "${title}".`);
+			new Notice(t("promptPeek.cancelledNotice", { title }));
 		}
 		const session = new PromptPeekSession(app, handle);
 		PromptPeekSession.active = session;
@@ -110,7 +110,7 @@ export class PromptPeekSession {
 	private canReturnNow(): boolean {
 		if (!hasVisiblePrompt()) return true;
 		new Notice(
-			"QuickAdd: close the open prompt before returning to the peeked one.",
+			t("promptPeek.closeOpenPromptNotice"),
 		);
 		return false;
 	}
@@ -139,7 +139,7 @@ export class PromptPeekSession {
 		const titles = header.createDiv({ cls: "qa-peek-chip-titles" });
 		titles.createDiv({
 			cls: "qa-peek-chip-title",
-			text: this.compactChrome ? this.handle.title : "QuickAdd is waiting",
+			text: this.compactChrome ? this.handle.title : t("promptPeek.waitingTitle"),
 		});
 		if (!this.compactChrome) {
 			titles.createDiv({
@@ -155,13 +155,13 @@ export class PromptPeekSession {
 		const actions = chip.createDiv({ cls: "qa-peek-chip-actions" });
 
 		this.insertButton = new ButtonComponent(actions)
-			.setButtonText(this.compactChrome ? "Insert" : "Insert selection")
+			.setButtonText(this.compactChrome ? t("promptPeek.insert") : t("promptPeek.insertSelection"))
 			.setCta()
 			.setTooltip(t("promptPeek.dropTooltip"))
 			.onClick(() => this.insertSelectionAndResume());
 		this.insertButton.buttonEl.setAttribute(
 			"aria-label",
-			"Insert the selected text and return to QuickAdd",
+			t("promptPeek.insertSelectionAria"),
 		);
 
 		new ButtonComponent(actions)
@@ -237,7 +237,7 @@ export class PromptPeekSession {
 		button.buttonEl.classList.toggle("qa-peek-insert-ready", hasSelection);
 		if (!this.compactChrome) {
 			button.setButtonText(
-				hasSelection ? `Insert “${preview}”` : "Insert selection",
+				hasSelection ? t("promptPeek.insertPreview", { preview }) : t("promptPeek.insertSelection"),
 			);
 		}
 	}

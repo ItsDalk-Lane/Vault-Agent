@@ -82,12 +82,12 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addOpenLocationSetting() {
 		const locationOptions: { value: OpenLocation; label: string }[] = [
-			{ value: "reuse", label: "Reuse active tab" },
-			{ value: "tab", label: "New tab" },
-			{ value: "split", label: "Split" },
-			{ value: "window", label: "New window" },
-			{ value: "left-sidebar", label: "Left sidebar" },
-			{ value: "right-sidebar", label: "Right sidebar" },
+			{ value: "reuse", label: t("openFile.whereToOpen.reuse") },
+			{ value: "tab", label: t("openFile.whereToOpen.tab") },
+			{ value: "split", label: t("openFile.whereToOpen.split") },
+			{ value: "window", label: t("openFile.whereToOpen.window") },
+			{ value: "left-sidebar", label: t("openFile.whereToOpen.leftSidebar") },
+			{ value: "right-sidebar", label: t("openFile.whereToOpen.rightSidebar") },
 		];
 
 		new Setting(this.contentEl)
@@ -138,8 +138,8 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setDesc(t("macro.splitDirection.desc"))
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption(NewTabDirection.vertical, "Split right")
-					.addOption(NewTabDirection.horizontal, "Split down")
+					.addOption(NewTabDirection.vertical, t("openFile.splitDirection.right"))
+					.addOption(NewTabDirection.horizontal, t("openFile.splitDirection.down"))
 					.setValue(this.command.direction ?? NewTabDirection.vertical)
 					.onChange((value) => {
 						this.command.direction = value as NewTabDirection;

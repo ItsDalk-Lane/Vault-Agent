@@ -23,6 +23,7 @@
  */
 
 import { UserCancelError } from "../errors/UserCancelError";
+import { t } from "../i18n";
 import type { PromptProvider } from "./promptProvider";
 
 /**
@@ -85,7 +86,9 @@ export async function promptEngineChoice<T>(
 	if (spec.allowCustomInput) return text;
 
 	throw new Error(
-		`A reply to ${spec.what} has to be one of the offered options, and "${text.slice(0, 60)}" is not. ` +
-			`Reply with the item's \`value\` token exactly as it was sent, or \`{"cancelled": true}\` to dismiss it.`,
+		t("errors.interactiveReplyNotAnOption", {
+			what: spec.what,
+			reply: text.slice(0, 60),
+		}),
 	);
 }

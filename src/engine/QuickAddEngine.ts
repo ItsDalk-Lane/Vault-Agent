@@ -49,16 +49,16 @@ export abstract class QuickAddEngine {
 
 		if (!file) {
 			log.logError(t("errors.fileNotFound", { path: filePath }));
-			throw new Error(`${filePath} not found`);
+			throw new Error(t("errors.fileNotFound", { path: filePath }));
 		}
 
 		if (file instanceof TFolder) {
 			log.logError(t("errors.pathIsFolder", { path: filePath }));
-			throw new Error(`${filePath} found but it's a folder`);
+			throw new Error(t("errors.pathIsFolder", { path: filePath }));
 		}
 
 		if (!(file instanceof TFile))
-			throw new Error(`${filePath} is not a file`);
+			throw new Error(t("errors.pathIsNotFile", { path: filePath }));
 
 		return file;
 	}
@@ -78,7 +78,7 @@ export abstract class QuickAddEngine {
 		// upstream normalizer is bypassed. Mirrors the package-import write guard (#1434).
 		if (escapesVaultBoundary(filePath)) {
 			throw new Error(
-				`Refusing to create a file outside the vault: "${filePath}".`,
+				t("errors.createOutsideVault", { path: filePath }),
 			);
 		}
 

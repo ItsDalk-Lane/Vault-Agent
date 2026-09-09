@@ -37,6 +37,7 @@ import {
 } from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { t } from "../i18n";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	routePrompt,
@@ -53,7 +54,7 @@ function folderNotAllowedMessage(roots: string[]): string {
 		displayRoots.length > 3
 			? `${displayRoots.slice(0, 3).join(", ")}...`
 			: displayRoots.join(", ");
-	return `Folder must be under: ${list}`;
+	return t("errors.folderNotAllowed", { roots: list });
 }
 
 /**
@@ -233,8 +234,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				// it would hang. Abort with an actionable error.
 				headless: () => {
 					throw new ChoiceAbortError(
-						"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
-							"Configure a single target folder, or re-run with the ui flag.",
+						t("errors.nonInteractiveFolderChoice")
 					);
 				},
 				app: () =>
@@ -365,7 +365,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		if (selection.isEmpty) return "";
 		if (!selection.isAllowed) {
 			this.showFolderNotAllowedNotice(context.allowedRoots);
-			throw new MacroAbortError("Selected folder not allowed.");
+			throw new MacroAbortError(t("errors.selectedFolderNotAllowed"));
 		}
 
 		if (selection.resolved) {
@@ -400,28 +400,28 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	private validateFolderSegment(segment: string): void {
 		if (!segment) {
-			throw new InvalidFolderPathError("Folder name cannot be empty.");
+			throw new InvalidFolderPathError(t("errors.folderNameEmpty"));
 		}
 
 		if (segment === "." || segment === "..") {
-			throw new InvalidFolderPathError("Folder name cannot be '.' or '..'.");
+			throw new InvalidFolderPathError(t("errors.folderNameDotSegments"));
 		}
 
 		if (INVALID_FOLDER_CONTROL_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
-				"Folder name cannot contain control characters.",
+				t("errors.folderNameControlChars")
 			);
 		}
 
 		if (INVALID_FOLDER_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
-				"Folder name cannot contain any of the following characters: \\ / : * ? \" < > |",
+				t("errors.folderNameInvalidChars")
 			);
 		}
 
 		if (INVALID_FOLDER_TRAILING_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
-				"Folder name cannot end with a space or a period.",
+				t("errors.folderNameTrailingChars")
 			);
 		}
 
@@ -433,7 +433,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const base = segment.split(".")[0] ?? "";
 		if (base && isReservedWindowsDeviceName(base)) {
 			throw new InvalidFolderPathError(
-				"Folder name cannot be a reserved name like CON, PRN, AUX, NUL, COM1-9, or LPT1-9.",
+				t("errors.folderNameReservedDeviceName")
 			);
 		}
 	}
@@ -618,7 +618,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		);
 		if (!baseName.trim()) {
 			throw new Error(
-				"File name is empty after formatting. Make sure the tokens in the file name format produce a value (an optional token left empty can cause this)."
+				t("errors.templateFileNameEmpty")
 			);
 		}
 		const assembledPath = `${actualFolderPath}${formattedFileName}${extension}`;
@@ -632,7 +632,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		// every caller of this assembler is contained.
 		if (escapesVaultBoundary(assembledPath)) {
 			throw new Error(
-				`Refusing to build a file path outside the vault: "${assembledPath}".`,
+				t("errors.templatePathOutsideVault", { path: assembledPath }),
 			);
 		}
 		return assembledPath;
@@ -899,7 +899,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 		if (!templateFile)
 			throw new Error(
-				`Template file not found at path "${resolvedTemplatePath}".`
+				t("errors.templateFileNotFound", { path: resolvedTemplatePath })
 			);
 
 		return await this.app.vault.cachedRead(templateFile);

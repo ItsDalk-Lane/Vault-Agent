@@ -56,7 +56,7 @@ export async function getReleaseNotesAfter(
 			typeof (body as { message?: unknown }).message === "string"
 				? (body as { message: string }).message
 				: "Unknown error";
-		throw new Error(`Failed to fetch releases: ${message}`);
+		throw new Error(t("errors.releaseFetchFailed", { error: message }));
 	}
 
 	const releases = body as Release[];
@@ -66,7 +66,7 @@ export async function getReleaseNotesAfter(
 	);
 
 	if (startReleaseIdx === -1) {
-		throw new Error(`Could not find release with tag ${releaseTagName}`);
+		throw new Error(t("errors.releaseTagNotFound", { tag: releaseTagName }));
 	}
 
 	return releases
@@ -255,8 +255,8 @@ export class UpdateModal extends Modal {
 		contentEl.empty();
 		contentEl.classList.add("quickadd-update-modal-container");
 
-        const header = `### New in QuickAdd v${this.releases[0].tag_name}\n`
-		const text = `Thank you for using QuickAdd! If you like the plugin, please consider supporting me by buying me a coffee. With your sponsorship, I'll be able to contribute more to my existing projects, start new ones, and be more responsive to issues & feature requests.`;
+        const header = t("update.header", { version: this.releases[0].tag_name });
+		const text = t("update.thanks");
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
 		const contentDiv = contentEl.createDiv("quickadd-update-modal");
@@ -264,8 +264,10 @@ export class UpdateModal extends Modal {
 			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
-		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
-        const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
+		const andNow = t("update.andNow", { version: this.previousVersion });
+        const feedbackForm = t("update.feedbackForm", {
+            link: `<a href="https://forms.gle/WRq1ewcKK8qmkqps6">${t("update.feedbackLinkText")}</a>`,
+        });
 		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${addExtraHashToHeadings(
 			releaseNotes
 		)}`;

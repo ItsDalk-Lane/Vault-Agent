@@ -42,6 +42,7 @@ import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../utils/activeNoteFieldDefault";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { log } from "../logger/logManager";
+import { t } from "../i18n";
 import { Formatter, type PromptContext } from "./formatter";
 import {
 	buildPromptContextLine,
@@ -136,7 +137,7 @@ export class CompleteFormatter extends Formatter {
 		// Check for {{title}} usage in filename which would cause infinite recursion
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
-				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
+				t("errors.titleInFileName")
 			);
 		}
 
@@ -151,7 +152,7 @@ export class CompleteFormatter extends Formatter {
 		// formatTemplateFilePath's post-global-expansion guard.
 		if (TITLE_REGEX.test(output)) {
 			throw new Error(
-				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
+				t("errors.titleInFileName")
 			);
 		}
 		// {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one pass (links
@@ -227,7 +228,7 @@ export class CompleteFormatter extends Formatter {
 		// Check for {{title}} usage in folder path which would cause issues
 		if (TITLE_REGEX.test(folderName)) {
 			throw new Error(
-				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
+				t("errors.titleInFolderPath")
 			);
 		}
 
@@ -240,7 +241,7 @@ export class CompleteFormatter extends Formatter {
 		// Re-check post format() so it throws the circular-dependency error.
 		if (TITLE_REGEX.test(formatted)) {
 			throw new Error(
-				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
+				t("errors.titleInFolderPath")
 			);
 		}
 
@@ -287,7 +288,7 @@ export class CompleteFormatter extends Formatter {
 	async formatTemplateFilePath(input: string): Promise<string> {
 		if (TITLE_REGEX.test(input)) {
 			throw new Error(
-				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
+				t("errors.titleInTemplatePath")
 			);
 		}
 
@@ -302,7 +303,7 @@ export class CompleteFormatter extends Formatter {
 		// that merely contains the literal text "{{title}}".
 		if (TITLE_REGEX.test(output)) {
 			throw new Error(
-				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
+				t("errors.titleInTemplatePath")
 			);
 		}
 
@@ -482,8 +483,7 @@ export class CompleteFormatter extends Formatter {
 	private assertInteractivePrompt(what: string): void {
 		if (this.choiceExecutor?.interactive === false) {
 			throw new ChoiceAbortError(
-				`This run is non-interactive but a value for ${what} was not provided up front. ` +
-					`Pass it (e.g. a value- flag) or re-run with the ui flag.`,
+				t("errors.nonInteractivePromptValue", { what }),
 			);
 		}
 	}
@@ -721,7 +721,7 @@ export class CompleteFormatter extends Formatter {
 					await provider.suggester(
 						["true", "false"],
 						["true", "false"],
-						context.description ?? header ?? context.label ?? "Choose value",
+						context.description ?? header ?? context.label ?? t("svelteCards.chooseValue"),
 						false,
 					),
 				);
@@ -781,7 +781,7 @@ export class CompleteFormatter extends Formatter {
 					this.app,
 					["true", "false"],
 					["true", "false"],
-					context.description ?? header ?? context.label ?? "Choose value",
+					context.description ?? header ?? context.label ?? t("svelteCards.chooseValue"),
 					undefined,
 					context.optional ? { skippable: true } : undefined,
 				);

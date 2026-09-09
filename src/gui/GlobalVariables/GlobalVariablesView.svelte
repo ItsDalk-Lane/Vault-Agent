@@ -110,7 +110,7 @@
   <!-- No panel title: this view is mounted directly under the "Global
        variables" settings group heading, which already names it. -->
   <div class="qa-gv__desc">
-    Define reusable snippets referenced as <code>&#123;&#123;GLOBAL_VAR:&lt;name&gt;&#125;&#125;</code>. Snippets support other QuickAdd tokens and expand before VALUE/VDATE/etc.
+    {t("globalVariables.descPrefix")}<code>&#123;&#123;GLOBAL_VAR:&lt;name&gt;&#125;&#125;</code>{t("globalVariables.descSuffix")}
   </div>
 
   <div class="qa-gv__table">

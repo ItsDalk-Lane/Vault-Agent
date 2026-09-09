@@ -1,6 +1,7 @@
 import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import { t } from "../../i18n";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
@@ -116,7 +117,7 @@ export function parsePropertyCapture(input: unknown): PropertyCapture {
 		!("action" in input) || (input.action !== "set" && input.action !== "addToList") ||
 		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean"
 	) {
-		throw new Error("Invalid property capture settings. Choose a property and action in the Capture settings.");
+		throw new Error(t("errors.invalidPropertyCaptureSettings"));
 	}
 	const property = input.property;
 	if (property.kind === "prompt") {
@@ -125,5 +126,5 @@ export function parsePropertyCapture(input: unknown): PropertyCapture {
 	if (property.kind === "named" && "format" in property && typeof property.format === "string") {
 		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing };
 	}
-	throw new Error("Invalid property capture selector.");
+	throw new Error(t("errors.invalidPropertyCaptureSelector"));
 }

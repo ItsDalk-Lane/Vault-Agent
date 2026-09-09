@@ -3,6 +3,7 @@ import { settingsStore } from "../settingsStore";
 import { fileBasenameFromPath } from "./fileSyntax";
 import { isPortablePathSegment } from "./pathValidation";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
+import { t } from "../i18n";
 
 /**
  * Clipboard image MIME types QuickAdd accepts, mapped to the file extension the
@@ -82,7 +83,9 @@ export function clipboardImageAttachmentFileName(
 
 export function clipboardImageFilename(mimeType: string, now: Date): string {
 	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
+		throw new Error(
+			t("errors.unsupportedClipboardImageType", { type: mimeType }),
+		);
 	}
 
 	return clipboardImageAttachmentFileName({
@@ -107,7 +110,7 @@ export function droppedImageFilename(
 	now: Date,
 ): string {
 	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported image type: ${mimeType}`);
+		throw new Error(t("errors.unsupportedImageType", { type: mimeType }));
 	}
 
 	const stem = droppedImageStem(originalName);
@@ -141,7 +144,7 @@ export async function saveImageBytesToVault(
 	filename: string,
 ): Promise<TFile> {
 	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported image type: ${mimeType}`);
+		throw new Error(t("errors.unsupportedImageType", { type: mimeType }));
 	}
 
 	const attachmentPath = await app.fileManager.getAvailablePathForAttachment(
@@ -150,7 +153,7 @@ export async function saveImageBytesToVault(
 	);
 	if (escapesVaultBoundary(attachmentPath)) {
 		throw new Error(
-			`Refusing to save image outside the vault: '${attachmentPath}'`,
+			t("errors.imageOutsideVault", { path: attachmentPath }),
 		);
 	}
 	return app.vault.createBinary(attachmentPath, data);
@@ -164,7 +167,9 @@ export async function saveClipboardImageToVault(
 	options?: SaveClipboardImageOptions,
 ): Promise<TFile> {
 	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
+		throw new Error(
+			t("errors.unsupportedClipboardImageType", { type: mimeType }),
+		);
 	}
 
 	const nameAfterNoteTitle =

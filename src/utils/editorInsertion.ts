@@ -180,7 +180,7 @@ export async function insertLinkWithPlacement(
 	} = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
-		const message = "Cannot append link because no active Markdown view is available.";
+		const message = t("errors.appendLinkNoActiveView");
 		if (requireActiveView) {
 			throw new Error(message);
 		}
@@ -191,7 +191,7 @@ export async function insertLinkWithPlacement(
 	if (mode === "inFrontmatter") {
 		const file = view.file;
 		if (!file) {
-			throw new Error("Cannot append link because the active Markdown view has no file.");
+			throw new Error(t("errors.appendLinkNoFileInView"));
 		}
 
 		await app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -209,7 +209,7 @@ export async function insertLinkWithPlacement(
 	// Editor-less Markdown-masquerading views (e.g. Thino's) support the
 	// frontmatter placement above, but no text placement.
 	if (!editor) {
-		const message = "Cannot append link because the active Markdown view has no editor.";
+		const message = t("errors.appendLinkNoEditorInView");
 		if (requireActiveView) {
 			throw new Error(message);
 		}
@@ -334,7 +334,7 @@ export async function insertFileLinkToActiveView(
 		// requireActiveFile to true, which would turn a raw caller's previous
 		// silent skip into a throw.
 		if (linkOptions.requireActiveFile) {
-			throw new Error("Cannot append link because no active Markdown view is available.");
+			throw new Error(t("errors.appendLinkNoActiveView"));
 		}
 		return false;
 	}

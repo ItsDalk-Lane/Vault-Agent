@@ -57,8 +57,7 @@ export async function promptForTemplateNoteDiscovery(
 			// missing input. Guarded anyway, so the branch cannot become a hang.
 			headless: () => {
 				throw new ChoiceAbortError(
-					`'${choice.name}' needs to ask which note to open or create, but this run is non-interactive. ` +
-						`Pass the note name (e.g. value-value=<name>), or re-run with the ui flag.`,
+					t("errors.nonInteractiveNoteDiscovery", { name: choice.name }),
 				);
 			},
 			app: () => new TemplateNoteDiscoveryModal(app, choice, candidates).promise,

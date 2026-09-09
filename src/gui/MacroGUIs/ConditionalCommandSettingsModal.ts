@@ -293,7 +293,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 							);
 							if (reason) {
 								new Notice(
-									`QuickAdd: "${candidate.file.path}" — ${reason}`,
+									t("macro.commandRunFailed", { path: candidate.file.path, reason }),
 								);
 								return;
 							}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { t } from "../../i18n";
 
 	let {
 		what,
@@ -29,16 +30,15 @@
 <div class="qaDataUnreadable">
 	<div class="qaDataUnreadableHead">
 		<ObsidianIcon iconId="alert-triangle" size={16} />
-		<span class="qaDataUnreadableTitle">QuickAdd couldn't read {what}</span>
+		<span class="qaDataUnreadableTitle">{t("svelteCards.couldNotRead", { what })}</span>
 	</div>
 	<p class="qaDataUnreadableBody">
-		The saved value isn't in a shape QuickAdd understands, so it can't be shown
-		or edited here. Nothing has been changed or deleted, and QuickAdd will not
-		overwrite it.
+		{t("svelteCards.dataUnreadableBody")}
 	</p>
 	<p class="qaDataUnreadableBody">
-		It's stored in <code>.obsidian/plugins/quickadd/data.json</code> inside this
-		vault. Make a copy of that file before editing it.
+		{t("svelteCards.dataUnreadableStored")}
+		<code>.obsidian/plugins/quickadd/data.json</code>
+		{t("svelteCards.dataUnreadableCopy")}
 	</p>
 </div>
 

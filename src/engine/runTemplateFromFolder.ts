@@ -84,7 +84,7 @@ async function pickTemplateFile(
 			app,
 			paths,
 			paths,
-			"New note from template",
+			t("choiceSuggester.newNoteFromTemplate"),
 			(path, el) => renderTemplateRow(path, el),
 		);
 	} catch (error) {

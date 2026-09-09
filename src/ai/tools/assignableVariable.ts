@@ -1,4 +1,5 @@
 import { isReservedVariableKey } from "../../utils/reservedVariableKeys";
+import { t } from "../../i18n";
 
 /**
  * Guard for the `assignToVariable` option shared by ai.agent and ai.prompt/chunkedPrompt (#714).
@@ -8,7 +9,7 @@ import { isReservedVariableKey } from "../../utils/reservedVariableKeys";
  */
 export function assertAssignableVariableName(name: string): void {
 	const trimmed = name.trim();
-	if (!trimmed) throw new Error("assignToVariable cannot be empty.");
+	if (!trimmed) throw new Error(t("errors.assignToVariableEmpty"));
 	// `value` (the programmatic {{VALUE}} slot) and `title` (file-name title) are
 	// formatter-reserved; assigning them would silently hijack those tokens.
 	// Matched case-INSENSITIVELY because the formatter resolves {{VALUE:name}}
@@ -17,7 +18,7 @@ export function assertAssignableVariableName(name: string): void {
 	// built-in token - consistent with isReservedVariableKey below.
 	if (new Set(["value", "title", "text", "meta"]).has(trimmed.toLowerCase())) {
 		throw new Error(
-			`assignToVariable "${trimmed}" is reserved (it would hijack a built-in formatter token).`,
+			t("errors.assignToVariableReserved", { name: trimmed }),
 		);
 	}
 	// Case-insensitive for the same reason as the reserved-name set above: the
@@ -25,19 +26,19 @@ export function assertAssignableVariableName(name: string): void {
 	// would still collide with the auto-generated `${key}-quoted` companion.
 	if (trimmed.toLowerCase().endsWith("-quoted")) {
 		throw new Error(
-			`assignToVariable "${trimmed}" cannot end with "-quoted" (collides with the quoted output variable).`,
+			t("errors.assignToVariableQuotedSuffix", { name: trimmed }),
 		);
 	}
 	// Reserved internal namespace (shared with the URI/CLI boundaries) and the
 	// pipe/comma characters the {{VALUE:name}} grammar cannot reference.
 	if (isReservedVariableKey(trimmed)) {
 		throw new Error(
-			`assignToVariable "${trimmed}" uses the reserved "__qa." prefix for QuickAdd internal variables.`,
+			t("errors.assignToVariableReservedPrefix", { name: trimmed }),
 		);
 	}
 	if (/[|,]/.test(trimmed)) {
 		throw new Error(
-			`assignToVariable "${trimmed}" contains characters unreachable by {{VALUE:name}}.`,
+			t("errors.assignToVariableInvalidChars", { name: trimmed }),
 		);
 	}
 }

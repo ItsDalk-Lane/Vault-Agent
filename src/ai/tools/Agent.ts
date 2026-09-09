@@ -11,6 +11,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
+import { t } from "../../i18n";
 import { CompleteFormatter } from "../../formatters/completeFormatter";
 import { makeNoticeHandler } from "../makeNoticeHandler";
 import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
@@ -95,10 +96,10 @@ export class Agent {
 		for (const [name, tool] of Object.entries(config.tools ?? {})) {
 			if (!TOOL_NAME_RE.test(name)) {
 				throw new Error(
-					`Invalid tool name "${name}". Tool names must match ${TOOL_NAME_RE}.`,
+					t("errors.invalidToolName", { name, pattern: String(TOOL_NAME_RE) }),
 				);
 			}
-			if (seen.has(name)) throw new Error(`Duplicate tool name "${name}".`);
+			if (seen.has(name)) throw new Error(t("errors.duplicateToolName", { name }));
 			seen.add(name);
 			assertRegisterableSchema(tool.inputSchema, `tool "${name}".inputSchema`);
 		}
@@ -107,7 +108,7 @@ export class Agent {
 	async generate(options: GenerateOptions = {}): Promise<GenerateResult> {
 		if (this.running) {
 			throw new Error(
-				"This agent is already running a generate() call. Await it, or create a separate agent for concurrent runs.",
+				t("errors.agentAlreadyRunning"),
 			);
 		}
 		const usesVariables =
@@ -117,7 +118,7 @@ export class Agent {
 			this.assertAssignableName(options.assignToVariable as string);
 			if (statefulRunsInFlight.has(this.choiceExecutor)) {
 				throw new Error(
-					"Another AI run with assignToVariable is already in flight in this context — they would race the shared variables. Run them sequentially.",
+					t("errors.concurrentStatefulRuns"),
 				);
 			}
 		}
@@ -148,7 +149,7 @@ export class Agent {
 		const pluginSettings = settingsStore.getState();
 		if (pluginSettings.disableOnlineFeatures) {
 			throw new Error(
-				"Rejecting AI request: Online features are disabled in settings.",
+				t("errors.agentRequestOnlineDisabled"),
 			);
 		}
 

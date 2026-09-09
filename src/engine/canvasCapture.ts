@@ -4,6 +4,7 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { t } from "../i18n";
 import type { CaptureAction } from "./captureAction";
 
 type CanvasDataNodeLike = {
@@ -124,11 +125,11 @@ export function getCanvasActionUnsupportedReason(
 ): string | null {
 	if (nodeKind === "text") {
 		if (action === "currentLine") {
-			return "Canvas capture does not support 'At cursor' for text cards. Use top, bottom, insert-after, or insert-before placement.";
+			return t("errors.canvasTextCursorUnsupported");
 		}
 
 		if (action === "newLineAbove" || action === "newLineBelow") {
-			return "Canvas capture does not support 'New line above/below cursor' for text cards. Use top, bottom, insert-after, or insert-before placement.";
+			return t("errors.canvasTextNewLineUnsupported");
 		}
 	}
 
@@ -138,7 +139,7 @@ export function getCanvasActionUnsupportedReason(
 			action === "newLineAbove" ||
 			action === "newLineBelow"
 		) {
-			return "Canvas file cards do not support cursor-based capture modes. Use top, bottom, insert-after, or insert-before modes.";
+			return t("errors.canvasFileCursorUnsupported");
 		}
 	}
 
@@ -179,7 +180,7 @@ function getCanvasFile(app: CanvasAppLike, view: CanvasViewLike): TFile {
 	const canvasFile = view.file ?? app.workspace.getActiveFile?.();
 	if (!canvasFile) {
 		throw new ChoiceAbortError(
-			"Cannot capture to Canvas because no active Canvas file is available.",
+			t("errors.canvasNoActiveFile"),
 		);
 	}
 
@@ -190,7 +191,7 @@ function getSingleSelectedCanvasNode(canvas: CanvasLike): CanvasNodeLike {
 	const selected = canvas.selection ? Array.from(canvas.selection) : [];
 	if (selected.length !== 1) {
 		throw new ChoiceAbortError(
-			"Canvas capture requires exactly one selected node.",
+			t("errors.canvasNodeSelectionRequired"),
 		);
 	}
 
@@ -203,13 +204,13 @@ function resolveCanvasFileTargetPath(
 	const linkedPath = resolveCanvasNodeFilePath(node);
 	if (!linkedPath) {
 		throw new ChoiceAbortError(
-			"Selected Canvas file card does not have a valid linked file path.",
+			t("errors.canvasFileCardInvalidLink"),
 		);
 	}
 
 	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(linkedPath)) {
 		throw new ChoiceAbortError(
-			"Canvas file card targets markdown files only in this version.",
+			t("errors.canvasFileCardMarkdownOnly"),
 		);
 	}
 
@@ -224,7 +225,7 @@ function resolveActiveCanvasFileTarget(
 	const linked = app.vault.getAbstractFileByPath(targetPath);
 	if (!isTFileLike(linked)) {
 		throw new ChoiceAbortError(
-			`Selected Canvas file card target not found: ${targetPath}`,
+			t("errors.canvasFileTargetNotFound", { path: targetPath }),
 		);
 	}
 
@@ -243,7 +244,7 @@ function resolveConfiguredCanvasFileTarget(
 
 	if (!isTFileLike(linked)) {
 		throw new ChoiceAbortError(
-			`Selected Canvas file card target not found: ${targetPath}`,
+			t("errors.canvasFileTargetNotFound", { path: targetPath }),
 		);
 	}
 
@@ -258,18 +259,16 @@ function parseStoredCanvasData(raw: string, path: string): StoredCanvasData {
 	try {
 		parsed = JSON.parse(raw);
 	} catch {
-		throw new ChoiceAbortError(`Canvas file is not valid JSON: ${path}`);
+		throw new ChoiceAbortError(t("errors.canvasInvalidJson", { path }));
 	}
 
 	if (!parsed || typeof parsed !== "object") {
-		throw new ChoiceAbortError(`Canvas file has invalid structure: ${path}`);
+		throw new ChoiceAbortError(t("errors.canvasInvalidStructure", { path }));
 	}
 
 	const maybeData = parsed as { nodes?: unknown };
 	if (!Array.isArray(maybeData.nodes)) {
-		throw new ChoiceAbortError(
-			`Canvas file has no nodes array: ${path}`,
-		);
+		throw new ChoiceAbortError(t("errors.canvasNoNodesArray", { path }));
 	}
 
 	return parsed as StoredCanvasData;
@@ -285,9 +284,7 @@ export function resolveActiveCanvasCaptureTarget(
 
 	const canvas = view.canvas;
 	if (!canvas) {
-		throw new ChoiceAbortError(
-			"Canvas capture is unavailable in this Obsidian version.",
-		);
+		throw new ChoiceAbortError(t("errors.canvasUnavailable"));
 	}
 
 	const canvasFile = getCanvasFile(canvasApp, view);
@@ -301,7 +298,7 @@ export function resolveActiveCanvasCaptureTarget(
 
 	if (nodeKind === "unsupported") {
 		throw new ChoiceAbortError(
-			"Canvas capture currently supports only text and file cards.",
+			t("errors.canvasUnsupportedNodeKind"),
 		);
 	}
 
@@ -343,17 +340,17 @@ export async function resolveConfiguredCanvasCaptureTarget(
 ): Promise<ConfiguredCanvasCaptureTarget> {
 	const trimmedNodeId = nodeId.trim();
 	if (!trimmedNodeId) {
-		throw new ChoiceAbortError("Canvas node id is required for Canvas node capture.");
+		throw new ChoiceAbortError(t("errors.canvasNodeIdRequired"));
 	}
 
 	const abstractCanvasFile = app.vault.getAbstractFileByPath(canvasPath);
 	if (!isTFileLike(abstractCanvasFile)) {
-		throw new ChoiceAbortError(`Canvas target not found: ${canvasPath}`);
+		throw new ChoiceAbortError(t("errors.canvasTargetNotFound", { path: canvasPath }));
 	}
 
 	if (!CANVAS_FILE_EXTENSION_REGEX.test(abstractCanvasFile.path)) {
 		throw new ChoiceAbortError(
-			"Canvas node capture requires the target path to be a .canvas file.",
+			t("errors.canvasNodeCaptureRequiresCanvasFile"),
 		);
 	}
 
@@ -362,7 +359,10 @@ export async function resolveConfiguredCanvasCaptureTarget(
 	const nodeIndex = canvasData.nodes.findIndex((node) => node.id === trimmedNodeId);
 	if (nodeIndex === -1) {
 		throw new ChoiceAbortError(
-			`Canvas node id '${trimmedNodeId}' was not found in ${abstractCanvasFile.path}.`,
+			t("errors.canvasNodeIdNotFound", {
+				id: trimmedNodeId,
+				path: abstractCanvasFile.path,
+			}),
 		);
 	}
 
@@ -370,7 +370,7 @@ export async function resolveConfiguredCanvasCaptureTarget(
 	const nodeKind = getNodeKind(nodeData);
 	if (nodeKind === "unsupported") {
 		throw new ChoiceAbortError(
-			"Canvas capture currently supports only text and file cards.",
+			t("errors.canvasUnsupportedNodeKind"),
 		);
 	}
 
@@ -447,7 +447,7 @@ export async function setCanvasTextCaptureContent(
 	const latestRawCanvas = await app.vault.read(target.canvasFile);
 	if (latestRawCanvas !== target.rawCanvas) {
 		throw new ChoiceAbortError(
-			"Canvas target changed while capture was running. Re-run capture to avoid overwriting newer Canvas edits.",
+			t("errors.canvasChangedDuringCapture"),
 		);
 	}
 

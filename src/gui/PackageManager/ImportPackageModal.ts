@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
+import { t } from "../../i18n";
 import ImportPackageModalComponent from "./ImportPackageModal.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 
@@ -19,7 +20,7 @@ export class ImportPackageModal extends Modal {
 				app: this.app,
 				close: () => this.close(),
 			},
-			{ what: "the package importer" },
+			{ what: t("svelteCards.whatPackageImporter") },
 		);
 	}
 
