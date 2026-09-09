@@ -41,6 +41,14 @@ export interface QuickAddSettings {
 		*/
 	templateFolderPaths: string[];
 	announceUpdates: "all" | "major" | "none";
+	/**
+	 * Override the plugin UI language. Empty string means "follow Obsidian's
+	 * language" (via `getLanguage()`); any other value is matched against
+	 * SUPPORTED_LOCALES in `src/i18n/index.ts`. A user setting this in the
+	 * settings tab must reload the plugin for command names and modal labels
+	 * to update — they're registered at onload() with the resolved locale.
+	 */
+	preferredLocale?: string;
 	version: string;
 	globalVariables: Record<string, string>;
 	/**
@@ -123,6 +131,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	devMode: false,
 	templateFolderPaths: [],
 	announceUpdates: "major",
+	preferredLocale: "",
 	version: "0.0.0",
 	globalVariables: {},
 	onePageInputEnabled: false,

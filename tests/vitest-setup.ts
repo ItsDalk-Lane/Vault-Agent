@@ -2,6 +2,16 @@
 // Adds jest-dom matchers (toBeInTheDocument, toHaveAttribute, ...) to expect().
 import "@testing-library/jest-dom/vitest";
 
+// Pin the i18n module to English for the whole test run. Without this, every
+// test would race on the module-level `currentLocale` variable, and any test
+// that asserts a UI string (e.g. `expect(button.textContent).toBe("Yes")`) is
+// coupled to the plugin's current language. English is the universal fallback
+// for missing translations, so locking it here means existing assertions stay
+// green across every locale. Tests that explicitly want to assert Chinese
+// strings can call `lockTestLocale("zh-CN")` themselves.
+import { lockTestLocale } from "./helpers/i18n";
+lockTestLocale("en");
+
 // Obsidian augments HTMLElement/SVGElement with `setCssStyles`/`setCssProps` at
 // runtime; jsdom does not. Provide faithful polyfills so plugin code that uses
 // them (the idiomatic alternative to direct `.style.x = ...` assignment) runs

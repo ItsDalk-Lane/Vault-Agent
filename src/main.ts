@@ -49,7 +49,6 @@ import {
 } from "./types/choiceCommands";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
-import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { PromptPeekSession } from "./gui/promptPeek/PromptPeekSession";
 import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imagePasteHandler";
 import { setQuickAddInstance } from "./quickAddInstance";
@@ -66,6 +65,7 @@ import {
 	type CallbackTargets,
 } from "./uri/uriCallback";
 import { runTemplateFromFolder } from "./engine/runTemplateFromFolder";
+import { setLocale, t } from "./i18n";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -134,9 +134,16 @@ export default class QuickAdd extends Plugin {
 			this.requestSave();
 		});
 
+		// Pin the i18n module's locale before any user-visible string is built.
+		// Command names and ribbon tooltip are baked in at registration time;
+		// Obsidian doesn't allow hot-renaming, so a `preferredLocale` change in
+		// the settings tab needs a plugin reload to take effect — which is what
+		// the settings tab's own description tells the user.
+		setLocale(this.settings.preferredLocale);
+
 		this.addCommand({
 			id: "runQuickAdd",
-			name: QUICK_ADD_COMMAND_LABELS.run,
+			name: t("command.run"),
 			callback: () => {
 				openChoiceLauncher(this);
 			},
@@ -144,7 +151,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "resumePrompt",
-			name: QUICK_ADD_COMMAND_LABELS.resumePrompt,
+			name: t("command.resumePrompt"),
 			checkCallback: (checking) => {
 				if (!PromptPeekSession.isPeeking()) return false;
 				if (!checking) PromptPeekSession.getActive()?.resume();
@@ -154,7 +161,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "runTemplateFromFolder",
-			name: QUICK_ADD_COMMAND_LABELS.runTemplateFromFolder,
+			name: t("command.runTemplateFromFolder"),
 			callback: () => {
 				void runTemplateFromFolder(this.app, this, {
 					choiceExecutor: new ChoiceExecutor(this.app, this),
@@ -164,7 +171,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "applyTemplateToActiveFile",
-			name: QUICK_ADD_COMMAND_LABELS.applyTemplate,
+			name: t("command.applyTemplate"),
 			checkCallback: (checking) => {
 				const file = this.app.workspace.getActiveFile();
 				const available = file?.extension === "md";
@@ -186,10 +193,10 @@ export default class QuickAdd extends Plugin {
 				menu.addItem((item) =>
 					item
 						// Aligns with the command-palette label
-						// (QUICK_ADD_COMMAND_LABELS.applyTemplate) so the same action reads
-						// consistently across both surfaces. Obsidian prefixes commands with
+						// (command.applyTemplate) so the same action reads consistently
+						// across both surfaces. Obsidian prefixes commands with
 						// "QuickAdd:"; the file menu is unprefixed, so add it here.
-						.setTitle(`QuickAdd: ${QUICK_ADD_COMMAND_LABELS.applyTemplate}`)
+						.setTitle(`QuickAdd: ${t("command.applyTemplate")}`)
 						.setIcon("file-plus")
 						.onClick(() => {
 							void applyTemplateToNote(this.app, this, {
@@ -203,7 +210,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "reloadQuickAdd",
-			name: QUICK_ADD_COMMAND_LABELS.reloadDev,
+			name: t("command.reloadDev"),
 			checkCallback: (checking) => {
 				if (checking) {
 					return this.settings.devMode;
@@ -226,7 +233,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "openQuickAddSettings",
-			name: QUICK_ADD_COMMAND_LABELS.openSettings,
+			name: t("command.openSettings"),
 			callback: () => {
 				openQuickAddSettings(this.app, this.manifest.id);
 			},

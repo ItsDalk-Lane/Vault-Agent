@@ -37,6 +37,7 @@ import {
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
 import { rootChoicesOf } from "./utils/choiceUtils";
+import { t } from "./i18n";
 
 /** String-named keys of {@link QuickAddSettings} — used to type the declarative
  * `control` keys so a mistyped key is caught at compile time. */
@@ -356,11 +357,25 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private appearanceGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Appearance",
+			heading: t("settings.appearance.heading"),
 			items: [
 				{
-					name: "Show icon in sidebar",
-					desc: "Add QuickAdd icon to the sidebar ribbon. Requires a reload.",
+					name: t("settings.language.name"),
+					desc: t("settings.language.desc"),
+					control: {
+						type: "dropdown",
+						key: "preferredLocale",
+						defaultValue: "",
+						options: {
+							"": t("settings.language.auto"),
+							en: t("settings.language.en"),
+							"zh-CN": t("settings.language.zh-CN"),
+						},
+					},
+				},
+				{
+					name: t("settings.appearance.ribbonIconName"),
+					desc: t("settings.appearance.ribbonIconDesc"),
 					control: { type: "toggle", key: "enableRibbonIcon" },
 				},
 			],

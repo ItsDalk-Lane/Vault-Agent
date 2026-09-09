@@ -972,6 +972,16 @@ export function prepareFuzzySearch(query: string) {
   };
 }
 
+/**
+ * Stub for Obsidian's `getLanguage()` API. Returns "en" by default so the
+ * i18n module's English fallback matches; tests that need to assert a non-en
+ * locale branch should mock this with `vi.mock("obsidian", ...)` or override
+ * the default export's `getLanguage` field.
+ */
+export function getLanguage(): string {
+  return "en";
+}
+
 // Minimal FileSystemAdapter so the symlink/realpath write guard
 // (src/utils/vaultWriteGuards.ts) can be exercised in a unit test. The guard
 // bails out unless `adapter instanceof FileSystemAdapter`; existing tests pass
@@ -1029,4 +1039,5 @@ export default {
   setIcon,
   prepareFuzzySearch,
   Platform,
+  getLanguage,
 };
