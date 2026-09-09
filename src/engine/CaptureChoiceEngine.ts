@@ -26,7 +26,7 @@ import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
+import { parsePropertyCaptures, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
 	planPropertyUpdate,
 	readCaptureFrontmatter,
@@ -37,7 +37,10 @@ import {
 import { resolveObsidianPropertyType } from "../utils/obsidianPropertyTypes";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
-import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
+import {
+	effectivePropertyValueFormat,
+	inheritPropertyValueType,
+} from "../utils/propertyCaptureFormat";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -407,10 +410,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: globalSelectionAsValue;
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
-			const propertyCapture = this.choice.propertyCapture === undefined
-				? undefined
-				: parsePropertyCapture(this.choice.propertyCapture);
-			const action = propertyCapture ? "append" : getCaptureAction(this.choice);
+			const propertyCaptures = parsePropertyCaptures(this.choice.propertyCapture);
+			const action = propertyCaptures.length > 0 ? "append" : getCaptureAction(this.choice);
 			const isEditorInsertionAction =
 				action === "currentLine" ||
 				action === "newLineAbove" ||
@@ -423,7 +424,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
 
 			if (canvasTarget?.kind === "text") {
-				if (propertyCapture) {
+				if (propertyCaptures.length > 0) {
 					throw new ChoiceAbortError(
 					t("errors.canvasPropertyCaptureNeedsMarkdown")
 				);
@@ -440,7 +441,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			if (
-				!propertyCapture && canvasTarget?.kind === "file" &&
+				propertyCaptures.length === 0 && canvasTarget?.kind === "file" &&
 				((action === "insertAfter" &&
 					this.choice.insertAfter?.createIfNotFound &&
 					this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
@@ -491,9 +492,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (!fileAlreadyExists && this.choice?.createFileIfItDoesntExist?.enabled) {
 				assertCreatableFilePath(filePath);
 			}
-			if (propertyCapture) {
-				await this.captureToProperty({
-					filePath, fileAlreadyExists, config: propertyCapture, linkOptions,
+			if (propertyCaptures.length > 0) {
+				await this.captureToProperties({
+					filePath, fileAlreadyExists, configs: propertyCaptures, linkOptions,
 					isCanvasTriggered: !!canvasTarget,
 					onCommit: () => { contentCommitted = true; },
 				});
@@ -745,15 +746,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	private async captureToProperty(args: {
+	private async captureToProperties(args: {
 		filePath: string;
 		fileAlreadyExists: boolean;
-		config: PropertyCapture;
+		configs: PropertyCapture[];
 		linkOptions: NormalizedAppendLinkOptions;
 		isCanvasTriggered: boolean;
 		onCommit: () => void;
 	}): Promise<void> {
-		const { filePath, fileAlreadyExists, config, linkOptions } = args;
+		const { filePath, fileAlreadyExists, configs, linkOptions } = args;
 		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(filePath)) {
 			throw new ChoiceAbortError(t("errors.propertyCaptureRequiresMarkdown"));
 		}
@@ -789,21 +790,47 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		for (const [key, value] of templateVars) {
 			assignFrontmatterValue(frontmatter, key.split(TemplatePropertyCollector.PATH_SEPARATOR), coerceYamlValue(value));
 		}
-		const key = resolveCapturePropertyKey(frontmatter, validatePropertyName(config.property.kind === "named"
-			? await this.formatter.formatPropertyName(config.property.format)
-			: await this.promptForCaptureProperty(frontmatter, config.createIfMissing)));
-		const registeredType = resolveObsidianPropertyType(this.app, key, { registeredOnly: true });
-		const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
-		const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
-		const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
-			this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX, inputType,
-		));
-		const plan = (current: Record<string, unknown>) => planPropertyUpdate({
-			frontmatter: current, key, value, config,
-			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
-		});
-		const prepared = plan(frontmatter);
-		if (config.action === "addToList" && (value === "" || (Array.isArray(value) && value.length === 0))) {
+
+		// Phase A — resolve EVERY row's key and value BEFORE the first write, so
+		// a cancel on any prompt leaves zero partial writes. Prompt candidates are
+		// based on the initial frontmatter snapshot; rows run in list order.
+		interface ResolvedRow {
+			config: PropertyCapture;
+			key: string;
+			value: unknown;
+		}
+		const rows: ResolvedRow[] = [];
+		for (const config of configs) {
+			const key = resolveCapturePropertyKey(frontmatter, validatePropertyName(config.property.kind === "named"
+				? await this.formatter.formatPropertyName(config.property.format)
+				: await this.promptForCaptureProperty(frontmatter, config.createIfMissing)));
+			const registeredType = resolveObsidianPropertyType(this.app, key, { registeredOnly: true });
+			const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
+			const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
+			const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
+				effectivePropertyValueFormat(this.choice, config), inputType,
+			));
+			rows.push({ config, key, value });
+		}
+
+		// Plan EVERY row up front (against the initial frontmatter) so validation
+		// errors — missing property, type mismatch, add-to-list on a scalar —
+		// still surface exactly as the single-property capture did, BEFORE any
+		// write. An empty addToList row plans fine but writes nothing: it is
+		// filtered out here instead of short-circuiting the run. Only when EVERY
+		// row is an empty add is there nothing to do — no write, and (matching
+		// the legacy behavior) no file creation.
+		const planRow = (current: Record<string, unknown>, row: ResolvedRow) =>
+			planPropertyUpdate({
+				frontmatter: current, key: row.key, value: row.value, config: row.config,
+				registeredType: resolveObsidianPropertyType(this.app, row.key, { registeredOnly: true }),
+			});
+		const preparedRows = rows.map((row) => ({ row, prepared: planRow(frontmatter, row) }));
+		const effective = preparedRows.filter(({ row }) =>
+			!(row.config.action === "addToList" &&
+				(row.value === "" || (Array.isArray(row.value) && row.value.length === 0))),
+		);
+		if (effective.length === 0) {
 			this.outcome.success(file, "unchanged");
 			return;
 		}
@@ -811,11 +838,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		let priorContent = "";
 		if (file) {
 			priorContent = await this.app.vault.read(file);
+			// ONE processFrontMatter pass writes every row: each plan re-resolves
+			// the key against `current`, so later rows see earlier rows' results.
 			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
-				current[resolveCapturePropertyKey(current, key)] = plan(current);
+				for (const { row } of effective) {
+					current[resolveCapturePropertyKey(current, row.key)] = planRow(current, row);
+				}
 			});
 		} else {
-			frontmatter[key] = prepared;
+			for (const { row, prepared } of effective) {
+				frontmatter[row.key] = prepared;
+			}
 			file = await this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
 				suppressTemplaterOnCreate: createWithTemplate,
 			});
@@ -825,16 +858,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
 			else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
 			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
-				current[resolveCapturePropertyKey(current, key)] = plan(current);
+				for (const { row } of effective) {
+					current[resolveCapturePropertyKey(current, row.key)] = planRow(current, row);
+				}
 			});
 		}
 		const persistedContent = await this.app.vault.read(file);
 		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
 		if (this.plugin.settings.showCaptureNotification) {
-			new Notice(
-				t("runFeedback.capturedTo", { key, name: file.basename }),
-				DEFAULT_NOTICE_DURATION,
-			);
+			const keys = effective.map(({ row }) => row.key);
+			const label = keys.length === 1
+				? t("runFeedback.capturedTo", { key: keys[0], name: file.basename })
+				: t("runFeedback.capturedToMulti", {
+					keys: keys.length <= 3
+						? keys.join(", ")
+						: `${keys.slice(0, 3).join(", ")} +${keys.length - 3}`,
+					name: file.basename,
+				});
+			new Notice(label, DEFAULT_NOTICE_DURATION);
 		}
 		await this.copyCapturedFileLinkToClipboard(file);
 		await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });

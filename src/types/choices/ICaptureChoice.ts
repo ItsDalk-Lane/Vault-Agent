@@ -9,7 +9,21 @@ export interface PropertyCapture {
 	property: { kind: "named"; format: string } | { kind: "prompt" };
 	action: "set" | "addToList";
 	createIfMissing: boolean;
+	/**
+	 * Per-row value format. Empty/undefined falls back to the choice's capture
+	 * format (`format.enabled ? format.format : {{VALUE}}`), which keeps legacy
+	 * single-property choices byte-identical. See effectivePropertyValueFormat.
+	 */
+	valueFormat?: string;
 }
+
+/**
+ * Persisted shape: a single property capture (legacy/one-row) OR a list for
+ * multi-property captures. Read through getPropertyCaptures; write through
+ * setPropertyCaptures so the on-disk shape stays canonical (never an empty
+ * array; a single row stays a single object).
+ */
+export type PropertyCaptureSetting = PropertyCapture | PropertyCapture[];
 
 /** How to derive a sort key from a section heading's text (issue #481). */
 export type SectionOrderBy =
@@ -35,7 +49,7 @@ export interface SectionOrdering {
 }
 
 export default interface ICaptureChoice extends IChoice {
-	propertyCapture?: PropertyCapture;
+	propertyCapture?: PropertyCaptureSetting;
 	captureTo: string;
 	captureToActiveFile: boolean;
 	captureToCanvasNodeId?: string;
@@ -120,11 +134,66 @@ export function parsePropertyCapture(input: unknown): PropertyCapture {
 		throw new Error(t("errors.invalidPropertyCaptureSettings"));
 	}
 	const property = input.property;
+	// valueFormat survives only as a non-empty string: empty/absent both mean
+	// "fall back to the capture format", so they are indistinguishable on disk.
+	const valueFormat =
+		"valueFormat" in input &&
+		typeof (input as { valueFormat?: unknown }).valueFormat === "string" &&
+		(input as { valueFormat: string }).valueFormat.trim().length > 0
+			? (input as { valueFormat: string }).valueFormat
+			: undefined;
 	if (property.kind === "prompt") {
-		return { property: { kind: "prompt" }, action: input.action, createIfMissing: input.createIfMissing };
+		return { property: { kind: "prompt" }, action: input.action, createIfMissing: input.createIfMissing, valueFormat };
 	}
 	if (property.kind === "named" && "format" in property && typeof property.format === "string") {
-		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing };
+		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing, valueFormat };
 	}
 	throw new Error(t("errors.invalidPropertyCaptureSelector"));
+}
+
+/**
+ * Normalizes the persisted union into a plain row list:
+ * undefined → [], a single object → [x], an array → parsed row-by-row.
+ * Every reader (engine, preflight, UI) goes through this so a legacy single
+ * object behaves exactly like a one-row list.
+ */
+export function parsePropertyCaptures(input: unknown): PropertyCapture[] {
+	if (input === undefined || input === null) return [];
+	if (Array.isArray(input)) return input.map((entry) => parsePropertyCapture(entry));
+	return [parsePropertyCapture(input)];
+}
+
+type PropertyCaptureChoice = { propertyCapture?: PropertyCaptureSetting };
+
+/** Read side: the choice's property captures as a row list ([] when off). */
+export function getPropertyCaptures(
+	choice: PropertyCaptureChoice,
+): PropertyCapture[] {
+	return parsePropertyCaptures(choice.propertyCapture);
+}
+
+/** Whether property-capture mode is on (any row count > 0). */
+export function hasPropertyCapture(choice: PropertyCaptureChoice): boolean {
+	return getPropertyCaptures(choice).length > 0;
+}
+
+/**
+ * Write side. Canonical on-disk shapes: rows.length === 0 removes the field
+ * entirely (so every legacy `if (choice.propertyCapture)` truthiness check
+ * stays correct); a single row persists as a single object (byte-identical
+ * to pre-multi property data); two or more rows persist as an array.
+ */
+export function setPropertyCaptures(
+	choice: PropertyCaptureChoice,
+	rows: PropertyCapture[],
+): void {
+	if (rows.length === 0) {
+		delete choice.propertyCapture;
+		return;
+	}
+	if (rows.length === 1) {
+		choice.propertyCapture = rows[0];
+		return;
+	}
+	choice.propertyCapture = [...rows];
 }

@@ -2,6 +2,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import { hasPropertyCapture } from "../../types/choices/ICaptureChoice";
 import { getTemplateFile } from "../../utilityObsidian";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -150,7 +151,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 </SettingItem>
 
 <SettingItem name={t("choiceBuilder.captureForm.headingContent")} heading />
-{#if !choice.propertyCapture}
+{#if !hasPropertyCapture(choice)}
 <SettingItem name={t("choiceBuilder.captureForm.task")} desc={t("choiceBuilder.captureForm.taskDesc")}>
 	{#snippet control()}
 		<Toggle bind:checked={choice.task} />
@@ -202,7 +203,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-{#if !choice.propertyCapture}
+{#if !hasPropertyCapture(choice)}
 <SettingItem
 	name={t("choiceBuilder.captureForm.templaterAfterCapture")}
 	desc={t("choiceBuilder.captureForm.templaterAfterCaptureDesc")}

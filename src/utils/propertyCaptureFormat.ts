@@ -1,4 +1,7 @@
 import { parseAnonymousValueOptions, parseValueToken } from "./valueSyntax";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import type { PropertyCapture } from "../types/choices/ICaptureChoice";
+import { VALUE_SYNTAX } from "../constants";
 
 export function untypedPropertyValueVariable(format: string): string | null {
 	const named = /^\{\{VALUE:([^{}]+)\}\}$/i.exec(format);
@@ -19,4 +22,22 @@ export function inheritPropertyValueType(format: string, propertyType: string | 
 		return format;
 	}
 	return `${format.slice(0, -2)}|type:${type}}}`;
+}
+
+/**
+ * The format a property capture's VALUE comes from: the row's own
+ * `valueFormat` when set, otherwise the choice's capture format — the exact
+ * expression the single-property engine used, so legacy rows with no
+ * valueFormat resolve byte-identically. Engine and preflight share this so
+ * the one-page form collects precisely the fields a run will read.
+ */
+export function effectivePropertyValueFormat(
+	choice: ICaptureChoice,
+	capture: PropertyCapture,
+): string {
+	const rowFormat = capture.valueFormat?.trim();
+	if (rowFormat) return rowFormat;
+	return choice.format.enabled
+		? choice.format.format
+		: VALUE_SYNTAX;
 }

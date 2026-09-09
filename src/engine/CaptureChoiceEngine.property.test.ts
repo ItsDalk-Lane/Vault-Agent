@@ -7,9 +7,10 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { readCaptureFrontmatter, serializeCaptureFrontmatter } from "./captureProperty";
+import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 
 const mocks = vi.hoisted(() => ({
-	value: vi.fn<() => Promise<unknown>>(),
+	value: vi.fn<(format?: string) => Promise<unknown>>(),
 	template: vi.fn<() => Promise<string>>(),
 	picker: vi.fn<() => Promise<string>>(),
 	templaterEnabled: false,
@@ -36,7 +37,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		consumeCreatedClipboardAttachmentPaths() { return []; }
 		async formatFileName(value: string) { return value; }
 		async formatPropertyName(value: string) { return value; }
-		formatPropertyValue() { return mocks.value(); }
+		formatPropertyValue(format: string) { return mocks.value(format); }
 	},
 }));
 vi.mock("./SingleTemplateEngine", () => ({
@@ -62,6 +63,8 @@ function fixture(content?: string) {
 	const choice = new CaptureChoice("Set status");
 	choice.captureTo = "Inbox.md";
 	choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+	// Typed handle on the single row (propertyCapture itself is a union now).
+	const propertyRow = choice.propertyCapture as PropertyCapture;
 	const executor = { ...createChoiceExecutor(), interactive: false, recordExecutionResult: vi.fn(), signalAbort: vi.fn() };
 	const file = Object.assign(new TFile(), { path: "Inbox.md", basename: "Inbox", name: "Inbox.md", extension: "md" });
 	let stored = content;
@@ -86,7 +89,7 @@ function fixture(content?: string) {
 	};
 	const plugin = { settings: { useSelectionAsCaptureValue: false, showCaptureNotification: false } } as QuickAdd;
 	return {
-		choice, executor, file, create, createFolder, processFrontMatter,
+		choice, propertyRow, executor, file, create, createFolder, processFrontMatter,
 		read: () => stored,
 		overwrite: (content: string) => { stored = content; },
 		race: (content: string) => { beforeCallback = () => { stored = content; }; },
@@ -124,14 +127,14 @@ describe("Capture property writes", () => {
 
 	it("preserves the existing property's casing with creation disabled", async () => {
 		const test = fixture("---\nStatus: active\n---\nBody\n");
-		test.choice.propertyCapture!.createIfMissing = false;
+		test.propertyRow.createIfMissing = false;
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ Status: "done" });
 	});
 
 	it("resolves property casing again against the callback's current values", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
-		test.choice.propertyCapture!.createIfMissing = false;
+		test.propertyRow.createIfMissing = false;
 		test.race("---\nSTATUS: active\n---\nBody\n");
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ STATUS: "done" });
@@ -139,7 +142,7 @@ describe("Capture property writes", () => {
 
 	it("adds to the callback's current list and keeps a concurrent unrelated edit", async () => {
 		const test = fixture("---\nstatus: [old]\nother: before\n---\nBody\n");
-		test.choice.propertyCapture!.action = "addToList";
+		test.propertyRow.action = "addToList";
 		test.race("---\nstatus: [old, concurrent]\nother: after\n---\nNew body\n");
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: ["old", "concurrent", "done"], other: "after" });
@@ -174,7 +177,7 @@ describe("Capture property writes", () => {
 		for (const content of [undefined, "---\nstatus: [old]\n---\nBody\n"]) {
 			const test = fixture(content);
 			test.choice.createFileIfItDoesntExist.enabled = true;
-			test.choice.propertyCapture!.action = "addToList";
+			test.propertyRow.action = "addToList";
 			mocks.value.mockResolvedValue(value);
 			await test.run();
 			expect(test.read()).toBe(content);
@@ -186,7 +189,7 @@ describe("Capture property writes", () => {
 
 	it("still rejects an empty Add against a scalar property", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
-		test.choice.propertyCapture!.action = "addToList";
+		test.propertyRow.action = "addToList";
 		mocks.value.mockResolvedValue("");
 		await test.run();
 		expect(test.processFrontMatter).not.toHaveBeenCalled();
@@ -227,7 +230,7 @@ describe("Capture property writes", () => {
 	it("reports failure when Templater makes the final property update invalid", async () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;
-		test.choice.propertyCapture!.action = "addToList";
+		test.propertyRow.action = "addToList";
 		mocks.templaterEnabled = true;
 		mocks.afterCreate.mockImplementation(async () => {
 			expect(test.executor.recordExecutionResult).not.toHaveBeenCalled();
@@ -247,7 +250,7 @@ describe("Capture property writes", () => {
 	it("aborts a headless runtime property picker before target creation", async () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;
-		test.choice.propertyCapture!.property = { kind: "prompt" };
+		test.propertyRow.property = { kind: "prompt" };
 		await test.run();
 		expect(test.create).not.toHaveBeenCalled();
 		expect(mocks.value).not.toHaveBeenCalled();
@@ -256,11 +259,79 @@ describe("Capture property writes", () => {
 
 	it("routes runtime property selection through the connected prompt provider", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
-		test.choice.propertyCapture!.property = { kind: "prompt" };
+		test.propertyRow.property = { kind: "prompt" };
 		test.executor.interactive = true;
 		Object.assign(test.executor, { promptProvider: { suggester: vi.fn(async (_labels: string[], handles: string[]) => handles[0]) } });
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "done" });
 		expect(mocks.picker).not.toHaveBeenCalled();
+	});
+});
+
+describe("Capture multi-property writes", () => {
+	it("writes every configured property in a single frontmatter pass", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+		];
+		mocks.value.mockResolvedValueOnce("done").mockResolvedValueOnce("P");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "done", project: "P" });
+		expect(test.read()).toMatch(/---\nBody\n$/);
+		expect(test.processFrontMatter).toHaveBeenCalledTimes(1);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
+	});
+
+	it("uses each row's own value format", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist.enabled = true;
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:first}}" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:second}}" },
+		];
+		mocks.value.mockResolvedValueOnce("A").mockResolvedValueOnce("B");
+		await test.run();
+		expect(mocks.value).toHaveBeenNthCalledWith(1, "{{VALUE:first}}");
+		expect(mocks.value).toHaveBeenNthCalledWith(2, "{{VALUE:second}}");
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "A", project: "B" });
+	});
+
+	it("lets a later row overwrite an earlier row with the same property name", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist.enabled = true;
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+		];
+		mocks.value.mockResolvedValueOnce("first").mockResolvedValueOnce("second");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "second" });
+	});
+
+	it("skips an empty list-add row while still writing the other rows", async () => {
+		const test = fixture("---\nstatus: [old]\n---\nBody\n");
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+		];
+		mocks.value.mockResolvedValueOnce("").mockResolvedValueOnce("P");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: ["old"], project: "P" });
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({ status: "success", effect: "changed" }));
+	});
+
+	it("treats an all-empty list-add capture as unchanged without creating a note", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist.enabled = true;
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true },
+			{ property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true },
+		];
+		mocks.value.mockResolvedValue("");
+		await test.run();
+		expect(test.create).not.toHaveBeenCalled();
+		expect(test.read()).toBe(undefined);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: undefined, effect: "unchanged" });
 	});
 });

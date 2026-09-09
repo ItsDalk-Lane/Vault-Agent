@@ -143,11 +143,11 @@ describe("CaptureChoiceForm", () => {
 		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
 		flushSync();
-		expect(props.choice.propertyCapture?.property).toEqual({ kind: "prompt" });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "prompt" }, action: "addToList", createIfMissing: true });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
 		expect(getByLabelText("Property")).toHaveValue("{{VALUE:property}}");
-		expect(props.choice.propertyCapture?.property).toEqual({ kind: "named", format: "{{VALUE:property}}" });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
 		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });

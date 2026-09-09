@@ -41,7 +41,12 @@ import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
-import { inheritPropertyValueType, untypedPropertyValueVariable } from "src/utils/propertyCaptureFormat";
+import {
+	effectivePropertyValueFormat,
+	inheritPropertyValueType,
+	untypedPropertyValueVariable,
+} from "src/utils/propertyCaptureFormat";
+import { getPropertyCaptures, hasPropertyCapture } from "src/types/choices/ICaptureChoice";
 import { resolveObsidianPropertyType } from "src/utils/obsidianPropertyTypes";
 import {
 	RequirementCollector,
@@ -375,35 +380,54 @@ async function collectForCaptureChoice(
 		// Scanned BEFORE content so a dual-use {{VALUE}} is marked as path context.
 		"captureTarget",
 	);
-	if (choice.propertyCapture?.property.kind === "named") {
-		await scanContentWithTemplateIncludes(
-			app, collector, choice.propertyCapture.property.format, undefined, 0, "propertyName",
-		);
+	// Multi-property capture: every row's property name and value format can
+	// carry its own variables, so each row is scanned in turn.
+	const propertyCaptures = getPropertyCaptures(choice);
+	for (const capture of propertyCaptures) {
+		if (capture.property.kind === "named") {
+			await scanContentWithTemplateIncludes(
+				app, collector, capture.property.format, undefined, 0, "propertyName",
+			);
+		}
 	}
 
 	const captureFormat = choice.format?.enabled ? choice.format.format : VALUE_SYNTAX;
-	const propertyName = choice.propertyCapture?.property.kind === "named"
-		? choice.propertyCapture.property.format.trim() : null;
-	const knownPropertyType = propertyName && !hasTemplatePathSyntax(propertyName)
-		? resolveObsidianPropertyType(app, propertyName, { registeredOnly: true }) : null;
-	if (choice.format?.enabled || choice.propertyCapture) {
+	if (!hasPropertyCapture(choice) && choice.format?.enabled) {
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,
-			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
+			captureFormat,
 			undefined,
 			0,
-			choice.propertyCapture ? "propertyValue" : "captureText",
+			"captureText",
 		);
 	}
 
-	if (choice.propertyCapture && knownPropertyType === null) {
-		const key = untypedPropertyValueVariable(captureFormat);
-		const requirement = key === null ? undefined : collector.requirements.get(key);
-		if (requirement) requirement.runtimeOnly = true;
+	for (const capture of propertyCaptures) {
+		const propertyName = capture.property.kind === "named"
+			? capture.property.format.trim() : null;
+		const knownPropertyType = propertyName && !hasTemplatePathSyntax(propertyName)
+			? resolveObsidianPropertyType(app, propertyName, { registeredOnly: true }) : null;
+		const rowValueFormat = effectivePropertyValueFormat(choice, capture);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			inheritPropertyValueType(rowValueFormat, knownPropertyType),
+			undefined,
+			0,
+			"propertyValue",
+		);
+		// When the row's property type is unknown (prompt, template syntax, or an
+		// unregistered name), the bare value variable cannot pick its widget yet —
+		// keep it out of the one-page form and prompt at run time instead.
+		if (knownPropertyType === null) {
+			const key = untypedPropertyValueVariable(rowValueFormat);
+			const requirement = key === null ? undefined : collector.requirements.get(key);
+			if (requirement) requirement.runtimeOnly = true;
+		}
 	}
 
-	if (!choice.propertyCapture && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
+	if (!hasPropertyCapture(choice) && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,
@@ -415,7 +439,7 @@ async function collectForCaptureChoice(
 		);
 	}
 
-	if (!choice.propertyCapture && choice.insertBefore?.enabled) {
+	if (!hasPropertyCapture(choice) && choice.insertBefore?.enabled) {
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,

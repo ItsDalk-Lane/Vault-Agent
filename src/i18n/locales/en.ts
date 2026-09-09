@@ -639,6 +639,11 @@ const en = {
 			actionSet: "Set value",
 			actionAddToList: "Add to list",
 			createIfMissing: "Create property if missing",
+			addRow: "Add property",
+			removeRow: "Remove property",
+			valueFormat: "Value format (optional)",
+			valueFormatDesc: "Leave empty to use the capture format as the default. Supports format syntax.",
+			multiDesc: "Properties are written in list order. Deleting the last row turns off property capture.",
 		},
 		templateForm: {
 			templateFormatSyntaxHint: "Contains format syntax — resolved at run time.",
@@ -1455,6 +1460,7 @@ const en = {
 		appliedTemplate: "Applied template to '{name}'.",
 		capturedTo: "Captured to '{key}' in '{name}'",
 		created: "Created '{name}'.",
+		capturedToMulti: "Captured {keys} to '{name}'",
 		copiedLink: "Copied link to '{name}' to clipboard.",
 		copyLinkFailed:
 			"Created '{name}', but QuickAdd could not copy its link to the clipboard.",

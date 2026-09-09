@@ -606,6 +606,11 @@ const zhCN = {
 			actionSet: "设置值",
 			actionAddToList: "添加到列表",
 			createIfMissing: "属性不存在时创建",
+			addRow: "添加属性",
+			removeRow: "删除此属性",
+			valueFormat: "值格式（可选）",
+			valueFormatDesc: "留空则使用“捕获格式”作为缺省值。支持格式语法。",
+			multiDesc: "按列表顺序写入属性。删除最后一行即关闭属性捕获。",
 		},
 		templateForm: {
 			templateFormatSyntaxHint: "包含格式语法——将在运行时解析。",
@@ -1393,6 +1398,7 @@ const zhCN = {
 	runFeedback: {
 		appliedTemplate: "已将模板应用到「{name}」。",
 		capturedTo: "已捕获到「{name}」的「{key}」",
+		capturedToMulti: "已捕获 {keys} 到「{name}」",
 		created: "已创建「{name}」。",
 		copiedLink: "已将「{name}」的链接复制到剪贴板。",
 		copyLinkFailed: "已创建「{name}」，但 QuickAdd 无法将其链接复制到剪贴板。",

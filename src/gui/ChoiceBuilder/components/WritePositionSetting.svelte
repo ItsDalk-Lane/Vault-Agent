@@ -8,7 +8,8 @@ import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import InsertAfterFields from "./InsertAfterFields.svelte";
 import InsertBeforeFields from "./InsertBeforeFields.svelte";
-import PropertyCaptureFields from "./PropertyCaptureFields.svelte";
+import PropertyCaptureList from "./PropertyCaptureList.svelte";
+import { hasPropertyCapture, setPropertyCaptures } from "../../../types/choices/ICaptureChoice";
 import { t } from "../../../i18n";
 
 /**
@@ -30,7 +31,7 @@ let {
 const isActiveFile = $derived(!!choice.captureToActiveFile);
 
 const current = $derived.by(() => {
-	if (choice.propertyCapture) return "property";
+	if (hasPropertyCapture(choice)) return "property";
 	if (choice.insertAfter?.enabled) return "after";
 	if (choice.insertBefore?.enabled) return "before";
 	if (choice.newLineCapture?.enabled)
@@ -63,14 +64,17 @@ const options = $derived([
 
 function onWritePositionChange(value: string) {
 	if (value === "property") {
-		choice.propertyCapture ??= {
-			property: { kind: "named", format: "" },
-			action: "set",
-			createIfMissing: true,
-		};
+		if (!hasPropertyCapture(choice)) {
+			// A fresh property capture starts as a single canonical row; the
+			// per-row value falls back to the capture format until a valueFormat
+			// is typed (no valueFormat on the persisted object).
+			setPropertyCaptures(choice, [
+				{ property: { kind: "named", format: "" }, action: "set", createIfMissing: true },
+			]);
+		}
 		return;
 	}
-	delete choice.propertyCapture;
+	setPropertyCaptures(choice, []);
 	// Reset every mutually-exclusive position flag, then set the chosen one
 	// (verbatim order from the imperative builder, captureChoiceBuilder.ts:941-999).
 	choice.prepend = false;
@@ -128,7 +132,7 @@ function onWritePositionChange(value: string) {
 }
 
 const showCanvasNotice = $derived.by(() => {
-	if (choice.propertyCapture) return false;
+	if (hasPropertyCapture(choice)) return false;
 	const obviousCanvasTarget =
 		typeof choice.captureTo === "string" && isCanvasTargetPath(choice.captureTo);
 	const hasActiveCanvasView =
@@ -159,15 +163,15 @@ const showCanvasNotice = $derived.by(() => {
 	{/snippet}
 </SettingItem>
 
-{#if choice.propertyCapture}
-	<PropertyCaptureFields bind:config={choice.propertyCapture} {app} {plugin} />
+{#if hasPropertyCapture(choice)}
+	<PropertyCaptureList {choice} {app} {plugin} captureFormat={choice.format.enabled ? choice.format.format : ""} />
 {/if}
 
-{#if !choice.propertyCapture && choice.insertAfter.enabled}
+{#if !hasPropertyCapture(choice) && choice.insertAfter.enabled}
 	<InsertAfterFields bind:insertAfter={choice.insertAfter} {app} {plugin} />
 {/if}
 
-{#if !choice.propertyCapture && choice.insertBefore?.enabled}
+{#if !hasPropertyCapture(choice) && choice.insertBefore?.enabled}
 	<InsertBeforeFields bind:insertBefore={choice.insertBefore} {app} {plugin} />
 {/if}
 

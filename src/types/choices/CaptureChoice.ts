@@ -8,7 +8,7 @@ import { CREATE_IF_NOT_FOUND_ORDERED } from "../../constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
-import { parsePropertyCapture } from "./ICaptureChoice";
+import { parsePropertyCaptures, setPropertyCaptures } from "./ICaptureChoice";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
 	propertyCapture?: ICaptureChoice["propertyCapture"];
@@ -110,7 +110,10 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	public static Load(choice: ICaptureChoice): CaptureChoice {
 		const loaded = choice as CaptureChoice;
 		if (loaded.propertyCapture !== undefined) {
-			loaded.propertyCapture = parsePropertyCapture(loaded.propertyCapture);
+			// Normalizes legacy single objects and arrays alike, then writes back
+			// through setPropertyCaptures so a one-row config round-trips as a
+			// single object and no empty array is ever persisted.
+			setPropertyCaptures(loaded, parsePropertyCaptures(loaded.propertyCapture));
 		}
 		// Ensure backward compatibility: default to "cursor" if not set
 		if (
