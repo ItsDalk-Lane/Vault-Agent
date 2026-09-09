@@ -1,4 +1,5 @@
 import type { DateOrigin, DateOriginUnit } from "./dateOrigin";
+import { t } from "../i18n";
 
 export const DATE_ORIGIN_PRESETS = [
 	"today",
@@ -13,27 +14,55 @@ export const DATE_ORIGIN_PRESETS = [
 
 export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
-export const DATE_ORIGIN_SETTING_NAME = "Which day";
-export const DATE_ORIGIN_SETTING_DESC =
-	"The day {{DATE}} writes. The clock stays now. Hold Shift in the QuickAdd menu to pick a different day.";
+// The exported "setting name/desc" values below are FUNCTIONS so their strings
+// resolve through t() at call time: module-level literals would freeze the
+// English fallback (this module is imported before main.ts calls setLocale()).
 
-export const ASK_DEFAULT_SETTING_NAME = "Picker starts on";
-export const ASK_DEFAULT_SETTING_DESC =
-	"The date the picker suggests first. You can still pick a different day.";
+export const DATE_ORIGIN_SETTING_NAME = () => t("dateOrigin.whichDay");
+export const DATE_ORIGIN_SETTING_DESC = () => t("dateOrigin.whichDayDesc");
 
-export const CUSTOM_OFFSET_SETTING_NAME = "How far from today";
-export const CUSTOM_OFFSET_SETTING_DESC =
-	"How many days, weeks, months, or years from today. Negative is the past.";
+export const ASK_DEFAULT_SETTING_NAME = () => t("dateOrigin.pickerStartsOn");
+export const ASK_DEFAULT_SETTING_DESC = () => t("dateOrigin.pickerStartsOnDesc");
 
-export const VARIABLE_SETTING_NAME = "Variable name";
-export const VARIABLE_SETTING_DESC =
-	"A VDATE or script value that already has the day.";
+export const CUSTOM_OFFSET_SETTING_NAME = () => t("dateOrigin.howFar");
+export const CUSTOM_OFFSET_SETTING_DESC = () => t("dateOrigin.howFarDesc");
+
+export const VARIABLE_SETTING_NAME = () => t("dateOrigin.variableName");
+export const VARIABLE_SETTING_DESC = () => t("dateOrigin.variableNameDesc");
 
 export const NAMED_RELATIVE_PRESETS = [
-	{ id: "yesterday", label: "Yesterday", offset: -1, unit: "days" },
-	{ id: "last-week", label: "Last week", offset: -1, unit: "weeks" },
-	{ id: "next-week", label: "Next week", offset: 1, unit: "weeks" },
-	{ id: "last-month", label: "Last month", offset: -1, unit: "months" },
+	{
+		id: "yesterday",
+		get label() {
+			return t("dateOrigin.yesterday");
+		},
+		offset: -1,
+		unit: "days",
+	},
+	{
+		id: "last-week",
+		get label() {
+			return t("dateOrigin.lastWeek");
+		},
+		offset: -1,
+		unit: "weeks",
+	},
+	{
+		id: "next-week",
+		get label() {
+			return t("dateOrigin.nextWeek");
+		},
+		offset: 1,
+		unit: "weeks",
+	},
+	{
+		id: "last-month",
+		get label() {
+			return t("dateOrigin.lastMonth");
+		},
+		offset: -1,
+		unit: "months",
+	},
 ] as const satisfies readonly {
 	id: DateOriginPreset;
 	label: string;
@@ -41,43 +70,62 @@ export const NAMED_RELATIVE_PRESETS = [
 	unit: DateOriginUnit;
 }[];
 
-export const DATE_ORIGIN_PRESET_OPTIONS: {
+// Function, not a module-level array: rebuilding per call keeps the labels
+// (and the mapped NAMED_RELATIVE labels) following the active locale.
+export function DATE_ORIGIN_PRESET_OPTIONS(): {
 	value: DateOriginPreset;
 	label: string;
-}[] = [
-	{ value: "today", label: "Today" },
-	{ value: "ask", label: "Ask each time" },
-	...NAMED_RELATIVE_PRESETS.map((item) => ({
-		value: item.id,
-		label: item.label,
-	})),
-	{ value: "custom", label: "Custom…" },
-	{ value: "variable", label: "A variable…" },
-];
+}[] {
+	return [
+		{ value: "today", label: t("dateOrigin.today") },
+		{ value: "ask", label: t("dateOrigin.askEachTime") },
+		...NAMED_RELATIVE_PRESETS.map((item) => ({
+			value: item.id,
+			label: item.label,
+		})),
+		{ value: "custom", label: t("dateOrigin.custom") },
+		{ value: "variable", label: t("dateOrigin.aVariable") },
+	];
+}
 
 export const ASK_DEFAULT_PRESETS = [
-	{ id: "today", label: "Today", defaultValue: undefined, aliases: ["", "today"] },
+	{
+		id: "today",
+		get label() {
+			return t("dateOrigin.today");
+		},
+		defaultValue: undefined,
+		aliases: ["", "today"],
+	},
 	{
 		id: "yesterday",
-		label: "Yesterday",
+		get label() {
+			return t("dateOrigin.yesterday");
+		},
 		defaultValue: "yesterday",
 		aliases: ["yesterday", "yd"],
 	},
 	{
 		id: "last-week",
-		label: "Last week",
+		get label() {
+			return t("dateOrigin.lastWeek");
+		},
 		defaultValue: "last week",
 		aliases: ["last week", "lw"],
 	},
 	{
 		id: "next-week",
-		label: "Next week",
+		get label() {
+			return t("dateOrigin.nextWeek");
+		},
 		defaultValue: "next week",
 		aliases: ["next week", "nw"],
 	},
 	{
 		id: "last-month",
-		label: "Last month",
+		get label() {
+			return t("dateOrigin.lastMonth");
+		},
 		defaultValue: "last month",
 		aliases: ["last month", "lm"],
 	},

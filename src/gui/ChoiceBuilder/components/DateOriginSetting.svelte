@@ -80,18 +80,18 @@ function onVariableChange(value: string) {
 }
 </script>
 
-<SettingItem name={DATE_ORIGIN_SETTING_NAME} desc={DATE_ORIGIN_SETTING_DESC}>
+<SettingItem name={DATE_ORIGIN_SETTING_NAME()} desc={DATE_ORIGIN_SETTING_DESC()}>
 	{#snippet control()}
 		<Dropdown
 			value={selectedPreset}
-			options={DATE_ORIGIN_PRESET_OPTIONS}
+			options={DATE_ORIGIN_PRESET_OPTIONS()}
 			onchange={onPresetChange}
 		/>
 	{/snippet}
 </SettingItem>
 
 {#if askOrigin}
-	<SettingItem name={ASK_DEFAULT_SETTING_NAME} desc={ASK_DEFAULT_SETTING_DESC}>
+	<SettingItem name={ASK_DEFAULT_SETTING_NAME()} desc={ASK_DEFAULT_SETTING_DESC()}>
 		{#snippet control()}
 			<Dropdown
 				value={askDefaultId}
@@ -104,8 +104,8 @@ function onVariableChange(value: string) {
 
 {#if customOrigin}
 	<SettingItem
-		name={CUSTOM_OFFSET_SETTING_NAME}
-		desc={CUSTOM_OFFSET_SETTING_DESC}
+		name={CUSTOM_OFFSET_SETTING_NAME()}
+		desc={CUSTOM_OFFSET_SETTING_DESC()}
 	>
 		{#snippet control()}
 			<input
@@ -113,7 +113,7 @@ function onVariableChange(value: string) {
 				class="qa-validated-input-full-width"
 				value={String(customOrigin.offset)}
 				placeholder="-2"
-				aria-label={CUSTOM_OFFSET_SETTING_NAME}
+				aria-label={CUSTOM_OFFSET_SETTING_NAME()}
 				oninput={(event) => {
 					const target = event.currentTarget;
 					if (!(target instanceof HTMLInputElement)) return;
@@ -130,14 +130,14 @@ function onVariableChange(value: string) {
 {/if}
 
 {#if variableOrigin}
-	<SettingItem name={VARIABLE_SETTING_NAME} desc={VARIABLE_SETTING_DESC}>
+	<SettingItem name={VARIABLE_SETTING_NAME()} desc={VARIABLE_SETTING_DESC()}>
 		{#snippet control()}
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
 				value={variableOrigin.name}
 				placeholder="day"
-				aria-label={VARIABLE_SETTING_NAME}
+				aria-label={VARIABLE_SETTING_NAME()}
 				oninput={(event) => {
 					const target = event.currentTarget;
 					if (!(target instanceof HTMLInputElement)) return;

@@ -240,10 +240,44 @@ const zhCN = {
 		commandRunFailed: "QuickAdd：「{path}」— {reason}",
 		noChoiceNamed: "QuickAdd：没有名为「{name}」的选项。",
 		addTypeTooltip: "添加 {type} 选项",
+		aiAssistantName: "AI 助手",
+		waitName: "等待",
 		advancedSettings: {
 			desc: "采样设置，如 temperature 和 top p。未修改的设置使用提供商的默认值。",
 		},
 		estimatedLocally: "本地估算。提供商强制实施精确的上下文限制。",
+	},
+
+	dateOrigin: {
+		whichDay: "哪一天",
+		whichDayDesc:
+			"{{DATE}} 写入的日期。时间始终为现在。在 QuickAdd 菜单中按住 Shift 可选择其他日期。",
+		pickerStartsOn: "选择器默认",
+		pickerStartsOnDesc: "选择器最先建议的日期。你仍可以选择其他日期。",
+		howFar: "距今天多远",
+		howFarDesc: "距今天的日、周、月或年数。负数表示过去。",
+		variableName: "变量名",
+		variableNameDesc: "一个已经带有日期的 VDATE 或脚本值。",
+		today: "今天",
+		askEachTime: "每次询问",
+		yesterday: "昨天",
+		lastWeek: "上周",
+		nextWeek: "下周",
+		lastMonth: "上月",
+		custom: "自定义…",
+		aVariable: "某个变量…",
+	},
+	choiceCommands: {
+		commandPalette: "添加到命令面板",
+		commandPaletteDesc: "从命令面板或快捷键运行此选项。",
+		pickDayDesc: "第二个命令，会先询问日期。主命令的快捷键仍使用「哪一天」。",
+		alsoAdd: "同时添加「{name}」",
+		pickDayName: "{name}（选择日期）",
+	},
+	autosave: {
+		note: "对此{subject}的更改会自动保存",
+		choice: "选项",
+		macro: "Macro",
 	},
 
 	openFile: {

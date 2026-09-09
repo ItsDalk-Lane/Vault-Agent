@@ -97,7 +97,7 @@ export class MacroBuilder extends Modal {
 		this.display();
 		// Installed here, not in display(): reload() re-runs display(), which
 		// empties contentEl. The footer lives on modalEl and survives that.
-		addAutosaveFooter(this, "macro");
+		addAutosaveFooter(this, t("autosave.macro"));
 		this.open();
 	}
 
@@ -177,10 +177,10 @@ export class MacroBuilder extends Modal {
 		const preset = dateOriginToPreset(current);
 
 		new Setting(this.contentEl)
-			.setName(DATE_ORIGIN_SETTING_NAME)
-			.setDesc(DATE_ORIGIN_SETTING_DESC)
+			.setName(DATE_ORIGIN_SETTING_NAME())
+			.setDesc(DATE_ORIGIN_SETTING_DESC())
 			.addDropdown((dropdown) => {
-				for (const option of DATE_ORIGIN_PRESET_OPTIONS) {
+				for (const option of DATE_ORIGIN_PRESET_OPTIONS()) {
 					dropdown.addOption(option.value, option.label);
 				}
 				dropdown.setValue(preset);
@@ -198,8 +198,8 @@ export class MacroBuilder extends Modal {
 			const defaultValue =
 				current?.kind === "ask" ? current.defaultValue : undefined;
 			new Setting(this.contentEl)
-				.setName(ASK_DEFAULT_SETTING_NAME)
-				.setDesc(ASK_DEFAULT_SETTING_DESC)
+				.setName(ASK_DEFAULT_SETTING_NAME())
+				.setDesc(ASK_DEFAULT_SETTING_DESC())
 				.addDropdown((dropdown) => {
 					for (const option of askDefaultOptions(defaultValue)) {
 						dropdown.addOption(option.value, option.label);
@@ -216,8 +216,8 @@ export class MacroBuilder extends Modal {
 
 		if (preset === "custom" && current?.kind === "relative") {
 			new Setting(this.contentEl)
-				.setName(CUSTOM_OFFSET_SETTING_NAME)
-				.setDesc(CUSTOM_OFFSET_SETTING_DESC)
+				.setName(CUSTOM_OFFSET_SETTING_NAME())
+				.setDesc(CUSTOM_OFFSET_SETTING_DESC())
 				.addText((text) => {
 					text.setValue(String(current.offset));
 					text.setPlaceholder(t("macro.relativeOffsetPlaceholder"));
@@ -249,8 +249,8 @@ export class MacroBuilder extends Modal {
 		if (preset === "variable") {
 			const name = current?.kind === "variable" ? current.name : "";
 			new Setting(this.contentEl)
-				.setName(VARIABLE_SETTING_NAME)
-				.setDesc(VARIABLE_SETTING_DESC)
+				.setName(VARIABLE_SETTING_NAME())
+				.setDesc(VARIABLE_SETTING_DESC())
 				.addText((text) => {
 					text.setValue(name);
 					text.setPlaceholder(t("macro.relativeOffsetUnitPlaceholder"));
@@ -263,8 +263,8 @@ export class MacroBuilder extends Modal {
 
 	private addCommandPaletteSettings(): void {
 		new Setting(this.contentEl)
-			.setName(COMMAND_SETTING_NAME)
-			.setDesc(COMMAND_SETTING_DESC)
+			.setName(COMMAND_SETTING_NAME())
+			.setDesc(COMMAND_SETTING_DESC())
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.command).onChange((value) => {
 					this.choice.command = value;
@@ -278,7 +278,7 @@ export class MacroBuilder extends Modal {
 		) {
 			new Setting(this.contentEl)
 				.setName(pickDaySettingName(this.choice.name))
-				.setDesc(PICK_DAY_SETTING_DESC)
+				.setDesc(PICK_DAY_SETTING_DESC())
 				.addToggle((toggle) => {
 					toggle
 						.setValue(this.choice.pickDayCommand ?? false)

@@ -30,14 +30,14 @@ let {
 const showPickDay = $derived(command && canOfferPickDayCommand(dateOrigin));
 </script>
 
-<SettingItem name={COMMAND_SETTING_NAME} desc={COMMAND_SETTING_DESC}>
+<SettingItem name={COMMAND_SETTING_NAME()} desc={COMMAND_SETTING_DESC()}>
 	{#snippet control()}
-		<Toggle bind:checked={command} ariaLabel={COMMAND_SETTING_NAME} />
+		<Toggle bind:checked={command} ariaLabel={COMMAND_SETTING_NAME()} />
 	{/snippet}
 </SettingItem>
 
 {#if showPickDay}
-	<SettingItem name={pickDaySettingName(name)} desc={PICK_DAY_SETTING_DESC}>
+	<SettingItem name={pickDaySettingName(name)} desc={PICK_DAY_SETTING_DESC()}>
 		{#snippet control()}
 			<Toggle
 				bind:checked={pickDayCommand}

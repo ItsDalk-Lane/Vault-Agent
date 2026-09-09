@@ -254,10 +254,47 @@ const en = {
 		commandRunFailed: "QuickAdd: \"{path}\" — {reason}",
 		noChoiceNamed: "QuickAdd: No choice named \"{name}\".",
 		addTypeTooltip: "Add {type} choice",
+		aiAssistantName: "AI Assistant",
+		waitName: "Wait",
 		advancedSettings: {
 			desc: "Sampling settings such as temperature and top p. Untouched settings use the provider's defaults.",
 		},
 		estimatedLocally: "Estimated locally. Providers enforce exact context limits.",
+	},
+	dateOrigin: {
+		whichDay: "Which day",
+		whichDayDesc:
+			"The day {{DATE}} writes. The clock stays now. Hold Shift in the QuickAdd menu to pick a different day.",
+		pickerStartsOn: "Picker starts on",
+		pickerStartsOnDesc:
+			"The date the picker suggests first. You can still pick a different day.",
+		howFar: "How far from today",
+		howFarDesc:
+			"How many days, weeks, months, or years from today. Negative is the past.",
+		variableName: "Variable name",
+		variableNameDesc: "A VDATE or script value that already has the day.",
+		today: "Today",
+		askEachTime: "Ask each time",
+		yesterday: "Yesterday",
+		lastWeek: "Last week",
+		nextWeek: "Next week",
+		lastMonth: "Last month",
+		custom: "Custom…",
+		aVariable: "A variable…",
+	},
+	choiceCommands: {
+		commandPalette: "Add to command palette",
+		commandPaletteDesc:
+			"Run this choice from the command palette or a hotkey.",
+		pickDayDesc:
+			"A second command that asks which day first. Your hotkey for the main command still uses Which day.",
+		alsoAdd: "Also add \"{name}\"",
+		pickDayName: "{name} (pick a day)",
+	},
+	autosave: {
+		note: "Changes to this {subject} are saved automatically",
+		choice: "choice",
+		macro: "macro",
 	},
 
 	openFile: {

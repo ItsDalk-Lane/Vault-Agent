@@ -1,15 +1,19 @@
 import type { DateOrigin } from "./dateOrigin";
 import { dateOriginToPreset } from "./dateOriginPresets";
+import { t } from "../i18n";
 
-export const COMMAND_SETTING_NAME = "Add to command palette";
-export const COMMAND_SETTING_DESC =
-	"Run this choice from the command palette or a hotkey.";
+// Functions, not literals: module-level strings would freeze the English
+// fallback before setLocale() runs (see dateOriginPresets.ts).
+export const COMMAND_SETTING_NAME = () => t("choiceCommands.commandPalette");
+export const COMMAND_SETTING_DESC = () =>
+	t("choiceCommands.commandPaletteDesc");
 
-export const PICK_DAY_SETTING_DESC =
-	"A second command that asks which day first. Your hotkey for the main command still uses Which day.";
+export const PICK_DAY_SETTING_DESC = () => t("choiceCommands.pickDayDesc");
 
 export function pickDaySettingName(choiceName: string): string {
-	return `Also add "${pickDayCommandName(choiceName)}"`;
+	return t("choiceCommands.alsoAdd", {
+		name: pickDayCommandName(choiceName),
+	});
 }
 
 export function choiceCommandId(choiceId: string): string {
@@ -21,7 +25,7 @@ export function pickDayCommandId(choiceId: string): string {
 }
 
 export function pickDayCommandName(choiceName: string): string {
-	return `${choiceName} (pick a day)`;
+	return t("choiceCommands.pickDayName", { name: choiceName });
 }
 
 /**

@@ -4,6 +4,7 @@ import type { IAIAssistantCommand } from "./IAIAssistantCommand";
 import { settingsStore } from "src/settingsStore";
 import { activeModelRef, type ModelRef } from "src/ai/Provider";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
+import { t } from "../../../i18n";
 
 export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	declare id: string;
@@ -21,7 +22,7 @@ export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	modelParameters: Partial<OpenAIModelParameters>;
 
 	constructor() {
-		super("AI Assistant", CommandType.AIAssistant);
+		super(t("macro.aiAssistantName"), CommandType.AIAssistant);
 
 		const defaults = settingsStore.getState().ai;
 

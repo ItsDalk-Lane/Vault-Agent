@@ -33,7 +33,7 @@ export function addAutosaveFooter(modal: Modal, subject: string): void {
 
 	const note = doc.createElement("span");
 	note.className = "qa-builder-footer-note";
-	note.textContent = `Changes to this ${subject} are saved automatically`;
+	note.textContent = t("autosave.note", { subject });
 	footer.appendChild(note);
 
 	const done = doc.createElement("button");
