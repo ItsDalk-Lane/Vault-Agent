@@ -110,7 +110,7 @@ const discoveryDescription = $derived(
 // modes; the dropdown is a derived view over them (no schema change). The mode
 // mirrors TemplateChoiceEngine.getFolderPath() precedence — see folderMode.ts.
 const folderMode = $derived(deriveFolderMode(choice.folder));
-const folderModeDesc = $derived(folderModeDescriptions[folderMode]);
+const folderModeDesc = $derived(folderModeDescriptions()[folderMode]);
 const needsFolderList = $derived(
 	folderMode === "specified" && choice.folder.folders.length === 0,
 );
@@ -240,7 +240,7 @@ function onModeChange(value: string) {
 	{#snippet control()}
 		<Dropdown
 			value={folderMode}
-			options={folderModeOptions}
+			options={folderModeOptions()}
 			ariaLabel="New note location"
 			onchange={onFolderModeChange}
 		/>

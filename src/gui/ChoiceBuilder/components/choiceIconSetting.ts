@@ -4,6 +4,7 @@ import type { ChoiceType } from "../../../types/choices/choiceType";
 import { defaultIconForChoiceType } from "../../../utils/choiceUtils";
 import { GenericTextSuggester } from "../../suggesters/genericTextSuggester";
 import { createOwnedElement } from "../../../utils/activeWindow";
+import { t } from "../../../i18n";
 
 export interface ChoiceIconSettingState {
 	type: ChoiceType;
@@ -28,8 +29,8 @@ export function addChoiceIconSetting(
 ): void {
 	const defaultIcon = defaultIconForChoiceType(state.type);
 	const setting = new Setting(parent)
-		.setName("Icon")
-		.setDesc(`Lucide/Obsidian icon id. Leave empty to use ${defaultIcon}.`);
+		.setName(t("choiceBuilder.icon.name"))
+		.setDesc(t("choiceBuilder.icon.desc").replace("{default}", defaultIcon));
 	setting.settingEl.addClass("qa-choice-icon-setting");
 
 	const preview = createOwnedElement(parent, "span");
@@ -43,10 +44,10 @@ export function addChoiceIconSetting(
 	}
 
 	setting.addText((text) => {
-		text.setPlaceholder(defaultIcon);
+		text.setPlaceholder(t("choiceBuilder.icon.placeholder"));
 		text.setValue(typeof state.icon === "string" ? state.icon : "");
 		text.inputEl.addClass("qa-choice-icon-input");
-		text.inputEl.setAttribute("aria-label", "Choice icon");
+		text.inputEl.setAttribute("aria-label", t("choiceBuilder.icon.aria"));
 		new GenericTextSuggester(app, text.inputEl, ICON_LIST, 50);
 		text.onChange((value) => {
 			const icon = normalizeIcon(value);

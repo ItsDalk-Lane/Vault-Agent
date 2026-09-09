@@ -2,6 +2,7 @@
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
 import { onMount } from "svelte";
+import { t } from "../../../i18n";
 import {
 	getActiveCanvasSelectionNodeIdForPath,
 	readCanvasNodeOptions,
@@ -72,13 +73,13 @@ function applyNodeId(id: string) {
 function openCanvas() {
 	const canvasFile = resolveStaticCanvasTargetFile(app, canvasTargetPath);
 	if (!canvasFile) {
-		new Notice("Target canvas file was not found.");
+		new Notice(t("choiceBuilder.canvasPicker.targetNotFound"));
 		return;
 	}
 	void app.workspace
 		.getLeaf(true)
 		.openFile(canvasFile)
-		.catch(() => new Notice("Could not open target canvas."));
+		.catch(() => new Notice(t("choiceBuilder.canvasPicker.couldNotOpen")));
 }
 
 function useActiveSelection() {
@@ -116,7 +117,7 @@ function copyNodeId(id: string) {
 			await navigator.clipboard.writeText(id);
 			new Notice(`Copied node id ${id}`);
 		} catch {
-			new Notice("Could not copy node id automatically.");
+			new Notice(t("choiceBuilder.canvasPicker.copyNodeFailed"));
 		}
 	})();
 }

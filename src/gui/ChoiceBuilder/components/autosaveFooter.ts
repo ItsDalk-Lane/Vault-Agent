@@ -1,4 +1,5 @@
 import type { Modal } from "obsidian";
+import { t } from "../../../i18n";
 
 /**
  * Pin an autosave footer to the bottom of a builder modal: a quiet statement
@@ -38,7 +39,7 @@ export function addAutosaveFooter(modal: Modal, subject: string): void {
 	const done = doc.createElement("button");
 	done.type = "button";
 	done.className = "mod-cta";
-	done.textContent = "Done";
+	done.textContent = t("common.done");
 	done.addEventListener("click", () => modal.close());
 	footer.appendChild(done);
 

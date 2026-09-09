@@ -305,6 +305,34 @@ const zhCN = {
 		approveAllRun: "本次运行全部批准",
 		approve: "批准",
 	},
+
+	choiceBuilder: {
+		icon: {
+			name: "图标",
+			desc: "Lucide/Obsidian 图标 id。留空使用 {default}。",
+			placeholder: "Lucide 图标名",
+			aria: "选项图标",
+		},
+		folderMode: {
+			obsidianDefault: "Obsidian 默认",
+			specified: "指定文件夹",
+			activeFile: "当前文件所在文件夹",
+			prompt: "每次询问文件夹",
+			obsidianDefaultDesc: "使用 Obsidian 的「新笔记默认位置」设置。",
+			specifiedDesc: "在下方文件夹中创建笔记。多个文件夹时，创建笔记时会询问使用哪个。",
+			activeFileDesc: "在当前活动文件旁边创建笔记（若无打开文件则回退到 vault 根目录）。",
+			promptDesc: "创建笔记时选择 vault 中的任何文件夹。",
+		},
+		canvasPicker: {
+			targetNotFound: "未找到目标 Canvas 文件。",
+			couldNotOpen: "无法打开目标 Canvas。",
+			copyNodeFailed: "无法自动复制节点 ID。",
+		},
+		captureTargetFeedback: {
+			needsField: "属性捕获目标需要字段名，例如 property:type=draft。",
+			filtersDesc: "捕获目标过滤器选择一个目标文件。在捕获格式中使用 {{FILE:...|multi}} 以支持多值元数据。",
+		},
+	},
 	settings: {
 		language: {
 			name: "语言",

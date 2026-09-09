@@ -147,7 +147,7 @@ describe("applyFolderMode", () => {
 	});
 
 	it("exposes a dropdown option for every mode", () => {
-		expect(folderModeOptions.map((o) => o.value).sort()).toEqual(
+		expect(folderModeOptions().map((o) => o.value).sort()).toEqual(
 			[...MODES].sort(),
 		);
 	});

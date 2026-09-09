@@ -1,4 +1,5 @@
 import type { TemplateFolderConfig } from "../../types/choices/ITemplateChoice";
+import { t } from "../../i18n";
 
 /**
  * The mutually-exclusive destination modes a Template choice can use, surfaced as
@@ -84,19 +85,28 @@ export function applyFolderMode(
 	}
 }
 
-export const folderModeOptions: { value: FolderMode; label: string }[] = [
-	{ value: "obsidian-default", label: "Obsidian default" },
-	{ value: "specified", label: "In a specific folder" },
-	{ value: "active-file", label: "Same folder as current file" },
-	{ value: "prompt", label: "Ask for folder each time" },
-];
+/**
+ * Build the folder-mode dropdown options at call time so the labels pick up the
+ * current locale. Returning a fresh array on each call (rather than a module
+ * constant) is what makes locale switching actually work — module-level code
+ * runs at import time, which is BEFORE main.ts calls setLocale(), so a frozen
+ * `{ value, label }` literal would lock in the English fallback and never
+ * refresh.
+ */
+export function folderModeOptions(): { value: FolderMode; label: string }[] {
+	return [
+		{ value: "obsidian-default", label: t("choiceBuilder.folderMode.obsidianDefault") },
+		{ value: "specified", label: t("choiceBuilder.folderMode.specified") },
+		{ value: "active-file", label: t("choiceBuilder.folderMode.activeFile") },
+		{ value: "prompt", label: t("choiceBuilder.folderMode.prompt") },
+	];
+}
 
-export const folderModeDescriptions: Record<FolderMode, string> = {
-	"obsidian-default":
-		"Use Obsidian's “Default location for new notes” setting.",
-	specified:
-		"Create the note in the folder(s) below. With multiple folders, you'll be asked which one when the note is created.",
-	"active-file":
-		"Create the note next to the currently active file (falls back to the vault root if no file is open).",
-	prompt: "Choose any folder in the vault when the note is created.",
-};
+export function folderModeDescriptions(): Record<FolderMode, string> {
+	return {
+		"obsidian-default": t("choiceBuilder.folderMode.obsidianDefaultDesc"),
+		specified: t("choiceBuilder.folderMode.specifiedDesc"),
+		"active-file": t("choiceBuilder.folderMode.activeFileDesc"),
+		prompt: t("choiceBuilder.folderMode.promptDesc"),
+	};
+}

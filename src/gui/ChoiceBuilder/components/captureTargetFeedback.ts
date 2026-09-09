@@ -1,6 +1,7 @@
 import type { FieldFilter } from "../../../utils/FieldSuggestionParser";
 import { parseCaptureFileFilterTarget } from "../../../utils/captureFileFilterTarget";
 import { parsePropertyTarget } from "../../../utils/propertyTarget";
+import { t } from "../../../i18n";
 
 export type CaptureTargetFeedback = {
 	recognized: true;
@@ -70,8 +71,7 @@ export function getCaptureTargetFeedback(
 				recognized: true,
 				valid: false,
 				variant: "error",
-				message:
-					"Property capture target needs a field name, e.g. property:type=draft.",
+				message: t("choiceBuilder.captureTargetFeedback.needsField"),
 			};
 		}
 

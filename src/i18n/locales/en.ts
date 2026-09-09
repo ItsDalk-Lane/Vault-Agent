@@ -319,6 +319,34 @@ const en = {
 		approveAllRun: "Approve all this run",
 		approve: "Approve",
 	},
+
+	choiceBuilder: {
+		icon: {
+			name: "Icon",
+			desc: "Lucide/Obsidian icon id. Leave empty to use {default}.",
+			placeholder: "Lucide icon name",
+			aria: "Choice icon",
+		},
+		folderMode: {
+			obsidianDefault: "Obsidian default",
+			specified: "In a specific folder",
+			activeFile: "Same folder as current file",
+			prompt: "Ask for folder each time",
+			obsidianDefaultDesc: "Use Obsidian's “Default location for new notes” setting.",
+			specifiedDesc: "Create the note in the folder(s) below. With multiple folders, you'll be asked which one when the note is created.",
+			activeFileDesc: "Create the note next to the currently active file (falls back to the vault root if no file is open).",
+			promptDesc: "Choose any folder in the vault when the note is created.",
+		},
+		canvasPicker: {
+			targetNotFound: "Target canvas file was not found.",
+			couldNotOpen: "Could not open target canvas.",
+			copyNodeFailed: "Could not copy node id automatically.",
+		},
+		captureTargetFeedback: {
+			needsField: "Property capture target needs a field name, e.g. property:type=draft.",
+			filtersDesc: "Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+		},
+	},
 	settings: {
 		language: {
 			name: "Language",
