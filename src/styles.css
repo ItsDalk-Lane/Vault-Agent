@@ -2551,3 +2551,11 @@ textarea.is-valid {
 .quickAddModal [hidden] {
 	display: none !important;
 }
+
+/* Clickable setting-item info areas (collapsible rows): the whole name +
+   description block toggles on click; a real button in the control area
+   stays the keyboard path. */
+.qa-setting-info-clickable {
+	cursor: pointer;
+	user-select: none;
+}

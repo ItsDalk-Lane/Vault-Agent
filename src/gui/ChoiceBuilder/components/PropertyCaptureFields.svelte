@@ -46,22 +46,28 @@ function applyValueFormat(next: string) {
 }
 
 // Multi-row lists need unique labels (getByLabelText), while the single-row
-// card keeps the plain "Property" label the existing tests assert on. A
-// collapsed row folds a summary of what it targets into the label, since its
-// property input is hidden.
+// card keeps the plain "Property" label the existing tests assert on. A row
+// with a typed property name wears THAT name as its title (the collapse
+// summary for free); only nameless rows — including "choose when capturing"
+// — fall back to the numbered "Property N" label.
 const propertyLabel = $derived.by(() => {
-	const base = single || index === undefined
+	if (config.property.kind === "named" && config.property.format.trim()) {
+		return config.property.format.trim();
+	}
+	return single || index === undefined
 		? t("choiceBuilder.propertyCapture.property")
 		: `${t("choiceBuilder.propertyCapture.property")} ${index + 1}`;
-	if (!collapsed) return base;
-	const summary = config.property.kind === "prompt"
-		? t("choiceBuilder.propertyCapture.kindPrompt")
-		: config.property.format.trim() || "—";
-	return `${base} · ${summary}`;
 });
+
+// Clicking anywhere in the name area toggles collapse (preventDefault stops
+// the expanded row's `<label for>` from ALSO focusing the property input).
+function toggleCollapse(event: MouseEvent) {
+	event.preventDefault();
+	collapsed = !collapsed;
+}
 </script>
 
-<LabeledField name={propertyLabel} bodyVisible={config.property.kind === "named" && !collapsed}>
+<LabeledField name={propertyLabel} bodyVisible={config.property.kind === "named" && !collapsed} onNameClick={toggleCollapse}>
 	{#snippet control()}
 		<IconButton
 			iconId={collapsed ? "chevron-right" : "chevron-down"}

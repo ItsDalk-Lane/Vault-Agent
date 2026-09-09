@@ -141,18 +141,20 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
-		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
+		// A named row with a typed name wears that name as its row label.
+		await fireEvent.change(selectUnderSetting(container, "{{VALUE:property}}"), { target: { value: "prompt" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toEqual({ property: { kind: "prompt" }, action: "addToList", createIfMissing: true });
+		// "Choose when capturing" has no name, so the row falls back to "Property".
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("Property")).toHaveValue("{{VALUE:property}}");
+		expect(getByLabelText("{{VALUE:property}}")).toHaveValue("{{VALUE:property}}");
 		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
-		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
-		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
+		await fireEvent.input(getByLabelText("{{VALUE:property}}"), { target: { value: "status" } });
+		await fireEvent.change(selectUnderSetting(container, "status"), { target: { value: "prompt" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("Property")).toHaveValue("status");
+		expect(getByLabelText("status")).toHaveValue("status");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();
@@ -172,8 +174,9 @@ describe("CaptureChoiceForm", () => {
 
 		await fireEvent.click(getByText("Add property"));
 		flushSync();
-		// Two rows: numbered labels keep getByLabelText unique; the config persists as an array.
-		expect(getByLabelText("Property 1")).toHaveValue("status");
+		// Row titles follow typed property names; only nameless rows keep the
+		// numbered label, and the config persists as an array.
+		expect(getByLabelText("status")).toHaveValue("status");
 		expect(getByLabelText("Property 2")).toHaveValue("");
 		expect(props.choice.propertyCapture).toEqual([
 			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowOne}}" },
@@ -182,23 +185,24 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.input(getByLabelText("Property 2"), { target: { value: "project" } });
 		flushSync();
 
-		// Rows collapse independently: a collapsed row hides its fields but keeps
-		// its delete button reachable, and the label folds in a summary.
-		const collapseButtons = getAllByLabelText("Collapse property");
-		expect(collapseButtons).toHaveLength(2);
-		await fireEvent.click(collapseButtons[1]);
+		// Clicking the name AREA itself (not just the chevron) toggles collapse.
+		await fireEvent.click(getByText("project"));
 		flushSync();
-		expect(queryByLabelText("Property 2")).toBeNull();
-		expect(container.textContent).toContain("Property 2 · project");
+		expect(queryByLabelText("project")).toBeNull();
+		// Row 2 is collapsed now: it offers "Expand", row 1 still offers "Collapse",
+		// and the collapsed row keeps its delete button reachable.
+		expect(getAllByLabelText("Collapse property")).toHaveLength(1);
+		expect(getAllByLabelText("Expand property")).toHaveLength(1);
 		expect(getAllByLabelText("Remove property")).toHaveLength(2);
+		expect(container.textContent).toContain("project");
 		await fireEvent.click(getByLabelText("Expand property"));
 		flushSync();
-		expect(getByLabelText("Property 2")).toHaveValue("project");
+		expect(getByLabelText("project")).toHaveValue("project");
 
 		// Removing a row folds a 2-row list back into the single-object shape.
 		await fireEvent.click(getAllByLabelText("Remove property")[0]);
 		flushSync();
-		expect(getByLabelText("Property")).toHaveValue("project");
+		expect(getByLabelText("project")).toHaveValue("project");
 		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true });
 
 		// Removing the last row leaves property mode entirely — never an empty array.

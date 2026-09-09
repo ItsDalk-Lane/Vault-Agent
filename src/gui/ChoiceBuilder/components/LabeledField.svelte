@@ -20,6 +20,7 @@ let {
 	control = undefined,
 	bodyVisible = true,
 	children,
+	onNameClick = undefined,
 }: {
 	name: string;
 	desc?: string | undefined;
@@ -33,13 +34,19 @@ let {
 	bodyVisible?: boolean;
 	/** The field. Receives the id to put on the control the label binds to. */
 	children: Snippet<[string]>;
+	/**
+	 * Forwarded to SettingItem's onInfoClick: clicking the name area fires this.
+	 * Used by collapsible fields (property capture rows); preventDefault inside
+	 * so the `<label for>` does not also focus the field.
+	 */
+	onNameClick?: ((event: MouseEvent) => void) | undefined;
 } = $props();
 
 const fieldId = $props.id();
 </script>
 
 <div class="qa-field">
-	<SettingItem {name} {desc} {control} labelFor={bodyVisible ? fieldId : undefined} />
+	<SettingItem {name} {desc} {control} labelFor={bodyVisible ? fieldId : undefined} onInfoClick={onNameClick} />
 	{#if bodyVisible}
 		<div class="qa-field-body">{@render children(fieldId)}</div>
 	{/if}

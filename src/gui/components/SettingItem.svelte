@@ -16,6 +16,7 @@ let {
 	labelFor = undefined,
 	control = undefined,
 	children = undefined,
+	onInfoClick = undefined,
 }: {
 	name?: string;
 	/** Plain-text description (matches Obsidian `setDesc(string)` = textContent). */
@@ -33,11 +34,27 @@ let {
 	control?: Snippet | undefined;
 	/** Alias for `control` so the row can be used with default slot content. */
 	children?: Snippet | undefined;
+	/**
+	 * Mouse-only affordance: clicking anywhere in the info area (name +
+	 * description) fires this — used for collapsible rows. Opt-in, so plain
+	 * rows keep inert info areas. Keyboard users toggle through a real button
+	 * in the control area; the click handler should preventDefault so a name
+	 * rendered as `<label for>` does not ALSO focus its input.
+	 */
+	onInfoClick?: ((event: MouseEvent) => void) | undefined;
 } = $props();
 </script>
 
 <div class="setting-item" class:setting-item-heading={heading}>
-	<div class="setting-item-info">
+	<!-- Mouse-only affordance: keyboard users toggle through a real button in
+		the control area (see onInfoClick), same pattern as the choice list rows. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div
+		class="setting-item-info"
+		class:qa-setting-info-clickable={!!onInfoClick}
+		onclick={onInfoClick}
+	>
 		{#if name}
 			{#if labelFor}
 				<label class="setting-item-name" for={labelFor}>{name}</label>
