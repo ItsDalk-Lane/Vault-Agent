@@ -15,6 +15,7 @@ import {
 	applyCompactPromptChrome,
 	stylePeekButton,
 } from "../promptPeek/stylePeekButton";
+import { t } from "../../i18n";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -216,10 +217,10 @@ export default class GenericInputPrompt extends Modal {
 		const primary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-primary",
 		});
-		this.createButton(primary, "Ok", this.submitClickCallback)
+		this.createButton(primary, t("common.ok"), this.submitClickCallback)
 			.setCta()
 			.buttonEl.setCssStyles({ marginRight: "0" });
-		this.createButton(primary, "Cancel", this.cancelClickCallback);
+		this.createButton(primary, t("common.cancel"), this.cancelClickCallback);
 		if (this.isOptionalPrompt) {
 			const skipButton = this.createButton(
 				primary,

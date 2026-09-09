@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
+import { t } from "../../i18n";
 
 /**
  * A yes/no dialog. Walking away from it is an answer, not an error: dismissing
@@ -67,12 +68,12 @@ export default class GenericYesNoPrompt extends Modal {
 		});
 
 		const noButton = new ButtonComponent(buttonsDiv)
-			.setButtonText("No")
+			.setButtonText(t("common.no"))
 			.onClick(() => this.submit(false));
 		suppressPointerPress(noButton.buttonEl);
 
 		const yesButton = new ButtonComponent(buttonsDiv)
-			.setButtonText("Yes")
+			.setButtonText(t("common.yes"))
 			.onClick(() => this.submit(true))
 			.setDestructive();
 		suppressPointerPress(yesButton.buttonEl);

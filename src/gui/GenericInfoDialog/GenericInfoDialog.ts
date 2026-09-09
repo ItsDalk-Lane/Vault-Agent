@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
+import { t } from "../../i18n";
 
 export default class GenericInfoDialog extends Modal {
 	private resolvePromise: () => void;
@@ -43,7 +44,7 @@ export default class GenericInfoDialog extends Modal {
 		const buttonsDiv = this.contentEl.createDiv();
 
 		const noButton = new ButtonComponent(buttonsDiv)
-			.setButtonText("OK")
+			.setButtonText(t("common.ok"))
 			.onClick(() => this.close());
 
 		Object.assign(buttonsDiv.style, {

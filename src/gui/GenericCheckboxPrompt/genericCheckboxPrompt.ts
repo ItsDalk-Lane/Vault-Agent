@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
 import { promptCancelled } from "../../errors/UserCancelError";
 import SearchableMultiSelect from "../SearchableMultiSelect/searchableMultiSelect";
+import { t } from "../../i18n";
 
 export default class GenericCheckboxPrompt extends Modal {
 	private resolvePromise: (value: string[]) => void;
@@ -97,7 +98,7 @@ export default class GenericCheckboxPrompt extends Modal {
 		);
 
 		submitButton
-			.setButtonText("Submit")
+			.setButtonText(t("common.submit"))
 			.setCta()
 			.onClick(() => {
 				this.resolved = true;
@@ -113,7 +114,7 @@ export default class GenericCheckboxPrompt extends Modal {
 			submitButtonContainer
 		);
 
-		cancelButton.setButtonText("Cancel").onClick(() => {
+		cancelButton.setButtonText(t("common.cancel")).onClick(() => {
 			this.close();
 		});
 	}

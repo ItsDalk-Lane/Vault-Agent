@@ -5,6 +5,7 @@ import { promptCancelled } from "../../errors/UserCancelError";
 import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "../SearchableMultiSelect/searchableMultiSelect";
+import { t } from "../../i18n";
 
 export interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
@@ -140,7 +141,9 @@ export default class MultiSuggester extends Modal {
 					});
 				})
 				.addButton((btn) =>
-					btn.setButtonText("Add").onClick(() => this.commitDraft()),
+					btn
+						.setButtonText(t("common.add"))
+						.onClick(() => this.commitDraft()),
 				);
 			customSetting.settingEl.addClass("qa-multi-custom");
 		}
@@ -148,16 +151,21 @@ export default class MultiSuggester extends Modal {
 		const buttons = new Setting(contentEl);
 		buttons.settingEl.addClass("qa-multi-actions");
 		buttons.addButton((btn) =>
-			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
+			btn
+				.setButtonText(t("common.done"))
+				.setCta()
+				.onClick(() => this.submit()),
 		);
 		buttons.addButton((btn) =>
-			btn.setButtonText("Cancel").onClick(() => this.close()),
+			btn
+				.setButtonText(t("common.cancel"))
+				.onClick(() => this.close()),
 		);
 		if (this.opts.skippable) {
 			buttons.addButton((btn) =>
 				btn
-					.setButtonText("Skip")
-					.setTooltip("Leave empty")
+					.setButtonText(t("common.skip"))
+					.setTooltip(t("common.skipTooltip"))
 					.onClick(() => {
 						this.skipped = true;
 						this.didSubmit = true;
