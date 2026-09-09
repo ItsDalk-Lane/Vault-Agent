@@ -2,15 +2,20 @@ import { Notice } from "obsidian";
 import type QuickAdd from "../../main";
 import { openQuickAddSettings } from "../../utils/openPluginSettings";
 import ChoiceSuggester, { shouldShowTemplateFolderRow } from "./choiceSuggester";
+import { t } from "../../i18n";
 
 /**
  * What the user is told when "QuickAdd: Run" has nothing to run. Mirrors the
  * shape of the plugin's other "this surface has nothing to offer" notices
  * (runTemplateFromFolder's missing-template-folder notice), which name the exact
  * settings path rather than leaving the user to find it.
+ *
+ * Resolved through t() at call time (not a module-level constant) so the
+ * notice follows the active locale.
  */
-export const NO_CHOICES_NOTICE =
-	"QuickAdd: No choices yet. Create your first one in Settings → QuickAdd.";
+export function noChoicesNotice(): string {
+	return t("choiceSuggester.noChoicesNotice");
+}
 
 /**
  * Opens the top-level choice launcher (the "QuickAdd: Run" command and the
@@ -36,7 +41,7 @@ export function openChoiceLauncher(plugin: QuickAdd): void {
 		choices.length > 0 || shouldShowTemplateFolderRow(plugin);
 
 	if (!hasSomethingToPick) {
-		new Notice(NO_CHOICES_NOTICE, 8000);
+		new Notice(noChoicesNotice(), 8000);
 		openQuickAddSettings(plugin.app, plugin.manifest.id, { notice: false });
 		return;
 	}

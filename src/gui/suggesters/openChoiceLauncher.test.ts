@@ -6,7 +6,7 @@ import { App, Notice } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import ChoiceSuggester from "./choiceSuggester";
-import { NO_CHOICES_NOTICE, openChoiceLauncher } from "./openChoiceLauncher";
+import { noChoicesNotice, openChoiceLauncher } from "./openChoiceLauncher";
 
 type LauncherPluginSettings = {
 	choices: unknown;
@@ -64,7 +64,7 @@ describe("openChoiceLauncher", () => {
 		openChoiceLauncher(pluginWith({ choices: [] }));
 
 		expect(openSpy).not.toHaveBeenCalled();
-		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
+		expect(noticeMessages()).toEqual([noChoicesNotice()]);
 		expect(openTabById).toHaveBeenCalledWith("quickadd");
 	});
 
@@ -76,7 +76,7 @@ describe("openChoiceLauncher", () => {
 
 		openChoiceLauncher(plugin);
 
-		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
+		expect(noticeMessages()).toEqual([noChoicesNotice()]);
 	});
 
 	it("opens the picker as soon as there is a choice", () => {
@@ -117,7 +117,7 @@ describe("openChoiceLauncher", () => {
 		);
 
 		expect(openSpy).not.toHaveBeenCalled();
-		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
+		expect(noticeMessages()).toEqual([noChoicesNotice()]);
 	});
 
 	// Legacy data.json has no templateFolderLauncherRow at all; DEFAULT_SETTINGS
@@ -141,6 +141,6 @@ describe("openChoiceLauncher", () => {
 		openChoiceLauncher(pluginWith({ choices: null }));
 
 		expect(openSpy).not.toHaveBeenCalled();
-		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
+		expect(noticeMessages()).toEqual([noChoicesNotice()]);
 	});
 });

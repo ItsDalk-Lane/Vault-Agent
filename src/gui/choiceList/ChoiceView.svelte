@@ -499,8 +499,7 @@
 			<ObsidianIcon iconId="folder-plus" size={28} />
 			<div class="choiceEmptyTitle">{t("choiceView.empty")}</div>
 			<p class="choiceEmptyBody">
-				A choice is an action QuickAdd can run: create a note, capture
-				text, or run a macro. Group them with folders.
+				{t("choiceView.emptyBody")}
 				<!-- The one place a brand-new user is guaranteed to look, so it
 				     carries the plugin's only prominent docs link (#1541). -->
 				<a

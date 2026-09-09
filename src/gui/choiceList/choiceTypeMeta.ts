@@ -1,6 +1,7 @@
 import type { ChoiceType } from "../../types/choices/choiceType";
 import type IChoice from "../../types/choices/IChoice";
 import { flattenChoices } from "../../utils/choiceUtils";
+import { t } from "../../i18n";
 
 export interface ChoiceTypeMeta {
 	type: ChoiceType;
@@ -17,24 +18,34 @@ export interface ChoiceTypeMeta {
  * type, `Multi`, is a folder/container and is offered as its own "New folder"
  * action rather than as a peer in this list — that separation is the whole point
  * of the redesign, so keep Multi OUT of here.
+ *
+ * `description` uses a getter so it resolves through t() at ACCESS time: this
+ * array is a module-level constant evaluated before main.ts calls setLocale(),
+ * so a plain string literal would freeze the English fallback.
  */
 export const DOER_CHOICE_TYPES: ChoiceTypeMeta[] = [
 	{
 		type: "Template",
 		label: "Template",
-		description: "Create a note from a template file.",
+		get description() {
+			return t("choiceList.templateDesc");
+		},
 		iconId: "file-text",
 	},
 	{
 		type: "Capture",
 		label: "Capture",
-		description: "Add text to a note — append, prepend, or insert.",
+		get description() {
+			return t("choiceList.captureDesc");
+		},
 		iconId: "pencil",
 	},
 	{
 		type: "Macro",
 		label: "Macro",
-		description: "Run a sequence of commands and scripts.",
+		get description() {
+			return t("choiceList.macroDesc");
+		},
 		iconId: "terminal",
 	},
 ];
@@ -47,13 +58,13 @@ export const DOER_CHOICE_TYPES: ChoiceTypeMeta[] = [
 export function defaultChoiceName(type: ChoiceType): string {
 	switch (type) {
 		case "Template":
-			return "New template";
+			return t("choiceList.defaultNewTemplate");
 		case "Capture":
-			return "New capture";
+			return t("choiceList.defaultNewCapture");
 		case "Macro":
-			return "New macro";
+			return t("choiceList.defaultNewMacro");
 		case "Multi":
-			return "New folder";
+			return t("choiceList.defaultNewFolder");
 	}
 }
 

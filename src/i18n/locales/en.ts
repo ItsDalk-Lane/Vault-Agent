@@ -751,6 +751,23 @@ const en = {
 		emptyNoticePrefix: "is empty. Add a choice or drag one in.",
 		couldNotRenderName: "Could not render a choice name as Markdown; showing it as plain text",
 		couldNotRunTemplate: "Could not run a template from that folder",
+		noChoicesNotice:
+			"QuickAdd: No choices yet. Create your first one in Settings → QuickAdd.",
+	},
+	choiceList: {
+		newChoice: "New choice",
+		addChoice: "Add choice",
+		newFolder: "New folder",
+		addFolder: "Add folder",
+		addChoiceTo: "Add choice to {folder}",
+		addFolderTo: "Add folder to {folder}",
+		templateDesc: "Create a note from a template file.",
+		captureDesc: "Add text to a note — append, prepend, or insert.",
+		macroDesc: "Run a sequence of commands and scripts.",
+		defaultNewTemplate: "New template",
+		defaultNewCapture: "New capture",
+		defaultNewMacro: "New macro",
+		defaultNewFolder: "New folder",
 	},
 
 	contextMenu: {
@@ -1178,6 +1195,7 @@ const en = {
 	choiceView: {
 		empty: "No choices yet",
 		emptyLink: "Learn more",
+		emptyBody: "A choice is an action QuickAdd can run: create a note, capture text, or run a macro. Group them with folders.",
 		filterPlaceholder: "Filter choices...",
 		clearFilterAria: "Clear filter",
 		configureAi: "Configure AI Assistant",

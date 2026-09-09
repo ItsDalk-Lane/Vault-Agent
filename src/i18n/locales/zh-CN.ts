@@ -731,6 +731,23 @@ const zhCN = {
 		emptyNoticePrefix: "为空。请添加选项或拖入一个。",
 		couldNotRenderName: "无法将选项名称渲染为 Markdown；以纯文本显示",
 		couldNotRunTemplate: "无法从该文件夹运行模板",
+		noChoicesNotice:
+			"QuickAdd：还没有任何选项。请在 设置 → QuickAdd 中创建第一个选项。",
+	},
+	choiceList: {
+		newChoice: "新建选项",
+		addChoice: "添加选项",
+		newFolder: "新建文件夹",
+		addFolder: "添加文件夹",
+		addChoiceTo: "添加选项到 {folder}",
+		addFolderTo: "添加文件夹到 {folder}",
+		templateDesc: "从模板文件创建笔记。",
+		captureDesc: "向笔记添加文本——追加、前置或插入。",
+		macroDesc: "按顺序运行一系列命令和脚本。",
+		defaultNewTemplate: "新建模板",
+		defaultNewCapture: "新建捕获",
+		defaultNewMacro: "新建 Macro",
+		defaultNewFolder: "新建文件夹",
 	},
 
 	contextMenu: {
@@ -1139,6 +1156,7 @@ const zhCN = {
 	choiceView: {
 		empty: "尚无选项",
 		emptyLink: "了解更多",
+		emptyBody: "选项是 QuickAdd 可以运行的动作：创建笔记、捕获文本或运行 Macro。可用文件夹对它们分组。",
 		filterPlaceholder: "筛选选项…",
 		clearFilterAria: "清除筛选",
 		configureAi: "配置 AI 助手",
