@@ -1,4 +1,5 @@
 import { Setting } from "obsidian";
+import { t } from "../../i18n";
 import {
 	DEFAULT_FREQUENCY_PENALTY,
 	DEFAULT_PRESENCE_PENALTY,
@@ -104,7 +105,7 @@ export function addSamplingParamSettings(
 			})
 			.addExtraButton((button) => {
 				button.setIcon("rotate-ccw");
-				button.setTooltip("Reset to provider default");
+				button.setTooltip(t("macro.samplingResetTooltip"));
 				button.setDisabled(!isSet);
 				button.onClick(() => {
 					delete modelParameters[spec.key];

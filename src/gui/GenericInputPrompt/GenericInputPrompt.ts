@@ -227,7 +227,7 @@ export default class GenericInputPrompt extends Modal {
 				"Skip",
 				this.skipClickCallback,
 			);
-			skipButton.setTooltip("Leave this field empty");
+			skipButton.setTooltip(t("input.skipTooltip"));
 			skipButton.buttonEl.setAttribute(
 				"aria-label",
 				"Skip and leave empty",

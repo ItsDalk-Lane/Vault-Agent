@@ -67,7 +67,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private addFilePathSetting() {
 		new Setting(this.contentEl)
 			.setName(t("macro.filePath.name"))
-			.setDesc("Path to the file. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
+			.setDesc(t("macro.filePath.desc"))
 			.addText(text => text
 				.setPlaceholder("{{DATE}}todo.md")
 				.setValue(this.command.filePath)
@@ -92,7 +92,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		new Setting(this.contentEl)
 			.setName(t("macro.whereToOpen.name"))
-			.setDesc("Choose tab, split, window, or sidebar")
+			.setDesc(t("macro.whereToOpen.desc"))
 			.addDropdown((dropdown) => {
 				for (const { value, label } of locationOptions) {
 					dropdown.addOption(value, label);
@@ -135,7 +135,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private addDirectionSetting() {
 		new Setting(this.contentEl)
 			.setName(t("macro.splitDirection.name"))
-			.setDesc("How to arrange the new pane relative to the current one")
+			.setDesc(t("macro.splitDirection.desc"))
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption(NewTabDirection.vertical, "Split right")
@@ -150,7 +150,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private addFocusSetting() {
 		new Setting(this.contentEl)
 			.setName(t("macro.focusOpenedFile.name"))
-			.setDesc("Bring the opened file to the foreground")
+			.setDesc(t("macro.focusOpenedFile.desc"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.command.focus ?? true)

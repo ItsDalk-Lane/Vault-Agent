@@ -35,6 +35,8 @@ const zhCN = {
 		done: "完成",
 		skip: "跳过",
 		skipTooltip: "留空",
+		addCustom: "添加自定义值",
+		notInList: "不在列表中…",
 		submit: "提交",
 		search: "搜索",
 		loading: "加载中…",
@@ -185,6 +187,7 @@ const zhCN = {
 			desc: "AI 助手的系统提示",
 		},
 		showAdvancedSettings: "显示高级设置",
+		samplingResetTooltip: "重置为提供商默认值",
 		promptTemplate: {
 			name: "提示模板",
 			desc: "启用后，助手将使用你指定的提示模板。如果禁用，助手会询问使用哪个提示模板。",

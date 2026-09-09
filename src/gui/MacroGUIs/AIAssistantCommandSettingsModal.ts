@@ -135,7 +135,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		});
 
 		new ButtonComponent(buttonRow)
-			.setButtonText("Cancel")
+			.setButtonText(t("common.cancel"))
 			.onClick(() => {
 				// Dismissing via Cancel discards every edit made in this session.
 				this.restoreOriginal();
@@ -144,7 +144,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			});
 
 		new ButtonComponent(buttonRow)
-			.setButtonText("Save")
+			.setButtonText(t("common.save"))
 			.setCta()
 			.onClick(() => {
 				this.resolve(this.settings);
@@ -195,7 +195,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	addModelSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName(t("macro.aiModel.name"))
-			.setDesc("The model the AI Assistant will use")
+			.setDesc(t("macro.aiModel.desc"))
 			.addDropdown((dropdown) => {
 				populateModelDropdown(dropdown, this.settings, (selection) => {
 					this.settings.model = selection.model;

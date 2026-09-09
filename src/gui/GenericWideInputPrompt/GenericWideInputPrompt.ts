@@ -3,6 +3,7 @@ import { ButtonComponent, Modal, TextAreaComponent } from "obsidian";
 import { FileSuggester } from "../suggesters/fileSuggester";
 import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
+import { t } from "../../i18n";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { renderPromptContextLine } from "../promptContextLine";
@@ -228,7 +229,7 @@ export default class GenericWideInputPrompt extends Modal {
 				"Skip",
 				this.skipClickCallback,
 			);
-			skipButton.setTooltip("Leave this field empty");
+			skipButton.setTooltip(t("input.skipTooltip"));
 			skipButton.buttonEl.setAttribute(
 				"aria-label",
 				"Skip and leave empty",

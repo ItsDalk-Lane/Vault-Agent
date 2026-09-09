@@ -7,6 +7,7 @@ import {
 	requestUrl,
 } from "obsidian";
 import { log } from "src/logger/logManager";
+import { t } from "../../i18n";
 
 type Release = {
 	tag_name: string;
@@ -237,7 +238,7 @@ export class UpdateModal extends Modal {
 	private addCloseFooter(): void {
 		const footer = this.contentEl.createDiv("quickadd-update-modal-footer");
 		new ButtonComponent(footer)
-			.setButtonText("Done")
+			.setButtonText(t("common.done"))
 			.setCta()
 			.onClick(() => this.close());
 	}

@@ -38,6 +38,8 @@ const en = {
 		done: "Done",
 		skip: "Skip",
 		skipTooltip: "Leave empty",
+		addCustom: "Add a custom value",
+		notInList: "Not in the list…",
 		submit: "Submit",
 		search: "Search",
 		loading: "Loading…",
@@ -195,6 +197,7 @@ const en = {
 			desc: "The system prompt for the AI Assistant",
 		},
 		showAdvancedSettings: "Show advanced settings",
+		samplingResetTooltip: "Reset to provider default",
 		promptTemplate: {
 			name: "Prompt template",
 			desc: "Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use.",

@@ -123,10 +123,10 @@ export default class MultiSuggester extends Modal {
 
 		if (this.opts.allowCustomValue) {
 			const customSetting = new Setting(contentEl)
-				.setName("Add a custom value")
+				.setName(t("multiSuggester.addCustom"))
 				.addText((text) => {
 					text
-						.setPlaceholder("Not in the list…")
+						.setPlaceholder(t("multiSuggester.notInList"))
 						.setValue(this.draft)
 						.onChange((v) => (this.draft = v));
 					text.inputEl.addClass("qa-multi-custom-input");
