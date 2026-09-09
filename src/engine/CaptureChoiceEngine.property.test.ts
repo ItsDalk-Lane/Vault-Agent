@@ -6,6 +6,7 @@ import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
+import { overwriteTemplaterOnce } from "../utilityObsidian";
 import { readCaptureFrontmatter, serializeCaptureFrontmatter } from "./captureProperty";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 
@@ -333,5 +334,74 @@ describe("Capture multi-property writes", () => {
 		expect(test.create).not.toHaveBeenCalled();
 		expect(test.read()).toBe(undefined);
 		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: undefined, effect: "unchanged" });
+	});
+
+	it("prompts for each row's property in list order against the initial snapshot", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.propertyCapture = [
+			{ property: { kind: "prompt" }, action: "set", createIfMissing: true },
+			{ property: { kind: "prompt" }, action: "set", createIfMissing: true },
+		];
+		test.executor.interactive = true;
+		const suggester = vi.fn(async (_labels: string[], handles: string[]) => handles[0]);
+		Object.assign(test.executor, { promptProvider: { suggester } });
+		mocks.value.mockResolvedValueOnce("A").mockResolvedValueOnce("B");
+		await test.run();
+		expect(suggester).toHaveBeenCalledTimes(2);
+		// Both prompts see the SAME initial-frontmatter candidates: row order decides
+		// the asking order, not the first row's freshly written key.
+		expect(suggester.mock.calls[0][0]).toEqual(["status"]);
+		expect(suggester.mock.calls[1][0]).toEqual(["status"]);
+		// The second row resolves after the first, so its value wins on the shared key.
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "B" });
+	});
+
+	it("cancels with zero partial writes when a later row's value input is cancelled", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+		];
+		mocks.value.mockResolvedValueOnce("A").mockRejectedValueOnce(new UserCancelError("Input cancelled by user"));
+		await test.run();
+		expect(test.read()).toBe("---\nstatus: active\n---\nBody\n");
+		expect(test.processFrontMatter).not.toHaveBeenCalled();
+		expect(test.create).not.toHaveBeenCalled();
+		expect(test.executor.signalAbort).toHaveBeenCalledWith(expect.any(UserCancelError));
+	});
+
+	it("fails before writing when a later row's property is missing and creation is off", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "missing" }, action: "set", createIfMissing: false },
+		];
+		await test.run();
+		expect(test.processFrontMatter).not.toHaveBeenCalled();
+		expect(test.read()).toBe("---\nstatus: active\n---\nBody\n");
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			status: "error", reason: expect.stringContaining("is missing"),
+		}));
+	});
+
+	it("replays every row after a create-time Templater overwrite of a templated note", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist = { enabled: true, createWithTemplate: true, template: "Template.md" };
+		test.choice.propertyCapture = [
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+		];
+		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app: unknown, file: TFile) => {
+			expect(test.executor.recordExecutionResult).not.toHaveBeenCalled();
+			test.overwrite("---\nstatus: templater\n---\nTemplater body\n");
+			void file;
+		});
+		mocks.value.mockResolvedValueOnce("A").mockResolvedValueOnce("B");
+		await test.run();
+		expect(test.create).toHaveBeenCalledTimes(1);
+		expect(test.processFrontMatter).toHaveBeenCalledTimes(1);
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "A", project: "B" });
+		expect(test.read()).toMatch(/---\nTemplater body\n$/);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "created" });
 	});
 });

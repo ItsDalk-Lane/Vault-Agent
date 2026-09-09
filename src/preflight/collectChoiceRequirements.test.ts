@@ -2485,4 +2485,28 @@ describe("property capture requirements", () => {
 		expect(requirements.find((requirement) => requirement.id === "amount")?.type).toBe("number");
 		expect(requirements.every((requirement) => requirement.pathContext)).toBe(true);
 	});
+
+	it("collects each multi-property row's variables with per-row types and runtime deferral", async () => {
+		const choice = createCaptureChoice("Inbox.md");
+		choice.propertyCapture = [
+			{ property: { kind: "named", format: "rating" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowA}}" },
+			{ property: { kind: "named", format: "{{VALUE:propertyName}}" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowB}}" },
+		];
+		choice.format = { enabled: true, format: "{{VALUE:captureText}}" };
+		const requirements = await collectChoiceRequirements({
+			vault: { getAbstractFileByPath: () => null },
+			metadataTypeManager: { getAllProperties: () => ({ rating: {} }), getTypeInfo: () => ({ expected: { type: "number" } }) },
+		} as unknown as App, { settings: { inputPrompt: "single-line", globalVariables: {}, useSelectionAsCaptureValue: false } } as any,
+			createChoiceExecutor(), choice);
+		// Row order: row 1's name is literal (nothing to collect), then row 2's
+		// templated name, then each row's own value format.
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["propertyName", "rowA", "rowB"]);
+		expect(requirements.find((requirement) => requirement.id === "rowA")?.type).toBe("number");
+		expect(requirements.find((requirement) => requirement.id === "rowA")?.runtimeOnly).not.toBe(true);
+		// Row 2's property type is unknowable until the templated name resolves,
+		// so its bare value variable is deferred to run time.
+		expect(requirements.find((requirement) => requirement.id === "rowB")?.runtimeOnly).toBe(true);
+		// In property mode the capture format itself is dormant and feeds no row.
+		expect(requirements.some((requirement) => requirement.id === "captureText")).toBe(false);
+	});
 });

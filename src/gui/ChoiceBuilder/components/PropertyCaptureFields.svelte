@@ -28,17 +28,14 @@ let { config, app, plugin, index, single, fallbackFormat = "" }: {
 const suggesters = [(el: HTMLInputElement | HTMLTextAreaElement) => new FormatSyntaxSuggester(app, el, plugin)];
 let lastNamedFormat = "";
 
-// Local mirror for the optional valueFormat: ValidatedInput binds a string, but
-// config.valueFormat is undefined for legacy rows (empty means "fall back to
-// the capture format"), and binding undefined to a $bindable("") throws.
-let valueFormatDraft = $state("");
-$effect(() => {
-	const stored = config.valueFormat;
-	if ((stored ?? "") !== valueFormatDraft) valueFormatDraft = stored ?? "";
-});
-$effect(() => {
-	config.valueFormat = valueFormatDraft.trim() === "" ? undefined : valueFormatDraft;
-});
+// No binding + effect round-trip here: config.valueFormat is undefined for
+// legacy rows (empty means "fall back to the capture format"), and an effect
+// mirroring draft ↔ config would fight itself — every keystroke resets the
+// draft because config.valueFormat is still one flush behind. Instead the
+// input is a plain controlled value and onChange is the only writer.
+function applyValueFormat(next: string) {
+	config.valueFormat = next.trim() === "" ? undefined : next;
+}
 
 // Multi-row lists need unique labels (getByLabelText), while the single-row
 // card keeps the plain "Property" label the existing tests assert on.
@@ -68,8 +65,8 @@ const propertyLabel = $derived(
 
 <LabeledField name={t("choiceBuilder.propertyCapture.valueFormat")} bodyVisible={true}>
 	{#snippet children(id)}
-		<ValidatedInput {id} bind:value={valueFormatDraft} placeholder={fallbackFormat}
-			makeSuggesters={suggesters} />
+		<ValidatedInput {id} value={config.valueFormat ?? ""} placeholder={fallbackFormat}
+			onChange={applyValueFormat} makeSuggesters={suggesters} />
 	{/snippet}
 </LabeledField>
 <p class="qa-property-capture-value-format-desc">{t("choiceBuilder.propertyCapture.valueFormatDesc")}</p>

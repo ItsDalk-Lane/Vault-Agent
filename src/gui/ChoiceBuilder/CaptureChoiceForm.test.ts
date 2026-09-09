@@ -159,6 +159,42 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).toContain("Task");
 	});
 
+	it("edits multi-property rows with unique labels and persists canonical shapes", async () => {
+		const { container, props, getByLabelText, getByText, getAllByLabelText } = mountForm();
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		flushSync();
+		// Entering property mode starts as ONE canonical row (no valueFormat key).
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "" }, action: "set", createIfMissing: true });
+		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
+		await fireEvent.input(getByLabelText("Value format (optional)"), { target: { value: "{{VALUE:rowOne}}" } });
+		flushSync();
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowOne}}" });
+
+		await fireEvent.click(getByText("Add property"));
+		flushSync();
+		// Two rows: numbered labels keep getByLabelText unique; the config persists as an array.
+		expect(getByLabelText("Property 1")).toHaveValue("status");
+		expect(getByLabelText("Property 2")).toHaveValue("");
+		expect(props.choice.propertyCapture).toEqual([
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowOne}}" },
+			{ property: { kind: "named", format: "" }, action: "set", createIfMissing: true },
+		]);
+		await fireEvent.input(getByLabelText("Property 2"), { target: { value: "project" } });
+		flushSync();
+
+		// Removing a row folds a 2-row list back into the single-object shape.
+		await fireEvent.click(getAllByLabelText("Remove property")[0]);
+		flushSync();
+		expect(getByLabelText("Property")).toHaveValue("project");
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true });
+
+		// Removing the last row leaves property mode entirely — never an empty array.
+		await fireEvent.click(getByLabelText("Remove property"));
+		flushSync();
+		expect(props.choice.propertyCapture).toBeUndefined();
+		expect(settingNames(container)).toContain("Task");
+	});
+
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
 		const headerBefore = container.querySelector(".choiceNameHeaderButton");
