@@ -32,5 +32,8 @@ coverage/
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
 
+# i18n batching scratch space (tool intermediate output, not source)
+.i18n-batch/
+
 # Obsidian application bundle (only ever extracted transiently for inspection)
 /app.js
