@@ -21,7 +21,7 @@ export function createOwnedElement<K extends keyof HTMLElementTagNameMap>(
 	owner: Node,
 	tagName: K,
 ): HTMLElementTagNameMap[K] {
-	return getOwnerDocument(owner).createElement(tagName);
+	return getOwnerDocument(owner).win.createEl(tagName);
 }
 
 export function createOwnedTextNode(owner: Node, text: string): Text {

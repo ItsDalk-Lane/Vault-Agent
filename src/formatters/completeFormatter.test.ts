@@ -42,11 +42,7 @@ const mocks = vi.hoisted(() => ({
 
 // --- Module mocks --------------------------------------------------------
 
-vi.mock("obsidian", () => {
-	// MarkdownView is only referenced as a token passed to getActiveViewOfType.
-	class MarkdownView {}
-	return { MarkdownView };
-});
+vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mocks")).obsidianMock());
 
 vi.mock("../engine/SingleMacroEngine", () => ({
 	SingleMacroEngine: class {
@@ -180,13 +176,7 @@ vi.mock("../settingsStore", () => ({
 }));
 
 // Keep the logger silent/deterministic.
-vi.mock("../logger/logManager", () => ({
-	log: {
-		logError: vi.fn(),
-		logWarning: vi.fn(),
-		logMessage: vi.fn(),
-	},
-}));
+vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
 const { CompleteFormatter } = await import("./completeFormatter");
 const { MacroAbortError } = await import("../errors/MacroAbortError");
@@ -1888,6 +1878,16 @@ describe("property value formatting", () => {
 		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
 	}
 
+	it("keeps a number or list returned by a whole-format inline script", async () => {
+		const f = defaultFormatter();
+		mocks.inlineRunAndGetOutput.mockResolvedValue(6);
+		expect(await f.formatPropertyValue("```js quickadd\nreturn 6;\n```")).toBe(6);
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["fresh", "kept"]);
+		expect(await f.formatPropertyValue("```js quickadd\nreturn ['fresh', 'kept'];\n```")).toEqual(["fresh", "kept"]);
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["a", "b"]);
+		expect(await f.formatPropertyValue("Tags: ```js quickadd\nreturn ['a', 'b'];\n```")).toBe("Tags: a,b");
+	});
+
 	it.each([0, false, ["a,b", "c"], [], { nested: true }])("retains whole-token native values for validation: %j", async (value) => {
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(value);
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE}}")).toEqual(value);
@@ -1955,5 +1955,122 @@ describe("property value formatting", () => {
 	it.each([7, ["false"]])("rejects a non-boolean %j for an explicitly checkbox token", async (value) => {
 		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE:input|type:checkbox}}")).rejects.toThrow("true or false");
 		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE|type:checkbox}}")).rejects.toThrow("true or false");
+	});
+
+	it("expands {{PROPERTY}} from the seeded propertyValue snapshot", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old", "keep"]);
+		executor.variables.set("propertyKey", "tags");
+		executor.variables.set("list", ["old", "keep"]);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("work\n{{PROPERTY}}")).toBe("work\nold\nkeep");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}\nwork")).toBe("old\nkeep\nwork");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+		expect(await formatter.formatPropertyValue("{{property}}")).toEqual(["old", "keep"]);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(false);
+	});
+
+	it("expands {{PROPERTY}} injected by a global variable and marks the token as used", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old"]);
+		const formatter = new CompleteFormatter(
+			makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any,
+			makePlugin({ globalVariables: { prepend: "work\n{{PROPERTY}}" } }) as any,
+			executor,
+		);
+		expect(await formatter.formatPropertyValue("{{GLOBAL_VAR:prepend}}")).toBe("work\nold");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+	});
+
+	it.each([
+		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "beforeafter" },
+		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["beforeafter", "{{VALUE}}"] },
+		{ format: "Added\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbeforeafter\n{{DATE}}" },
+	])("strips cursor markers after expanding $format from $value", async ({ format, value, expected }) => {
+		const executor = createChoiceExecutor();
+		const originalValue = structuredClone(value);
+		executor.variables.set("propertyValue", value);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue(format)).toEqual(expected);
+		expect(executor.variables.get("propertyValue")).toEqual(originalValue);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+	});
+
+	it("strips cursor markers from retained VALUE lists without changing native types", async () => {
+		const value = ["before{{CURSOR}}after", false, 0];
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["beforeafter", false, 0]);
+		expect(value).toEqual(["before{{CURSOR}}after", false, 0]);
+	});
+
+	it("does not mark the property token when the format never expands it", async () => {
+		const executor = createChoiceExecutor();
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("work")).toBe("work");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(false);
+	});
+
+	it("does not re-scan tokens that appear inside the seeded property value", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", "see {{DATE}} and {{VALUE}} and {{TITLE}}");
+		executor.variables.set("item", "work");
+		const formatter = new CompleteFormatter(
+			makeApp({ activeFile: { basename: "Note" }, selection: null, generatedLink: "" }) as any,
+			makePlugin() as any,
+			executor,
+		);
+		formatter.setTitle("DocTitle");
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe(
+			"see {{DATE}} and {{VALUE}} and {{TITLE}}",
+		);
+		expect(await formatter.formatPropertyValue("{{VALUE:item}} | {{PROPERTY}}")).toBe(
+			"work | see {{DATE}} and {{VALUE}} and {{TITLE}}",
+		);
+	});
+
+	it("still expands author tokens around {{PROPERTY}} after moving property last", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old"]);
+		executor.variables.set("item", "work");
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{VALUE:item}}\n{{PROPERTY}}")).toBe("work\nold");
+	});
+
+	it("weaves a scalar {{PROPERTY}} into surrounding text", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", "Draft");
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{PROPERTY}} → Ready")).toBe("Draft → Ready");
+	});
+
+	it("expands a missing {{PROPERTY}} to empty and rejects the token outside property formats", async () => {
+		const executor = createChoiceExecutor();
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe("");
+		await expect(formatter.formatFileContent("{{PROPERTY}}")).rejects.toThrow(/property Capture/);
+	});
+
+	it("aborts {{PROPERTY}} when a list item contains a line break", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["a\nb", "c"]);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		await expect(formatter.formatPropertyValue("{{PROPERTY}}")).rejects.toThrow(/line break/);
+	});
+});
+
+
+describe("Capture cursor token scope", () => {
+	it("strips the token from non-Capture bodies, paths and property values", async () => {
+		const formatter = defaultFormatter();
+		expect(await formatter.formatFileContent("before{{CURSOR}}after")).toBe("beforeafter");
+		expect(await formatter.formatFileName("{{cursor}}Note")).toBe("Note");
+		expect(await formatter.formatFolderPath("Folder{{CURSOR}}")).toBe("Folder");
+		expect(await formatter.formatPropertyValue("before{{CURSOR}}after")).toBe("beforeafter");
+	});
+	it("preserves the token for Capture's placement compiler", async () => {
+		const formatter = defaultFormatter();
+		const input = "before{{cursor}}after";
+		expect(await formatter.withPromptScope("captureText", input, () => formatter.formatFileContent(input))).toBe("before{{cursor}}after");
 	});
 });

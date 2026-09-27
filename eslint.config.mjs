@@ -7,7 +7,7 @@ import globals from 'globals';
 export default [
     {
         // Global ignores: a standalone object with only `ignores` applies repo-wide in flat config.
-        ignores: ['node_modules/**', 'dist/**', 'docs/**', 'main.js', '**/*.d.ts'],
+        ignores: ['node_modules/**', 'dist/**', 'docs/**', '.audit/**', 'main.js', '**/*.d.ts'],
     },
     {
         files: ['**/*.ts'],
@@ -71,6 +71,54 @@ export default [
             // buttons or keyboard-operable drag handles, which are covered by tests.
             'svelte/valid-compile': 'error',
         },
+    },
+    {
+        files: ['src/**/*.ts'],
+        ignores: ['src/**/*.test.ts'],
+        languageOptions: {
+            parser: typescriptParser,
+            parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+        },
+        rules: {
+            '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+            '@typescript-eslint/prefer-promise-reject-errors': 'error',
+            '@typescript-eslint/unbound-method': 'error',
+            'no-useless-escape': 'error',
+        },
+    },
+    {
+        files: ['src/**/*.ts', 'src/**/*.svelte'],
+        ignores: ['src/**/*.test.ts'],
+        rules: {
+            'no-console': ['error', { allow: ['warn', 'error'] }],
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="createElement"]',
+                    message: 'Use Obsidian DOM helpers; use the owner document window for detached elements.',
+                },
+                {
+                    selector: 'CallExpression[callee.property.name="createDocumentFragment"]',
+                    message: 'Use createFragment(), or the owner document window for a specific realm.',
+                },
+                {
+                    selector: 'CallExpression:matches([callee.name="createEl"], [callee.property.name="createEl"])[arguments.0.value=/^(div|span)$/]',
+                    message: 'Use createDiv() or createSpan() for these tags.',
+                },
+                {
+                    selector: 'BinaryExpression[operator="instanceof"][right.name="HTMLElement"]',
+                    message: 'Use node.instanceOf(HTMLElement) for cross-window checks.',
+                },
+                {
+                    selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="setDynamicTooltip"]',
+                    message: 'Slider values are shown inline; setDynamicTooltip has no effect.',
+                },
+            ],
+        },
+    },
+    {
+        files: ['src/gui/svelte/mountComponent.ts'],
+        rules: { '@typescript-eslint/no-explicit-any': 'error' },
     },
     // Special rules for main.ts to preserve critical import order
     {

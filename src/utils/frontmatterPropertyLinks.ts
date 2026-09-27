@@ -147,6 +147,10 @@ function resolveFrontmatterPropertyKey(
 	frontmatter: Record<string, unknown>,
 	propertyKey: string,
 ): string {
+	propertyKey = propertyKey.trim();
+	if (!propertyKey) {
+		throw new Error("Cannot append link to an empty frontmatter property key.");
+	}
 	const normalizedPropertyKey = normalizePropertyKey(propertyKey);
 	const matchingKeys = Object.keys(frontmatter).filter(
 		(key) => normalizePropertyKey(key) === normalizedPropertyKey,

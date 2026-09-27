@@ -6,47 +6,9 @@ const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoist
 	getCaptureInsertionEndOffsetMock: vi.fn(),
 }));
 
-vi.mock("../quickAddSettingsTab", () => {
-	const defaultSettings = {
-		choices: [],
-		inputPrompt: "single-line",
-		devMode: false,
-		templateFolderPaths: [],
-		useSelectionAsCaptureValue: true,
-		announceUpdates: "major",
-		version: "0.0.0",
-		globalVariables: {},
-		onePageInputEnabled: false,
-		disableOnlineFeatures: true,
-		enableRibbonIcon: false,
-		showCaptureNotification: true,
-		showInputCancellationNotification: true,
-		enableTemplatePropertyTypes: false,
-		ai: {
-			defaultModel: "Ask me",
-			defaultSystemPrompt: "",
-			promptTemplatesFolderPath: "",
-			showAssistant: true,
-			providers: [],
-		},
-		migrations: {
-			migrateToMacroIDFromEmbeddedMacro: true,
-			useQuickAddTemplateFolder: false,
-			incrementFileNameSettingMoveToDefaultBehavior: false,
-			consolidateFileExistsBehavior: false,
-			mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
-			setVersionAfterUpdateModalRelease: false,
-			addDefaultAIProviders: false,
-			removeMacroIndirection: false,
-			migrateFileOpeningSettings: false,
-			backfillFileOpeningDefaults: false,
-		},
-	};
-
-	return {
-		DEFAULT_SETTINGS: defaultSettings,
-		QuickAddSettingsTab: class {},
-	};
+vi.mock("../quickAddSettingsTab", async () => {
+	const { engineSettingsMock } = await import("../../tests/helpers/engines/settings");
+	return engineSettingsMock();
 });
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -63,11 +25,12 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(
-			content: string,
-			...args: unknown[]
-		): Promise<string> {
-			return await formatContentWithFileMock(content, ...args);
+		async formatContentWithFile(content: string, ...args: unknown[]) {
+			const value = getCaptureInsertionEndOffsetMock();
+			return {
+				content: await formatContentWithFileMock(content, ...args), captureContent: content,
+				cursor: typeof value === "number" ? { kind: "offset", source: "defaultEnd", value } : { kind: "none" },
+			};
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -77,9 +40,6 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];
-		}
-		getCaptureInsertionEndOffset() {
-			return getCaptureInsertionEndOffsetMock();
 		}
 	},
 }));
@@ -271,6 +231,6 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 
 		expect(result.newFileContent).toBe(formattedFileContent);
 		expect(result.cursorPlacementSafe).toBe(true);
-		expect(result.cursorEndOffset).toBe(formattedFileContent.length);
+		expect(result.cursor).toEqual({ kind: "offset", source: "defaultEnd", value: formattedFileContent.length });
 	});
 });

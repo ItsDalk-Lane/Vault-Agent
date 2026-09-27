@@ -1,3 +1,4 @@
+import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
 import type { App, WorkspaceLeaf } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import invariant from "src/utils/invariant";
@@ -25,14 +26,11 @@ import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import {
 	normalizeAppendLinkOptions,
-	placementSupportsFrontmatter,
 } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
-	insertFileLinkToActiveView,
 	jumpToNextTemplaterCursorIfPossible,
-	openExistingFileTab,
-	openFile,
+	getMarkdownEditorViewForFile,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import {
@@ -43,14 +41,7 @@ import {
 	orderFolderPathsByConfiguredRoots,
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
-import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
-import {
-	appendFileLinkToDestinationFile,
-	copyFileLinkToClipboard,
-	getAppendLinkDestinationFile,
-} from "../utils/fileLinks";
-import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
@@ -58,6 +49,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
+import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
@@ -86,6 +78,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	public async run(): Promise<void> {
+		this.cursorPlacement = null;
 		let restoreDiscoveryValue: (() => void) | null = null;
 		let discoveryVaultRelativePath: string | null = null;
 		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
@@ -252,6 +245,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
 			this.outcome.success(createdFile, effect);
+			const cursorBeforeLink = this.cursorPlacement;
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
@@ -260,27 +254,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				// choice", which implies the run failed and tempts a duplicate re-run.
 				// Report it as a non-fatal warning that names the created file.
 				try {
-					if (linkOptions.destination.type === "specifiedFile") {
-						await appendFileLinkToDestinationFile(
-							this.app,
-							createdFile,
-							linkOptions,
-						);
-					} else if (placementSupportsFrontmatter(linkOptions.placement)) {
-						await insertFileLinkToActiveView(this.app, createdFile, linkOptions);
-					} else if (this.choiceExecutor.focusedProperty) {
-						await appendLinkToFrontmatterProperty(
-							this.app,
-							this.choiceExecutor.focusedProperty,
-							createdFile,
-						);
-					} else {
-						await insertFileLinkToActiveView(
-							this.app,
-							createdFile,
-							linkOptions,
-						);
-					}
+					await insertChoiceFileLink(this.app, createdFile, linkOptions,
+						this.choiceExecutor.focusedProperty, this.cursorPlacement ? mutation => {
+							if (this.cursorPlacement && mutation.filePath === createdFile?.path) {
+								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
+							}
+						} : undefined);
 				} catch (linkError) {
 					// An abort propagating through the link step still aborts the run.
 					if (linkError instanceof MacroAbortError) {
@@ -299,35 +278,22 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (this.choice.copyLinkToClipboard && createdFile) {
-				try {
-					await copyFileLinkToClipboard(createdFile);
-				} catch (error) {
-					log.logWarning(
-						t("errors.copyLinkToClipboardFailed", {
-							path: createdFile.path,
-							error: error instanceof Error ? error.message : String(error),
-						}),
-					);
-				}
+				await copyChoiceFileLink(createdFile);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
-				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
-				const focus = fileOpening.focus ?? true;
-				const openExistingTab = openExistingFileTab(
-					this.app,
-					createdFile,
-					focus,
-				);
+				await openChoiceFile({
+					app: this.app, file: createdFile,
+					opening: this.choice.fileOpening, originLeaf: this.originLeaf,
+				});
 
-				if (!openExistingTab) {
-					await openFile(this.app, createdFile, {
-						...fileOpening,
-						originLeaf: this.originLeaf,
-					});
+				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+					this.placeCursor(createdFile, cursorBeforeLink);
 				}
-
-				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);
+			} else if (this.cursorPlacement && getMarkdownEditorViewForFile(this.app, createdFile)) {
+				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+					this.placeCursor(createdFile, cursorBeforeLink);
+				}
 			} else if (
 				createdNew &&
 				!linkOptions.enabled &&
@@ -456,20 +422,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	private validateAppendLinkDestination(
 		linkOptions: NormalizedAppendLinkOptions,
 	): boolean {
-		if (
-			!linkOptions.enabled ||
-			linkOptions.destination.type !== "specifiedFile"
-		) {
-			return true;
-		}
-
-		if (getAppendLinkDestinationFile(this.app, linkOptions.destination)) {
-			return true;
-		}
-
-		this.failRun(
-			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
-		);
+		const error = appendLinkDestinationError(this.app, linkOptions);
+		if (!error) return true;
+		this.failRun(error);
 		return false;
 	}
 
@@ -573,16 +528,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	private async openDiscoveredExistingNote(file: TFile): Promise<void> {
-		const fileOpening = normalizeFileOpening(this.choice.fileOpening);
-		const openExistingTab = openExistingFileTab(this.app, file, true);
-
-		if (!openExistingTab) {
-			await openFile(this.app, file, {
-				...fileOpening,
-				focus: true,
-				originLeaf: this.originLeaf,
-			});
-		}
+		await openChoiceFile({
+			app: this.app, file, opening: this.choice.fileOpening,
+			originLeaf: this.originLeaf, forceFocus: true,
+		});
 	}
 
 	private async applyExistingFileUpdate(
@@ -591,27 +540,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		templatePath: string,
 		linkOptions: NormalizedAppendLinkOptions,
 	): Promise<TFile | null> {
-		switch (modeId) {
-			case "appendTop":
-				return await this.appendToExistingFileWithTemplate(
-					existingFile,
-					templatePath,
-					"top",
-					linkOptions,
-				);
-			case "appendBottom":
-				return await this.appendToExistingFileWithTemplate(
-					existingFile,
-					templatePath,
-					"bottom",
-					linkOptions,
-				);
-			case "overwrite":
-				return await this.overwriteFileWithTemplate(
-					existingFile,
-					templatePath,
-				);
-		}
+		return modeId === "overwrite"
+			? this.overwriteFileWithTemplate(existingFile, templatePath)
+			: this.appendToExistingFileWithTemplate(existingFile, templatePath,
+				modeId === "appendTop" ? "top" : "bottom", linkOptions);
 	}
 
 	private async appendToExistingFileWithTemplate(
@@ -673,9 +605,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				: "required",
 		);
 
-		return await this.withAnonymousValueForInsertEngine(() =>
+		const file = await this.withAnonymousValueForInsertEngine(() =>
 			insertEngine.apply()
 		);
+		this.cursorPlacement = insertEngine.getCursorPlacement();
+		return file;
 	}
 
 	private async withAnonymousValueForInsertEngine<T>(
@@ -690,11 +624,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await work();
 		}
 
-		variables.set("value", anonymousValue);
+		const restore = this.setTemporaryValueVariable(anonymousValue);
 		try {
 			return await work();
 		} finally {
-			variables.delete("value");
+			restore();
 		}
 	}
 
@@ -754,69 +688,30 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		]);
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
-		// Where the folder chooser goes: the client on an interactive run, an abort on
-		// a headless one, the modal otherwise. A single configured folder never prompts.
-		const executor = this.choiceExecutor;
-
-		if (
-			this.choice.folder?.chooseFromSubfolders &&
-			!(
-				this.choice.folder?.chooseWhenCreatingNote ||
-				this.choice.folder?.createInSameFolderAsActiveFile
-			)
-		) {
-			const allFoldersInVault: string[] = sortFolderPathsByTree(
-				getAllFolderPathsInVault(this.app),
-			);
-
-			// Walk configured roots in list order; tree-sort only within each root
-			// so FolderList reorder still ranks which root's subtree appears first.
-			const subfolders = orderFolderPathsByConfiguredRoots(
-				allFoldersInVault,
-				folders,
-			);
-
-			return await this.getOrCreateFolder(subfolders, {
-				allowCreate: true,
-				allowedRoots: folders,
-				topItems,
-				executor,
-			});
-		}
-
-		if (this.choice.folder?.chooseWhenCreatingNote) {
-			const allFoldersInVault: string[] = sortFolderPathsByTree(
-				getAllFolderPathsInVault(this.app),
-			);
-			return await this.getOrCreateFolder(allFoldersInVault, {
-				allowCreate: true,
-				topItems,
-				executor,
-			});
-		}
-
-		if (this.choice.folder?.createInSameFolderAsActiveFile) {
+		const config = this.choice.folder;
+		let destinations = folders;
+		let allowedRoots: string[] | undefined = folders;
+		if (config?.chooseWhenCreatingNote) {
+			destinations = sortFolderPathsByTree(getAllFolderPathsInVault(this.app));
+			allowedRoots = undefined;
+		} else if (config?.createInSameFolderAsActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
-
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
 					t("errors.noActiveFileForSameFolder"),
 				);
 				return "";
 			}
-
-			return await this.getOrCreateFolder([activeFile.parent.path], {
-				allowCreate: true,
-				topItems,
-				executor,
-			});
+			destinations = [activeFile.parent.path];
+			allowedRoots = undefined;
+		} else if (config?.chooseFromSubfolders) {
+			// Configured root order wins; descendants are tree-sorted within each root.
+			destinations = orderFolderPathsByConfiguredRoots(
+				sortFolderPathsByTree(getAllFolderPathsInVault(this.app)), folders,
+			);
 		}
-
-		return await this.getOrCreateFolder(folders, {
-			allowCreate: true,
-			allowedRoots: folders,
-			topItems,
-			executor,
+		return this.getOrCreateFolder(destinations, {
+			allowCreate: true, allowedRoots, topItems, executor: this.choiceExecutor,
 		});
 	}
 

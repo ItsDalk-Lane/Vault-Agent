@@ -15,6 +15,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 	 * so its prompts must not claim to be asking for note content (issue #1546).
 	 */
 	private promptScope: PromptScopeKind = "noteBody";
+	private preserveCursorMarkers = false;
 
 	constructor(
 		app: App,
@@ -24,6 +25,10 @@ export class SingleTemplateEngine extends TemplateEngine {
 		inclusion?: TemplateInclusionState,
 	) {
 		super(app, plugin, choiceExecutor, inclusion);
+	}
+
+	public setPreserveCursorMarkers(preserve: boolean): void {
+		this.preserveCursorMarkers = preserve;
 	}
 
 	public setPromptScope(scope: PromptScopeKind): void {
@@ -47,7 +52,9 @@ export class SingleTemplateEngine extends TemplateEngine {
 
 		templateContent = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope(this.promptScope, templateContent, () =>
-				this.formatter.formatFileContent(templateContent),
+				this.preserveCursorMarkers
+					? this.formatter.formatTemplateContent(templateContent)
+					: this.formatter.formatFileContent(templateContent),
 			),
 		);
 

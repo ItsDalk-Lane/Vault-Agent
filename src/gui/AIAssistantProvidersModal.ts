@@ -1,6 +1,6 @@
- 
+import { addProviderSecret } from "./ai/providerSettings";
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Notice, SecretComponent, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { ensureProviderIds } from "src/ai/Provider";
 import { mergeModels } from "src/ai/modelsDirectory";
@@ -11,7 +11,6 @@ import { deepClone } from "src/utils/deepClone";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
-import type { IconType } from "src/types/IconType";
 import { t } from "../i18n";
 
 export class AIAssistantProvidersModal extends Modal {
@@ -112,22 +111,7 @@ export class AIAssistantProvidersModal extends Modal {
 			new Setting(providersContainer)
 				.setName(provider.name)
 				.setDesc(provider.endpoint)
-				.addButton((button) => {
-					button.onClick(async () => {
-						const confirmation = await GenericYesNoPrompt.Prompt(
-							this.app,
-							t("ai.deleteProviderConfirm", { name: provider.name })
-						);
-						if (!confirmation) {
-							return;
-						}
-
-						this.providers.splice(i, 1);
-						this.reload();
-					});
-					button.setDestructive();
-					button.setIcon("trash" as IconType);
-				})
+				.addButton((button) => this.addDeleteButton(button, provider.name, () => this.providers.splice(i, 1)))
 					.addButton((button) => {
 						button.setButtonText(t("ai.editProvider")).onClick(() => {
 							this.selectedProvider = provider;
@@ -136,6 +120,23 @@ export class AIAssistantProvidersModal extends Modal {
 							this.reload();
 						});
 					});
+		});
+	}
+
+	private addDeleteButton(
+		button: ButtonComponent,
+		name: string,
+		remove: () => void,
+	): void {
+		button.setDestructive();
+		button.setIcon("trash");
+		button.onClick(async () => {
+			const confirmed = await GenericYesNoPrompt.Prompt(
+				this.app, t("ai.deleteProviderConfirm", { name }),
+			);
+			if (!confirmed) return;
+			remove();
+			this.reload();
 		});
 	}
 
@@ -185,22 +186,15 @@ export class AIAssistantProvidersModal extends Modal {
 	addApiKeySetting(container: HTMLElement) {
 		const hasLegacyKey =
 			!!this.selectedProvider?.apiKey && !this.selectedProvider?.apiKeyRef;
-		const description = hasLegacyKey
-			? t("ai.apiKeyLegacyDesc")
-			: t("ai.apiKeySelectDesc");
-
-		new Setting(container)
-			.setName(t("ai.apiKey"))
-			.setDesc(description)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(this.selectedProvider?.apiKeyRef ?? "")
-					.onChange((value) => {
-						if (!this.selectedProvider) return;
-						this.selectedProvider.apiKeyRef = value;
-						this.selectedProvider.apiKey = "";
-					}),
-			);
+		addProviderSecret(container, this.app, {
+			value: this.selectedProvider?.apiKeyRef ?? "",
+			hasLegacyKey,
+			onChange: (value) => {
+				if (!this.selectedProvider) return;
+				this.selectedProvider.apiKeyRef = value;
+				this.selectedProvider.apiKey = "";
+			},
+		});
 	}
 
 	addKindSetting(container: HTMLElement) {
@@ -263,22 +257,7 @@ export class AIAssistantProvidersModal extends Modal {
             new Setting(modelsContainer)
                 .setName(model.name)
                 .setDesc(metadata.join(" · "))
-                .addButton((button) => {
-                    button.onClick(async () => {
-                        const confirmation = await GenericYesNoPrompt.Prompt(
-                            this.app,
-                            t("svelteCards.deleteModelConfirm", { name: model.name })
-                        );
-                        if (!confirmation) {
-                            return;
-                        }
-
-                        this.selectedProvider!.models.splice(i, 1);
-                        this.reload();
-                    });
-                    button.setDestructive();
-                    button.setIcon("trash" as IconType);
-                });
+                .addButton((button) => this.addDeleteButton(button, model.name, () => this.selectedProvider!.models.splice(i, 1)));
         });
 
         new Setting(modelsContainer)
@@ -358,9 +337,7 @@ export class AIAssistantProvidersModal extends Modal {
 		const sourceDescription = this.describeModelSource(this.selectedProvider);
 		new Setting(container)
 			.setName(t("ai.autoSyncModels.name"))
-			.setDesc(
-				`Keep this provider's models current automatically: QuickAdd imports new models and refreshed context limits from ${sourceDescription} once a day and when these settings open.`,
-			)
+			.setDesc(t("ai.autoSyncDesc", { source: sourceDescription }))
 			.addToggle((toggle) => {
 				const current = !!this.selectedProvider?.autoSyncModels;
 				toggle.setValue(current).onChange((value) => {

@@ -11,41 +11,29 @@ export function showNoScriptsFoundNotice(app: App): void {
 	const notice = new Notice("", 10000);
 	const messageEl = notice.messageEl;
 	messageEl.replaceChildren();
-	appendDiv(
-		messageEl,
-		t("userScript.noScriptsFound.title"),
-		"quickadd-notice-title",
-	);
+	messageEl.createDiv({
+		text: t("userScript.noScriptsFound.title"),
+		cls: "quickadd-notice-title",
+	});
 
-	// Use the notice element's owning document (popout-aware) instead of the bare
-	// `document` global.
-	const doc = messageEl.ownerDocument;
-	const content = doc.createElement("div");
-	messageEl.append(content);
-	appendDiv(content, t("userScript.noScriptsFound.body"));
-	content.append(doc.createElement("br"));
-	appendDiv(content, t("userScript.noScriptsFound.ensure"));
-	appendDiv(
-		content,
-		t("userScript.noScriptsFound.inVault", {
+	// Popout-aware: Obsidian's createDiv/createEl helpers route through
+	// messageEl.ownerDocument instead of the bare `document` global.
+	const content = messageEl.createDiv();
+	content.createDiv({ text: t("userScript.noScriptsFound.body") });
+	content.createEl("br");
+	content.createDiv({ text: t("userScript.noScriptsFound.ensure") });
+	content.createDiv({
+		text: t("userScript.noScriptsFound.inVault", {
 			configDir: app.vault.configDir,
 		}),
-	);
-	appendDiv(content, t("userScript.noScriptsFound.notHidden"));
-	appendDiv(content, t("userScript.noScriptsFound.isJsOrNote"));
-	content.append(doc.createElement("br"));
+	});
+	content.createDiv({ text: t("userScript.noScriptsFound.notHidden") });
+	content.createDiv({ text: t("userScript.noScriptsFound.isJsOrNote") });
+	content.createEl("br");
 
 	createDocsLink(
 		content,
 		DOCS_URLS.userScripts,
 		t("userScript.noScriptsFound.viewDocs"),
 	);
-}
-
-function appendDiv(parent: HTMLElement, text: string, cls?: string): HTMLDivElement {
-	const element = parent.ownerDocument.createElement("div");
-	element.textContent = text;
-	if (cls) element.classList.add(cls);
-	parent.append(element);
-	return element;
 }

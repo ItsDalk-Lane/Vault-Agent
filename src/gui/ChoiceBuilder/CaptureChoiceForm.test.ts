@@ -1,3 +1,4 @@
+import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
@@ -60,11 +61,6 @@ const plugin = {
 	settings: { choices: [] },
 } as unknown as QuickAdd;
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
 function selectUnderSetting(
 	container: HTMLElement,
@@ -76,22 +72,7 @@ function selectUnderSetting(
 	return item?.querySelector("select") as HTMLSelectElement;
 }
 
-function settingItem(container: HTMLElement, name: string): HTMLElement {
-	const item = Array.from(container.querySelectorAll(".setting-item")).find(
-		(el) =>
-			el.querySelector(".setting-item-name")?.textContent?.trim() === name,
-	);
-	if (!item) throw new Error(`Setting item not found: ${name}`);
-	return item as HTMLElement;
-}
 
-function choiceIconInput(container: HTMLElement): HTMLInputElement {
-	const el = container.querySelector<HTMLInputElement>(
-		'input[aria-label="Choice icon"]',
-	);
-	if (!el) throw new Error("Choice icon input not found");
-	return el;
-}
 
 function mountForm() {
 	const props = createCaptureChoiceFormProps({
@@ -210,6 +191,35 @@ describe("CaptureChoiceForm", () => {
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();
 		expect(settingNames(container)).toContain("Task");
+	});
+
+	// #1748: for a list destination each line of the Capture format is one item.
+	// There is no control for it, so the form copy has to say it where the author
+	// is already looking: the Action description and the format textarea.
+	it("tells the author that lines are list items once the capture writes to a property", async () => {
+		const { container, props } = mountForm();
+		props.choice.format.enabled = true;
+		flushSync();
+		const actionDesc = () => settingItem(container, "Action").querySelector(".setting-item-description")?.textContent ?? "";
+		const textarea = () => settingItem(container, "Capture format").closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea().placeholder).toBe("Format");
+
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		flushSync();
+		expect(actionDesc()).toContain("For a list, each line is one item");
+		expect(actionDesc()).toContain("{{PROPERTY}}");
+		expect(actionDesc()).toContain("rejects several lines");
+		expect(textarea().placeholder).toBe("Format");
+
+		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
+		flushSync();
+		expect(actionDesc()).toContain("Each line is one item");
+		expect(actionDesc()).toContain("{{PROPERTY}}");
+		expect(textarea().placeholder).toBe("One item per line");
+
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
+		flushSync();
+		expect(textarea().placeholder).toBe("Format");
 	});
 
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {

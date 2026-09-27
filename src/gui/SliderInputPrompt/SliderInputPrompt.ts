@@ -5,7 +5,6 @@ import {
 	normalizeNumericValue,
 	normalizeSliderValue,
 } from "../../utils/valueSyntax";
-import { t } from "../../i18n";
 
 const FALLBACK_SLIDER = { min: 0, max: 100, step: 1 };
 

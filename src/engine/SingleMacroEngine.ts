@@ -9,10 +9,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
-import {
-	migrateUserScriptSecretSettings,
-	resolveUserScriptSettings,
-} from "../utils/userScriptSecrets";
+import { resolveScriptSettings } from "./userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import {
@@ -256,7 +253,7 @@ export class SingleMacroEngine {
 			// into the index arithmetic below.
 			const refreshed = macroChoice.macro?.commands;
 			const updatedCommands = hasCommandList(refreshed)
-				? (refreshed as typeof originalCommands)
+				? (refreshed)
 				: originalCommands;
 			// Pre-commands may have mutated the commands array, so re-resolve the selected
 			// command by its stable id. Both the candidate and the post-command slice are
@@ -334,23 +331,10 @@ export class SingleMacroEngine {
 			const postCommands = updatedCommands.slice(refreshedIndex + 1);
 			let memberSettings = userScriptCommand.settings;
 			if (typeof resolvedMember.value === "function") {
-				if (
-					await migrateUserScriptSecretSettings(
-						this.app,
-						userScriptCommand,
-						settingsExport && typeof settingsExport === "object"
-							? (settingsExport as Record<string, unknown>)
-							: undefined,
-					)
-				) {
-					await this.plugin.saveSettings?.();
-				}
-				memberSettings = await resolveUserScriptSettings(
-					this.app,
-					userScriptCommand,
+				memberSettings = await resolveScriptSettings(
+					this.app, this.plugin, userScriptCommand,
 					settingsExport && typeof settingsExport === "object"
-						? (settingsExport as Record<string, unknown>)
-						: undefined,
+						? (settingsExport) : undefined,
 				);
 			}
 

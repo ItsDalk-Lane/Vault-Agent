@@ -2,55 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
-
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
-			} as any;
-		}
-	},
-}));
-
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: class {
-		constructor() {}
-	},
-}));
-
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: {
-		Suggest: vi.fn().mockResolvedValue(""),
-	},
-}));
-
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: {
-		Prompt: vi.fn().mockResolvedValue(""),
-	},
-}));
-
-vi.mock("../utils/errorUtils", () => ({
-	__esModule: true,
-	reportError: vi.fn(),
-	isCancellationError: vi.fn().mockReturnValue(false),
-}));
-
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: {
-		Prompt: vi.fn().mockResolvedValue(""),
-	},
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
 const inlineScriptCalls = vi.hoisted(() => [] as string[]);
 
@@ -66,48 +18,7 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	},
 }));
 
-vi.mock("../engine/SingleMacroEngine", () => ({
-	__esModule: true,
-	SingleMacroEngine: class {
-		constructor() {}
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	__esModule: true,
-	SingleTemplateEngine: class {
-		constructor() {}
-		async run() {
-			return "";
-		}
-		getAndClearTemplatePropertyVars() {
-			return new Map();
-		}
-		setLinkToCurrentFileBehavior() {}
-	},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAdd {
-		static instance = {
-			settings: { inputPrompt: "single-line" },
-			app: {
-				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
-			},
-		};
-		settings = QuickAdd.instance.settings;
-		app = QuickAdd.instance.app;
-	},
-}));
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { findInlineScriptSpans } from "./formatter";
@@ -230,7 +141,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice(),
 			"",
 			createFile(),
-		);
+		).then(({ content }) => content);
 		expect(result).toBe("\\nabla");
 	});
 
@@ -242,7 +153,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice(),
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// Top insertion places the capture on its own line above the body (#647); the
 		// point here is that the literal backslash-n in the payload survives untouched.
@@ -268,7 +179,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice({ prepend: true }),
 			"Line A",
 			createFile(),
-		);
+		).then(({ content }) => content);
 		expect(result).toBe("Line A\n- hello\n");
 	});
 
@@ -313,7 +224,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			choice,
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("existing\n## \\nabla\n\\nabla");
 	});
@@ -339,7 +250,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			choice,
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// The snippet's \n must become a real newline in the created target line,
 		// matching pre-#527 behavior for global-variable targets.

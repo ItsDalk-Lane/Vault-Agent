@@ -13,7 +13,7 @@ import { lockTestLocale } from "./helpers/i18n";
 lockTestLocale("en");
 
 // Obsidian augments HTMLElement/SVGElement with `setCssStyles`/`setCssProps` at
-// runtime; jsdom does not. Provide faithful polyfills so plugin code that uses
+// runtime; jsdom does not. Provide the helper subset used by these tests so plugin code that uses
 // them (the idiomatic alternative to direct `.style.x = ...` assignment) runs
 // under vitest. Guarded so a test that installs its own helpers still wins.
 function setCssStyles(
@@ -30,26 +30,37 @@ function setCssProps(
 		this.style.setProperty(key, value);
 	}
 }
-for (const proto of [HTMLElement.prototype, SVGElement.prototype]) {
-	const p = proto as unknown as {
-		setCssStyles?: unknown;
-		setCssProps?: unknown;
-		addClass?: unknown;
-		removeClass?: unknown;
-		empty?: unknown;
-		createDiv?: unknown;
-		createEl?: unknown;
-	};
-	if (typeof p.setCssStyles !== "function") p.setCssStyles = setCssStyles;
-	if (typeof p.setCssProps !== "function") p.setCssProps = setCssProps;
-	if (typeof p.addClass !== "function") {
-		p.addClass = function addClass(this: Element, ...classes: string[]) {
+export function installObsidianDomHelpers(window: Window): void {
+	// Window omits the constructors exposed by each browser realm.
+	const realm = window as Window & Pick<typeof globalThis, "Node" | "Element" | "HTMLElement" | "SVGElement">;
+	for (const proto of [realm.HTMLElement.prototype, realm.SVGElement.prototype]) {
+		if (typeof proto.setCssStyles !== "function") proto.setCssStyles = setCssStyles;
+		if (typeof proto.setCssProps !== "function") proto.setCssProps = setCssProps;
+	}
+	const element = realm.Element.prototype;
+	if (typeof element.addClass !== "function") {
+		element.addClass = function addClass(this: Element, ...classes: string[]) {
 			this.classList.add(...classes);
 		};
 	}
-	if (typeof p.removeClass !== "function") {
-		p.removeClass = function removeClass(this: Element, ...classes: string[]) {
+	if (typeof element.removeClass !== "function") {
+		element.removeClass = function removeClass(this: Element, ...classes: string[]) {
 			this.classList.remove(...classes);
+		};
+	}
+	const p = realm.Node.prototype as unknown as {
+		empty?: unknown;
+		createDiv?: unknown;
+		createSpan?: unknown;
+		createEl?: unknown;
+		instanceOf?: unknown;
+	};
+	if (typeof p.instanceOf !== "function") {
+		p.instanceOf = function instanceOf(this: Node, type: { new (): unknown; name: string }) {
+			if (this instanceof type) return true;
+			const realm = this.ownerDocument?.defaultView;
+			const constructor = realm && Reflect.get(realm, type.name);
+			return typeof constructor === "function" && this instanceof constructor;
 		};
 	}
 	if (typeof p.empty !== "function") {
@@ -57,33 +68,55 @@ for (const proto of [HTMLElement.prototype, SVGElement.prototype]) {
 			this.textContent = "";
 		};
 	}
-	if (typeof p.createDiv !== "function") {
-		p.createDiv = function createDiv(
-			this: Element,
-			cls?: string | { cls?: string; text?: string },
-		) {
-			const div = document.createElement("div");
-			if (typeof cls === "string") div.className = cls;
-			if (typeof cls === "object") {
-				if (cls.cls) div.className = cls.cls;
-				if (cls.text) div.textContent = cls.text;
-			}
-			this.appendChild(div);
-			return div;
+	function createEl<K extends keyof HTMLElementTagNameMap>(
+		tag: K,
+		options: DomElementInfo | string = {},
+		callback?: (el: HTMLElementTagNameMap[K]) => void,
+	) {
+		const el = realm.document.createElement(tag);
+		const info = typeof options === "string" ? { cls: options } : options;
+		if (info.cls) el.className = Array.isArray(info.cls) ? info.cls.join(" ") : info.cls;
+		if (info.text !== undefined) el.append(info.text);
+		for (const [key, value] of Object.entries(info.attr ?? {})) {
+			if (value !== null) el.setAttribute(key, String(value));
+		}
+		for (const key of ["title", "href", "type", "value", "placeholder"] as const) {
+			if (info[key] !== undefined) el.setAttribute(key, info[key]);
+		}
+		callback?.(el);
+		if (info.parent) {
+			if (info.prepend) info.parent.insertBefore(el, info.parent.firstChild);
+			else info.parent.appendChild(el);
+		}
+		return el;
+	}
+	if (typeof window.createEl !== "function") window.createEl = createEl;
+	if (typeof window.createDiv !== "function") window.createDiv = (options, callback) => createEl("div", options, callback);
+	if (typeof window.createSpan !== "function") window.createSpan = (options, callback) => createEl("span", options, callback);
+	if (typeof window.createFragment !== "function") window.createFragment = (callback) => {
+		const fragment = window.document.createDocumentFragment();
+		callback?.(fragment);
+		return fragment;
+	};
+	if (!("win" in realm.Node.prototype)) Object.defineProperty(realm.Node.prototype, "win", {
+		configurable: true,
+		get(this: Node) { return this.ownerDocument?.defaultView ?? window; },
+	});
+	if (typeof p.createEl !== "function") {
+		p.createEl = function<K extends keyof HTMLElementTagNameMap>(this: Node, tag: K, options: DomElementInfo | string = {}, callback?: (el: HTMLElementTagNameMap[K]) => void) {
+			return createEl(tag, { ...(typeof options === "string" ? { cls: options } : options), parent: this }, callback);
 		};
 	}
-	if (typeof p.createEl !== "function") {
-		p.createEl = function createEl(
-			this: Element,
-			tag: string,
-			options?: { cls?: string; text?: string; href?: string },
-		) {
-			const el = document.createElement(tag);
-			if (options?.cls) el.className = options.cls;
-			if (options?.text) el.textContent = options.text;
-			if (options?.href) el.setAttribute("href", options.href);
-			this.appendChild(el);
-			return el;
+	if (typeof p.createDiv !== "function") {
+		p.createDiv = function createDiv(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string, callback?: (el: HTMLDivElement) => void) {
+			return this.createEl("div", options, callback);
+		};
+	}
+	if (typeof p.createSpan !== "function") {
+		p.createSpan = function createSpan(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string, callback?: (el: HTMLSpanElement) => void) {
+			return this.createEl("span", options, callback);
 		};
 	}
 }
+
+installObsidianDomHelpers(window);

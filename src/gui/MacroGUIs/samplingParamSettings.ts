@@ -98,7 +98,7 @@ export function addSamplingParamSettings(
 ): void {
 	const model = resolveModel(selectedModel, { silent: true })?.model;
 	if (model?.supportsTemperature === false) {
-		container.createEl("div", {
+		container.createDiv({
 			text: t("ai.fixedSamplingNote", { name: model.name }),
 			cls: "setting-item-description",
 		});
@@ -115,7 +115,6 @@ export function addSamplingParamSettings(
 			)
 			.addSlider((slider) => {
 				slider.setLimits(spec.min, spec.max, spec.step);
-				slider.setDynamicTooltip();
 				slider.setValue(modelParameters[spec.key] ?? spec.fallback);
 				slider.onChange((value) => {
 					modelParameters[spec.key] = value;

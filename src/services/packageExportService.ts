@@ -1,29 +1,29 @@
+import { packageSecretOptionNames } from "./packageAssets";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
+import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type {
 	QuickAddPackage,
 	QuickAddPackageAsset,
-	QuickAddPackageChoice,
 	QuickAddPackageAssetKind,
+	QuickAddPackageChoice,
 } from "../types/packages/QuickAddPackage";
 import { QUICKADD_PACKAGE_SCHEMA_VERSION } from "../types/packages/QuickAddPackage";
-import {
-	collectChoiceClosure,
-	collectScriptDependencies,
-	collectFileDependencies,
-} from "../utils/packageTraversal";
-import { log } from "../logger/logManager";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { encodeToBase64 } from "../utils/base64";
 import { t } from "../i18n";
-import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
-import { deepClone } from "../utils/deepClone";
 import { isChoiceLike } from "../utils/choiceUtils";
+import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
 import {
-	detectUserScriptSecretOptions,
-	stripUserScriptSecretRefsFromChoice,
+	collectChoiceClosure,
+	collectFileDependencies,
+	collectScriptDependencies,
+} from "../utils/packageTraversal";
+import {
+	stripUserScriptSecretRefsFromChoice
 } from "../utils/userScriptSecrets";
 
 export interface BuildPackageOptions {
@@ -68,24 +68,22 @@ export async function buildPackage(
 	const assetDescriptors = collectAssetDescriptors(scripts, files);
 
 	const assets = await encodeAssets(app, assetDescriptors);
-	const secretOptionNamesByPath = buildSecretOptionNamesByPath(
-		assets.encodedAssets,
-	);
+	const secretOptionNamesByPath = packageSecretOptionNames(assets.encodedAssets, "export");
 
 	const packageChoices: QuickAddPackageChoice[] = closure.choiceIds.map(
-			(choiceId) => {
-				const entry = closure.catalog.get(choiceId);
-				if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
-				const clonedChoice = deepClone(entry.choice);
-				pruneChoiceTree(clonedChoice, includedChoiceIds);
-				stripUserScriptSecretRefsFromChoice(clonedChoice, {
-					secretOptionNamesByPath,
-					stripUnknownStringSettings: true,
-				});
-				return {
-					choice: clonedChoice,
-					pathHint: [...entry.path],
-					parentChoiceId: entry.parentId,
+		(choiceId) => {
+			const entry = closure.catalog.get(choiceId);
+			if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
+			const clonedChoice = deepClone(entry.choice);
+			pruneChoiceTree(clonedChoice, includedChoiceIds);
+			stripUserScriptSecretRefsFromChoice(clonedChoice, {
+				secretOptionNamesByPath,
+				stripUnknownStringSettings: true,
+			});
+			return {
+				choice: clonedChoice,
+				pathHint: [...entry.path],
+				parentChoiceId: entry.parentId,
 			};
 		},
 	);
@@ -188,38 +186,6 @@ async function encodeAssets(
 	}
 
 	return { encodedAssets, missingAssets };
-}
-
-function buildSecretOptionNamesByPath(
-	assets: QuickAddPackageAsset[],
-): Map<string, ReadonlySet<string> | null> {
-	const secretOptionNamesByPath = new Map<string, ReadonlySet<string> | null>();
-
-	for (const asset of assets) {
-		if (asset.kind !== "user-script") continue;
-
-		try {
-			const detection = detectUserScriptSecretOptions(
-				decodeFromBase64(asset.content),
-				asset.originalPath,
-			);
-			secretOptionNamesByPath.set(
-				asset.originalPath,
-				detection.foundSecretOptions && detection.names.size === 0
-					? null
-					: detection.names,
-			);
-		} catch (error) {
-			log.logWarning(
-				t("update.exportUserScriptInspectFailed", {
-					path: asset.originalPath,
-					error: (error as Error)?.message ?? String(error),
-				}),
-			);
-		}
-	}
-
-	return secretOptionNamesByPath;
 }
 
 function pruneChoiceTree(

@@ -64,7 +64,7 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 			.slice(0, 99)
 			.map(({ option }) => option);
 		if (!this.existingKeys.has(key) && !this.options.some((option) => option.exactKeys.includes(key))) {
-			matches.unshift({ item: text, exactKeys: [key], label: `Create new note: ${text}`, detail: "", search: text });
+			matches.unshift({ item: text, exactKeys: [key], label: t("templateDiscovery.createNewNote", { title: text }), detail: "", search: text });
 		}
 		return matches;
 	}

@@ -1,92 +1,12 @@
+import { createFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createSelectionFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
 // Mocks mirror captureChoiceFormatter-linebreak.test.ts so the formatter can run
 // under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
-			} as any;
-		}
-	},
-}));
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: class {
-		constructor() {}
-	},
-}));
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../utils/errorUtils", () => ({
-	__esModule: true,
-	reportError: vi.fn(),
-	isCancellationError: vi.fn().mockReturnValue(false),
-}));
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
-	__esModule: true,
-	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleMacroEngine", () => ({
-	__esModule: true,
-	SingleMacroEngine: class {
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	__esModule: true,
-	SingleTemplateEngine: class {
-		async run() {
-			return "";
-		}
-		getAndClearTemplatePropertyVars() {
-			return new Map();
-		}
-		setLinkToCurrentFileBehavior() {}
-	},
-}));
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAdd {
-		static instance = {
-			settings: { inputPrompt: "single-line" },
-			app: {
-				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
-			},
-		};
-		settings = QuickAdd.instance.settings;
-		app = QuickAdd.instance.app;
-	},
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
@@ -135,37 +55,8 @@ const createChoice = (
 		...overrides,
 	}) as ICaptureChoice;
 
-const createMockApp = (): App =>
-	({
-		workspace: {
-			getActiveFile: vi.fn().mockReturnValue(null),
-			getActiveViewOfType: vi.fn().mockReturnValue(null),
-		},
-		metadataCache: { getFileCache: vi.fn().mockReturnValue(null) },
-		fileManager: {
-			generateMarkdownLink: vi.fn().mockReturnValue(""),
-			processFrontMatter: vi.fn(),
-		},
-		vault: { adapter: { exists: vi.fn() }, cachedRead: vi.fn() },
-	}) as unknown as App;
-
-const createFile = (path = "Target.md"): TFile =>
-	({
-		path,
-		name: path.split("/").pop() ?? path,
-		basename: (path.split("/").pop() ?? path).replace(/\.(md|canvas)$/i, ""),
-		extension: "md",
-	}) as unknown as TFile;
-
 const createFormatter = () =>
-	new CaptureChoiceFormatter(createMockApp(), {
-		settings: {
-			inputPrompt: "single-line",
-			enableTemplatePropertyTypes: false,
-			globalVariables: {},
-			useSelectionAsCaptureValue: true,
-		},
-	} as any);
+	new CaptureChoiceFormatter(createMockApp(), createSelectionFormatterPlugin());
 
 beforeEach(() => {
 	(global as any).navigator = {
@@ -188,7 +79,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\nold one\n");
 		expect(result).not.toMatch(/- \[ \] buy milk\n\n/);
@@ -200,7 +91,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\n");
 	});
@@ -211,7 +102,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\nold one\n");
 	});
@@ -224,7 +115,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 				createChoice(),
 				body,
 				createFile(),
-			);
+			).then(({ content }) => content);
 		}
 
 		expect(body).toBe("===== Task ======\n- [ ] C\n- [ ] B\n- [ ] A\n");
@@ -237,7 +128,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice({ insertAfter: insertAfter("## Task", true) }),
 			"## Task\n- old\n\n## Other\nx\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("## Task\n- old\n- [ ] new task\n## Other\nx\n");
 		expect(result).not.toMatch(/- \[ \] new task\n\n/);
@@ -249,7 +140,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n   \nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).not.toMatch(/- \[ \] buy milk\n[ \t]*\n/);
 	});
@@ -260,7 +151,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\r\n\r\nold one\r\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// No blank line after the task, and the CRLF following content is preserved.
 		expect(result).toBe("===== Task ======\r\n- [ ] buy milk\r\nold one\r\n");
@@ -274,7 +165,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n   ",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).not.toMatch(/- \[ \] buy milk\n[ \t]*\n/);
 		expect(result.startsWith("===== Task ======\n- [ ] buy milk")).toBe(true);
@@ -286,7 +177,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// Target is the last real line with only the trailing-newline artifact below:
 		// the task keeps its own terminating newline, no content is glued or dropped.
@@ -302,7 +193,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice({ task: false }),
 			"===== Task ======\n\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\nbuy milk\n\nold one\n");
 	});

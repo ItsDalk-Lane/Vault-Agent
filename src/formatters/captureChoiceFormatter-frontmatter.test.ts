@@ -1,10 +1,9 @@
+import { createTFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { App, TFile } from 'obsidian';
 import type ICaptureChoice from '../types/choices/ICaptureChoice';
 
-vi.mock('../utilityObsidian', () => ({
-  templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
+vi.mock('../utilityObsidian', async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
 vi.mock('../gui/InputPrompt', () => ({
   __esModule: true,
@@ -17,38 +16,18 @@ vi.mock('../gui/InputPrompt', () => ({
   },
 }));
 
-vi.mock('../gui/InputSuggester/inputSuggester', () => ({
-  __esModule: true,
-  default: class {
-    constructor() {}
-  },
-}));
+vi.mock('../gui/InputSuggester/inputSuggester', async () => (await import("../../tests/helpers/formatters/mocks")).inputSuggesterMock());
 
-vi.mock('../gui/GenericSuggester/genericSuggester', () => ({
-  __esModule: true,
-  default: {
-    Suggest: vi.fn().mockResolvedValue(''),
-  },
-}));
+vi.mock('../gui/GenericSuggester/genericSuggester', async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
 
-vi.mock('../gui/VDateInputPrompt/VDateInputPrompt', () => ({
-  __esModule: true,
-  default: {
-    Prompt: vi.fn().mockResolvedValue(''),
-  },
-}));
+vi.mock('../gui/VDateInputPrompt/VDateInputPrompt', async () => (await import("../../tests/helpers/formatters/mocks")).VDateInputPromptMock());
 
 vi.mock('../utils/errorUtils', () => ({
   __esModule: true,
   reportError: vi.fn(),
 }));
 
-vi.mock('../gui/MathModal', () => ({
-  __esModule: true,
-  MathModal: {
-    Prompt: vi.fn().mockResolvedValue(''),
-  },
-}));
+vi.mock('../gui/MathModal', async () => (await import("../../tests/helpers/formatters/mocks")).MathModalMock());
 
 vi.mock('../engine/SingleInlineScriptEngine', () => ({
   __esModule: true,
@@ -61,46 +40,13 @@ vi.mock('../engine/SingleInlineScriptEngine', () => ({
   },
 }));
 
-vi.mock('../engine/SingleMacroEngine', () => ({
-  __esModule: true,
-  SingleMacroEngine: class {
-    constructor() {}
-    async runAndGetOutput() {
-      return '';
-    }
-  },
-}));
+vi.mock('../engine/SingleMacroEngine', async () => (await import("../../tests/helpers/formatters/mocks")).SingleMacroEngineMockWithConstructor());
 
-vi.mock('../engine/SingleTemplateEngine', () => ({
-  __esModule: true,
-  SingleTemplateEngine: class {
-    constructor() {}
-    async run() {
-      return '';
-    }
-    getAndClearTemplatePropertyVars() {
-      return new Map();
-    }
-    setLinkToCurrentFileBehavior() {}
-  },
-}));
+vi.mock('../engine/SingleTemplateEngine', async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMockWithConstructor());
 
-vi.mock('obsidian-dataview', () => ({
-  __esModule: true,
-  getAPI: vi.fn().mockReturnValue(null),
-}));
+vi.mock('obsidian-dataview', async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
-vi.mock('../main', () => ({
-  __esModule: true,
-  default: class QuickAdd {
-    static instance = {
-      settings: { inputPrompt: 'single-line' },
-      app: { workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) } },
-    };
-    settings = QuickAdd.instance.settings;
-    app = QuickAdd.instance.app;
-  },
-}));
+vi.mock('../main', async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
 
 import { CaptureChoiceFormatter } from './captureChoiceFormatter';
 
@@ -123,34 +69,6 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
   ...overrides,
 });
 
-const createMockApp = (): App => ({
-  workspace: {
-    getActiveFile: vi.fn().mockReturnValue(null),
-    getActiveViewOfType: vi.fn().mockReturnValue(null),
-  },
-  metadataCache: {
-    getFileCache: vi.fn().mockReturnValue(null),
-  },
-  fileManager: {
-    generateMarkdownLink: vi.fn().mockReturnValue(''),
-    processFrontMatter: vi.fn(),
-  },
-  vault: {
-    adapter: { exists: vi.fn() },
-    cachedRead: vi.fn(),
-  },
-} as unknown as App);
-
-const createTFile = (path: string): TFile => {
-  const name = path.split('/').pop() ?? path;
-  return {
-    path,
-    name,
-    basename: name.replace(/\.(md|canvas)$/i, ''),
-    extension: path.endsWith('.md') ? 'md' : 'canvas',
-  } as unknown as TFile;
-};
-
 describe('CaptureChoiceFormatter frontmatter handling', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -164,21 +82,14 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
 
   it('inserts capture content below frontmatter when metadata cache is empty', async () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     const formatter = new CaptureChoiceFormatter(app, plugin);
 
     const choice = createChoice();
     const file = createTFile('New Note.md');
     const templateContent = ['---', 'tags: ["a"]', '---', '# Template Body'].join('\n');
 
-    const result = await formatter.formatContentWithFile('Captured line\n', choice, templateContent, file);
+    const { content: result } = await formatter.formatContentWithFile('Captured line\n', choice, templateContent, file);
 
     expect(result).toBe(['---', 'tags: ["a"]', '---', 'Captured line', '# Template Body'].join('\n'));
   });
@@ -196,14 +107,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
 
   const createFormatter = () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     const formatter = new CaptureChoiceFormatter(app, plugin);
     const file = createTFile('Test.md');
 
@@ -231,7 +135,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -246,7 +150,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -261,7 +165,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '   \t', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -276,7 +180,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -291,7 +195,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -306,7 +210,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H\r\n\r\nA';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -321,7 +225,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('- Item 1');
     const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -336,7 +240,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('- Item 1', 'skip');
     const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -351,7 +255,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H', 'none');
     const fileContent = ['# H', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -374,14 +278,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
 
   const createFormatter = () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     const formatter = new CaptureChoiceFormatter(app, plugin);
     const file = createTFile('EndOfSection.md');
 
@@ -412,14 +309,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal');
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       '18:11\nTest\n\n',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       '18:12\nTest2\n\n',
       choice,
       first,
@@ -436,14 +333,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal');
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       '\n18:11\nTest3',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       '\n18:12\nTest4',
       choice,
       first,
@@ -460,14 +357,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('Target');
     const initial = ['Target', 'Existing', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       'One\n\n',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       'Two\n\n',
       choice,
       first,
@@ -482,14 +379,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# H');
     const initial = ['# H', 'A', '', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       'X',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       'Y',
       choice,
       first,
@@ -504,7 +401,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal', { insertAtEnd: false });
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '18:13\nTest5\n\n',
       choice,
       initial,
@@ -530,7 +427,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     });
     const initial = ['# Journal', '', '10:00', 'Some data', '', ''].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '18:14\nTest6\n\n',
       choice,
       initial,
@@ -555,7 +452,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
         choice,
         initial,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Insert-after target not found: '# Missing'.",
     );
@@ -577,7 +474,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
         choice,
         initial,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Unable to insert line '# Missing' at cursor position: no active markdown editor.",
     );
@@ -596,14 +493,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
 
   const createFormatter = () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     const formatter = new CaptureChoiceFormatter(app, plugin);
     const file = createTFile('Inline.md');
 
@@ -634,7 +524,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Status:', { replaceExisting: false });
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       ' done',
       choice,
       fileContent,
@@ -649,7 +539,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Status: ', { replaceExisting: true });
     const fileContent = ['Status: pending', 'Next'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -664,7 +554,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('pending', { replaceExisting: true });
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '!',
       choice,
       fileContent,
@@ -682,7 +572,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     });
     const fileContent = '# Header';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -703,7 +593,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
         choice,
         fileContent,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Inline insert-after target not found: 'Missing: '.",
     );
@@ -714,7 +604,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Tag: ', { replaceExisting: true });
     const fileContent = ['Tag: a', 'Tag: b'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X',
       choice,
       fileContent,
@@ -730,7 +620,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     choice.captureToActiveFile = true;
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -746,7 +636,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const fileContent = 'Status:\npending';
 
     await expect(
-      formatter.formatContentWithFile('done', choice, fileContent, file),
+      formatter.formatContentWithFile('done', choice, fileContent, file).then(({ content }) => content),
     ).rejects.toThrow(/single line/i);
   });
 });
@@ -763,21 +653,14 @@ describe('CaptureChoiceFormatter append task newline regression (issue #124)', (
 
   it('inserts a newline before an appended task when the file does not end with a newline', async () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     const formatter = new CaptureChoiceFormatter(app, plugin);
 
     const choice = createChoice({ prepend: true, task: true });
     const file = createTFile('Test.md');
     const fileContent = '- [ ] Old task';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '- [ ] New task\n',
       choice,
       fileContent,
@@ -800,14 +683,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
 
   const makeFormatter = () => {
     const app = createMockApp();
-    const plugin = {
-      settings: {
-        enableTemplatePropertyTypes: false,
-        globalVariables: {},
-        showCaptureNotification: false,
-        showInputCancellationNotification: true,
-      },
-    } as any;
+    const plugin = createCaptureFormatterPlugin();
     return new CaptureChoiceFormatter(app, plugin);
   };
 
@@ -819,7 +695,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
       createChoice({ captureToActiveFile: false }),
       content,
       createTFile('Note.md'),
-    );
+    ).then(({ content }) => content);
 
   it('inserts BELOW empty frontmatter instead of above it (the literal #647 bug)', async () => {
     expect(await topInsert('---\n---\n# Body')).toBe('---\n---\nINSERTED\n# Body');
@@ -843,41 +719,20 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     expect(await topInsert('---\ntitle: A\n---')).toBe('---\ntitle: A\n---\nINSERTED');
   });
 
-  it('preserves CRLF frontmatter and inserts after the closing fence', async () => {
-    expect(await topInsert('---\r\ntitle: A\r\n---\r\n# Body\r\n')).toBe(
-      '---\r\ntitle: A\r\n---\r\nINSERTED\n# Body\r\n',
-    );
-  });
-
-  it('keeps the blank line separating frontmatter from the body (issue #1538)', async () => {
-    expect(await topInsert('---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n')).toBe(
-      '---\ndate: 2026-07-25\n---\n\nINSERTED\n## Log\n\n## Tasks\n',
-    );
-  });
-
-  it('keeps an existing CRLF separator line after the fence (issue #1538)', async () => {
-    expect(await topInsert('---\r\ntitle: A\r\n---\r\n\r\nBody')).toBe(
-      '---\r\ntitle: A\r\n---\r\n\r\nINSERTED\nBody',
-    );
-  });
-
-  it('treats a "..."-closed block as no frontmatter (Obsidian-consistent) and inserts at top', async () => {
-    expect(await topInsert('---\ntitle: A\n...\n# Body')).toBe(
-      'INSERTED\n---\ntitle: A\n...\n# Body',
-    );
-  });
-
-  it('treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', async () => {
-    // exists:false (fence not at offset 0) -> capture lands at the very top. The
-    // note's leading blank line is kept: consuming it would move the fence to
-    // offset 0 territory and silently reshape the note (issue #1538).
-    expect(await topInsert('\n---\ntitle: A\n---\n# Body')).toBe(
-      'INSERTED\n\n---\ntitle: A\n---\n# Body',
+  it.each([
+	{ name: 'preserves CRLF frontmatter and inserts after the closing fence', input: '---\r\ntitle: A\r\n---\r\n# Body\r\n', expected: '---\r\ntitle: A\r\n---\r\nINSERTED\n# Body\r\n' },
+	{ name: 'keeps the blank line separating frontmatter from the body (issue #1538)', input: '---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n', expected: '---\ndate: 2026-07-25\n---\n\nINSERTED\n## Log\n\n## Tasks\n' },
+	{ name: 'keeps an existing CRLF separator line after the fence (issue #1538)', input: '---\r\ntitle: A\r\n---\r\n\r\nBody', expected: '---\r\ntitle: A\r\n---\r\n\r\nINSERTED\nBody' },
+	{ name: 'treats a "..."-closed block as no frontmatter (Obsidian-consistent) and inserts at top', input: '---\ntitle: A\n...\n# Body', expected: 'INSERTED\n---\ntitle: A\n...\n# Body' },
+	{ name: 'treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', input: '\n---\ntitle: A\n---\n# Body', expected: 'INSERTED\n\n---\ntitle: A\n---\n# Body' },
+  ])("$name", async ({ input, expected }) => {
+    expect(await topInsert(input)).toBe(
+      expected,
     );
   });
 
   it('does not add a double newline when the capture already ends with one (task payload) into frontmatter-only note', async () => {
-    const result = await makeFormatter().formatContentWithFile(
+    const { content: result } = await makeFormatter().formatContentWithFile(
       '- [ ] TASK\n',
       createChoice({ captureToActiveFile: false, task: true }),
       '---\n---',
@@ -887,7 +742,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   });
 
   it('separates a task create-if-not-found-at-top from the body (previously glued)', async () => {
-    const result = await makeFormatter().formatContentWithFile(
+    const { content: result } = await makeFormatter().formatContentWithFile(
       '- [ ] CAP',
       createChoice({
         task: true,
@@ -928,7 +783,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('creates a missing insert-after section below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         '- entry',
         createChoice({
           captureToActiveFile: false,
@@ -943,7 +798,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('creates a missing INLINE insert-after target below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         'Status: done',
         createChoice({
           captureToActiveFile: false,
@@ -958,7 +813,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('degrades an ordered create with a non-heading anchor to below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         '- entry\n',
         createChoice({
           captureToActiveFile: false,
@@ -977,7 +832,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
 
     it('creates a missing insert-before target below the separator line and tracks the cursor', async () => {
       const formatter = makeFormatter();
-      const result = await formatter.formatContentWithFile(
+      const { content: result, cursor } = await formatter.formatContentWithFile(
         '- entry',
         createChoice({
           captureToActiveFile: false,
@@ -996,7 +851,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
       );
       // This is the only caller passing a non-default cursorOffsetInText: the cursor
       // must land at the end of the capture, not at the end of the created anchor.
-      expect(formatter.getCaptureInsertionEndOffset()).toBe(
+      expect(cursor.kind === "offset" ? cursor.value : null).toBe(
         '---\ndate: 2026-07-25\n---\n\n- entry'.length,
       );
     });

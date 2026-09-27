@@ -44,10 +44,23 @@ let {
 const templateFilePaths = $derived(
 	plugin.getTemplateFiles().map((f) => f.path),
 );
-const formatSuggesters = [
+const formatSuggestContext = $derived(choice.propertyCapture ? "propertyValue" : "noteContent");
+// Upstream's `choice.propertyCapture?.action` assumed a single object; the
+// multi-property fork stores an array, so read the FIRST row's action instead.
+const captureFormatPlaceholder = $derived.by(() => {
+	const setting = choice.propertyCapture;
+	const first = Array.isArray(setting) ? setting[0] : setting;
+	return first?.action === "addToList"
+		? t("choiceBuilder.placeholder.oneItemPerLine")
+		: t("choiceBuilder.placeholder.format");
+});
+const formatSuggesters = $derived.by(() => {
+	const context = formatSuggestContext;
+	return [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin),
-];
+		new FormatSyntaxSuggester(app, el, plugin, context),
+	];
+});
 
 function validateTemplate(
 	raw: string,
@@ -168,15 +181,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
 	{#snippet children(id)}
-		<ValidatedInput
-			{id}
-			inputKind="textarea"
-			bind:value={choice.format.format}
-			placeholder={t("choiceBuilder.placeholder.format")}
-			required
-			requiredMessage={t("choiceBuilder.captureForm.captureFormatRequired")}
-			makeSuggesters={formatSuggesters}
-		/>
+		{#key formatSuggestContext}
+			<ValidatedInput
+				{id}
+				inputKind="textarea"
+				bind:value={choice.format.format}
+				placeholder={captureFormatPlaceholder}
+				required
+				requiredMessage={t("choiceBuilder.captureForm.captureFormatRequired")}
+				makeSuggesters={formatSuggesters}
+			/>
+		{/key}
 		<FormatTokenHint value={choice.format.format} />
 		<FormatPreviewField value={choice.format.format} {app} {plugin} />
 	{/snippet}

@@ -333,17 +333,44 @@ QuickAdd stops the capture instead of choosing one.
 
 **Action** controls the update:
 
-- **Set value** replaces the property's value. For a List property, text becomes
-  one item, and a typed list replaces the whole list. An empty text value clears
-  the list. Commas and line breaks inside text do not split it into several items.
-- **Add to list** adds one text value or a list of text values. Existing items
-  keep their order, and exact duplicates are skipped. An existing text, number,
-  or checkbox value causes an error.
+- **Set value** replaces the property's value. An empty value clears a list.
+- **Add to list** adds new items below the existing ones. Exact duplicates are
+  skipped. An existing text, number, or checkbox value causes an error.
+
+For a list property, each line of the Capture format is one item, the same way
+Enter works in Obsidian's List property editor. Lines are trimmed, blank lines
+are ignored, and a comma inside a line stays part of that item.
+
+#### Keep the current value with `{{PROPERTY}}`
+
+In the format, `{{PROPERTY}}` is the property's current value. Put it where
+that value should appear. When the format contains it, **Add to list** and
+**Set value** write the same list. QuickAdd drops duplicate items and keeps
+the first occurrence. An existing list item that contains a line break stops
+the capture. See [format syntax](/docs/FormatSyntax/#property) for examples.
+
+Other useful patterns:
+
+- Several fixed lines add several items in one run, with no prompt.
+- `{{VALUE}}` on its own line adds whatever you type as one more item.
+- A `{{VALUE:notes|type:multiline}}` prompt is a free-form "one item per line"
+  box.
+- Text, number, checkbox, date, and date-time properties never split on line
+  breaks.
+- Arrays from `|multi` pickers and scripts are written as they are, even if an
+  item contains a line break. A `|multi` picker combined with other lines
+  produces text, so its picks land in one comma-joined item; keep `|multi`
+  alone in the format, or use a plain `{{VALUE}}` line for the typed value.
+  An explicit `|format:markdown` or `|format:yaml` keeps its dashes or YAML
+  markers in each item.
 
 Neither action converts an existing text, number, or checkbox property into a
-list. An empty text value or empty list with **Add to list** leaves the note
-unchanged. It does not create a missing note, write properties, insert links,
-or copy links.
+list. An empty or whitespace-only text value or empty list with **Add to list**
+leaves the note unchanged. It does not create a missing note, write properties,
+insert links, or copy links.
+
+Inline scripts read the current value through
+[Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 **Create property if missing** permits a new key. When disabled, a missing key
 stops the capture. **Create file if it doesn't exist** separately controls
@@ -364,7 +391,10 @@ to a missing property whose type is already set in Obsidian. An explicit
 | `status` | **Set value** | `{{VALUE:status}}` | The entered text. |
 | `rating` | **Set value** | `{{VALUE:rating\|type:number}}` | A Number property. |
 | `done` | **Set value** | `{{VALUE:done\|type:checkbox}}` | A Checkbox property. |
+| `tags` | **Add to list** | `work` and `personal` on two lines | Adds both tags without a prompt. |
 | `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
+| `tags` | **Add to list** | `work` then `{{PROPERTY}}` on two lines | Inserts `work` above the existing tags. |
+| `status` | **Set value** | `{{PROPERTY}} → Ready` | Keeps the current text and appends ` → Ready`. |
 | `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |
 
 The value must match the property's Obsidian type, or its existing value when
@@ -376,10 +406,16 @@ Objects and lists containing non-text values are rejected. **Set value** removes
 exact duplicate list items while preserving their order.
 
 For a new property without a known type, the captured value determines the type.
-Date properties accept `YYYY-MM-DD`, and date-time properties accept ISO date-time
-text such as `2026-09-07T14:30`. An intentional empty text value or empty list
-clears a matching property with **Set value**. Use `|optional` to allow an empty
-prompt answer. Cancelling a prompt stops the capture.
+Date properties accept `YYYY-MM-DD`, and date-time properties accept ISO
+date-time text such as `2026-09-07T14:30`. An intentional empty text value or
+empty list clears a matching property with **Set value**. Use `|optional` to
+allow an empty prompt answer. Cancelling a prompt stops the capture.
+
+Several lines of text are the one exception. **Set value** stops with an error
+instead of guessing, because several lines usually mean a list, and writing them
+as text would register the property as Text for the whole vault and block every
+later **Add to list**. Use **Add to list** to create it as a list, or set the
+property's type in Obsidian first - choose Text to keep the lines as one value.
 
 QuickAdd collects and validates the property inputs before writing or creating
 the note. **Task** and **Run Templater on entire destination file after capture**
@@ -482,6 +518,10 @@ When QuickAdd opens and focuses a Markdown target in an editable mode after a
 body capture, it places the cursor at the end of the inserted text so you can keep typing.
 This is skipped for preview/unfocused opens and when Templater cursor markers
 take over.
+
+Use [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the Capture format to place
+the cursor within the inserted text. The marker also works when the destination
+is already focused in an editing mode and **Open** is off.
 
 ### Run it from a hotkey: Command palette {#command-palette}
 

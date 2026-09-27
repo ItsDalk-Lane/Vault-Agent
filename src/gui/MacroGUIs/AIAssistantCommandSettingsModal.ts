@@ -222,11 +222,11 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setName(t("macro.systemPrompt.name"))
 			.setDesc(t("macro.systemPrompt.desc"));
 
-		const container = this.contentEl.createEl("div");
-		const tokenCount = container.createEl("span", {
+		const container = this.contentEl.createDiv();
+		const tokenCount = container.createSpan({
 			cls: "qa-ai-token-count",
 		});
-		const tokenCountNote = container.createEl("div", {
+		const tokenCountNote = container.createDiv({
 			text: t("macro.estimatedLocally"),
 			cls: "qa-ai-token-note",
 		});

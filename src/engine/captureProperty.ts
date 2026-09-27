@@ -1,4 +1,5 @@
 import { getFrontMatterInfo, parseYaml, stringifyYaml } from "obsidian";
+import { PROPERTY_REGEX } from "../constants";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 import { t } from "../i18n";
 
@@ -12,12 +13,124 @@ export function validatePropertyName(input: string): string {
 	return key;
 }
 
+/** Whether a Capture format includes `{{PROPERTY}}` (case-insensitive). */
+export function formatContainsPropertyToken(format: string): boolean {
+	return PROPERTY_REGEX.test(format);
+}
+
+/**
+ * String form of a property's current value for `{{PROPERTY}}` expansion.
+ * Lists become one item per line (so captureListItems round-trips). Items that
+ * already contain a line break abort — inventing extra items would be wrong.
+ */
+export function stringifyPropertyTokenValue(value: unknown): string {
+	if (value === undefined || value === null) return "";
+	if (Array.isArray(value)) {
+		if (!value.every((item): item is string => typeof item === "string")) {
+			throw new Error(t("errors.propertyTokenListOnly"));
+		}
+		if (value.some((item) => /[\r\n]/.test(item))) {
+			throw new Error(t("errors.propertyTokenLineBreak"));
+		}
+		return value.join("\n");
+	}
+	if (typeof value === "string" || typeof value === "boolean") return String(value);
+	if (typeof value === "number" && Number.isFinite(value)) return String(value);
+	throw new Error(t("errors.propertyTokenTypes"));
+}
+
+/** Variable keys seeded for property Captures. Reserved while that Capture runs. */
+export const PROPERTY_CAPTURE_SEED_KEYS = [
+	"propertyKey",
+	"propertyValue",
+	"list",
+] as const;
+
+export type PropertyCaptureSeedSnapshot = Array<{
+	key: (typeof PROPERTY_CAPTURE_SEED_KEYS)[number];
+	present: boolean;
+	value: unknown;
+}>;
+
+/** Snapshot the seed keys so a Capture can restore the shared executor map. */
+export function snapshotPropertyCaptureSeeds(
+	variables: Map<string, unknown>,
+): PropertyCaptureSeedSnapshot {
+	return PROPERTY_CAPTURE_SEED_KEYS.map((key) => ({
+		key,
+		present: variables.has(key),
+		value: variables.get(key),
+	}));
+}
+
+/** Restore seed keys after a property Capture (Macro-safe shared executor). */
+export function restorePropertyCaptureSeeds(
+	variables: Map<string, unknown>,
+	snapshot: PropertyCaptureSeedSnapshot,
+): void {
+	for (const entry of snapshot) {
+		if (entry.present) variables.set(entry.key, entry.value);
+		else variables.delete(entry.key);
+	}
+}
+
+/**
+ * Seeds format/script variables with a frozen snapshot of the destination
+ * property before `formatPropertyValue` runs (#1748 Slice 1).
+ *
+ * Throws when a seed key already holds a concrete value (for example from
+ * `{{VALUE:list}}`), so the snapshot cannot silently replace a user answer.
+ * Callers must {@link restorePropertyCaptureSeeds} in a `finally` so a later
+ * property Capture in the same Macro can seed again.
+ */
+export function seedPropertyCaptureVariables(
+	variables: Map<string, unknown>,
+	key: string,
+	existing: unknown,
+): void {
+	for (const seedKey of PROPERTY_CAPTURE_SEED_KEYS) {
+		if (!variables.has(seedKey) || variables.get(seedKey) === undefined) continue;
+		throw new Error(t("errors.propertySeedCollision", { name: seedKey }));
+	}
+	let propertyValue: CapturePropertyValue | undefined;
+	if (existing !== undefined && existing !== null) {
+		propertyValue = propertyValueFromExisting(existing, key);
+	}
+	variables.set("propertyKey", key);
+	variables.set("propertyValue", propertyValue);
+	variables.set("list", Array.isArray(propertyValue) ? [...propertyValue] : []);
+}
+
+function propertyValueFromExisting(value: unknown, key: string): CapturePropertyValue {
+	if (typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) {
+		return [...value];
+	}
+	throw new Error(t("errors.propertyValueTypeUnsupported", { name: key }));
+}
+
 export function resolveCapturePropertyKey(frontmatter: Record<string, unknown>, requested: string): string {
 	if (Object.prototype.hasOwnProperty.call(frontmatter, requested)) return requested;
 	const matches = Object.keys(frontmatter).filter((key) => key.trim().toLowerCase() === requested.trim().toLowerCase());
 	if (matches.length > 1)
 		throw new Error(t("errors.propertyAmbiguousMatch", { name: requested }));
 	return matches[0] ?? requested;
+}
+
+/**
+ * Turns captured text into list items: one per non-blank line, trimmed. A single
+ * line is one item, so commas stay inside it. Newline is the boundary because it
+ * is what Enter means in Obsidian's own List property editor.
+ */
+export function captureListItems(value: string): string[] {
+	return value.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "");
+}
+
+/** Whether an Add to list value contributes no items, so the capture should leave the note alone. */
+export function isEmptyCaptureListValue(value: unknown): boolean {
+	if (typeof value === "string") return captureListItems(value).length === 0;
+	return Array.isArray(value) && value.length === 0;
 }
 
 function propertyValue(value: unknown, key: string): CapturePropertyValue {
@@ -77,6 +190,12 @@ export function planPropertyUpdate(args: {
 	value: unknown;
 	config: Pick<PropertyCapture, "action" | "createIfMissing">;
 	registeredType: string | null;
+	/**
+	 * When the Capture format contained `{{PROPERTY}}`, the formatted value is
+	 * already the full composed result. List writes always replace (first
+	 * occurrence in the composed format wins); Add's append path is skipped.
+	 */
+	compose?: boolean;
 }): CapturePropertyValue {
 	const { frontmatter, config } = args;
 	const key = resolveCapturePropertyKey(frontmatter, args.key);
@@ -90,6 +209,7 @@ export function planPropertyUpdate(args: {
 	const captured = propertyValue(args.value, key);
 	const current = existing == null ? null : propertyValue(existing, key);
 	const type = propertyType(args.registeredType, key) ?? (current === null ? null : inferType(current));
+	const lines = typeof captured === "string" ? captureListItems(captured) : null;
 	if (config.action === "addToList") {
 		if (current !== null && !Array.isArray(current)) {
 			throw new Error(
@@ -104,11 +224,13 @@ export function planPropertyUpdate(args: {
 				t("errors.propertyAddToListRequiresList", { name: key, actual: type }),
 			);
 		}
-		const items = typeof captured === "string" ? captured === "" ? [] : [captured] : captured;
+		const items = lines ?? captured;
 		if (!Array.isArray(items)) throw new Error(
 			t("errors.propertyAddRequiresTextOrList", { name: key }),
 		);
 		if (items.length === 0) return current ?? [];
+		// Token present ⇒ write the composed list as-is (first occurrence wins).
+		if (args.compose) return [...new Set(items)];
 		return [...new Set([...(current ?? []), ...items])];
 	}
 	if (type === "list" && current !== null && !Array.isArray(current)) {
@@ -116,9 +238,13 @@ export function planPropertyUpdate(args: {
 			t("errors.propertyContainsNonList", { name: key, actual: inferType(current) }),
 		);
 	}
-	const next = type === "list" && typeof captured === "string"
-		? captured === "" ? [] : [captured]
-		: captured;
+	// Several lines into a typeless key usually mean a list, and line count is not
+	// a type signal, so guessing text here is both likely wrong and expensive: it
+	// registers the key as Text vault-wide and blocks every later Add to list.
+	if (type === null && lines !== null && lines.length > 1) {
+		throw new Error(t("errors.propertyUntypedMultiLine", { name: key, count: lines.length }));
+	}
+	const next = type === "list" ? lines ?? captured : captured;
 	if (type !== null) validateType(next, type, key);
 	return Array.isArray(next) ? [...new Set(next)] : next;
 }

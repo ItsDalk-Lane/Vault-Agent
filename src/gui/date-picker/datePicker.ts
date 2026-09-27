@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import { t } from "../../i18n";
 
 export type DatePickerSelectSource = "picker" | "action";
@@ -134,18 +135,18 @@ export const createDatePicker = (
 
 	const header = root.createDiv({ cls: "qa-date-picker__header" });
 	const prevBtn = header.createEl("button", {
-		cls: "qa-date-picker__nav",
-		text: "‹",
+		cls: "qa-date-picker__nav clickable-icon",
 	});
+	setIcon(prevBtn, "chevron-left");
 	prevBtn.type = "button";
 	prevBtn.setAttr("aria-label", t("datePicker.previousMonthAria"));
 
 	const label = header.createDiv({ cls: "qa-date-picker__label" });
 
 	const nextBtn = header.createEl("button", {
-		cls: "qa-date-picker__nav",
-		text: "›",
+		cls: "qa-date-picker__nav clickable-icon",
 	});
+	setIcon(nextBtn, "chevron-right");
 	nextBtn.type = "button";
 	nextBtn.setAttr("aria-label", t("datePicker.nextMonthAria"));
 

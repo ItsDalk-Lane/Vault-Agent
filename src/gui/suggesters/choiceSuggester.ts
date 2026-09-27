@@ -15,7 +15,7 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { t } from "../../i18n";
 import { createRenderFallbackWarner } from "./utils";
-import { reportUnlessCancelled } from "../../utils/errorUtils";
+import { isCancellationError, reportUnlessCancelled, toError } from "../../utils/errorUtils";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
 import {
@@ -34,14 +34,6 @@ import { resolveChoiceIcon } from "../../utils/choiceUtils";
 import { createOwnedElement } from "../../utils/activeWindow";
 
 const backLabel = "← Back";
-
-/**
- * Search hint for the launcher's input. Every Obsidian picker labels its own;
- * QuickAdd's rendered completely blank, which reads as an unfinished surface
- * (issue #1540). Nested levels override this with the folder's name or its
- * custom placeholder.
- */
-const DEFAULT_PLACEHOLDER = "";
 
 /**
  * Shared wording for "you opened a folder that has nothing in it", so the
@@ -188,7 +180,7 @@ type ChoiceSuggesterOptions = {
 	 * picker is open (#1630). Absent for the top-level launcher, which has no
 	 * caller waiting and stays fire-and-forget.
 	 */
-	completion?: (error?: unknown) => void;
+	completion?: (error?: Error) => void;
 };
 
 /**
@@ -496,12 +488,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private settleCompletion(promise: Promise<void>, errorContext: string): void {
 		void promise.then(
 			() => this.completion?.(),
-			(error) => {
-				// reportError, not a template-stringified log line: interpolating the
-				// error throws its stack away, and only a value passed through
-				// reportError participates in the report-once contract (#1601).
-				reportUnlessCancelled(error, errorContext);
-				this.completion?.(error);
+			(error: unknown) => {
+				const failure = typeof error === "string" && isCancellationError(error)
+					? promptCancelled()
+					: toError(error);
+				reportUnlessCancelled(failure, errorContext);
+				this.completion?.(failure);
 			},
 		);
 	}

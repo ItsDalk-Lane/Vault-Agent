@@ -1,7 +1,6 @@
 import type {
 	App,
 	Setting,
-	SettingDefinitionGroup,
 	SettingDefinitionItem,
 	TextAreaComponent,
 } from "obsidian";
@@ -35,19 +34,19 @@ import {
 	parseDateAliasLines,
 } from "./utils/dateAliases";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
-import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
+import { DOCS_URLS } from "./docs";
+import {
+	createSettingDefinitions,
+	descWithDocsLink,
+	type SettingsKey,
+} from "./gui/components/settingsDefinitions";
 import { rootChoicesOf } from "./utils/choiceUtils";
 import { t } from "./i18n";
 
-/** String-named keys of {@link QuickAddSettings} — used to type the declarative
- * `control` keys so a mistyped key is caught at compile time. */
-type SettingsKey = Extract<keyof QuickAddSettings, string>;
-
-/** Settings-tab heading: "Choices & packages" — the "packages" UI is shared by the
- * Packages definition (which is what the settings search indexes) and by the
- * rendered description (which the row rewrites as the export state changes),
- * so the two can never drift. t() is computed inside the group builder so the
- * locale module is loaded before the key resolves. */
+/** Settings-tab description keys for the Packages row — the "packages" UI is
+ * shared by the Packages definition (which is what the settings search indexes)
+ * and by the rendered description (which the row rewrites as the export state
+ * changes), so the two can never drift. */
 const PACKAGES_DESC_KEY = "settings.packages.desc";
 const PACKAGES_DESC_NEEDS_CHOICE_KEY = "settings.packages.descNeedsChoice";
 
@@ -110,20 +109,37 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {
-		const groups: SettingDefinitionGroup<SettingsKey>[] = [
-			this.choicesAndPackagesGroup(),
-			this.choicePickerGroup(),
-			this.inputGroup(),
-			this.templatesGroup(),
-			this.notificationsGroup(),
-			this.globalVariablesGroup(),
-			this.aiAndOnlineGroup(),
-			this.appearanceGroup(),
-		];
+		const groups = createSettingDefinitions({
+			choices: (setting) => this.renderChoicesView(setting),
+			packages: (setting) => this.renderPackages(setting),
+			dateAliases: (setting) => this.renderDateAliases(setting),
+			templateFolders: (setting) => this.renderTemplateFolderPaths(setting),
+			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
+			developmentInfo: (setting) => this.renderDevInfo(setting),
+		}, __IS_DEV_BUILD__);
 
-		if (__IS_DEV_BUILD__) {
-			groups.push(this.developerGroup());
-		}
+		// Local i18n wiring with no upstream counterpart: the UI language
+		// selector, injected at the top of the Appearance group so the
+		// upstream declarative definitions in settingsDefinitions.ts stay
+		// untouched. A `preferredLocale` change needs a plugin reload to
+		// take effect — the description tells the user.
+		const appearanceGroup = groups.find(
+			(group) => group.heading === "Appearance",
+		);
+		appearanceGroup?.items?.unshift({
+			name: t("settings.language.name"),
+			desc: t("settings.language.desc"),
+			control: {
+				type: "dropdown",
+				key: "preferredLocale",
+				defaultValue: "",
+				options: {
+					"": t("settings.language.auto"),
+					en: t("settings.language.en"),
+					"zh-CN": t("settings.language.zh-CN"),
+				},
+			},
+		});
 
 		return groups;
 	}
@@ -151,267 +167,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.packagesUnsubscribe = null;
 	}
 
-	// ----- group builders -----
-
-	private choicesAndPackagesGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.choicesAndPackages"),
-			// QuickAdd's power surface is syntax you have to learn ({{VALUE}},
-			// {{DATE}}, capture targets, ...) and until now the manual was reachable
-			// from exactly one place in the whole plugin (issue #1541). A help icon
-			// on the first heading is Obsidian's own idiom for this, and it costs the
-			// page no vertical space, so the choices list stays the focus.
-			extraButtons: [
-				(button) =>
-					button
-						.setIcon("help-circle")
-						.setTooltip(t("settings.docs.quickAddTooltip"))
-						.onClick(() =>
-							openDocsUrl(DOCS_URLS.gettingStarted, button.extraSettingsEl),
-						),
-			],
-			items: [
-				{
-					name: t("settings.choices.name"),
-					render: (setting) => this.renderChoicesView(setting),
-				},
-				{
-					name: t("settings.packages.name"),
-					desc: t(PACKAGES_DESC_KEY),
-					render: (setting) => this.renderPackages(setting),
-				},
-			],
-		};
-	}
-
-	private choicePickerGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.choicePicker"),
-			items: [
-				{
-					name: t("settings.items.searchNestedChoices.name"),
-					// "Multi" is the internal type id; every other user-facing string
-					// says folder (see src/utils/choiceNoun.ts), and this was the one
-					// place in the whole settings surface that leaked it.
-					desc: t("settings.items.searchNestedChoices.desc"),
-					control: { type: "toggle", key: "searchNestedChoices" },
-				},
-				{
-					name: t("settings.items.templateFolderLauncherRow.name"),
-					desc: t("settings.items.templateFolderLauncherRow.desc"),
-					control: {
-						type: "dropdown",
-						key: "templateFolderLauncherRow",
-						defaultValue: "bottom",
-						options: {
-							bottom: t("settings.items.templateFolderLauncherRow.bottom"),
-							top: t("settings.items.templateFolderLauncherRow.top"),
-							off: t("settings.items.templateFolderLauncherRow.off"),
-						},
-					},
-				},
-			],
-		};
-	}
-
-	private inputGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.input"),
-			items: [
-				{
-					name: t("settings.items.useMultiLine.name"),
-					desc: t("settings.items.useMultiLine.desc"),
-					control: { type: "toggle", key: "inputPrompt" },
-				},
-				{
-					name: t("settings.items.persistDrafts.name"),
-					desc: t("settings.items.persistDrafts.desc"),
-					control: { type: "toggle", key: "persistInputPromptDrafts" },
-				},
-				{
-					name: t("settings.items.useSelection.name"),
-					desc: t("settings.items.useSelection.desc"),
-					control: { type: "toggle", key: "useSelectionAsCaptureValue" },
-				},
-				{
-					name: t("settings.items.namePastedImages.name"),
-					desc: t("settings.items.namePastedImages.desc"),
-					control: { type: "toggle", key: "namePastedImagesAfterNoteTitle" },
-				},
-				{
-					name: t("settings.items.onePageInput.name"),
-					// The trailing sentence used to read "See One-page Inputs in the
-					// docs." as plain, unlinked prose (issue #1541).
-					desc: this.descWithDocsLink(
-						t("settings.items.onePageInput.descPrefix"),
-						DOCS_URLS.onePageInputs,
-						t("settings.docs.learnMoreAboutOnePageInput"),
-					),
-					control: { type: "toggle", key: "onePageInputEnabled" },
-				},
-				{
-					name: t("settings.items.dateAliases.name"),
-					desc: t("settings.items.dateAliases.desc"),
-					render: (setting) => this.renderDateAliases(setting),
-				},
-			],
-		};
-	}
-
-	private templatesGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.templatesAndProperties"),
-			items: [
-				{
-					name: t("settings.items.templateFolderPaths.name"),
-					desc: t("settings.items.templateFolderPaths.desc"),
-					render: (setting) => this.renderTemplateFolderPaths(setting),
-				},
-				{
-					name: t("settings.items.convertStringTypes.name"),
-					desc: t("settings.items.convertStringTypes.desc"),
-					control: { type: "toggle", key: "enableTemplatePropertyTypes" },
-				},
-			],
-		};
-	}
-
-	private notificationsGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.notifications"),
-			items: [
-				{
-					name: t("settings.items.announceUpdates.name"),
-					desc: t("settings.items.announceUpdates.desc"),
-					control: {
-						type: "dropdown",
-						key: "announceUpdates",
-						defaultValue: "major",
-						options: {
-							all: t("settings.items.announceUpdates.all"),
-							major: t("settings.items.announceUpdates.major"),
-							none: t("settings.items.announceUpdates.none"),
-						},
-					},
-				},
-				{
-					name: t("settings.items.showCaptureNotifications.name"),
-					desc: t("settings.items.showCaptureNotifications.desc"),
-					control: { type: "toggle", key: "showCaptureNotification" },
-				},
-				{
-					name: t("settings.items.showInputCancellation.name"),
-					desc: t("settings.items.showInputCancellation.desc"),
-					control: {
-						type: "toggle",
-						key: "showInputCancellationNotification",
-					},
-				},
-			],
-		};
-	}
-
-	private globalVariablesGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.globalVariables"),
-			items: [
-				{
-					name: t("settings.items.globalVariables.name"),
-					render: (setting) => this.renderGlobalVariablesView(setting),
-				},
-			],
-		};
-	}
-
-	private aiAndOnlineGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.aiAndOnline"),
-			items: [
-				{
-					name: t("settings.items.disableAI.name"),
-					desc: t("settings.items.disableAI.desc"),
-					control: { type: "toggle", key: "disableOnlineFeatures" },
-				},
-				{
-					name: t("settings.items.allowUriCallbacks.name"),
-					desc: t("settings.items.allowUriCallbacks.desc"),
-					control: { type: "toggle", key: "enableUriCallbacks" },
-				},
-			],
-		};
-	}
-
-	private appearanceGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.appearance.heading"),
-			items: [
-				{
-					name: t("settings.language.name"),
-					desc: t("settings.language.desc"),
-					control: {
-						type: "dropdown",
-						key: "preferredLocale",
-						defaultValue: "",
-						options: {
-							"": t("settings.language.auto"),
-							en: t("settings.language.en"),
-							"zh-CN": t("settings.language.zh-CN"),
-						},
-					},
-				},
-				{
-					name: t("settings.appearance.ribbonIconName"),
-					desc: t("settings.appearance.ribbonIconDesc"),
-					control: { type: "toggle", key: "enableRibbonIcon" },
-				},
-			],
-		};
-	}
-
-	private developerGroup(): SettingDefinitionGroup<SettingsKey> {
-		return {
-			type: "group",
-			heading: t("settings.group.developer"),
-			items: [
-				{
-					name: t("settings.items.development.name"),
-					desc: t("settings.items.development.desc"),
-					render: (setting) => this.renderDevInfo(setting),
-				},
-			],
-		};
-	}
-
-	// ----- render helpers -----
-
-	/**
-	 * A description ending in a documentation link. Built fresh on every call: the
-	 * declarative renderer clones fragments before inserting them, but
-	 * getSettingDefinitions() runs per render anyway, so a fresh fragment is free
-	 * and cannot be accidentally re-parented.
-	 *
-	 * `linkText` names its destination wherever two links could be on screen at
-	 * once, matching Obsidian's own "Learn more about ..." phrasing.
-	 */
-	private descWithDocsLink(
-		text: string,
-		url: string,
-		linkText?: string,
-	): DocumentFragment {
-		const fragment = document.createDocumentFragment();
-		fragment.append(document.createTextNode(text));
-		createDocsLink(fragment, url, linkText ?? t("settings.docs.learnMore"));
-		return fragment;
-	}
-
 	/** Strip the label/description column and let a row span the full width —
 	 * used to host the mounted Svelte views. The declarative API requires a
 	 * `name` on every definition (for search indexing); we set it on the def and
@@ -433,69 +188,65 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	// ChoiceView has its own <svelte:boundary> for reactive failures inside the
 	// list; mountComponent catches the setup that boundary sits inside.
 
-	private renderChoicesView(setting: Setting): () => void {
+	private mountView(
+		setting: Setting,
+		key: "choiceViewHandle" | "globalVariablesViewHandle",
+		mount: (target: HTMLElement) => MountHandle,
+	): () => void {
 		this.prepareFullWidthSetting(setting);
-
-		this.choiceViewHandle?.destroy();
-		const handle = mountComponent(
-			setting.controlEl,
-			ChoiceView,
-			{
-				app: this.app,
-				plugin: this.plugin,
-				choices: settingsStore.getState().choices,
-				// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
-				// the call site is a COMPILE error here — this is the real persistence sink
-				// that must never receive a live Svelte $state proxy. Plain<T> is assignable
-				// to T, so setState still accepts it.
-				saveChoices: (choices: Plain<IChoice[]>) => {
-					settingsStore.setState({ choices });
-				},
-			},
-			// The choice list is the one view whose failure has a recovery story worth
-			// spelling out (the data.json advice in ChoicesUnavailable), and the same
-			// card the view itself shows when the tree is unreadable — so a mount
-			// failure and a render failure look identical to the user.
-			{ what: "your choices", fallbackComponent: ChoicesUnavailable },
-		);
-		this.choiceViewHandle = handle;
-
-		// Capture the handle so a stale cleanup can only ever destroy its own
-		// mount (and only nulls the field while it still points at this mount).
+		this[key]?.destroy();
+		const handle = mount(setting.controlEl);
+		this[key] = handle;
+		// A stale row cleanup must never destroy or clear its replacement.
 		return () => {
 			handle.destroy();
-			if (this.choiceViewHandle === handle) {
-				this.choiceViewHandle = null;
-			}
+			if (this[key] === handle) this[key] = null;
 		};
 	}
 
-	private renderGlobalVariablesView(setting: Setting): () => void {
-		this.prepareFullWidthSetting(setting);
-
-		this.globalVariablesViewHandle?.destroy();
-		const handle = mountComponent(
-			setting.controlEl,
-			GlobalVariablesView,
-			{
-				app: this.app,
-				plugin: this.plugin,
-			},
-			{ what: "your global variables" },
+	private renderChoicesView(setting: Setting): () => void {
+		return this.mountView(setting, "choiceViewHandle", (target) =>
+			mountComponent(
+				target,
+				ChoiceView,
+				{
+					app: this.app,
+					plugin: this.plugin,
+					choices: settingsStore.getState().choices,
+					// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
+					// the call site is a COMPILE error here — this is the real persistence sink
+					// that must never receive a live Svelte $state proxy. Plain<T> is assignable
+					// to T, so setState still accepts it.
+					saveChoices: (choices: Plain<IChoice[]>) => {
+						settingsStore.setState({ choices });
+					},
+				},
+				// The choice list is the one view whose failure has a recovery story worth
+				// spelling out (the data.json advice in ChoicesUnavailable), and the same
+				// card the view itself shows when the tree is unreadable — so a mount
+				// failure and a render failure look identical to the user.
+				{ what: "your choices", fallbackComponent: ChoicesUnavailable },
+			),
 		);
-		this.globalVariablesViewHandle = handle;
+	}
 
-		return () => {
-			handle.destroy();
-			if (this.globalVariablesViewHandle === handle) {
-				this.globalVariablesViewHandle = null;
-			}
-		};
+	private renderGlobalVariablesView(setting: Setting): () => void {
+		return this.mountView(setting, "globalVariablesViewHandle", (target) =>
+			mountComponent(
+				target,
+				GlobalVariablesView,
+				{
+					app: this.app,
+					plugin: this.plugin,
+				},
+				{ what: "your global variables" },
+			),
+		);
 	}
 
 	/** Packages description, with the reason Export is unavailable when it is. */
 	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
-		return this.descWithDocsLink(
+		return descWithDocsLink(
 			hasNothingToExport
 				? `${t(PACKAGES_DESC_NEEDS_CHOICE_KEY)} `
 				: `${t(PACKAGES_DESC_KEY)} `,
