@@ -15,6 +15,7 @@ import type {
 } from "../types/packages/QuickAddPackage";
 import { isChoiceLike } from "../utils/choiceUtils";
 import { commandListOf, isCommandLike, macroCommandsValueOf } from "../utils/macroUtils";
+import { t } from "../i18n";
 
 import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewUsageSite } from "../types/packages/PackagePreview";
 const KNOWN_COMMAND_TYPES = new Set<string>(Object.values(CommandType));
@@ -48,7 +49,7 @@ function commandLabel(command: ICommand): string {
 
 function conditionSummary(condition: ConditionalCondition): string {
 	if (condition.mode === "script") {
-		return `script: ${condition.scriptPath}${condition.exportName ? ` (${condition.exportName})` : ""
+		return `${t("packageManager.conditionScriptPrefix")} ${condition.scriptPath}${condition.exportName ? ` (${condition.exportName})` : ""
 			}`;
 	}
 	const expected =
@@ -100,7 +101,7 @@ export function walkPackage(pkg: QuickAddPackage): PackageWalk {
 
 	for (const entry of pkg.choices) {
 		const choice = entry.choice;
-		const location = joinCrumb(entry.pathHint.slice(0, -1)) || "Root";
+		const location = joinCrumb(entry.pathHint.slice(0, -1)) || t("packageManager.rootLocation");
 		const walk: ChoiceWalk = {
 			choiceId: choice.id,
 			name: choice.name,
@@ -139,7 +140,7 @@ function collectChoice(
 			walk.rows.push({
 				flag: "run-on-startup",
 				severity: "critical",
-				title: "Runs automatically every time Obsidian starts",
+				title: t("packageManager.row.runOnStartup"),
 				detail: joinCrumb(crumbs),
 			});
 		}
@@ -153,7 +154,7 @@ function collectChoice(
 				path: choice.templatePath,
 				asScript: false,
 				impliedKind: "template",
-				breadcrumb: joinCrumb([...crumbs, "template"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.template")]),
 			});
 		}
 		if (templateModifiesExisting(choice)) {
@@ -174,7 +175,7 @@ function collectChoice(
 				path: createCfg.template,
 				asScript: false,
 				impliedKind: "capture-template",
-				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.newFileTemplate")]),
 			});
 		}
 	}
@@ -226,7 +227,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "user-script",
 						severity: "critical",
-						title: "Runs custom JavaScript with full access to your vault and the network",
+						title: t("packageManager.row.userScript"),
 						detail: `${joinCrumb(commandCrumbs)} (${script.path})`,
 						scriptPath: script.path,
 					});
@@ -257,7 +258,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "conditional-script",
 						severity: "critical",
-						title: "Runs custom JavaScript chosen by a condition",
+						title: t("packageManager.row.conditionalScript"),
 						detail: `${joinCrumb(commandCrumbs)} (${scriptPath})`,
 						scriptPath,
 					});
@@ -265,14 +266,14 @@ function collectCommands(
 				collectCommands(
 					conditional.thenCommands ?? [],
 					walk,
-					[...commandCrumbs, "then"],
+					[...commandCrumbs, t("packageManager.crumb.then")],
 					entryIds,
 					depth + 1,
 				);
 				collectCommands(
 					conditional.elseCommands ?? [],
 					walk,
-					[...commandCrumbs, "else"],
+					[...commandCrumbs, t("packageManager.crumb.else")],
 					entryIds,
 					depth + 1,
 				);
@@ -299,7 +300,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "obsidian-command",
 					severity: "warning",
-					title: "Triggers another Obsidian command",
+					title: t("packageManager.row.obsidianCommand"),
 					detail: `${joinCrumb(commandCrumbs)}${obsidian.commandId ? ` (${obsidian.commandId})` : ""
 						}`,
 				});
@@ -310,7 +311,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "ai",
 					severity: "warning",
-					title: "Sends note content to your AI provider over the network",
+					title: t("packageManager.row.ai"),
 					detail: joinCrumb(commandCrumbs),
 				});
 				break;
@@ -335,7 +336,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "unknown-command",
 						severity: "warning",
-						title: "Unknown capability. Review it manually.",
+						title: t("packageManager.row.unknownCommand"),
 						detail: `${joinCrumb(commandCrumbs)} (${String(command.type)})`,
 					});
 				}

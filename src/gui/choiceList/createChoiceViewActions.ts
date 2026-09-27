@@ -23,6 +23,7 @@ import {
 import { log } from "../../logger/logManager";
 import { choiceNoun } from "../../utils/choiceNoun";
 import { reportingHandler } from "../../utils/errorUtils";
+import { t } from "../../i18n";
 import { type Plain, snapshot } from "../svelte/persist.svelte";
 import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
@@ -180,7 +181,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			context.commandRegistry.enableCommand(newChoice);
 		}
 		save();
-		new Notice(`Duplicated "${sourceChoice.name}".`);
+		new Notice(t("choiceList.duplicated", { name: sourceChoice.name }));
 		await revealChoice(newChoice.id);
 	}
 

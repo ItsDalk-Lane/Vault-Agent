@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
+import { quickAddCommandLabels } from "./commandLabels";
+import { setLocale } from "./i18n";
 
 describe("QuickAdd command labels", () => {
 	it("keeps built-in command labels free of the plugin name", () => {
-		expect(QUICK_ADD_COMMAND_LABELS).toEqual({
+		setLocale("en");
+		expect(quickAddCommandLabels()).toEqual({
 			run: "Run",
 			runTemplateFromFolder: "New note from template",
 			applyTemplate: "Apply template to active note",
@@ -12,7 +14,7 @@ describe("QuickAdd command labels", () => {
 			resumePrompt: "Return to prompt",
 		});
 
-		for (const label of Object.values(QUICK_ADD_COMMAND_LABELS)) {
+		for (const label of Object.values(quickAddCommandLabels())) {
 			expect(label).not.toContain("QuickAdd");
 		}
 	});

@@ -1,101 +1,33 @@
+import { t } from "../i18n";
 import type { PreviewSeverity, PreviewFlag } from "../types/packages/PackagePreview";
 interface FlagMeta {
 	severity: PreviewSeverity;
-	/** Short uppercase pill label. */
-	label: string;
-	/** Plain-language hover explanation. */
-	description: string;
+	/** Key under `packageManager.flag.*` for label/description. */
+	i18nKey: string;
 }
 
-// One row per flag — severity, pill label, and hover description in lockstep so
-// adding a capability can't half-define it across parallel tables.
+// One row per flag — severity and locale key in lockstep so adding a
+// capability can't half-define it across parallel tables. Labels and
+// descriptions resolve through `t()` at access time (never at module load,
+// which would freeze the English strings before `setLocale` runs).
 const FLAG_META: Record<PreviewFlag, FlagMeta> = {
-	"user-script": {
-		severity: "critical",
-		label: "SCRIPT",
-		description: "Runs custom JavaScript with full access to your vault and the network.",
-	},
-	"conditional-script": {
-		severity: "critical",
-		label: "CONDITIONAL",
-		description: "Runs custom JavaScript to decide which branch executes.",
-	},
-	"bundled-script": {
-		severity: "critical",
-		label: "SCRIPT FILE",
-		description: "Bundles a file that will be written to your vault and can be run as code.",
-	},
-	"run-on-startup": {
-		severity: "critical",
-		label: "STARTUP",
-		description: "Runs automatically every time Obsidian starts.",
-	},
-	"mislabeled-executable": {
-		severity: "critical",
-		label: "EXECUTABLE",
-		description: "A bundled file is run as code even though it is labeled a template.",
-	},
-	"registers-command": {
-		severity: "warning",
-		label: "COMMAND",
-		description: "Adds a command to the command palette.",
-	},
-	"obsidian-command": {
-		severity: "warning",
-		label: "OBSIDIAN",
-		description: "Triggers another Obsidian command.",
-	},
-	ai: {
-		severity: "warning",
-		label: "AI",
-		description: "Sends note content to your AI provider over the network.",
-	},
-	"ai-tools": {
-		severity: "critical",
-		label: "AI TOOLS",
-		description:
-			"Lets an AI model read and write your vault: the script gives the model tools (functions) it calls with model-chosen arguments.",
-	},
-	"capture-writes": {
-		severity: "warning",
-		label: "WRITES",
-		description: "Writes captured text into your notes.",
-	},
-	"template-write": {
-		severity: "warning",
-		label: "TEMPLATE",
-		description: "Creates notes from a bundled template.",
-	},
-	"overwrites-existing-choice": {
-		severity: "warning",
-		label: "OVERWRITES",
-		description: "Replaces a choice that already exists in your vault.",
-	},
-	"overwrites-existing-file": {
-		severity: "warning",
-		label: "OVERWRITES",
-		description: "Overwrites a file that already exists in your vault.",
-	},
-	"missing-reference": {
-		severity: "warning",
-		label: "MISSING",
-		description: "References a file that is not bundled in this package.",
-	},
-	"unknown-command": {
-		severity: "warning",
-		label: "UNKNOWN",
-		description: "An unrecognised command type. Review it manually.",
-	},
-	"editor-command": {
-		severity: "info",
-		label: "EDITOR",
-		description: "Runs a built-in editor command.",
-	},
-	"open-file": {
-		severity: "info",
-		label: "OPEN FILE",
-		description: "Opens a file in your vault.",
-	},
+	"user-script": { severity: "critical", i18nKey: "userScript" },
+	"conditional-script": { severity: "critical", i18nKey: "conditionalScript" },
+	"bundled-script": { severity: "critical", i18nKey: "bundledScript" },
+	"run-on-startup": { severity: "critical", i18nKey: "runOnStartup" },
+	"mislabeled-executable": { severity: "critical", i18nKey: "mislabeledExecutable" },
+	"registers-command": { severity: "warning", i18nKey: "registersCommand" },
+	"obsidian-command": { severity: "warning", i18nKey: "obsidianCommand" },
+	ai: { severity: "warning", i18nKey: "ai" },
+	"ai-tools": { severity: "critical", i18nKey: "aiTools" },
+	"capture-writes": { severity: "warning", i18nKey: "captureWrites" },
+	"template-write": { severity: "warning", i18nKey: "templateWrite" },
+	"overwrites-existing-choice": { severity: "warning", i18nKey: "overwritesExistingChoice" },
+	"overwrites-existing-file": { severity: "warning", i18nKey: "overwritesExistingFile" },
+	"missing-reference": { severity: "warning", i18nKey: "missingReference" },
+	"unknown-command": { severity: "warning", i18nKey: "unknownCommand" },
+	"editor-command": { severity: "info", i18nKey: "editorCommand" },
+	"open-file": { severity: "info", i18nKey: "openFile" },
 };
 
 export function flagSeverity(flag: PreviewFlag): PreviewSeverity {
@@ -103,9 +35,9 @@ export function flagSeverity(flag: PreviewFlag): PreviewSeverity {
 }
 
 export function flagLabel(flag: PreviewFlag): string {
-	return FLAG_META[flag].label;
+	return t(`packageManager.flag.${FLAG_META[flag].i18nKey}.label`);
 }
 
 export function flagDescription(flag: PreviewFlag): string {
-	return FLAG_META[flag].description;
+	return t(`packageManager.flag.${FLAG_META[flag].i18nKey}.description`);
 }

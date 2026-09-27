@@ -31,11 +31,13 @@ describe("i18n", () => {
 
 		it("translates all six command labels in zh-CN", () => {
 			setLocale("zh-CN");
-			expect(t("command.run")).toBe("运行 QuickAdd");
+			// Command labels must NOT contain "QuickAdd": Obsidian prefixes the
+			// palette entry with "QuickAdd:" itself (see main.commandLabels.test).
+			expect(t("command.run")).toBe("运行");
 			expect(t("command.runTemplateFromFolder")).toBe("从模板新建笔记");
 			expect(t("command.applyTemplate")).toBe("对当前笔记应用模板");
 			expect(t("command.reloadDev")).toBe("重新加载（开发）");
-			expect(t("command.openSettings")).toBe("打开 QuickAdd 设置");
+			expect(t("command.openSettings")).toBe("打开设置");
 			expect(t("command.resumePrompt")).toBe("返回提示");
 		});
 

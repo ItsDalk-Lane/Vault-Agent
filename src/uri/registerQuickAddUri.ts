@@ -9,6 +9,7 @@ import { log } from "../logger/logManager";
 import { reportError, reportUnlessCancelled, withErrorHandling } from "../utils/errorUtils";
 import { isReservedVariableKey } from "../utils/reservedVariableKeys";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
+import { t } from "../i18n";
 import { buildCallbackUrl, buildObsidianOpenUrl, callbackUrls, isCallbackUrlAllowed, parseCallbackTargets, type CallbackTargets } from "./uriCallback";
 
 type UriParameters = { choice?: string; date?: string } &
@@ -55,7 +56,7 @@ export function registerQuickAddUri(
 		}
 
 		if (!parameters.choice) {
-			log.logWarning("URI was executed without a `choice` parameter.");
+			log.logWarning(t("uri.noChoiceParameter"));
 			fireUriError(targets, "choice-not-found");
 			return;
 		}
@@ -63,7 +64,7 @@ export function registerQuickAddUri(
 		const choice = getChoice(parameters.choice);
 		if (!choice) {
 			log.logWarning(
-				`URI could not find any choice named '${parameters.choice}'`,
+				t("uri.choiceNotFound", { name: parameters.choice }),
 			);
 			fireUriError(targets, "choice-not-found");
 			return;
@@ -114,15 +115,13 @@ export function registerQuickAddUri(
 
 	async function runUriChoiceLegacy(parameters: UriParameters): Promise<void> {
 		if (!parameters.choice) {
-			log.logWarning("URI was executed without a `choice` parameter.");
+			log.logWarning(t("uri.noChoiceParameter"));
 			return;
 		}
 		const choice = getChoice(parameters.choice);
 		if (!choice) {
 			reportError(
-				new Error(
-					`URI could not find any choice named '${parameters.choice}'`,
-				),
+				new Error(t("uri.choiceNotFound", { name: parameters.choice })),
 				"URI handler error",
 			);
 			return;

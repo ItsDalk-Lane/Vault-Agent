@@ -124,7 +124,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// untouched. A `preferredLocale` change needs a plugin reload to
 		// take effect — the description tells the user.
 		const appearanceGroup = groups.find(
-			(group) => group.heading === "Appearance",
+			(group) => group.heading === t("settings.appearance.heading"),
 		);
 		appearanceGroup?.items?.unshift({
 			name: t("settings.language.name"),

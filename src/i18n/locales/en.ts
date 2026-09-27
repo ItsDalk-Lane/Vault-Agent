@@ -15,7 +15,7 @@
  */
 const en = {
 	command: {
-		run: "Run QuickAdd",
+		run: "Run",
 		runTemplateFromFolder: "New note from template",
 		applyTemplate: "Apply template to active note",
 		applyTemplateNoActiveNote:
@@ -33,7 +33,7 @@ const en = {
 		canvasCaptureNoLinkInsert:
 			"Canvas capture skipped link insertion because no Markdown editor is focused.",
 		reloadDev: "Reload (dev)",
-		openSettings: "Open QuickAdd settings",
+		openSettings: "Open settings",
 		resumePrompt: "Return to prompt",
 	},
 	common: {

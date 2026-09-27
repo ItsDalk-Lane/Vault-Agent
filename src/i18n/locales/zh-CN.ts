@@ -12,7 +12,7 @@
  */
 const zhCN = {
 	command: {
-		run: "运行 QuickAdd",
+		run: "运行",
 		runTemplateFromFolder: "从模板新建笔记",
 		applyTemplate: "对当前笔记应用模板",
 		applyTemplateNoActiveNote:
@@ -30,7 +30,7 @@ const zhCN = {
 		canvasCaptureNoLinkInsert:
 			"Canvas 捕获已跳过链接插入，因为没有 Markdown 编辑器处于焦点。",
 		reloadDev: "重新加载（开发）",
-		openSettings: "打开 QuickAdd 设置",
+		openSettings: "打开设置",
 		resumePrompt: "返回提示",
 	},
 	common: {

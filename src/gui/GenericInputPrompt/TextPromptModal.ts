@@ -12,6 +12,7 @@ import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
 import { isPeekPromptShortcut, isSkipPromptShortcut } from "../promptShortcuts";
+import { t } from "../../i18n";
 import {
 	applyCompactPromptChrome,
 	stylePeekButton,
@@ -107,7 +108,7 @@ export abstract class TextPromptModal<
 
 		if (this.isOptionalPrompt) {
 			const hintEl = this.contentEl.createDiv({
-				text: "Optional — leave empty, press Skip, or ctrl/cmd+shift+↵.",
+				text: t("input.optionalHint"),
 				cls: "setting-item-description",
 			});
 			hintEl.setCssStyles({ marginBottom: "0.75rem" });
@@ -188,20 +189,20 @@ export abstract class TextPromptModal<
 		const primary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-primary",
 		});
-		this.createButton(primary, "Ok", this.submitClickCallback)
+		this.createButton(primary, t("common.ok"), this.submitClickCallback)
 			.setCta()
 			.buttonEl.setCssStyles({ marginRight: "0" });
-		this.createButton(primary, "Cancel", this.cancelClickCallback);
+		this.createButton(primary, t("common.cancel"), this.cancelClickCallback);
 		if (this.isOptionalPrompt) {
 			const skipButton = this.createButton(
 				primary,
-				"Skip",
+				t("common.skip"),
 				this.skipClickCallback,
 			);
-			skipButton.setTooltip("Leave this field empty");
+			skipButton.setTooltip(t("input.skipTooltip"));
 			skipButton.buttonEl.setAttribute(
 				"aria-label",
-				"Skip and leave empty",
+				t("input.skipTooltipFull"),
 			);
 		}
 
@@ -210,7 +211,7 @@ export abstract class TextPromptModal<
 				cls: "qa-prompt-actions-secondary",
 			});
 			stylePeekButton(
-				this.createButton(secondary, "Peek at note", () => this.peek.peek()),
+				this.createButton(secondary, t("common.peekAtNote"), () => this.peek.peek()),
 			);
 		}
 	}
