@@ -108,6 +108,7 @@ const en = {
 		submit: "Submit",
 		search: "Search",
 		loading: "Loading…",
+		clear: "Clear",
 		imageSaveFailed: "QuickAdd: failed to save image.",
 		imageInsertLinkFailed:
 			"QuickAdd: saved the image but could not insert its link.",
@@ -1685,6 +1686,7 @@ const en = {
 		appendLinkTargetNotFound: "Append link target file not found or is not a Markdown file: {path}",
 		multiSelectFormatWarning: "QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
 		noActiveMarkdownEditor: "Capture \"{name}\": no active Markdown editor to insert into.",
+		noActiveMarkdownEditorCommand: "No active Markdown editor.",
 		cleanupClipboardAttachmentFailed: "QuickAdd: failed to clean up clipboard attachment '{path}': {error}",
 		fileExistsUnresolvable: "'{path}' already exists but could not be resolved as a markdown, canvas, or base file.",
 		resolveFileExistsBehaviorFailed: "Could not resolve file exists behavior for '{path}'.",

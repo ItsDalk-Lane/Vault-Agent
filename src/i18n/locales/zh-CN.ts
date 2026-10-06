@@ -380,6 +380,17 @@ const zhCN = {
 	},
 
 	ai: {
+		pageDesc: "AI 命令的提供商、模型和默认设置。",
+		providerCount: {
+			none: "没有提供商",
+			one: "{count} 个提供商",
+			other: "{count} 个提供商",
+		},
+		noProvidersYet: "还没有提供商。添加一个即可使用 AI 命令。",
+		retiredCount: "{count} 个已弃用",
+		thisProvider: "此提供商",
+		deleteProviderWarn: "使用其模型的命令将需要改用其他模型。",
+		defaultsHeading: "默认设置",
 		providers: {
 			name: "AI 提供商",
 			desc: "AI 助手使用的提供商",
