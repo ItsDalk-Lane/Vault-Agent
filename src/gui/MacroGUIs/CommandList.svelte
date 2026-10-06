@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "../../i18n";
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
@@ -248,7 +249,7 @@ async function configureScript(command: IUserScript) {
 		throw error;
 	}
 	if (!loaded?.script) {
-		log.logWarning(`${command.name} could not be loaded.`);
+		log.logWarning(t("errors.commandLoadFailed", { name: command.name }));
 		return;
 	}
 

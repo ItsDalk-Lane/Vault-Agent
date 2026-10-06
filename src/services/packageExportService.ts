@@ -213,14 +213,14 @@ async function encodeAssets(
 		// is reported missing and never reaches the adapter.
 		if (escapesVaultBoundary(path)) {
 			missingAssets.push({ path, kind });
-			log.logWarning(`QuickAdd export skipped ${kind} outside the vault: ${path}`);
+			log.logWarning(t("update.exportSkippedOutside", { kind, path }));
 			continue;
 		}
 		try {
 			const exists = await app.vault.adapter.exists(path);
 			if (!exists) {
 				missingAssets.push({ path, kind });
-				log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
+				log.logWarning(t("update.exportSkippedMissing", { kind, path }));
 				continue;
 			}
 
@@ -235,8 +235,11 @@ async function encodeAssets(
 		} catch (error) {
 			missingAssets.push({ path, kind });
 			log.logWarning(
-				`QuickAdd export failed to read ${kind} '${path}': ${(error as Error)?.message ?? error
-				}`,
+				t("update.exportReadFailed", {
+					kind,
+					path,
+					error: (error as Error)?.message ?? error,
+				}),
 			);
 		}
 	}

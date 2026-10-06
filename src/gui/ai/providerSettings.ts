@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { App } from "obsidian";
 import { SecretComponent, Setting } from "obsidian";
 
@@ -22,10 +23,10 @@ export function configureProviderSecret(
 	options: ProviderSecretOptions,
 ): Setting {
 	return setting
-		.setName("API key")
+		.setName(t("ai.apiKey.name"))
 		.setDesc(options.hasLegacyKey
-			? "A legacy API key is stored in plain text. Link a keychain secret to replace it."
-			: "Link a secret from Settings → Keychain.")
+			? t("ai.apiKey.legacyDesc")
+			: t("ai.apiKey.desc"))
 		.addComponent((el) => new SecretComponent(app, el)
 			.setValue(options.value)
 			.onChange(options.onChange));

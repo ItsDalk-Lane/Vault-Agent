@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "../../i18n";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import type { PackagePreview } from "../../services/packagePreview";
 	let { preview }: { preview: PackagePreview | null } = $props();
@@ -19,7 +20,7 @@
 			<div class="callout-icon">
 				<ObsidianIcon iconId={missingScript ? "zap" : "alert-triangle"} />
 			</div>
-			<div class="callout-title-inner">Missing files</div>
+			<div class="callout-title-inner">{t("packageManager.missingFiles")}</div>
 		</div>
 		<div class="callout-content">
 			<ul>
@@ -42,7 +43,7 @@
 			<div class="callout-icon">
 				<ObsidianIcon iconId="info" />
 			</div>
-			<div class="callout-title-inner">Unreferenced files</div>
+			<div class="callout-title-inner">{t("packageManager.unreferencedFiles")}</div>
 		</div>
 		<div class="callout-content">
 			<ul>

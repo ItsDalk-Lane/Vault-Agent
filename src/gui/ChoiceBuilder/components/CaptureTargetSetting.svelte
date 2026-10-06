@@ -159,7 +159,7 @@ function validateCaptureTo(value: string) {
 	>
 		{#snippet control()}
 			{#if (choice.captureTo ?? "").trim() !== DAILY_NOTE_TARGET}
-				<button type="button" onclick={useDailyNote}>Daily note</button>
+				<button type="button" onclick={useDailyNote}>{t("choiceBuilder.captureTarget.dailyNoteButton")}</button>
 			{/if}
 		{/snippet}
 		{#snippet children(id)}

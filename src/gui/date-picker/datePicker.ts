@@ -152,7 +152,7 @@ export const createDatePicker = (
 	setIcon(prevBtn, "chevron-left");
 	prevBtn.type = "button";
 	prevBtn.tabIndex = -1;
-	prevBtn.setAttr("aria-label", "Previous month");
+	prevBtn.setAttr("aria-label", t("datePicker.previousMonthAria"));
 
 	const label = header.createDiv({ cls: "qa-date-picker__label" });
 
@@ -162,7 +162,7 @@ export const createDatePicker = (
 	setIcon(nextBtn, "chevron-right");
 	nextBtn.type = "button";
 	nextBtn.tabIndex = -1;
-	nextBtn.setAttr("aria-label", "Next month");
+	nextBtn.setAttr("aria-label", t("datePicker.nextMonthAria"));
 
 	const weekdayRow = root.createDiv({ cls: "qa-date-picker__weekdays" });
 	weekdayLabels.forEach((day) => {
@@ -399,7 +399,7 @@ export const attachCalendarToggle = (
 	const apply = (shown: boolean) => {
 		pickerHost.toggle(shown);
 		button.toggleClass("is-shown", shown);
-		button.setAttr("aria-label", shown ? "Hide calendar" : "Show calendar");
+		button.setAttr("aria-label", shown ? t("datePicker.hideCalendar") : t("datePicker.showCalendar"));
 	};
 	apply(settingsStore.getState().showDateCalendar);
 	return settingsStore.subscribe((settings) => apply(settings.showDateCalendar));

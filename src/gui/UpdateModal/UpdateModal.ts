@@ -247,8 +247,10 @@ export class UpdateModal extends Modal {
 			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
-		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
-        const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
+		const andNow = t("update.andNow", { version: this.previousVersion });
+		const feedbackForm = t("update.feedbackForm", {
+			link: `<a href="https://forms.gle/WRq1ewcKK8qmkqps6">${t("update.feedbackLinkText")}</a>`,
+		});
 		// The notes render exactly as written, code examples included. CSS in
 		// styles.css shows their headings one level smaller than in a note.
 		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${releaseNotes}`;

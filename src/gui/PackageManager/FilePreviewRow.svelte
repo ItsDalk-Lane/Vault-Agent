@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { t } from "../../i18n";
 	import CodePreview from "./CodePreview.svelte";
 	import type {
 		AssetPreviewContent,
@@ -87,40 +88,38 @@
 				{#if file.executable}
 					<span
 						class="flair qa-import-file-flair qa-flair-critical"
-						use:tooltip={"Runs as code when its choice runs. It can read, change, or delete files in your vault and access the network."}
-						>Executable</span
+						use:tooltip={t("packageManager.fileRow.executableTooltip")}
+						>{t("packageManager.fileRow.executableBadge")}</span
 					>
 				{/if}
 				{#if file.orphan}
 					<span
 						class="flair qa-import-file-flair"
-						use:tooltip={"Bundled in this package but not referenced by any choice."}
-						>Unused</span
+						use:tooltip={t("packageManager.fileRow.unusedTooltip")}
+						>{t("packageManager.fileRow.unusedBadge")}</span
 					>
 				{/if}
 				{#if reviewed && mode !== "skip" && file.requiresReview}
 					<span class="qa-import-reviewed">
-						<ObsidianIcon iconId="check" size={14} /> Reviewed
+						<ObsidianIcon iconId="check" size={14} /> {t("packageManager.fileRow.reviewedBadge")}
 					</span>
 				{/if}
 			</div>
 			<div class="setting-item-description">
 				{#if destinationIsFolder}
 					<span class="qa-import-file-folder" id={folderId}
-						>The destination is a folder. Add a file name.</span
+						>{t("packageManager.fileRow.destinationIsFolder")}</span
 					>
 				{:else}
 					<span class:mod-warning={destinationExists}
-						>{destinationExists ? "Will overwrite" : "New file"}</span
+						>{destinationExists ? t("packageManager.fileRow.statusWillOverwrite") : t("packageManager.fileRow.statusNewFile")}</span
 					>
 				{/if}
 				· {formatBytes(file.sizeBytes)}
 			</div>
 			{#if file.requiresReview && mode === "skip"}
 				<div class="setting-item-description mod-warning" role="note">
-					Won't be written. Any choice that uses this script will run
-					whatever file already exists at this path after import, not the
-					contents you reviewed.
+					{t("packageManager.fileRow.skipWarning")}
 				</div>
 			{/if}
 			<button
@@ -133,12 +132,12 @@
 				<span class="qa-import-file-chevron" class:open={expanded}>
 					<ObsidianIcon iconId="chevron-right" size={14} />
 				</span>
-				<span>{expanded ? "Hide contents" : "View contents"}</span>
+				<span>{expanded ? t("packageManager.fileRow.hideContents") : t("packageManager.fileRow.viewContents")}</span>
 			</button>
 		</div>
 		<div class="setting-item-control">
 			<label class="qa-visually-hidden" for={actionId}
-				>Action for {file.originalPath}</label
+				>{t("packageManager.fileRow.actionFor", { path: file.originalPath })}</label
 			>
 			<select
 				id={actionId}
@@ -146,11 +145,11 @@
 				value={mode}
 				onchange={onActionChange}
 			>
-				<option value="write">Write</option>
+				<option value="write">{t("packageManager.fileRow.writeAction")}</option>
 				{#if destinationExists}
-					<option value="overwrite">Overwrite</option>
+					<option value="overwrite">{t("packageManager.fileRow.overwriteAction")}</option>
 				{/if}
-				<option value="skip">Skip</option>
+				<option value="skip">{t("packageManager.fileRow.skipAction")}</option>
 			</select>
 		</div>
 		<div
@@ -163,7 +162,7 @@
 					<div class="qa-import-file-preview">
 						<CodePreview
 							{content}
-							label={`Contents of ${file.originalPath}`}
+							label={t("packageManager.fileRow.contentsAria", { path: file.originalPath })}
 							executable={file.executable}
 						/>
 					</div>
@@ -175,8 +174,8 @@
 	<div class="setting-item qa-import-file-destination">
 		<div class="setting-item-info">
 			<label class="setting-item-name" for={destinationId}
-				>Destination <span class="qa-visually-hidden"
-					>for {file.originalPath}</span
+				>{t("packageManager.fileRow.destinationField")} <span class="qa-visually-hidden"
+					>{t("packageManager.fileRow.destinationForAria", { path: file.originalPath })}</span
 				></label
 			>
 		</div>
@@ -188,7 +187,7 @@
 				aria-invalid={destinationIsFolder}
 				aria-describedby={destinationIsFolder ? folderId : undefined}
 				oninput={onDestinationInput}
-				placeholder="vault/path/to/file"
+				placeholder={t("packageManager.fileRow.vaultPathPlaceholder")}
 				disabled={mode === "skip"}
 			/>
 		</div>

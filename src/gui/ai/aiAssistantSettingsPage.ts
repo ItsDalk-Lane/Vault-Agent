@@ -19,14 +19,15 @@ import {
 	updateAISettings,
 } from "./aiSettingsState";
 import { mountSystemPromptLiteralNote } from "./systemPromptLiteralNote";
+import { t } from "../../i18n";
 
 /** The page's name: its entry label, title, and navigation path segment. */
 export const AI_ASSISTANT_PAGE_NAME = "AI Assistant";
 
 /** "No providers", "1 provider", "2 providers". */
 function describeProviderCount(count: number): string {
-	if (count === 0) return "No providers";
-	return `${count} provider${count === 1 ? "" : "s"}`;
+	if (count === 0) return t("ai.providerCount.none");
+	return t(count === 1 ? "ai.providerCount.one" : "ai.providerCount.other", { count });
 }
 
 function retiredCount(providerId: string | undefined): number {
@@ -55,7 +56,7 @@ export function createAIAssistantPage(app: App): SettingDefinitionPage<SettingsK
 	return {
 		type: "page",
 		name: AI_ASSISTANT_PAGE_NAME,
-		desc: "Providers, models, and defaults for AI commands.",
+		desc: t("ai.pageDesc"),
 		displayValue: () => describeProviderCount(storedProviders().length),
 		visible: () => !settingsStore.getState().disableOnlineFeatures,
 		items: [createProvidersList(app), createDefaultsGroup()],
@@ -68,9 +69,9 @@ function createProvidersList(app: App): SettingDefinitionList<SettingsKey> {
 
 	return {
 		type: "list",
-		heading: "Providers",
-		emptyState: "No providers yet. Add one to use AI commands.",
-		addItem: { name: "Add provider", action: () => void addProvider(app) },
+		heading: t("ai.providers.name"),
+		emptyState: t("ai.noProvidersYet"),
+		addItem: { name: t("ai.addProvider"), action: () => void addProvider(app) },
 		onDelete: (index) => void confirmRemoveProvider(app, providers[index]),
 		items: providers.map((provider, index) => ({
 			type: "page",
@@ -80,7 +81,7 @@ function createProvidersList(app: App): SettingDefinitionList<SettingsKey> {
 			// shows what a cleanup or sync did there.
 			displayValue: () => {
 				const retired = retiredCount(provider.id);
-				return retired ? `${retired} retired` : "";
+				return retired ? t("ai.retiredCount", { count: retired }) : "";
 			},
 			status: () => (retiredCount(provider.id) ? "warning" : null),
 			page: () => new AIProviderSettingPage(app, provider.id ?? ""),
@@ -107,9 +108,9 @@ async function confirmRemoveProvider(
 ): Promise<void> {
 	if (!provider?.id) return;
 	const confirmed = await confirmAction(app, {
-		title: `Delete ${provider.name.trim() || "this provider"}?`,
-		message: "Commands that use its models will need another model.",
-		action: "Delete",
+		title: t("aiProviderPage.deleteProviderConfirm", { name: provider.name.trim() || t("ai.thisProvider") }),
+		message: t("ai.deleteProviderWarn"),
+		action: t("common.delete"),
 	});
 	if (confirmed) removeProvider(provider.id);
 }
@@ -117,19 +118,19 @@ async function confirmRemoveProvider(
 function createDefaultsGroup(): SettingDefinitionGroup<SettingsKey> {
 	return {
 		type: "group",
-		heading: "Defaults",
+		heading: t("ai.defaultsHeading"),
 		items: [
 			{
-				name: "Default model",
-				desc: "The model new AI commands start with. “Ask me” prompts you to choose a model each run.",
+				name: t("ai.defaultModel.name"),
+				desc: t("ai.defaultModel.desc"),
 				// Settings search matches names and aliases, not the Providers
 				// heading; this lands searches for providers on this page.
 				aliases: ["AI provider", "provider", "API key", "LLM"],
 				render: (setting) => renderDefaultModel(setting),
 			},
 			{
-				name: "Prompt template folder",
-				desc: "The folder QuickAdd reads prompt templates from.",
+				name: t("ai.promptTemplateFolderPath.name"),
+				desc: t("ai.promptTemplateFolderPath.desc"),
 				control: {
 					type: "folder",
 					key: "ai.promptTemplatesFolderPath",
@@ -137,27 +138,27 @@ function createDefaultsGroup(): SettingDefinitionGroup<SettingsKey> {
 				},
 			},
 			{
-				name: "Show assistant",
-				desc: "Show progress notices while the AI Assistant works.",
+				name: t("ai.showAssistant.name"),
+				desc: t("ai.showAssistant.desc"),
 				control: { type: "toggle", key: "ai.showAssistant" },
 			},
 			{
-				name: "Confirm AI tool calls",
-				desc: "When an AI agent runs script-defined or built-in tools, ask before executing. A tool that requires approval is always confirmed.",
+				name: t("ai.confirmToolCalls"),
+				desc: t("ai.confirmToolCallsDesc"),
 				control: {
 					type: "dropdown",
 					key: "ai.confirmToolCalls",
 					defaultValue: "destructive",
 					options: {
-						destructive: "Destructive tools only (recommended)",
-						always: "Always confirm every tool",
-						never: "Never (use each tool's own setting)",
+						destructive: t("ai.confirmModeDestructive"),
+						always: t("ai.confirmModeAlways"),
+						never: t("ai.confirmModeNever"),
 					},
 				},
 			},
 			{
-				name: "Default system prompt",
-				desc: "The system prompt new AI commands start with.",
+				name: t("ai.defaultSystemPrompt.name"),
+				desc: t("ai.defaultSystemPrompt.desc"),
 				render: (setting) => renderDefaultSystemPrompt(setting),
 			},
 		],
@@ -199,7 +200,7 @@ function renderDefaultSystemPrompt(setting: Setting): void {
 	const value = settingsStore.getState().ai.defaultSystemPrompt ?? "";
 	setting.addTextArea((textArea) => {
 		textArea.inputEl.addClass("qa-ai-system-prompt-input");
-		textArea.inputEl.setAttribute("aria-label", "Default system prompt");
+		textArea.inputEl.setAttribute("aria-label", t("ai.defaultSystemPrompt.name"));
 		// No format preview or `{{` autocomplete: the system prompt is sent
 		// verbatim (see mountSystemPromptLiteralNote).
 		const updateLiteralNote = mountSystemPromptLiteralNote(

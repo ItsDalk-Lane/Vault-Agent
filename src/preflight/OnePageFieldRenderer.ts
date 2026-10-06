@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { DropdownComponent, Setting, TextAreaComponent, TextComponent, type App } from "obsidian";
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/datePicker";
@@ -248,7 +249,7 @@ export class OnePageFieldRenderer {
 					aliasDetails.addClass("qa-date-alias-details");
 
 					const aliasSummary = aliasDetails.createEl("summary", {
-						text: `Aliases (${aliasEntries.length})`,
+						text: t("datePicker.aliasesSummary", { count: aliasEntries.length }),
 					});
 					aliasSummary.addClass("qa-date-alias-summary");
 

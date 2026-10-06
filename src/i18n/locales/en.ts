@@ -117,6 +117,7 @@ const en = {
 			"QuickAdd: an image is still being saved — drop again in a moment.",
 		optionsListAria: "Options",
 		suggestionsAria: "Suggestions",
+		aliasFlair: "Alias",
 		searchOptionsPlaceholder: "Search options...",
 		enterValueToAdd: "Enter a value to add.",
 		peekAtNote: "Peek at note",
@@ -194,6 +195,7 @@ const en = {
 			name: "Condition type",
 			desc: "Choose how this condition should be evaluated.",
 		},
+		dayPlaceholder: "day",
 		variableName: {
 			name: "Variable name",
 			desc: "Name of the macro variable to inspect (without the $ prefix).",
@@ -396,6 +398,18 @@ const en = {
 
 	ai: {
 		// AIAssistantSettingsModal.ts (settings tab — settings.ai.* namespace already covers some, this is the modal overlay)
+		pageDesc: "Providers, models, and defaults for AI commands.",
+		providerCount: {
+			none: "No providers",
+			one: "{count} provider",
+			other: "{count} providers",
+		},
+		noProvidersYet: "No providers yet. Add one to use AI commands.",
+		retiredCount: "{count} retired",
+		thisProvider: "this provider",
+		deleteProviderWarn:
+			"Commands that use its models will need another model.",
+		defaultsHeading: "Defaults",
 		providers: {
 			name: "Providers",
 			desc: "The providers for the AI Assistant",
@@ -403,19 +417,19 @@ const en = {
 		},
 		defaultModel: {
 			name: "Default model",
-			desc: "The default model for the AI Assistant",
+			desc: "The model new AI commands start with. “Ask me” prompts you to choose a model each run.",
 		},
 		promptTemplateFolderPath: {
-			name: "Prompt template folder path",
-			desc: "Path to your folder with prompt templates",
+			name: "Prompt template folder",
+			desc: "The folder QuickAdd reads prompt templates from.",
 		},
 		showAssistant: {
 			name: "Show assistant",
-			desc: "Show status messages from the AI Assistant",
+			desc: "Show progress notices while the AI Assistant works.",
 		},
 		confirmToolCalls: "Confirm AI tool calls",
 		confirmToolCallsDesc:
-			"When an AI agent runs script-defined or built-in tools, ask before executing. 'Destructive only' confirms tools not marked read-only; 'Always' confirms every tool; 'Never' defers to each tool's own setting. A tool that requires approval is always confirmed regardless.",
+			"When an AI agent runs script-defined or built-in tools, ask before executing. A tool that requires approval is always confirmed.",
 		requestFormatDesc:
 			"The request format this provider expects. Auto-detect recognizes the official Anthropic and Gemini endpoints and treats everything else as OpenAI-compatible; pick a type explicitly for a proxy or custom endpoint.",
 		modelSyncDesc:
@@ -486,7 +500,7 @@ const en = {
 			"{name} added, but loading models failed: {error} Use \"Sync now\" in the provider's settings to retry.",
 		defaultSystemPrompt: {
 			name: "Default system prompt",
-			desc: "The default system prompt for the AI Assistant",
+			desc: "The system prompt new AI commands start with.",
 		},
 
 		// ModelDirectoryModal.ts
@@ -524,7 +538,11 @@ const en = {
 			name: "Endpoint",
 			desc: "The endpoint for the AI Assistant",
 		},
-		apiKey: "API key",
+		apiKey: {
+			name: "API key",
+			desc: "Link a secret from Settings → Keychain.",
+			legacyDesc: "A legacy API key is stored in plain text. Link a keychain secret to replace it.",
+		},
 		apiKeyDesc: "Select a secret from SecretStorage",
 		providerType: "Provider type",
 		modelSource: "Model source",
@@ -692,6 +710,7 @@ const en = {
 			targetCanvasNode: "Target canvas node",
 			targetCanvasNodeDesc: "Choose a card from the canvas below, or paste an exact node id.",
 			canvasNodeIdRequired: "A canvas capture target requires a node id — pick a card below or paste an exact node id.",
+			dailyNoteButton: "Daily note",
 			canvasTip: "Tip: open this canvas and select one card to grab its id instantly.",
 		},
 		propertyCapture: {
@@ -845,6 +864,8 @@ const en = {
 		appendLink: {
 			fileLabelCaptured: "captured",
 			fileLabelCreated: "created",
+			relatedPlaceholder: "related",
+			indexPlaceholder: "Index.md",
 			linkTo: {
 				name: "Link to {file} file",
 				desc: "Choose whether QuickAdd should insert a link to the {file} file.",
@@ -919,6 +940,10 @@ const en = {
 		emptyFileName: "The {period} note format \"{format}\" gives an empty file name.",
 		templateMissing: "The {period} note template \"{template}\" doesn't exist. Fix it in Settings → {where}.",
 	},
+	multiChoice: {
+		placeholderName: "Placeholder",
+		placeholderDesc: "Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
+},
 	mathModal: {
 		submitHint: "Ctrl/Cmd+Enter to submit · Tab to jump to the cursor marker",
 	},
@@ -935,6 +960,8 @@ const en = {
 		unableToParseDate: "Unable to parse date",
 		today: "Today",
 		time: "Time",
+		hideCalendar: "Hide calendar",
+		showCalendar: "Show calendar",
 		previousMonthAria: "Previous month",
 		nextMonthAria: "Next month",
 		previewLabel: "Preview:",
@@ -968,10 +995,13 @@ const en = {
 		previewLabel: "Preview:",
 		willBeLeftEmpty: "Will be left empty",
 		newNoteFromTemplate: "New note from template…",
+		emptyFolderNotice: "QuickAdd couldn't read the contents of \"{name}\". They're still in data.json.",
+		emptyFolderEmpty: "Folder \"{name}\" is empty.",
 		emptyFlair: "Empty",
 		unreadableFlair: "Unreadable",
 		emptyNoticePrefix: "is empty. Add a choice or drag one in.",
 		couldNotRenderName: "Could not render a choice name as Markdown; showing it as plain text",
+		couldNotRunChoice: "Could not run \"{name}\"",
 		couldNotRunTemplate: "Could not run a template from that folder",
 		noChoicesNotice:
 			"QuickAdd: No choices yet. Create your first one in Settings → QuickAdd.",
@@ -1018,16 +1048,21 @@ const en = {
 			en: "English",
 			"zh-CN": "简体中文",
 		},
+		advanced: {
+			name: "Advanced",
+		},
 		appearance: {
 			heading: "Appearance",
 			ribbonIconName: "Show icon in sidebar",
 			ribbonIconDesc: "Add QuickAdd icon to the sidebar ribbon. Requires a reload.",
 		},
 		group: {
+			properties: "Properties",
+			uri: "Obsidian URI",
 			choicesAndPackages: "Choices & packages",
 			choicePicker: "Choice picker",
 			input: "Input",
-			templatesAndProperties: "Templates & properties",
+			templatesAndProperties: "Template folders",
 			notifications: "Notifications",
 			globalVariables: "Global variables",
 			aiAndOnline: "AI & online",
@@ -1058,9 +1093,9 @@ const en = {
 			templateFolderLauncherRow: {
 				name: "“New note from template” in the launcher",
 				desc: "Add a row to Run QuickAdd that lists templates from your configured template folder, so you can create a note from a template without a dedicated Template choice. Only appears when a template folder is configured; the command palette entry works regardless.",
-				bottom: "Show at the bottom (keeps your top choice first)",
-				top: "Show at the top",
-				off: "Hide",
+				bottom: "Bottom",
+				top: "Top",
+				off: "Hidden",
 			},
 			useMultiLine: {
 				name: "Use multi-line input prompt",
@@ -1091,7 +1126,9 @@ const en = {
 			templateFolderPaths: {
 				name: "Template folder paths",
 				desc: "Folders where templates are stored. Used to suggest template files when configuring QuickAdd. Add as many as you like; leave empty to suggest every template file in the vault.",
+				addFolder: "Add folder",
 				empty: "No folders added yet.",
+				emptyVault: "No folders yet. QuickAdd suggests templates from the whole vault.",
 				placeholder: "templates/",
 				addButton: "Add",
 			},
@@ -1133,6 +1170,7 @@ const en = {
 	},
 
 	packageManager: {
+		defaultPathPlaceholder: "QuickAdd Packages/quickadd-package-YYYY-MM-DD.quickadd.json",
 		exportTitle: "Export QuickAdd package",
 		exportDesc: "Select choices to bundle. Dependencies are added automatically.",
 		selectVisible: "Select visible",
@@ -1205,6 +1243,8 @@ const en = {
 		colAction: "Action",
 		alreadyInVault: "already in vault",
 		showMacro: "Show macro",
+		viewCode: "View code",
+		hideCode: "Hide code",
 		hideMacro: "Hide macro",
 		importAction: "Import",
 		overwriteAction: "Overwrite",
@@ -1245,6 +1285,15 @@ const en = {
 		noticeLoadFirst: "Load a package before importing.",
 		noticeImported: "Imported {choices} successfully.",
 		noticeImportFailed: "Import failed: {error}",
+		blocked: {
+			viewScripts: {
+				one: "View {count} script above to import.",
+				other: "View {count} scripts above to import.",
+			},
+			confirmAck: "Confirm the acknowledgement above to import.",
+			destinationIsFolder: "A destination above is a folder. Add a file name to import.",
+		},
+
 		summary: {
 			choicesAdded: {
 				one: "{count} choice added",
@@ -1264,7 +1313,7 @@ const en = {
 			aria: "What this package can do",
 			title: "What this package can do",
 			reloadNote:
-				"Takes effect after you reload the plugin or restart Obsidian.",
+			"Importing doesn't run startup macros. They first run the next time Obsidian starts or you reload QuickAdd.",
 		},
 		flag: {
 			userScript: {
@@ -1343,6 +1392,8 @@ const en = {
 			},
 		},
 		row: {
+			inlineScriptSetting:
+				"Runs custom JavaScript written into a choice setting",
 			runOnStartup: "Runs automatically every time Obsidian starts",
 			userScript:
 				"Runs custom JavaScript with full access to your vault and the network",
@@ -1372,6 +1423,8 @@ const en = {
 			newFileTemplate: "new-file template",
 			then: "then",
 			else: "else",
+			templateInclude: "{{TEMPLATE}} include",
+			filePath: "file path",
 		},
 		conditionScriptPrefix: "script:",
 		errorNotBundled: "File is not bundled in this package.",
@@ -1387,6 +1440,7 @@ const en = {
 			openFile: "Open file",
 		},
 		fileRow: {
+			vaultPathPlaceholder: "vault/path/to/file",
 			statusWillOverwrite: "Will overwrite",
 			statusNewFile: "New file",
 			executableBadge: "Executable",
@@ -1397,6 +1451,9 @@ const en = {
 			unusedTooltip:
 				"Bundled in this package but not referenced by any choice.",
 			destinationField: "Destination",
+			destinationIsFolder: "The destination is a folder. Add a file name.",
+			actionFor: "Action for {path}",
+			destinationForAria: "for {path}",
 			writeAction: "Write",
 			skipWarning:
 				"Won't be written. Any choice that uses this script will run whatever file already exists at this path after import, not the contents you reviewed.",
@@ -1459,6 +1516,7 @@ const en = {
 	},
 
 	choiceView: {
+		configureAIAssistant: "Configure AI Assistant",
 		empty: "No choices yet",
 		emptyLink: "Learn more",
 		emptyBody: "A choice is an action QuickAdd can run: create a note, capture text, or run a macro. Group them with folders.",
@@ -1596,6 +1654,15 @@ const en = {
 		couldNotAdd: "Couldn't add that {noun}",
 	},
 	errors: {
+		unsupportedScriptFile: "QuickAdd could not run {path}. A user script must be a .js file or a note with a ```js code block. Rename the file so it ends in .js.",
+		missingScript: "QuickAdd could not find {path}. If you moved or renamed the script, update its path in the macro.",
+		savedWebpageScript: "QuickAdd could not load {path}. This file looks like a saved webpage, not a JavaScript file. Open the script on GitHub, use the Raw button, then download the .js file and select that file in QuickAdd.",
+		defaultExportNotRunnable: "QuickAdd loaded {path}, but its default export is not a function. Change it to module.exports = async (params) => { ... } or exports.default = async (params) => { ... }. If you meant to export several functions, use module.exports = { run } and select Script::run.",
+		missingModule: "QuickAdd could not load {path} because it could not find {missing}. Check that the required file or package exists, and that the capitalization in require(...) matches the file name exactly.",
+		syntaxError: "QuickAdd could not load {path} because it has a syntax error{where}: {message}. Fix the script and run it again.",
+		onLine: " on line {line}",
+		scriptExtractFailed: "QuickAdd: {error} ({path})",
+		exportSkippedOutside: "QuickAdd export skipped {kind} outside the vault: {path}",
 		noCommandsInMacro: "No commands in the macro for choice '{name}'",
 		skippedCommandInMacro: "Skipped {name} in the macro for '{choice}': {reason} QuickAdd did not stop the macro, so its result may be incomplete.",
 		loadUserScriptFailed: "failed to load user script {path}.",

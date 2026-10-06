@@ -132,11 +132,11 @@
 				<button
 					type="button"
 					class="qaAIAssistantBtn qaAIAssistantEmptyBtn clickable-icon"
-					aria-label="Configure AI Assistant"
+					aria-label={t("choiceView.configureAIAssistant")}
 					onclick={openAISettings}
 				>
 					<ObsidianIcon iconId="sparkles" size={16} />
-					<span>Configure AI Assistant</span>
+					<span>{t("choiceView.configureAIAssistant")}</span>
 				</button>
 			{/if}
 		</div>

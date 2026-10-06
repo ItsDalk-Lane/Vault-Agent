@@ -36,7 +36,6 @@ import { DOCS_URLS } from "./docs";
 import {
 	createSettingDefinitions,
 	descWithDocsLink,
-	PACKAGES_DESC,
 	type SettingsKey,
 } from "./gui/components/settingsDefinitions";
 import { rootChoicesOf } from "./utils/choiceUtils";
@@ -192,37 +191,60 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {
-		return createSettingDefinitions({
+		const groups = createSettingDefinitions({
 			choices: (setting) => this.renderChoicesView(setting),
 			packages: (setting) => this.renderPackages(setting),
 			dateAliases: (setting) => this.renderDateAliases(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
 		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
+
+		// Fork: the language selector, injected at the top of the Appearance group so
+		// the upstream declarative definitions stay untouched. A preferredLocale
+		// change needs a plugin reload to take effect — the description says so.
+		const appearanceGroup = groups.find(
+			(group) => group.heading === t("settings.appearance.heading"),
+		);
+		appearanceGroup?.items?.unshift({
+			name: t("settings.language.name"),
+			desc: t("settings.language.desc"),
+			control: {
+				type: "dropdown",
+				key: "preferredLocale",
+				defaultValue: "",
+				options: {
+					"": t("settings.language.auto"),
+					en: t("settings.language.en"),
+					"zh-CN": t("settings.language.zh-CN"),
+				},
+			},
+		});
+
+		return groups;
 	}
 
 	private templateFoldersList(): SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey> {
 		const paths = templateFolderPaths();
-		const addFolder = { name: "Add folder", action: () => void this.addTemplateFolder() };
+		const addFolder = { name: t("settings.items.templateFolderPaths.addFolder"), action: () => void this.addTemplateFolder() };
 		// Settings search indexes items, not a list's heading or empty state, so
 		// with no folder the section is an "Add folder" row that search can find.
 		// It is a group, not an empty list: Obsidian re-renders a section in place
 		// when its type and heading stay the same, and would keep the list's +.
-		const aliases = ["Template folders"];
+		const aliases = [t("settings.group.templatesAndProperties")];
 		if (paths.length === 0) {
 			return {
 				type: "group",
-				heading: "Template folders",
+				heading: t("settings.group.templatesAndProperties"),
 				items: [{
 					...addFolder,
-					desc: "No folders yet. QuickAdd suggests templates from the whole vault.",
+					desc: t("settings.items.templateFolderPaths.emptyVault"),
 					aliases,
 				}],
 			};
 		}
 		return {
 			type: "list",
-			heading: "Template folders",
+			heading: t("settings.group.templatesAndProperties"),
 			addItem: addFolder,
 			onDelete: (index) => {
 				settingsStore.setState({
@@ -375,10 +397,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
 		return descWithDocsLink(
 			hasNothingToExport
-				? `${PACKAGES_DESC} Export becomes available once you have a choice. `
-				: `${PACKAGES_DESC} `,
+				? t("settings.packages.descNeedsChoice")
+				: t("settings.packages.desc"),
 			DOCS_URLS.packages,
-			"Learn more about packages",
+			t("settings.docs.packagesLink"),
 		);
 	}
 

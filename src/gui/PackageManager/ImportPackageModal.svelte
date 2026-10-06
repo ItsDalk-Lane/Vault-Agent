@@ -127,17 +127,17 @@
 		if (!s) return "";
 		const parts: string[] = [];
 		if (s.added)
-			parts.push(`${s.added} choice${s.added === 1 ? "" : "s"} added`);
-		if (s.overwritten) parts.push(`${s.overwritten} overwritten`);
+			parts.push(t("packageManager.summary.choicesAdded." + (s.added === 1 ? "one" : "other"), { count: s.added }));
+		if (s.overwritten) parts.push(t("packageManager.summary.overwritten", { count: s.overwritten }));
 		if (s.assetsWritten)
 			parts.push(
-				`${s.assetsWritten} file${s.assetsWritten === 1 ? "" : "s"} written`,
+				t("packageManager.summary.filesWritten." + (s.assetsWritten === 1 ? "one" : "other"), { count: s.assetsWritten }),
 			);
 		const skipped = s.skipped + s.assetsSkipped;
-		if (skipped) parts.push(`${skipped} skipped`);
+		if (skipped) parts.push(t("packageManager.summary.skipped", { count: skipped }));
 		return parts.length
-			? `Imported: ${parts.join(", ")}.`
-			: "Nothing was imported.";
+			? t("packageManager.summary.prefix", { parts: parts.join(", ") })
+			: t("packageManager.summary.nothing");
 	});
 
 
@@ -206,11 +206,11 @@
 	const blockedReason = $derived.by(() => {
 		if (!loadedPackage || !analysis || isAnalyzing || hasImported) return "";
 		if (requiresAck && !fullyReviewed)
-			return `View ${unreviewedCount} script${unreviewedCount === 1 ? "" : "s"} above to import.`;
+			return t("packageManager.blocked.viewScripts." + (unreviewedCount === 1 ? "one" : "other"), { count: unreviewedCount });
 		if (requiresAck && !acknowledged)
-			return "Confirm the acknowledgement above to import.";
+			return t("packageManager.blocked.confirmAck");
 		if (fileRows.some((row) => row.destinationIsFolder))
-			return "A destination above is a folder. Add a file name to import.";
+			return t("packageManager.blocked.destinationIsFolder");
 		return "";
 	});
 
@@ -450,7 +450,7 @@
 <div class="qa-package-dialog">
 	<div class="qa-package-body">
 		<section class="qa-import-paste">
-			<label class="qa-visually-hidden" for="qa-import-json">Package JSON</label>
+			<label class="qa-visually-hidden" for="qa-import-json">{t("packageManager.pasteJson")}</label>
 			<textarea
 				id="qa-import-json"
 				bind:value={pastedContent}
@@ -461,10 +461,10 @@
 			{#if loadError}
 				<p class="qa-import-status mod-error">{loadError}</p>
 			{:else if isAnalyzing}
-				<p class="qa-import-status">Analyzing package…</p>
+				<p class="qa-import-status">{t("packageManager.analyzing")}</p>
 			{:else if loadedPackage && analysis}
 				<p class="qa-import-status">
-					Version {loadedPackage.pkg.quickAddVersion} · Created {new Date(
+					{t("packageManager.metaVersion")} {loadedPackage.pkg.quickAddVersion} · {t("packageManager.metaCreated")} {new Date(
 						loadedPackage.pkg.createdAt,
 					).toLocaleDateString()} · {analysis.choiceConflicts.length} choice{analysis
 						.choiceConflicts.length === 1
@@ -488,26 +488,26 @@
 
 			<section class="setting-group qa-import-files">
 				<div class="setting-item setting-item-heading">
-					<div class="setting-item-name">Files</div>
+					<div class="setting-item-name">{t("packageManager.filesHeading")}</div>
 				</div>
 				{#if fileRows.length === 0}
 					<div class="setting-items">
 						<div class="setting-item mod-empty-state">
 							<div class="setting-item-info">
 								<div class="setting-item-name">
-									No files bundled with this package.
+									{t("packageManager.noFiles")}
 								</div>
 							</div>
 						</div>
 					</div>
 				{:else}
 					{#each [
-						{ label: "Added", rows: addedFileRows, overwrite: false },
-						{ label: "Will overwrite", rows: overwriteFileRows, overwrite: true },
+						{ label: t("packageManager.filesAdded", { count: addedFileRows.length }), rows: addedFileRows, overwrite: false },
+						{ label: t("packageManager.filesWillOverwrite", { count: overwriteFileRows.length }), rows: overwriteFileRows, overwrite: true },
 					] as group (group.label)}
 						{#if group.rows.length > 0}
 							<h4 class="qa-import-files-group" class:mod-warning={group.overwrite}>
-								{group.label} ({group.rows.length})
+								{group.label}
 							</h4>
 							{#each group.rows as row (row.conflict.originalPath)}
 								{#if row.file}

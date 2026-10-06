@@ -19,7 +19,7 @@ export class ExportPackageModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("quickAddModal", "qa-package-modal", "packageExportModal");
-		this.setTitle("Export QuickAdd package");
+		this.setTitle(t("packageManager.exportTitle"));
 		this.handle = mountComponent(
 			this.contentEl,
 			ExportPackageModalComponent,

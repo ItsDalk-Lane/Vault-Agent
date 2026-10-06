@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { type App, SettingGroup } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
@@ -52,7 +53,7 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 			},
 			conditionalHandlers: this.conditionalHandlers,
 		});
-		const commandsEl = new SettingGroup(containerEl).setHeading("Commands").listEl;
+		const commandsEl = new SettingGroup(containerEl).setHeading(t("macro.headingCommands")).listEl;
 		this.commandEditor.render(commandsEl.createDiv("branchCommandEditor"));
 	}
 

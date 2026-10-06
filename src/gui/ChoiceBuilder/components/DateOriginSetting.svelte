@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { DateOrigin } from "../../../types/dateOrigin";
+import { t } from "../../../i18n";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../../types/dateOrigin";
 import {
 	ASK_DEFAULT_SETTING_DESC,
@@ -136,7 +137,7 @@ function onVariableChange(value: string) {
 				type="text"
 				class="qa-validated-input-full-width"
 				value={variableOrigin.name}
-				placeholder="day"
+				placeholder={t("dateOrigin.dayPlaceholder")}
 				aria-label={VARIABLE_SETTING_NAME()}
 				oninput={(event) => {
 					const target = event.currentTarget;

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "../../i18n";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import CapabilityTag from "./CapabilityTag.svelte";
 	import type { PackagePreview } from "../../services/packagePreview";
@@ -22,7 +23,7 @@
 			<ObsidianIcon iconId={critical ? "zap" : "alert-triangle"} />
 		</div>
 		<div class="callout-title-inner" id="qa-import-banner-title">
-			What this package can do
+			{t("packageManager.capabilityBanner.title")}
 		</div>
 	</div>
 
@@ -45,8 +46,7 @@
 		     only runs from onload. -->
 		{#if preview.summary.runsOnStartup}
 			<p class="qa-import-banner-note">
-				Importing doesn't run startup macros. They first run the next time
-				Obsidian starts or you reload QuickAdd.
+				{t("packageManager.capabilityBanner.reloadNote")}
 			</p>
 		{/if}
 	</div>

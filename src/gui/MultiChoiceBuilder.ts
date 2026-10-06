@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { App } from "obsidian";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { addChoiceIconSetting } from "./ChoiceBuilder/components/choiceIconSetting";
@@ -29,9 +30,9 @@ export class MultiChoiceBuilder extends BuilderPage<IMultiChoice> {
 		});
 		group.addSetting((setting) => {
 			setting
-				.setName("Placeholder")
+				.setName(t("multiChoice.placeholderName"))
 				.setDesc(
-					"Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
+					t("multiChoice.placeholderDesc"),
 				)
 				.addText((text) => {
 					setPlaceholderHint = (hint) => {

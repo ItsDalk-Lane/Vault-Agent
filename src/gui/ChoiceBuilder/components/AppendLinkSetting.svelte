@@ -318,7 +318,7 @@ function validateDestinationFile(raw: string) {
 						value={normalized.frontmatterProperty ?? ""}
 						aria-label={t("choiceBuilder.placeholder.frontmatterPropertyAria")}
 						aria-invalid={!(normalized.frontmatterProperty?.trim())}
-						placeholder="related"
+						placeholder={t("choiceBuilder.appendLink.relatedPlaceholder")}
 						required
 						oninput={onFrontmatterPropertyInput}
 					/>
@@ -346,7 +346,7 @@ function validateDestinationFile(raw: string) {
 			{#snippet control()}
 				<ValidatedInput
 					value={destinationPath}
-					placeholder="Index.md"
+					placeholder={t("choiceBuilder.appendLink.indexPlaceholder")}
 					{app}
 					suggestions={markdownFilePaths}
 					maxSuggestions={50}

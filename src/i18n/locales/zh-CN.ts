@@ -112,6 +112,7 @@ const zhCN = {
 		imageIntakeBusyDrop: "QuickAdd：还有图片正在保存，请稍后再拖入。",
 		optionsListAria: "可选项",
 		suggestionsAria: "建议",
+		aliasFlair: "别名",
 		searchOptionsPlaceholder: "搜索选项…",
 		enterValueToAdd: "请输入要添加的值。",
 		peekAtNote: "预览笔记",
@@ -185,6 +186,7 @@ const zhCN = {
 			name: "条件类型",
 			desc: "选择此条件的求值方式。",
 		},
+		dayPlaceholder: "day",
 		variableName: {
 			name: "变量名",
 			desc: "要检查的 Macro 变量名（不带 $ 前缀）。",
@@ -385,19 +387,19 @@ const zhCN = {
 		},
 		defaultModel: {
 			name: "默认模型",
-			desc: "AI 助手的默认模型",
+			desc: "新建 AI 命令默认使用的模型。「每次询问」会在每次运行时提示你选择模型。",
 		},
 		promptTemplateFolderPath: {
-			name: "提示模板文件夹路径",
-			desc: "包含提示模板的文件夹路径",
+			name: "提示词模板文件夹",
+			desc: "QuickAdd 读取提示词模板的文件夹。",
 		},
 		showAssistant: {
 			name: "显示助手",
-			desc: "显示 AI 助手的状态消息",
+			desc: "AI Assistant 工作时显示进度通知。",
 		},
 		confirmToolCalls: "确认 AI 工具调用",
 		confirmToolCallsDesc:
-			"当 AI 代理运行脚本定义或内置工具时，先询问再执行。「仅破坏性操作」确认未标记为只读的工具；「总是」确认所有工具；「从不」则交给各工具自己的设置。无论哪种模式，需要批准的工具始终会先确认。",
+			"当 AI 代理运行脚本定义或内置工具时，先询问再执行。需要审批的工具始终会先确认。",
 		requestFormatDesc:
 			"此提供商期望的请求格式。自动检测会识别官方 Anthropic 和 Gemini 端点，其余视为 OpenAI 兼容；使用代理或自定义端点时请显式选择类型。",
 		modelSyncDesc: "选择 QuickAdd 在浏览或同步此提供商的模型时查找的位置。",
@@ -460,7 +462,7 @@ const zhCN = {
 			"{name} 已添加，但加载模型失败：{error} 请在该提供商设置中使用「立即同步」重试。",
 		defaultSystemPrompt: {
 			name: "默认系统提示",
-			desc: "AI 助手的默认系统提示",
+			desc: "新建 AI 命令默认使用的系统提示词。",
 		},
 
 		search: {
@@ -495,7 +497,11 @@ const zhCN = {
 			name: "端点",
 			desc: "AI 助手的端点",
 		},
-		apiKey: "API 密钥",
+		apiKey: {
+			name: "API 密钥",
+			desc: "请从 设置 → 钥匙串 中关联一个密钥。",
+			legacyDesc: "旧的 API 密钥以明文存储。请关联钥匙串密钥来替换它。",
+		},
 		apiKeyDesc: "从 SecretStorage 选择密钥",
 		providerType: "提供商类型",
 		modelSource: "模型来源",
@@ -659,6 +665,7 @@ const zhCN = {
 			targetCanvasNode: "目标 Canvas 节点",
 			targetCanvasNodeDesc: "从下方 Canvas 中选择一张卡片，或粘贴精确的节点 id。",
 			canvasNodeIdRequired: "Canvas 捕获目标需要节点 id——请在下方选择一张卡片或粘贴精确的节点 id。",
+			dailyNoteButton: "每日笔记",
 			canvasTip: "提示：打开此 Canvas 并选中一张卡片，即可立即获取其 id。",
 		},
 		propertyCapture: {
@@ -812,6 +819,8 @@ const zhCN = {
 		appendLink: {
 			fileLabelCaptured: "捕获",
 			fileLabelCreated: "创建",
+			relatedPlaceholder: "related",
+			indexPlaceholder: "Index.md",
 			linkTo: {
 				name: "链接到{file}的文件",
 				desc: "选择 QuickAdd 是否插入指向{file}的文件的链接。",
@@ -886,6 +895,10 @@ const zhCN = {
 		emptyFileName: "{period} 笔记格式「{format}」生成了空文件名。",
 		templateMissing: "{period} 笔记模板「{template}」不存在。请在 设置 → {where} 中修复。",
 	},
+	multiChoice: {
+		placeholderName: "占位符",
+		placeholderDesc: "打开此文件夹时显示在选项选择器搜索框中的提示文字。留空则使用文件夹名称。",
+},
 	mathModal: {
 		submitHint: "Ctrl/Cmd+Enter 提交 · Tab 跳转到光标标记",
 	},
@@ -902,6 +915,8 @@ const zhCN = {
 		unableToParseDate: "无法解析日期",
 		today: "今天",
 		time: "时间",
+		hideCalendar: "隐藏日历",
+		showCalendar: "显示日历",
 		previousMonthAria: "上个月",
 		nextMonthAria: "下个月",
 		previewLabel: "预览：",
@@ -934,10 +949,13 @@ const zhCN = {
 		previewLabel: "预览：",
 		willBeLeftEmpty: "将留空",
 		newNoteFromTemplate: "从模板新建笔记…",
+		emptyFolderNotice: "QuickAdd 无法读取「{name}」的内容。数据仍保存在 data.json 中。",
+		emptyFolderEmpty: "文件夹「{name}」是空的。",
 		emptyFlair: "空",
 		unreadableFlair: "无法读取",
 		emptyNoticePrefix: "为空。请添加选项或拖入一个。",
 		couldNotRenderName: "无法将选项名称渲染为 Markdown；以纯文本显示",
+		couldNotRunChoice: "无法运行「{name}」",
 		couldNotRunTemplate: "无法从该文件夹运行模板",
 		noChoicesNotice:
 			"QuickAdd：还没有任何选项。请在 设置 → QuickAdd 中创建第一个选项。",
@@ -984,16 +1002,21 @@ const zhCN = {
 			en: "English",
 			"zh-CN": "简体中文",
 		},
+		advanced: {
+			name: "高级",
+		},
 		appearance: {
 			heading: "外观",
 			ribbonIconName: "在侧边栏显示图标",
 			ribbonIconDesc: "在侧边栏 ribbon 上添加 QuickAdd 图标。修改后需要重新加载插件。",
 		},
 		group: {
+			properties: "属性",
+			uri: "Obsidian URI",
 			choicesAndPackages: "选项与套餐",
 			choicePicker: "选项选择器",
 			input: "输入",
-			templatesAndProperties: "模板与属性",
+			templatesAndProperties: "模板文件夹",
 			notifications: "通知",
 			globalVariables: "全局变量",
 			aiAndOnline: "AI 与联网",
@@ -1057,7 +1080,9 @@ const zhCN = {
 			templateFolderPaths: {
 				name: "模板文件夹路径",
 				desc: "存储模板的文件夹。在配置 QuickAdd 时用于建议模板文件。可添加任意数量；留空则建议 vault 中所有模板文件。",
+				addFolder: "添加文件夹",
 				empty: "尚未添加任何文件夹。",
+				emptyVault: "还没有文件夹。QuickAdd 会从整个 vault 中建议模板。",
 				placeholder: "templates/",
 				addButton: "添加",
 			},
@@ -1099,6 +1124,7 @@ const zhCN = {
 	},
 
 	packageManager: {
+		defaultPathPlaceholder: "QuickAdd Packages/quickadd-package-YYYY-MM-DD.quickadd.json",
 		exportTitle: "导出 QuickAdd 套餐",
 		exportDesc: "选择要打包的选项。依赖项会自动添加。",
 		selectVisible: "选择可见",
@@ -1166,6 +1192,8 @@ const zhCN = {
 		colAction: "操作",
 		alreadyInVault: "已存在于 vault",
 		showMacro: "显示 Macro",
+		viewCode: "查看代码",
+		hideCode: "隐藏代码",
 		hideMacro: "隐藏 Macro",
 		importAction: "导入",
 		overwriteAction: "覆盖",
@@ -1203,6 +1231,15 @@ const zhCN = {
 		noticeLoadFirst: "请先加载套餐再导入。",
 		noticeImported: "成功导入 {choices}。",
 		noticeImportFailed: "导入失败：{error}",
+		blocked: {
+			viewScripts: {
+				one: "请先在上方查看 {count} 个脚本后再导入。",
+				other: "请先在上方查看 {count} 个脚本后再导入。",
+			},
+			confirmAck: "请先在上方勾选确认声明后再导入。",
+			destinationIsFolder: "上方的某个目标位置是文件夹。请补充文件名后再导入。",
+		},
+
 		summary: {
 			choicesAdded: {
 				one: "新增 {count} 个选项",
@@ -1221,7 +1258,8 @@ const zhCN = {
 		capabilityBanner: {
 			aria: "此套餐能做什么",
 			title: "此套餐能做什么",
-			reloadNote: "重新加载插件或重启 Obsidian 后生效。",
+			reloadNote:
+			"导入后启动宏不会立即运行。它们会在下次 Obsidian 启动或你重载 QuickAdd 时才运行。",
 		},
 		flag: {
 			userScript: {
@@ -1295,6 +1333,8 @@ const zhCN = {
 			},
 		},
 		row: {
+			inlineScriptSetting:
+				"运行写入选项设置中的自定义 JavaScript",
 			runOnStartup: "每次 Obsidian 启动时自动运行",
 			userScript: "运行自定义 JavaScript，拥有对你 vault 和网络的完全访问权限",
 			conditionalScript: "运行由条件选择的自定义 JavaScript",
@@ -1320,6 +1360,8 @@ const zhCN = {
 			newFileTemplate: "新文件模板",
 			then: "满足条件",
 			else: "否则",
+			templateInclude: "{{TEMPLATE}} 包含",
+			filePath: "文件路径",
 		},
 		conditionScriptPrefix: "脚本：",
 		errorNotBundled: "该文件未打包进此套餐。",
@@ -1335,6 +1377,7 @@ const zhCN = {
 			openFile: "打开文件",
 		},
 		fileRow: {
+			vaultPathPlaceholder: "vault/path/to/file",
 			statusWillOverwrite: "将覆盖",
 			statusNewFile: "新文件",
 			executableBadge: "可执行",
@@ -1344,6 +1387,9 @@ const zhCN = {
 			unusedBadge: "未使用",
 			unusedTooltip: "已打包进此套餐，但未被任何选项引用。",
 			destinationField: "目标路径",
+			destinationIsFolder: "目标位置是文件夹。请补充文件名。",
+			actionFor: "针对 {path} 的操作",
+			destinationForAria: "：{path}",
 			writeAction: "写入",
 			skipWarning:
 				"该文件不会被写入。任何使用此脚本的选项，导入后运行的将是该路径下实际存在的文件，而不是你检查过的内容。",
@@ -1402,6 +1448,7 @@ const zhCN = {
 	},
 
 	choiceView: {
+		configureAIAssistant: "配置 AI Assistant",
 		empty: "尚无选项",
 		emptyLink: "了解更多",
 		emptyBody: "选项是 QuickAdd 可以运行的动作：创建笔记、捕获文本或运行 Macro。可用文件夹对它们分组。",
@@ -1532,6 +1579,15 @@ const zhCN = {
 		couldNotAdd: "无法添加该{noun}",
 	},
 	errors: {
+		unsupportedScriptFile: "QuickAdd 无法运行 {path}。用户脚本必须是 .js 文件或带 ```js 代码块的笔记。请重命名文件使其以 .js 结尾。",
+		missingScript: "QuickAdd 找不到 {path}。如果你移动或重命名了脚本，请在宏中更新其路径。",
+		savedWebpageScript: "QuickAdd 无法加载 {path}。该文件看起来是保存下来的网页而不是 JavaScript 文件。请在 GitHub 上打开脚本，使用 Raw 按钮，下载 .js 文件后在 QuickAdd 中重新选择它。",
+		defaultExportNotRunnable: "QuickAdd 已加载 {path}，但其默认导出不是函数。请改为 module.exports = async (params) => { ... } 或 exports.default = async (params) => { ... }。如果要导出多个函数，请使用 module.exports = { run } 并选择 Script::run。",
+		missingModule: "QuickAdd 无法加载 {path}，因为找不到 {missing}。请确认所需文件或包存在，且 require(...) 中的大小写与文件名完全一致。",
+		syntaxError: "QuickAdd 无法加载 {path}，因为脚本存在语法错误{where}：{message}。请修复脚本后重新运行。",
+		onLine: "（第 {line} 行）",
+		scriptExtractFailed: "QuickAdd：{error}（{path}）",
+		exportSkippedOutside: "QuickAdd 导出已跳过 vault 之外的{kind}：{path}",
 		noCommandsInMacro: "选项 '{name}' 的 Macro 中没有命令",
 		skippedCommandInMacro: "已跳过选项 '{choice}' 的 Macro 中的 {name}：{reason} QuickAdd 没有停止该 Macro，因此其结果可能不完整。",
 		loadUserScriptFailed: "加载用户脚本 {path} 失败。",

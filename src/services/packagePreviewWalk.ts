@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
 import { normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
@@ -119,7 +120,7 @@ function recordInlineScript(walk: ChoiceWalk, crumbs: string[], text: string, ad
 	walk.rows.push({
 		flag: "user-script",
 		severity: "critical",
-		title: "Runs custom JavaScript written into a choice setting",
+		title: t("packageManager.row.inlineScriptSetting"),
 		detail: joinCrumb(crumbs),
 	});
 }
@@ -152,7 +153,7 @@ export function walkPackage(pkg: QuickAddPackage): PackageWalk {
 
 	for (const entry of pkg.choices) {
 		const choice = entry.choice;
-		const location = joinCrumb(entry.pathHint.slice(0, -1)) || "Root";
+		const location = joinCrumb(entry.pathHint.slice(0, -1)) || t("packageManager.rootLocation");
 		const walk: ChoiceWalk = {
 			choiceId: choice.id,
 			name: choice.name,
@@ -192,7 +193,7 @@ function collectChoice(
 			walk.rows.push({
 				flag: "run-on-startup",
 				severity: "critical",
-				title: "Runs automatically every time Obsidian starts",
+				title: t("packageManager.row.runOnStartup"),
 				detail: joinCrumb(crumbs),
 			});
 		}
@@ -206,7 +207,7 @@ function collectChoice(
 				path: resolveTemplatePath(choice.templatePath),
 				asScript: false,
 				impliedKind: "template",
-				breadcrumb: joinCrumb([...crumbs, "template"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.template")]),
 			});
 		}
 		if (templateModifiesExisting(choice)) {
@@ -227,7 +228,7 @@ function collectChoice(
 				path: resolveTemplatePath(createCfg.template),
 				asScript: false,
 				impliedKind: "capture-template",
-				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.newFileTemplate")]),
 			});
 		}
 		for (const path of captureFormatIncludes(choice)) {
@@ -236,7 +237,7 @@ function collectChoice(
 				path,
 				asScript: false,
 				impliedKind: "template",
-				breadcrumb: joinCrumb([...crumbs, "{{TEMPLATE}} include"]),
+				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.templateInclude")]),
 			});
 		}
 	}
@@ -299,7 +300,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "user-script",
 						severity: "critical",
-						title: "Runs custom JavaScript with full access to your vault and the network",
+						title: t("packageManager.row.userScript"),
 						detail: crumbWithScriptPath(commandCrumbs, label, script.path),
 						scriptPath: script.path,
 					});
@@ -330,7 +331,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "conditional-script",
 						severity: "critical",
-						title: "Runs custom JavaScript chosen by a condition",
+						title: t("packageManager.row.conditionalScript"),
 						detail: crumbWithScriptPath(commandCrumbs, label, scriptPath),
 						scriptPath,
 					});
@@ -338,14 +339,14 @@ function collectCommands(
 				collectCommands(
 					conditional.thenCommands ?? [],
 					walk,
-					[...commandCrumbs, "then"],
+					[...commandCrumbs, t("packageManager.crumb.then")],
 					entryIds,
 					depth + 1,
 				);
 				collectCommands(
 					conditional.elseCommands ?? [],
 					walk,
-					[...commandCrumbs, "else"],
+					[...commandCrumbs, t("packageManager.crumb.else")],
 					entryIds,
 					depth + 1,
 				);
@@ -372,7 +373,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "obsidian-command",
 					severity: "warning",
-					title: "Triggers another Obsidian command",
+					title: t("packageManager.row.obsidianCommand"),
 					detail: `${joinCrumb(commandCrumbs)}${obsidian.commandId ? ` (${obsidian.commandId})` : ""
 						}`,
 				});
@@ -383,7 +384,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "ai",
 					severity: "warning",
-					title: "Sends note content to your AI provider over the network",
+					title: t("packageManager.row.ai"),
 					detail: joinCrumb(commandCrumbs),
 				});
 				break;
@@ -397,7 +398,7 @@ function collectCommands(
 				const filePath = (command as IOpenFileCommand).filePath;
 				if (hasInlineScript(filePath)) {
 					previewCommand.flag = "user-script";
-					recordInlineScript(walk, [...commandCrumbs, "file path"], filePath);
+					recordInlineScript(walk, [...commandCrumbs, t("packageManager.crumb.filePath")], filePath);
 				}
 				break;
 			}
@@ -413,7 +414,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "unknown-command",
 						severity: "warning",
-						title: "Unknown capability. Review it manually.",
+						title: t("packageManager.row.unknownCommand"),
 						detail: `${joinCrumb(commandCrumbs)} (${String(command.type)})`,
 					});
 				}

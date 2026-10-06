@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "../../i18n";
 	import type { ChoiceConflict } from "../../services/packageImportService";
 	import type { PreviewChoice } from "../../services/packagePreview";
 	import { textPreview } from "../../services/packagePreview";
@@ -28,14 +29,14 @@
 		const parents = (conflict.pathHint ?? []).slice(0, -1);
 		const parts: string[] = [];
 		if (parents.length > 0) parts.push(`In ${parents.join(" › ")}`);
-		if (conflict.exists) parts.push("Already in vault");
+		if (conflict.exists) parts.push(t("packageManager.alreadyInVault"));
 		return parts.join(" · ");
 	}
 </script>
 
 <section class="setting-group qa-import-choices">
 	<div class="setting-item setting-item-heading">
-		<div class="setting-item-name">Choices</div>
+		<div class="setting-item-name">{t("packageManager.choicesHeading")}</div>
 	</div>
 	<div class="setting-items">
 		{#if conflicts.length === 0}
@@ -81,7 +82,7 @@
 							<span class="qa-import-choice-chevron" class:open={expanded}>
 								<ObsidianIcon iconId="chevron-right" size={14} />
 							</span>
-							<span>{expanded ? "Hide macro" : "Show macro"}</span>
+							<span>{expanded ? t("packageManager.hideMacro") : t("packageManager.showMacro")}</span>
 						</button>
 					{/if}
 					{#if inlineScripts.length > 0}
@@ -96,14 +97,14 @@
 								<span class="qa-import-choice-chevron" class:open={codeOpen}>
 									<ObsidianIcon iconId="chevron-right" size={14} />
 								</span>
-								<span>{codeOpen ? "Hide code" : "View code"}</span>
+								<span>{codeOpen ? t("packageManager.hideCode") : t("packageManager.viewCode")}</span>
 							</button>
 						</div>
 					{/if}
 				</div>
 				<div class="setting-item-control">
 					<label class="qa-visually-hidden" for={`${uid}-action-${index}`}
-						>Action for {conflict.name}</label
+						>{t("packageManager.fileRow.actionFor", { path: conflict.name })}</label
 					>
 					<select
 						id={`${uid}-action-${index}`}
@@ -113,12 +114,12 @@
 							onChoiceModeChange(conflict.choiceId, event)}
 					>
 						{#if conflict.exists}
-							<option value="overwrite">Overwrite</option>
+							<option value="overwrite">{t("packageManager.overwriteAction")}</option>
 						{:else}
-							<option value="import">Import</option>
+							<option value="import">{t("packageManager.importAction")}</option>
 						{/if}
-						<option value="duplicate">Duplicate</option>
-						<option value="skip">Skip</option>
+						<option value="duplicate">{t("packageManager.duplicateAction")}</option>
+						<option value="skip">{t("packageManager.skipAction")}</option>
 					</select>
 				</div>
 				{#if expanded}

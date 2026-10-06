@@ -7,6 +7,7 @@ import {
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
+import { t } from "../i18n";
 
 type GetUserScriptOptions = {
 	reportLoadErrors?: boolean;
@@ -59,26 +60,26 @@ function reportAndThrowUserScriptLoadError(
 }
 
 function unsupportedScriptFileMessage(path: string): string {
-	return `QuickAdd could not run ${path}. A user script must be a .js file or a note with a \`\`\`js code block. Rename the file so it ends in .js.`;
+	return t("errors.unsupportedScriptFile", { path });
 }
 
 function missingScriptMessage(path: string): string {
-	return `QuickAdd could not find ${path}. If you moved or renamed the script, update its path in the macro.`;
+	return t("errors.missingScript", { path });
 }
 
 function savedWebpageMessage(path: string): string {
-	return `QuickAdd could not load ${path}. This file looks like a saved webpage, not a JavaScript file. Open the script on GitHub, use the Raw button, then download the .js file and select that file in QuickAdd.`;
+	return t("errors.savedWebpageScript", { path });
 }
 
 function defaultExportMessage(path: string): string {
-	return `QuickAdd loaded ${path}, but its default export is not a function. Change it to module.exports = async (params) => { ... } or exports.default = async (params) => { ... }. If you meant to export several functions, use module.exports = { run } and select Script::run.`;
+	return t("errors.defaultExportNotRunnable", { path });
 }
 
 function missingModuleMessage(path: string, moduleName: string | undefined): string {
 	const missing = moduleName
 		? `the required module "${moduleName}"`
 		: "a required module";
-	return `QuickAdd could not load ${path} because it could not find ${missing}. Check that the required file or package exists, and that the capitalization in require(...) matches the file name exactly.`;
+	return t("errors.missingModule", { path, missing });
 }
 
 function syntaxErrorMessage(
@@ -86,8 +87,8 @@ function syntaxErrorMessage(
 	message: string,
 	line: number | undefined,
 ): string {
-	const where = line === undefined ? "" : ` on line ${line}`;
-	return `QuickAdd could not load ${path} because it has a syntax error${where}: ${message}. Fix the script and run it again.`;
+	const where = line === undefined ? "" : t("errors.onLine", { line });
+	return t("errors.syntaxError", { path, where, message });
 }
 
 const USER_SCRIPT_PARAMETERS = ["require", "module", "exports"];
@@ -278,7 +279,7 @@ export async function loadUserScript(
 				// load" log alone is easy to miss) and fall through to the established
 				// "return undefined" contract — do not double-log here.
 				if (options.reportLoadErrors !== false) {
-					new Notice(`QuickAdd: ${error} (${command.path})`);
+					new Notice(t("errors.scriptExtractFailed", { error: error ?? "", path: command.path }));
 				}
 				return;
 			}

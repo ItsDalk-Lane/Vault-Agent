@@ -6,6 +6,7 @@ import type {
 } from "obsidian";
 import type { QuickAddSettings } from "../../settings";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "../../docs";
+import { t } from "../../i18n";
 
 /** Declarative control keys for fields nested under `ai` (see the tab's store bridge). */
 export type AISettingsKey = `ai.${Extract<
@@ -13,8 +14,9 @@ export type AISettingsKey = `ai.${Extract<
 	"showAssistant" | "confirmToolCalls" | "promptTemplatesFolderPath"
 >}`;
 export type SettingsKey = Extract<keyof QuickAddSettings, string> | AISettingsKey;
-export const PACKAGES_DESC =
-	"Bundle or import QuickAdd automations as reusable packages.";
+export function packagesDesc(): string {
+	return t("settings.packages.desc");
+}
 
 type SettingsRenderers = Record<
 	| "choices"
@@ -34,7 +36,7 @@ export function createSettingDefinitions(
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{
 			type: "group",
-			heading: "Choices & packages",
+			heading: t("settings.group.choicesAndPackages"),
 			// QuickAdd's power surface is syntax you have to learn ({{VALUE}},
 			// {{DATE}}, capture targets, ...) and until now the manual was reachable
 			// from exactly one place in the whole plugin (issue #1541). A help icon
@@ -44,40 +46,40 @@ export function createSettingDefinitions(
 				(button) =>
 					button
 						.setIcon("help-circle")
-						.setTooltip("QuickAdd documentation")
+						.setTooltip(t("settings.docs.quickAddTooltip"))
 						.onClick(() =>
 							openDocsUrl(DOCS_URLS.gettingStarted, button.extraSettingsEl),
 						),
 			],
 			items: [
 				{
-					name: "Choices",
+					name: t("settings.choices.name"),
 					render: render.choices,
 				},
 				{
-					name: "Packages",
-					desc: PACKAGES_DESC,
+					name: t("settings.packages.name"),
+					desc: packagesDesc(),
 					render: render.packages,
 				},
 			],
 		},
 		{
 			type: "group",
-			heading: "Input",
+			heading: t("settings.group.input"),
 			items: [
 				{
-					name: "Use multi-line input prompt",
-					desc: "Use multi-line input prompt instead of single-line input prompt. Submit multi-line prompts with Ctrl/Cmd+Enter; Enter inserts a newline.",
+					name: t("settings.items.useMultiLine.name"),
+					desc: t("settings.items.useMultiLine.desc"),
 					control: { type: "toggle", key: "inputPrompt" },
 				},
 				{
-					name: "One-page input for choices",
+					name: t("settings.items.onePageInput.name"),
 					// The trailing sentence used to read "See One-page Inputs in the
 					// docs." as plain, unlinked prose (issue #1541).
 					desc: descWithDocsLink(
-						"Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. ",
+						t("settings.items.onePageInput.descPrefix"),
 						DOCS_URLS.onePageInputs,
-						"Learn more about one-page inputs",
+						t("settings.docs.learnMoreAboutOnePageInput"),
 					),
 					control: { type: "toggle", key: "onePageInputEnabled" },
 				},
@@ -86,36 +88,36 @@ export function createSettingDefinitions(
 		...(templateFolders ? [templateFolders] : []),
 		{
 			type: "group",
-			heading: "Notifications",
+			heading: t("settings.group.notifications"),
 			items: [
 				{
-					name: "Announce updates",
-					desc: "Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
+					name: t("settings.items.announceUpdates.name"),
+					desc: t("settings.items.announceUpdates.desc"),
 					control: {
 						type: "dropdown",
 						key: "announceUpdates",
 						defaultValue: "major",
 						options: {
-							all: "Every release",
-							major: "Feature releases",
-							none: "Never",
+							all: t("settings.items.announceUpdates.all"),
+							major: t("settings.items.announceUpdates.major"),
+							none: t("settings.items.announceUpdates.none"),
 						},
 					},
 				},
 				{
-					name: "Show capture notifications",
-					desc: "Display a notification when content is captured successfully to confirm the operation completed.",
+					name: t("settings.items.showCaptureNotifications.name"),
+					desc: t("settings.items.showCaptureNotifications.desc"),
 					control: { type: "toggle", key: "showCaptureNotification" },
 				},
 			],
 		},
 		{
 			type: "group",
-			heading: "AI & online",
+			heading: t("settings.group.aiAndOnline"),
 			items: [
 				{
-					name: "Disable AI & online features",
-					desc: "This prevents the plugin from making requests to external providers like OpenAI. You can still use user scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
+					name: t("settings.items.disableAI.name"),
+					desc: t("settings.items.disableAI.desc"),
 					control: { type: "toggle", key: "disableOnlineFeatures" },
 				},
 				...(aiAssistantPage ? [aiAssistantPage] : []),
@@ -123,11 +125,11 @@ export function createSettingDefinitions(
 		},
 		{
 			type: "group",
-			heading: "Appearance",
+			heading: t("settings.appearance.heading"),
 			items: [
 				{
-					name: "Show icon in sidebar",
-					desc: "Add QuickAdd icon to the sidebar ribbon. Requires a reload.",
+					name: t("settings.appearance.ribbonIconName"),
+					desc: t("settings.appearance.ribbonIconDesc"),
 					control: { type: "toggle", key: "enableRibbonIcon" },
 				},
 			],
@@ -140,11 +142,11 @@ export function createSettingDefinitions(
 	if (isDevBuild) {
 		groups.push({
 			type: "group",
-			heading: "Developer",
+			heading: t("settings.group.developer"),
 			items: [
 				{
-					name: "Development information",
-					desc: "Git information for developers.",
+					name: t("settings.items.development.name"),
+					desc: t("settings.items.development.desc"),
 					render: render.developmentInfo,
 				},
 			],
@@ -160,70 +162,68 @@ export function createSettingDefinitions(
 function advancedPage(render: SettingsRenderers): SettingDefinitionPage<SettingsKey> {
 	return {
 		type: "page",
-		name: "Advanced",
+		name: t("settings.advanced.name"),
 		items: [
 			{
 				type: "group",
-				heading: "Choice picker",
+				heading: t("settings.group.choicePicker"),
 				items: [
 					{
-						name: "“New note from template” in the launcher",
-						desc: "Add a row to Run QuickAdd that lists templates from your configured template folder, so you can create a note from a template without a dedicated Template choice. Only appears when a template folder is configured; the command palette entry works regardless.",
+						name: t("settings.items.templateFolderLauncherRow.name"),
+						desc: t("settings.items.templateFolderLauncherRow.desc"),
 						control: {
 							type: "dropdown",
 							key: "templateFolderLauncherRow",
 							defaultValue: "bottom",
 							options: {
-								bottom: "Bottom",
-								top: "Top",
-								off: "Hidden",
+								bottom: t("settings.items.templateFolderLauncherRow.bottom"),
+								top: t("settings.items.templateFolderLauncherRow.top"),
+								off: t("settings.items.templateFolderLauncherRow.off"),
 							},
 						},
 					},
 					{
-						name: "Search nested choices",
+						name: t("settings.items.searchNestedChoices.name"),
 						// "Multi" is the internal type id; every other user-facing string
 						// says folder (see src/utils/choiceNoun.ts).
-						desc: "When searching in the choice picker, also match choices nested inside folders and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.",
+						desc: t("settings.items.searchNestedChoices.desc"),
 						control: { type: "toggle", key: "searchNestedChoices" },
 					},
 				],
 			},
 			{
 				type: "group",
-				heading: "Input",
+				heading: t("settings.group.input"),
 				items: [
 					{
-						name: "Use editor selection as default Capture value",
-						desc: "When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}.",
+						name: t("settings.items.useSelection.name"),
+						desc: t("settings.items.useSelection.desc"),
 						control: { type: "toggle", key: "useSelectionAsCaptureValue" },
 					},
 					{
-						name: "Name pasted images after the note title",
-						desc: "When on, clipboard images saved by QuickAdd (pasting into a prompt, or {{CLIPBOARD}} with an image and no text) are named after the destination note. When the destination is not yet known, QuickAdd keeps the timestamp name. Duplicate names are handled by Obsidian's attachment folder setting.",
+						name: t("settings.items.namePastedImages.name"),
+						desc: t("settings.items.namePastedImages.desc"),
 						control: { type: "toggle", key: "namePastedImagesAfterNoteTitle" },
 					},
 					{
-						name: "Persist input prompt drafts",
-						desc: "Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
+						name: t("settings.items.persistDrafts.name"),
+						desc: t("settings.items.persistDrafts.desc"),
 						control: { type: "toggle", key: "persistInputPromptDrafts" },
 					},
 					{
-						name: "Date aliases",
-						desc:
-							"Shortcodes for natural language date parsing. " +
-							"One per line: alias = phrase. Example: tm = tomorrow.",
+						name: t("settings.items.dateAliases.name"),
+						desc: t("settings.items.dateAliases.desc"),
 						render: render.dateAliases,
 					},
 				],
 			},
 			{
 				type: "group",
-				heading: "Notifications",
+				heading: t("settings.group.notifications"),
 				items: [
 					{
-						name: "Show input cancellation notifications",
-						desc: "Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.",
+						name: t("settings.items.showInputCancellation.name"),
+						desc: t("settings.items.showInputCancellation.desc"),
 						control: {
 							type: "toggle",
 							key: "showInputCancellationNotification",
@@ -233,35 +233,32 @@ function advancedPage(render: SettingsRenderers): SettingDefinitionPage<Settings
 			},
 			{
 				type: "group",
-				heading: "Properties",
+				heading: t("settings.group.properties"),
 				items: [
 					{
-						name: "Convert string front matter variables to typed properties (Beta)",
-						desc:
-							"List/object values from scripts are always written as proper Obsidian properties (a list becomes a List). " +
-							"This toggle additionally converts string values into typed properties: a comma or bullet-list string becomes a List, " +
-							"\"42\" becomes a Number, \"true\" becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases.",
+						name: t("settings.items.convertStringTypes.name"),
+						desc: t("settings.items.convertStringTypes.desc"),
 						control: { type: "toggle", key: "enableTemplatePropertyTypes" },
 					},
 				],
 			},
 			{
 				type: "group",
-				heading: "Global variables",
+				heading: t("settings.group.globalVariables"),
 				items: [
 					{
-						name: "Global variables",
+						name: t("settings.items.globalVariables.name"),
 						render: render.globalVariables,
 					},
 				],
 			},
 			{
 				type: "group",
-				heading: "Obsidian URI",
+				heading: t("settings.group.uri"),
 				items: [
 					{
-						name: "Allow URI x-callback-url",
-						desc: "When on, an obsidian://quickadd URI may open a callback URL (x-success / x-error / x-cancel) after a Template or Capture choice finishes — sending the outcome and the affected note's vault path and URL to that callback. While on, a URI that carries x-* callback params is restricted to Template and Capture choices (other choice types are warned and skipped). Off by default because the callback URL is set by whoever creates the obsidian:// link. Only shortcuts: and obsidian: callback URLs are permitted.",
+						name: t("settings.items.allowUriCallbacks.name"),
+						desc: t("settings.items.allowUriCallbacks.desc"),
 						control: { type: "toggle", key: "enableUriCallbacks" },
 					},
 				],
@@ -274,7 +271,7 @@ function advancedPage(render: SettingsRenderers): SettingDefinitionPage<Settings
 export function descWithDocsLink(
 	text: string,
 	url: string,
-	linkText = "Learn more",
+	linkText = t("settings.docs.learnMore"),
 ): DocumentFragment {
 	const fragment = createFragment();
 	fragment.append(document.createTextNode(text));

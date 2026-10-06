@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
@@ -21,7 +22,7 @@ export class ImportPackageModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("quickAddModal", "qa-package-modal", "packageImportModal");
-		this.setTitle("Import QuickAdd package");
+		this.setTitle(t("packageManager.importTitle"));
 		this.handle = mountComponent(
 			this.contentEl,
 			ImportPackageModalComponent,
@@ -30,7 +31,7 @@ export class ImportPackageModal extends Modal {
 				close: () => this.close(),
 				onImported: this.options.onImported,
 			},
-			{ what: "the package importer" },
+			{ what: t("svelteCards.whatPackageImporter") },
 		);
 	}
 

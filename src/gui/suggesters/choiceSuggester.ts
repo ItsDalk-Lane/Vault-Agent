@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { FuzzyMatch } from "obsidian";
 import {
 	Component,
@@ -41,7 +42,7 @@ const backLabel = "← Back";
  * (issue #1540). Nested levels override this with the folder's name or its
  * custom placeholder.
  */
-const DEFAULT_PLACEHOLDER = "Select a choice";
+const DEFAULT_PLACEHOLDER = () => t("choiceSuggester.defaultPlaceholder");
 
 /**
  * Shared wording for "you opened a folder that has nothing in it", so the
@@ -53,9 +54,9 @@ export function emptyFolderNoticeText(folder: IChoice): string {
 	// it is unreadable, and saying "empty" here would contradict what the settings
 	// list says about the same folder. Same predicate on both surfaces (#1566).
 	if (hasUnreadableChildren(folder)) {
-		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
+		return t("choiceSuggester.emptyFolderNotice", { name: folder.name });
 	}
-	return `Folder "${folder.name}" is empty.`;
+	return t("choiceSuggester.emptyFolderEmpty", { name: folder.name });
 }
 
 /**
@@ -63,7 +64,7 @@ export function emptyFolderNoticeText(folder: IChoice): string {
  * settings tree already uses for this exact state ("Empty — add a choice or drag
  * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
  */
-const EMPTY_FOLDER_FLAIR = "Empty";
+const EMPTY_FOLDER_FLAIR = () => t("choiceSuggester.emptyFlair");
 
 /**
  * The same marker for a folder the picker cannot drill into because its contents
@@ -71,14 +72,14 @@ const EMPTY_FOLDER_FLAIR = "Empty";
  * contradict the settings list, which says the contents are still in data.json
  * (#1566).
  */
-const UNREADABLE_FOLDER_FLAIR = "Unreadable";
+const UNREADABLE_FOLDER_FLAIR = () => t("choiceSuggester.unreadableFlair");
 
 /** The trailing marker for a folder row that cannot be opened, or "" for one that can. */
 export function folderFlairFor(choice: IChoice): string {
 	if (!isEmptyFolderChoice(choice)) return "";
 	return hasUnreadableChildren(choice)
-		? UNREADABLE_FOLDER_FLAIR
-		: EMPTY_FOLDER_FLAIR;
+		? UNREADABLE_FOLDER_FLAIR()
+		: EMPTY_FOLDER_FLAIR();
 }
 
 /**
@@ -88,7 +89,7 @@ export function folderFlairFor(choice: IChoice): string {
  * prefix cannot collide with a real uuid-keyed choice.
  */
 export const RUN_TEMPLATE_FROM_FOLDER_ID = "quickadd:run-template-from-folder";
-const runTemplateFromFolderLabel = "New note from template…";
+const runTemplateFromFolderLabel = () => t("choiceSuggester.newNoteFromTemplate");
 
 /**
  * Sentinel id for the synthetic back item. Back items are created fresh per
@@ -203,7 +204,7 @@ export function shouldShowTemplateFolderRow(plugin: QuickAdd): boolean {
 function createTemplateFolderRow(): IChoice {
 	return {
 		id: RUN_TEMPLATE_FROM_FOLDER_ID,
-		name: runTemplateFromFolderLabel,
+		name: runTemplateFromFolderLabel(),
 		type: "Template",
 		command: false,
 	};
@@ -235,7 +236,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// long-lived plugin instance.
 	private readonly markdownComponent = new Component();
 	private readonly warnRenderFailure = createRenderFallbackWarner(
-		"Could not render a choice name as Markdown; showing it as plain text",
+		t("choiceSuggester.couldNotRenderName"),
 	);
 
 	public static Open(
@@ -275,7 +276,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
-		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
+		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER();
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
@@ -520,7 +521,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				runTemplateFromFolder(this.app, this.plugin, {
 					choiceExecutor: this.choiceExecutor,
 				}),
-				"Could not run a template from that folder",
+				t("choiceSuggester.couldNotRunTemplate"),
 			);
 			return;
 		}
@@ -547,7 +548,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						this.ancestry,
 					)
 				: this.choiceExecutor.execute(item, this.ancestry);
-			this.settleCompletion(execute, `Could not run "${item.name}"`);
+			this.settleCompletion(execute, t("errors.couldNotRunChoice", { name: item.name }));
 		}
 	}
 

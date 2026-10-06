@@ -360,7 +360,7 @@
 							id="qa-export-path"
 							type="text"
 							bind:value={outputPath}
-							placeholder="QuickAdd Packages/quickadd-package-YYYY-MM-DD.quickadd.json"
+							placeholder={t("packageManager.defaultPathPlaceholder")}
 						/>
 						<button
 							type="button"

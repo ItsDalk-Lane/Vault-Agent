@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { t } from "../../i18n";
 
 export interface SearchableMultiSelectItem<T> {
 	/** Selection identity. Rows with the same key share selected state. */
@@ -75,7 +76,7 @@ export default class SearchableMultiSelect<T> {
 		this.searchInputEl = searchContainer.createEl("input", {
 			cls: "qa-searchable-multi-select__search",
 			type: "search",
-			placeholder: options.searchPlaceholder ?? "Search options...",
+			placeholder: options.searchPlaceholder ?? t("common.searchOptionsPlaceholder"),
 		});
 		this.searchInputEl.name = `qa-multi-select-search-${this.instanceId}`;
 		this.searchInputEl.setAttribute("aria-label", this.searchInputEl.placeholder);
@@ -87,7 +88,7 @@ export default class SearchableMultiSelect<T> {
 
 		this.listEl = this.rootEl.createDiv({ cls: "qa-searchable-multi-select__list" });
 		this.listEl.setAttribute("role", "group");
-		this.listEl.setAttribute("aria-label", "Options");
+		this.listEl.setAttribute("aria-label", t("common.optionsListAria"));
 
 		this.searchInputEl.addEventListener("input", () => {
 			this.query = this.searchInputEl.value;
@@ -214,7 +215,7 @@ export default class SearchableMultiSelect<T> {
 			// As in the quick switcher: the alias that matched, the item beneath.
 			text.createSpan({ cls: "qa-searchable-multi-select__option-note", text: item.label });
 			const flair = row.createSpan({ cls: "qa-searchable-multi-select__option-flair" });
-			flair.setAttribute("aria-label", "Alias");
+			flair.setAttribute("aria-label", t("common.aliasFlair"));
 			setIcon(flair, "forward");
 		}
 		const input = row.createEl("input", { type: "checkbox" });
