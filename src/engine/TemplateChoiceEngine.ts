@@ -2,7 +2,8 @@ import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, o
 import type { App, WorkspaceLeaf } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import invariant from "src/utils/invariant";
-import { VALUE_SYNTAX, BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
+import { VALUE_SYNTAX } from "../constants";
+import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -27,11 +28,9 @@ import { promptEngineChoice } from "../interactive/engineChoice";
 import {
 	normalizeAppendLinkOptions,
 } from "../types/linkPlacement";
-import {
-	getAllFolderPathsInVault,
-	jumpToNextTemplaterCursorIfPossible,
-	getMarkdownEditorViewForFile,
-} from "../utilityObsidian";
+import { getAllFolderPathsInVault } from "../utils/vaultQueries";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
 import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
@@ -45,6 +44,7 @@ import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
+import type { ChoiceChain } from "./choiceChain";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -65,6 +65,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		private readonly chain: ChoiceChain = [choice],
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
@@ -75,6 +76,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			draftScopeId: choice.id,
 			choiceName: choice.name,
 		});
+		this.formatter.choiceChain = chain;
 	}
 
 	public async run(): Promise<void> {
@@ -130,6 +132,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
 					discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 				}
+				await this.choiceExecutor.resolveDateOrigin?.(this.choice);
 			}
 
 			if (!this.validateAppendLinkDestination(linkOptions)) return;
@@ -160,10 +163,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
 			if (selectedUpdate) {
-				if (BASE_FILE_EXTENSION_REGEX.test(templatePath) || CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
-					throw new ChoiceAbortError(
-					t("errors.applySelectedNoteMarkdownOnly")
-				);
+				if (!isMarkdownTemplatePath(templatePath)) {
+					throw new ChoiceAbortError(t("errors.applySelectedNoteMarkdownOnly"));
 				}
 				createdFile = await this.applyExistingFileUpdate(
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
@@ -599,6 +600,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			destination: existingFile.path,
 			destinationKind: "file",
 		});
+		insertEngine.choiceChain = this.chain;
 		insertEngine.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"
@@ -683,9 +685,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	// the order or conditions here, update that helper (and its 16-combo test) so
 	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {
-		const folders: string[] = await this.formatFolderPaths([
-			...this.choice.folder.folders,
-		]);
+		// Configured folders are matched against vault paths below (subfolder
+		// ordering, allowed roots), so they are canonicalized before any of that,
+		// not only when a selection is resolved.
+		const folders: string[] = (
+			await this.formatFolderPaths([...this.choice.folder.folders])
+		).map((folder) => this.canonicalFolderPath(folder));
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
 		const config = this.choice.folder;

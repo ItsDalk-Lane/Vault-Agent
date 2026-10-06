@@ -14,6 +14,11 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
   create/link the working branch before implementation.
 - GitHub does not allow approving your own PR from the same account; do not
   block merge waiting for self-approval.
+- Never merge a `release/*` PR from `quickadd-release-bot`; chhoumann
+  squash-merges those himself. After any other merge, the release workflow
+  refuses to publish, so `master` advertises a version with no GitHub release.
+  Obsidian then fails to install QuickAdd and drops it from Community plugins
+  (#1763).
 
 ## Build, Test, and Development Commands
 - `pnpm run dev`: watch-mode bundle via `esbuild.config.mjs`, regenerating `main.js` as you edit.
@@ -62,9 +67,24 @@ brief that a skill-less agent still needs.
   checkout can own those symlinks at a time. Run `pnpm run dev` to rebuild.
 - Always pass the `vault=` selector as a **prefix** argument, never a suffix -
   suffix form can resolve to the wrong vault.
+- `pnpm run obsidian:e2e -- <cmd>` attaches to a running instance without
+  reloading QuickAdd, so plugin state, open modals and settings tabs, and a
+  plugin you disabled all persist between separate commands. After a rebuild,
+  load the new `main.js` with `pnpm run obsidian:e2e -- --reload <cmd>` (or
+  `start:e2e-obsidian`, which always reloads and verifies). If no instance is
+  running, `obsidian:e2e` launches one first.
+- Specs that need Templater run only with `OBSIDIAN_E2E_TEMPLATER=1
+  .agents/run-e2e`, which installs a pinned Templater into the isolated vault.
+  A change that touches a Templater path must also pass that run: CI runs no
+  native specs, so a Templater expectation can otherwise go stale unnoticed.
+- Toggle desktop mobile emulation with `pnpm run obsidian:e2e -- dev:mobile on`
+  (or `off`). The command returns only after the reloaded app reports the new
+  mode, so the next command can run straight away with no sleep. The switch
+  reloads the whole app, so reopen any UI afterwards.
 
 ```bash
 pnpm run dev                                # or: pnpm run build
+pnpm run obsidian:e2e -- --reload quickadd:list   # load the rebuilt main.js
 pnpm run obsidian:e2e -- quickadd:list
 pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins.quickadd)'
 pnpm run obsidian:e2e -- dev:errors

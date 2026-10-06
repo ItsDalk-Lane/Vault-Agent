@@ -9,7 +9,6 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 describe('Canvas Template Integration', () => {
 	describe('Regex patterns for canvas support', () => {
@@ -53,6 +52,12 @@ describe('Canvas Template Integration', () => {
 			expect(getTemplateExtension('template.md')).toBe('.md');
 			expect(getTemplateExtension('template')).toBe('.md');
 			expect(getTemplateExtension('template.txt')).toBe('.md');
+		});
+
+		it('decides the type from the resolved path, not the raw setting', () => {
+			expect(getTemplateExtension('Templates\\template.canvas')).toBe('.canvas');
+			expect(getTemplateExtension('template.canvas/')).toBe('.canvas');
+			expect(getTemplateExtension('template.base/')).toBe('.base');
 		});
 
 		it('should return .base for base templates', () => {
@@ -130,7 +135,7 @@ describe('Canvas Template Integration', () => {
 		it('should accept markdown and canvas files', async () => {
 			for (const extension of ["md", "canvas", "base"]) {
 				const h = await overwrite(extension);
-				expect(h.vault.modify, extension).toHaveBeenCalledOnce();
+				expect(h.vault.process, extension).toHaveBeenCalled();
 				expect(h.contents.get("note.md"), extension).toBe("Replacement");
 			}
 		});
@@ -138,7 +143,7 @@ describe('Canvas Template Integration', () => {
 		it('should reject other file types', async () => {
 			for (const extension of ["txt", "js"]) {
 				const h = await overwrite(extension);
-				expect(h.vault.modify, extension).not.toHaveBeenCalled();
+				expect(h.vault.process, extension).not.toHaveBeenCalled();
 				expect(h.contents.get("note.md"), extension).toBe("Original");
 			}
 		});

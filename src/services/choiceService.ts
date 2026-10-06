@@ -2,9 +2,11 @@ import { Notice, type App } from "obsidian";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import { CaptureChoiceBuilder } from "../gui/ChoiceBuilder/captureChoiceBuilder";
 import { TemplateChoiceBuilder } from "../gui/ChoiceBuilder/templateChoiceBuilder";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
+import { t } from "../i18n";
 import { MacroBuilder } from "../gui/MacroGUIs/MacroBuilder";
-import { MultiChoiceSettingsModal } from "../gui/MultiChoiceSettingsModal";
+import { MultiChoiceBuilder } from "../gui/MultiChoiceBuilder";
+import { snapshot } from "../gui/svelte/persist.svelte";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
@@ -29,7 +31,6 @@ import {
 	isChoiceLike,
 } from "../utils/choiceUtils";
 import { choiceNoun } from "../utils/choiceNoun";
-import { t } from "../i18n";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -50,7 +51,7 @@ const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 
 export function createChoice(type: ChoiceType, name: string): IChoice {
 	const Constructor = choiceConstructors[type];
-	if (!Constructor) throw new Error(t("errors.unknownChoiceType", { type }));
+	if (!Constructor) throw new Error(`Unknown choice type: ${type}`);
 	return new Constructor(name);
 }
 
@@ -202,36 +203,33 @@ async function buildSecretOptionNamesByPath(
 }
 
 /**
- * Get the appropriate builder for a choice
+ * The builder page for a choice, not yet open. It hands the edited choice to
+ * `onSave` when it saves.
  */
 export function getChoiceBuilder(
 	choice: IChoice,
 	app: App,
 	plugin: QuickAdd,
-): TemplateChoiceBuilder | CaptureChoiceBuilder | MacroBuilder | undefined {
-	type Builder =
-		| TemplateChoiceBuilder
-		| CaptureChoiceBuilder
-		| MacroBuilder
-		| undefined;
-
-	const builderFactory: Record<ChoiceType, () => Builder> = {
-		Template: () =>
-			new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin),
-		Capture: () =>
-			new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin),
-		Macro: () =>
-			new MacroBuilder(
+	onSave: (choice: IChoice) => void,
+): { open(): boolean } {
+	switch (choice.type) {
+		case "Template":
+			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave);
+		case "Capture":
+			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave);
+		case "Macro":
+			return new MacroBuilder(
 				app,
 				plugin,
 				choice as IMacroChoice,
 				settingsStore.getState().choices,
-			),
-		Multi: () => undefined,
-	};
-
-	const creator = builderFactory[choice.type];
-	return typeof creator === "function" ? creator() : undefined;
+				onSave,
+			);
+		case "Multi":
+			return new MultiChoiceBuilder(app, choice as IMultiChoice, onSave);
+		default:
+			throw new Error("Invalid choice type");
+	}
 }
 
 /**
@@ -268,10 +266,16 @@ export async function deleteChoiceWithConfirmation(
 		const folders = descendants.filter((c) => c.type === "Multi").length;
 		const choices = descendants.length - folders;
 		const parts: string[] = [];
-		if (choices > 0) parts.push(`${choices} ${choices === 1 ? "choice" : "choices"}`);
-		if (folders > 0) parts.push(`${folders} ${folders === 1 ? "folder" : "folders"}`);
+		if (choices > 0)
+			parts.push(
+				`${choices} ${t(choices === 1 ? "choiceService.nounChoice" : "choiceService.nounChoices")}`,
+			);
+		if (folders > 0)
+			parts.push(
+				`${folders} ${t(folders === 1 ? "choiceService.nounFolder" : "choiceService.nounFolders")}`,
+			);
 
-		return `Deleting this folder will also delete everything inside it: ${parts.join(" and ")}.`;
+		return t("choiceService.deleteMultiWarning", { parts: parts.join(t("choiceService.andJoiner")) });
 	};
 
 	// Delete is the one irreversible action in the settings list, and until #1612
@@ -289,22 +293,22 @@ export async function deleteChoiceWithConfirmation(
 	// correctly keeps the ordinary line.
 	const buildMacroWarning = (macroChoice: IMacroChoice): string =>
 		isUnreadableCommandList(macroCommandsValueOf(macroChoice.macro))
-			? "QuickAdd couldn't read this macro's commands. Deleting it also deletes whatever is still stored under it in data.json."
-			: "Deleting this choice will also delete its macro commands.";
+			? t("choiceService.macroCommandsUnreadable")
+			: t("choiceService.deleteMacroWarning");
 
 	const body = [
-		`Are you sure you want to delete '${choice.name}'?`,
+		t("choiceService.deleteConfirmBody", { name: choice.name }),
 		isMulti ? buildMultiWarning(choice as IMultiChoice) : "",
 		isMacro ? buildMacroWarning(choice as IMacroChoice) : "",
 	]
 		.filter(Boolean)
 		.join(" ");
 
-	const userConfirmed = await GenericYesNoPrompt.Prompt(
-		app,
-		t("choiceService.deleteNoun", { noun: choiceNoun(choice.type) }),
-		body,
-	);
+	const userConfirmed = await confirmAction(app, {
+		title: t("choiceService.deleteNoun", { noun: choiceNoun(choice.type) }),
+		message: body,
+		action: t("common.delete"),
+	});
 
 	if (!userConfirmed) return false;
 
@@ -315,9 +319,7 @@ export async function deleteChoiceWithConfirmation(
 		});
 		if (!cleared) {
 			new Notice(
-				t("choiceService.secretClearFailed", {
-					noun: choiceNoun(choice.type),
-				}),
+				t("choiceService.secretClearFailed", { noun: choiceNoun(choice.type) }),
 			);
 			return false;
 		}
@@ -327,30 +329,25 @@ export async function deleteChoiceWithConfirmation(
 }
 
 /**
- * Configure a choice through its builder
+ * Open a choice's builder as a page of Settings → QuickAdd. Each time it
+ * saves (when it is left, and when the app goes to the background), `onSave`
+ * gets the edited choice and the choice as of the previous save, or as the
+ * builder opened it: after it filled in missing fields, so those don't count
+ * as edits. Returns false if the page could not open.
  */
-export async function configureChoice(
+export function configureChoice(
 	choice: IChoice,
 	app: App,
 	plugin: QuickAdd,
-): Promise<IChoice | undefined> {
-	if (choice.type === "Multi") {
-		try {
-			return await new MultiChoiceSettingsModal(
-				app,
-				choice as IMultiChoice,
-			).waitForClose;
-		} catch {
-			return undefined;
-		}
-	}
-
-	const builder = getChoiceBuilder(choice, app, plugin);
-	if (!builder) {
-		throw new Error(t("errors.invalidChoiceType"));
-	}
-
-	return await builder.waitForClose;
+	onSave: (edited: IChoice, base: IChoice) => void,
+): boolean {
+	const builder = getChoiceBuilder(choice, app, plugin, (edited) => {
+		const saved = snapshot(edited);
+		onSave(saved, base);
+		base = saved;
+	});
+	let base: IChoice = snapshot(choice);
+	return builder.open();
 }
 
 /**

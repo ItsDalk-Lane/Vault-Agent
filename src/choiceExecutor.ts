@@ -1,4 +1,5 @@
 import { Notice, type App, type WorkspaceLeaf } from "obsidian";
+import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -19,7 +20,7 @@ import { MacroAbortError } from "./errors/MacroAbortError";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
 import { isCancellationError, reportError } from "./utils/errorUtils";
-import { getOpenFileOriginLeaf } from "./utilityObsidian";
+import { getOpenFileOriginLeaf } from "./utils/fileOpening";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import {
@@ -36,12 +37,13 @@ import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
 import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
 import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
-import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState, getPreparedTemplateNoteSelection } from "./preflight/preparedChoiceInputs";
-import { isTemplateChoice } from "./preflight/macroCommandRole";
+import type { LoadedUserScript } from "./utils/userScript";
+import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
+import { isTemplateChoice } from "./types/choices/choiceType";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
 export class ChoiceExecutor implements IChoiceExecutor {
-	public variables: Map<string, unknown> = new Map<string, unknown>();
+	public variables: Map<string, unknown> = new Map<string, LoadedUserScript>();
 	public readonly preparedInputs = createPreparedChoiceInputState();
 	// Default to interactive so every GUI entry point (command palette, ribbon,
 	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
@@ -55,7 +57,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// consumed once by MacroChoiceEngine so a script's top-level code runs a
 	// single time per trigger instead of once for introspection plus once for
 	// execution (see IChoiceExecutor.preloadedUserScripts).
-	public readonly preloadedUserScripts = new Map<string, unknown>();
+	public readonly preloadedUserScripts = new Map<string, LoadedUserScript>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;
@@ -63,6 +65,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
+	/**
+	 * Ancestry of a run started without one: the dispatching run's chain when
+	 * this executor was built inside a command dispatch, otherwise empty.
+	 */
+	private readonly dispatchAncestry = currentDispatchChain();
 	private macroOnePageInput: IChoice["onePageInput"];
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
@@ -133,7 +140,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		}
 	}
 
-	async execute(choice: IChoice): Promise<void> {
+	async execute(
+		choice: IChoice,
+		ancestry: ChoiceChain = this.dispatchAncestry,
+	): Promise<void> {
+		const chain = enterChoice(choice, ancestry);
 		this.pendingAbort = null;
 		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
 		// another choice through this same executor) transparent to the outcome slot of an
@@ -143,7 +154,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
-		promptDraftStore.beginExecutionScope();
+		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
@@ -153,22 +164,22 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					case "Template": {
 						const templateChoice: ITemplateChoice =
 							choice as ITemplateChoice;
-						await this.onChooseTemplateType(templateChoice, originLeaf);
+						await this.onChooseTemplateType(templateChoice, originLeaf, chain);
 						break;
 					}
 					case "Capture": {
 						const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-						await this.onChooseCaptureType(captureChoice, originLeaf);
+						await this.onChooseCaptureType(captureChoice, originLeaf, chain);
 						break;
 					}
 					case "Macro": {
 						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						await this.onChooseMacroType(macroChoice, originLeaf);
+						await this.onChooseMacroType(macroChoice, originLeaf, chain);
 						break;
 					}
 					case "Multi": {
 						const multiChoice: IMultiChoice = choice as IMultiChoice;
-						await this.onChooseMultiType(multiChoice);
+						await this.onChooseMultiType(multiChoice, chain);
 						break;
 					}
 					default:
@@ -176,14 +187,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				}
 
 				if (this.pendingAbort) {
-					promptDraftStore.rollbackExecutionScope();
+					promptDraftStore.rollbackExecutionScope(draftScope);
 					return;
 				}
 
-				promptDraftStore.commitExecutionScope();
+				promptDraftStore.commitExecutionScope(draftScope);
 			});
 		} catch (error) {
-			promptDraftStore.rollbackExecutionScope();
+			promptDraftStore.rollbackExecutionScope(draftScope);
 			throw error;
 		} finally {
 			this.pendingResult = savedResult;
@@ -195,6 +206,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
 		triggerContext?: QuickAddTriggerContext | null,
+		ancestry?: ChoiceChain,
 	): Promise<void> {
 		const previousFocusedOverride = this.focusedPropertyOverride;
 		const previousTriggerOverride = this.triggerContextOverride;
@@ -204,7 +216,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// (including `null` for "no active note at trigger time") IS injected.
 		this.triggerContextOverride = triggerContext;
 		try {
-			await this.execute(choice);
+			await this.execute(choice, ancestry);
 		} finally {
 			this.focusedPropertyOverride = previousFocusedOverride;
 			this.triggerContextOverride = previousTriggerOverride;
@@ -225,25 +237,26 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
+		const chain = enterChoice(choice, this.dispatchAncestry);
 		this.pendingAbort = null;
 		this.pendingResult = null;
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
-		promptDraftStore.beginExecutionScope();
+		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
 				await this.applyDateOrigin(choice);
 
 				if (choice.type === "Template") {
-					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf);
+					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf, chain);
 				} else {
-					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf);
+					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
 				}
 
 				if (this.pendingAbort) {
-					promptDraftStore.rollbackExecutionScope();
+					promptDraftStore.rollbackExecutionScope(draftScope);
 					const abort = this.consumeAbortSignal();
 					const isUser = abort instanceof UserCancelError;
 					return {
@@ -256,14 +269,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					};
 				}
 
-				promptDraftStore.commitExecutionScope();
+				promptDraftStore.commitExecutionScope(draftScope);
 				const result = this.pendingResult;
 				this.pendingResult = null;
 				// No success recorded and no abort => the engine swallowed a failure.
 				return result ?? { status: "error" };
 			});
 		} catch (error) {
-			promptDraftStore.rollbackExecutionScope();
+			promptDraftStore.rollbackExecutionScope(draftScope);
 			if (error instanceof UserCancelError) {
 				// Stable user-facing text; no internal message surfaced.
 				return { status: "cancelled", cancelKind: "user" };
@@ -284,17 +297,20 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
 		if (
 			isTemplateChoice(choice) &&
-			(choice.existingNoteAction ?? "open") === "open" &&
-			getPreparedTemplateNoteSelection(this, choice.id)?.kind === "existing" &&
 			shouldRunTemplateNoteDiscovery(
 				choice,
 				choice.fileNameFormat.enabled ? choice.fileNameFormat.format : VALUE_SYNTAX,
 				this.variables.get("value"),
 			)
 		) {
-			// Opening an existing note must not prompt for hidden creation inputs.
+			// The note picker needs no date, and opening an existing note uses none,
+			// so TemplateChoiceEngine resolves it after the picker.
 			return;
 		}
+		await this.resolveDateOrigin(choice);
+	}
+
+	async resolveDateOrigin(choice: IChoice): Promise<void> {
 		const setting = this.pickDate
 			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
 			: normalizeDateOrigin(choice.dateOrigin);
@@ -406,6 +422,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async onChooseTemplateType(
 		templateChoice: ITemplateChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	): Promise<void> {
 		await new TemplateChoiceEngine(
 			this.app,
@@ -413,12 +430,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			templateChoice,
 			this,
 			originLeaf,
+			chain,
 		).run();
 	}
 
 	private async onChooseCaptureType(
 		captureChoice: ICaptureChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	) {
 		await new CaptureChoiceEngine(
 			this.app,
@@ -426,12 +445,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			captureChoice,
 			this,
 			originLeaf,
+			chain,
 		).run();
 	}
 
 	private async onChooseMacroType(
 		macroChoice: IMacroChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	) {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
@@ -442,6 +463,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.preloadedUserScripts,
 			undefined,
 			originLeaf,
+			chain,
 		);
 		const previousOverride = this.macroOnePageInput;
 		this.macroOnePageInput = macroChoice.onePageInput ?? previousOverride;
@@ -456,7 +478,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		});
 	}
 
-	private async onChooseMultiType(multiChoice: IMultiChoice): Promise<void> {
+	private async onChooseMultiType(
+		multiChoice: IMultiChoice,
+		chain: ChoiceChain,
+	): Promise<void> {
 		// Read through the accessor, not `.length`: a non-array value such as `{}`
 		// has an `undefined` length, so a bare `=== 0` check would slide past this
 		// guard and hand the picker a non-list to iterate (#1566).
@@ -505,6 +530,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
 				// the same folder show the same search hint.
 				placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
+				ancestry: chain,
 				completion: (error) =>
 					error === undefined ? resolve() : reject(error),
 			});

@@ -12,7 +12,7 @@ export const DATE_ORIGIN_PRESETS = [
 	"variable",
 ] as const;
 
-export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
+type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 // The exported "setting name/desc" values below are FUNCTIONS so their strings
 // resolve through t() at call time: module-level literals would freeze the

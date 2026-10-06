@@ -225,7 +225,9 @@ function onConsiderSubsectionsToggle(value: boolean) {
 	if (value && !insertAfter.after.startsWith("#")) {
 		// Two-way bind syncs the toggle back to off when the target isn't a heading.
 		insertAfter.considerSubsections = false;
-		new Notice(t("choiceBuilder.insertAfter.considerSubsectionsNotice"));
+		new Notice(
+			t("choiceBuilder.insertAfter.considerSubsectionsNotice"),
+		);
 	}
 }
 
@@ -357,6 +359,7 @@ function onPromptHeadingToggle(value: boolean) {
 		<Dropdown
 			value={insertAfter.createIfNotFoundLocation || CREATE_IF_NOT_FOUND_TOP}
 			options={createLocationOptions}
+			ariaLabel={t("choiceBuilder.insertAfter.createLine")}
 			onchange={onCreateLocationChange}
 		/>
 	{/snippet}
@@ -421,6 +424,7 @@ function onPromptHeadingToggle(value: boolean) {
 				<Dropdown
 					value={ordering.unparseable ?? "bottom"}
 					options={unparseableOptions}
+					ariaLabel={t("choiceBuilder.insertAfter.unparseable")}
 					onchange={(value) => {
 						if (insertAfter.orderBy)
 							insertAfter.orderBy.unparseable =

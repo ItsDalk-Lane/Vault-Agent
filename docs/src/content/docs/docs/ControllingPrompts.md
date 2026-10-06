@@ -33,9 +33,18 @@ The `due` prompt appears first, even though `attendees` comes first in the text.
 
 1. **Template choices** resolve the template path first, then the folder, then the file name, and finally the template's content. A placeholder in the file name always prompts before anything in the template body.
 2. **Capture choices** resolve the capture target first, then the capture format.
-3. **Within one piece of text** (a file name, a template, a capture format), prompts are grouped by kind, and only inside a kind do they follow the order they appear. The kinds run in this order: plain `{{VALUE}}`/`{{NAME}}` first, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last.
+3. **Within one piece of text** (a file name, a template, a capture format), included templates (`{{TEMPLATE:path}}`) ask their prompts first. The rest is grouped by kind, and only inside a kind do prompts follow the order they appear. The kinds run in this order: plain `{{VALUE}}`/`{{NAME}}` first, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last. Dates come before named values so that a `{{VALUE:due}}` reusing a `{{VDATE:due,...}}` answer is asked once, as a date.
 
-No flag reorders individual prompts. If the sequence bothers you, switch on the [one-page input form](#one-form-instead-of-many-prompts): it lists every input in one form (still in resolution order), and you fill them in whatever order you like.
+To be asked for one value first when prompts come one at a time, make it the plain `{{VALUE}}`, and name its prompt with [`|label:`](/docs/FormatSyntax/#value-label). This format asks for the body before the heading (the one-page form still lists the heading first, in format order):
+
+```markdown
+## {{VALUE:heading}}
+{{VALUE|type:multiline|label:Body}}
+```
+
+In a Capture, a plain `{{VALUE}}` takes your [editor selection](/docs/Choices/CaptureChoice/#use-editor-selection) instead of asking, when text is selected and the Capture uses the selection.
+
+No flag reorders individual prompts. If the sequence bothers you, switch on the [one-page input form](#one-form-instead-of-many-prompts): it lists every input in one form, in the order of the steps above (after the day, when **Which day** asks for one) with each text's fields in the order they appear, and you fill them in whatever order you like.
 
 :::note
 A pick list defined with [`|name:`](/docs/FormatSyntax/#value-name) and its reuses can appear in any order within one piece of text. When a reuse comes before the definition, QuickAdd resolves the definition early so you are still asked only once.
@@ -47,7 +56,7 @@ Each control is a flag you add to the placeholder. The most common ones:
 
 | You want | Flag | Example |
 | --- | --- | --- |
-| Helper text on the prompt | [`\|label:`](/docs/FormatSyntax/#value-label) | `{{VALUE:attendees\|label:Comma-separated names}}` |
+| Your own wording for the prompt | [`\|label:`](/docs/FormatSyntax/#value-label) | `{{VALUE:attendees\|label:Who attended?}}` |
 | A pre-filled default | [`\|default:`](/docs/FormatSyntax/#value-default-option) | `{{VALUE:status\|default:open}}` |
 | A large, multi-line text box | [`\|type:multiline`](/docs/FormatSyntax/#value-multiline) | `{{VALUE:notes\|type:multiline}}` |
 | A number, slider, or checkbox | [`\|type:number` and friends](/docs/FormatSyntax/#value-property-types) | `{{VALUE:rating\|type:slider\|min:0\|max:10}}` |
@@ -59,9 +68,10 @@ The full reference for every flag lives in [Format Syntax](/docs/FormatSyntax/).
 
 Good to know:
 
-- `|label:` works on `{{VALUE}}` placeholders and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers, not on `{{VDATE}}` or `{{FIELD}}`. On a plain text prompt the label shows as helper text below the title; on a pick list it becomes the placeholder.
+- `|label:` works on `{{VALUE}}` placeholders, [`{{VDATE:...}}`](/docs/FormatSyntax/#vdate-label) dates, [`{{FIELD:...}}`](/docs/FormatSyntax/#field-label) suggestions, and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers. It names the prompt: it titles a text or date prompt in place of the variable name, names the field in the one-page form, and becomes a pick list's placeholder. The variable name still identifies the answer for reuse. A FIELD label also titles the text prompt you get when the property has no values yet.
 - `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use multi-line input prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
 - `|type:` flags only work on single-value placeholders. A pick list ignores them.
+- Date prompts and the one-page form's date fields have a calendar button at the end of the text box. It hides or shows the calendar, and every later date prompt opens the same way.
 
 ## Make a prompt skippable {#optional-prompts}
 
@@ -72,6 +82,8 @@ Add [`|optional`](/docs/FormatSyntax/#optional-fields) to let a prompt be left b
 ```
 
 An optional prompt gains a **Skip** button and treats an empty submission as the answer, so you are not asked again later in the run. `|optional` works on `{{VALUE}}` placeholders, option lists, `{{VDATE}}`, and `{{FILE}}`.
+
+![The date prompt for the due variable of an Add task to inbox Capture. "next fri" is typed, the calendar highlights Friday 2 October 2026, and the preview reads "📅 2026-10-02". Because the placeholder is optional, the prompt shows a hint and a Skip button next to Cancel and Ok](./Images/date-prompt.png)
 
 Skipping is an answer; pressing **Esc** still cancels the whole choice. If the same variable appears in several places, put `|optional` on every occurrence - that is the one spelling that behaves the same in both the sequential prompts and the one-page form.
 
@@ -86,11 +98,13 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 | One-page input form | `Ctrl/Cmd+Enter` | `Tab` moves between fields |
 | Any optional prompt | | `Ctrl/Cmd+Shift+Enter` skips |
 
-`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** in [settings](/docs/Settings/#notifications).
+`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** under [Settings → QuickAdd → Advanced](/docs/Settings/#advanced-notifications) (QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab).
 
 ## Peek at the note {#peek}
 
 Single-line and multi-line text prompts, plus the one-page input form, can get out of the way so you can read or select text in the open note, then come back to the same draft.
+
+![A Capture's task prompt holds the draft "Ask Jonas to ". Clicking Peek at note hides the prompt and shows a "QuickAdd is waiting" chip. Selecting "prototype the contact form" in the meeting note and clicking Insert brings the prompt back with "Ask Jonas to prototype the contact form", and Ok captures it to the Inbox](./Images/peek-at-note.gif)
 
 - **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run. On the one-page form, it hides the whole form. Everything in the prompt survives the peek: the draft, its undo history, a paste still saving, even the text you had selected in the field.
 - A chip stays on screen: **Insert selection** replaces the field's selection (or drops in at the caret) and returns, **Return** comes back as-is, and **Cancel** aborts the run. On the one-page form, **Insert selection** uses the last text field you focused, or the first text field if you have not focused one. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode, and your other Obsidian hotkeys keep working while the chip is up.
@@ -114,6 +128,27 @@ Rather than answering prompts one at a time, QuickAdd can collect everything in 
 - Cancelling the form cancels the whole run, exactly like cancelling a sequential prompt.
 
 The full behavior - what is collected, date parsing, defaults, and script-declared inputs - is documented in [One-page Inputs](/docs/Advanced/onePageInputs/).
+
+## Style pickers with CSS {#style-pickers-with-css}
+
+_Requires QuickAdd 2.28.0 or later._
+
+QuickAdd's pickers are standard Obsidian pickers, so they open near the top of the window like the command palette, while text prompts open in the middle. To change that, target these classes from a [CSS snippet](https://obsidian.md/help/snippets):
+
+| Class | Picker |
+| --- | --- |
+| `qa-choice-suggester` | The QuickAdd launcher and Multi choices |
+| `qa-suggester` | Single-value pick lists such as `{{VALUE:a,b,c}}`, the note picker for Template choices that look for existing notes, and `quickAddApi.suggester` in scripts |
+
+For example, this centers QuickAdd's pickers on desktop and leaves the command palette and other plugins alone:
+
+```css
+body:not(.is-mobile) .prompt:is(.qa-choice-suggester, .qa-suggester) {
+	top: auto;
+}
+```
+
+A centered picker re-centers as you type, so the search box moves a little when the list gets shorter.
 
 ## For script authors {#for-script-authors}
 

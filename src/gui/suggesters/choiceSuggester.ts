@@ -13,7 +13,7 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
-import { t } from "../../i18n";
+import type { ChoiceChain } from "../../engine/choiceChain";
 import { createRenderFallbackWarner } from "./utils";
 import { isCancellationError, reportUnlessCancelled, toError } from "../../utils/errorUtils";
 import { promptCancelled } from "../../errors/UserCancelError";
@@ -36,6 +36,14 @@ import { createOwnedElement } from "../../utils/activeWindow";
 const backLabel = "← Back";
 
 /**
+ * Search hint for the launcher's input. Every Obsidian picker labels its own;
+ * QuickAdd's rendered completely blank, which reads as an unfinished surface
+ * (issue #1540). Nested levels override this with the folder's name or its
+ * custom placeholder.
+ */
+const DEFAULT_PLACEHOLDER = "Select a choice";
+
+/**
  * Shared wording for "you opened a folder that has nothing in it", so the
  * picker's drill-down and the command/URI execute path (choiceExecutor) say the
  * same thing.
@@ -54,13 +62,8 @@ export function emptyFolderNoticeText(folder: IChoice): string {
  * Trailing marker on a folder row the picker cannot drill into. Same word the
  * settings tree already uses for this exact state ("Empty — add a choice or drag
  * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
- *
- * Computed lazily via folderFlairFor so the locale module has been initialized
- * by the time the user sees it — a module-level t() call would freeze English.
  */
-function emptyFolderFlair(): string {
-	return t("choiceSuggester.emptyFlair");
-}
+const EMPTY_FOLDER_FLAIR = "Empty";
 
 /**
  * The same marker for a folder the picker cannot drill into because its contents
@@ -68,16 +71,14 @@ function emptyFolderFlair(): string {
  * contradict the settings list, which says the contents are still in data.json
  * (#1566).
  */
-function unreadableFolderFlair(): string {
-	return t("choiceSuggester.unreadableFlair");
-}
+const UNREADABLE_FOLDER_FLAIR = "Unreadable";
 
 /** The trailing marker for a folder row that cannot be opened, or "" for one that can. */
 export function folderFlairFor(choice: IChoice): string {
 	if (!isEmptyFolderChoice(choice)) return "";
 	return hasUnreadableChildren(choice)
-		? unreadableFolderFlair()
-		: emptyFolderFlair();
+		? UNREADABLE_FOLDER_FLAIR
+		: EMPTY_FOLDER_FLAIR;
 }
 
 /**
@@ -181,6 +182,12 @@ type ChoiceSuggesterOptions = {
 	 * caller waiting and stays fire-and-forget.
 	 */
 	completion?: (error?: Error) => void;
+	/**
+	 * Chain of the folder run that opened this picker, so the picked choice runs
+	 * inside it. Set with `completion` by ChoiceExecutor's Multi path; absent for
+	 * the top-level launcher.
+	 */
+	ancestry?: ChoiceChain;
 };
 
 /**
@@ -208,6 +215,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
 	private readonly completion?: ChoiceSuggesterOptions["completion"];
+	private readonly ancestry?: ChoiceChain;
 	/**
 	 * Set the moment an activation is accepted (selectSuggestion, BEFORE the
 	 * modal closes), so onClose can tell a dismissal from a pick:
@@ -227,7 +235,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// long-lived plugin instance.
 	private readonly markdownComponent = new Component();
 	private readonly warnRenderFailure = createRenderFallbackWarner(
-		t("choiceSuggester.couldNotRenderName"),
+		"Could not render a choice name as Markdown; showing it as plain text",
 	);
 
 	public static Open(
@@ -244,6 +252,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		options?: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
+		// `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
+		this.modalEl.addClass("qa-choice-suggester");
 		// Initialize here (not as a field initializer) so the `plugin` parameter
 		// property is already assigned; a field initializer runs before it.
 		this.choiceExecutor =
@@ -261,12 +271,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.completion = options?.completion;
+		this.ancestry = options?.ancestry;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
-		this.currentPlaceholder =
-			options?.placeholder?.trim() ||
-			t("choiceSuggester.defaultPlaceholder");
+		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
@@ -511,7 +520,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				runTemplateFromFolder(this.app, this.plugin, {
 					choiceExecutor: this.choiceExecutor,
 				}),
-				t("choiceSuggester.couldNotRunTemplate"),
+				"Could not run a template from that folder",
 			);
 			return;
 		}
@@ -535,8 +544,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						item,
 						this.focusedProperty,
 						this.triggerContext,
+						this.ancestry,
 					)
-				: this.choiceExecutor.execute(item);
+				: this.choiceExecutor.execute(item, this.ancestry);
 			this.settleCompletion(execute, `Could not run "${item.name}"`);
 		}
 	}
@@ -585,6 +595,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// Hand the awaiting run down through every drill-down/Back level; only
 			// the terminal action settles it.
 			completion: this.completion,
+			ancestry: this.ancestry,
 		});
 	}
 }

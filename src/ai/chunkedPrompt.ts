@@ -8,11 +8,11 @@ import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
 import { log } from "src/logger/logManager";
 import {
 	GLOBAL_VAR_REGEX,
-	INLINE_JAVASCRIPT_REGEX,
 	MACRO_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
+import { findInlineScriptSpans } from "src/formatters/helpers/inlineScriptSpans";
 import { transformCase } from "src/utils/caseTransform";
 import { outputVariables, trackPrompt } from "./promptProgress";
 
@@ -176,7 +176,7 @@ function templateHasDynamicExpansionSite(template: string): boolean {
 		TEMPLATE_REGEX.test(template) ||
 		MACRO_REGEX.test(template) ||
 		GLOBAL_VAR_REGEX.test(template) ||
-		INLINE_JAVASCRIPT_REGEX.test(template)
+		findInlineScriptSpans(template).length > 0
 	);
 }
 
@@ -199,7 +199,7 @@ function removeChunkProbeFromRenderedPrompt(renderedPrompt: string): string {
 function assertWithinChunkBudget(count: number): void {
 	if (count > MAX_CHUNKED_PROMPTS) {
 		throw new Error(
-			`QuickAdd would split this chunked AI request into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
+			`This chunked AI request would split into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
 		);
 	}
 }
@@ -490,7 +490,8 @@ export async function ChunkedPrompt(
 			model,
 			provider,
 			systemPrompt,
-			modelOptions
+			modelOptions,
+			!settings.showAssistantMessages
 		);
 
 		const promptingMsg = [
@@ -601,8 +602,7 @@ export async function ChunkedPrompt(
 
 		return outputVariables(outputVariable, output);
 	} catch (error) {
-		notice.setMessage("dead", (error as { message: string }).message);
-		window.setTimeout(() => notice.hide(), 5000);
+		notice.fail(error);
 		// No user input in this function - re-throw original error
 		throw error;
 	}

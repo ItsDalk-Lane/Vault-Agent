@@ -2,9 +2,9 @@
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
+import { satteri } from "@astrojs/markdown-satteri";
 import starlight from "@astrojs/starlight";
 import starlightLlmsTxt from "starlight-llms-txt";
-import remarkHeadingId from "./plugins/remark-heading-id.mjs";
 
 /**
  * Every docs page must pin its URL with `slug:` frontmatter - without it,
@@ -41,7 +41,9 @@ export default defineConfig({
 	// output dir), so keep emitting there.
 	outDir: "./build",
 	markdown: {
-		remarkPlugins: [remarkHeadingId],
+		// `## Heading {#custom-id}` anchors, kept from the Docusaurus site so
+		// inbound links keep working.
+		processor: satteri({ features: { headingAttributes: true } }),
 	},
 	image: {
 		// Some screen-recording GIFs exceed sharp's default pixel safety limit
@@ -89,6 +91,9 @@ export default defineConfig({
 			customCss: ["./src/styles/custom.css"],
 			components: {
 				PageTitle: "./src/components/PageTitle.astro",
+				// Renders the "Get this workflow" package card on pages that set
+				// `package:` in their frontmatter.
+				MarkdownContent: "./src/components/MarkdownContent.astro",
 			},
 			head: [
 				{
@@ -156,6 +161,7 @@ export default defineConfig({
 							label: "Template Examples",
 							items: [
 								{ label: "Add an inbox item", slug: "docs/Examples/Template_AddAnInboxItem" },
+								{ label: "Meeting notes and project updates", slug: "docs/Examples/Template_MeetingNotes" },
 								{ label: "Create an MOC note with a link dashboard", slug: "docs/Examples/Template_CreateMOCNoteWithLinkDashboard" },
 								{ label: "Automatic book notes from Readwise", slug: "docs/Examples/Template_AutomaticBookNotesFromReadwise" },
 							],
@@ -166,6 +172,8 @@ export default defineConfig({
 								{ label: "Book finder", slug: "docs/Examples/Macro_BookFinder" },
 								{ label: "Movie & series notes", slug: "docs/Examples/Macro_MovieAndSeriesScript" },
 								{ label: "Log a book to your daily journal", slug: "docs/Examples/Macro_LogBookToDailyJournal" },
+								{ label: "Capture to your inbox with GPS", slug: "docs/Examples/Macro_CaptureInboxGps" },
+								{ label: "Brain dump several entries in a row", slug: "docs/Examples/Macro_BrainDump" },
 								{ label: "Change properties in daily notes", slug: "docs/Examples/Macro_ChangePropertyInDailyNotes" },
 								{ label: "Move notes with a tag to a folder", slug: "docs/Examples/Macro_MoveNotesWithATagToAFolder" },
 								{ label: "Zettelizer", slug: "docs/Examples/Macro_Zettelizer" },

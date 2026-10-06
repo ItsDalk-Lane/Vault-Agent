@@ -55,6 +55,16 @@ export class ButtonComponent extends BaseComponent {
     return this;
   }
 
+  setWarning(): this {
+    this.buttonEl.classList.add("mod-warning");
+    return this;
+  }
+
+  setDestructive(): this {
+    this.buttonEl.classList.add("mod-destructive");
+    return this;
+  }
+
   // Mirrors Obsidian: BaseComponent tracks the flag, the native button carries
   // it, and the tooltip is driven by aria-label (a delegated pointerover handler).
   setDisabled(disabled: boolean): this {
@@ -204,6 +214,10 @@ export class DropdownComponent extends BaseComponent {
     return this;
   }
 
+  getValue(): string {
+    return this.selectEl.value;
+  }
+
   onChange(cb: (value: string) => void): this {
     this.selectEl.addEventListener("change", () => cb(this.selectEl.value));
     return this;
@@ -236,6 +250,13 @@ export class TextComponent extends BaseComponent {
   onChange(cb: (value: string) => void): this {
     this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
     return this;
+  }
+}
+
+export class SearchComponent extends TextComponent {
+  constructor(containerEl: HTMLElement) {
+    super(containerEl);
+    this.inputEl.type = "search";
   }
 }
 
@@ -357,6 +378,11 @@ export class Setting {
     return this;
   }
 
+  addSearch(cb: (component: SearchComponent) => any): this {
+    cb(new SearchComponent(this.controlEl));
+    return this;
+  }
+
   addTextArea(cb: (component: TextAreaComponent) => any): this {
     cb(new TextAreaComponent(this.controlEl));
     return this;
@@ -379,14 +405,37 @@ export class Setting {
     this.components.push(component);
     return this;
   }
+
+  addExtraButton(cb: (component: ExtraButtonComponent) => any): this {
+    cb(new ExtraButtonComponent(this.controlEl));
+    return this;
+  }
 }
 
+// Obsidian 1.11+: groupEl > [headerEl, listEl]. Settings added through
+// addSetting land in listEl, and header controls (search, extra buttons) in
+// headerEl, as in the real app.
 export class SettingGroup {
   groupEl: HTMLElement;
+  headerEl: HTMLElement;
+  listEl: HTMLElement;
 
   constructor(containerEl: HTMLElement) {
     this.groupEl = document.createElement("div");
+    this.headerEl = document.createElement("div");
+    this.listEl = document.createElement("div");
+    this.groupEl.append(this.headerEl, this.listEl);
     containerEl.appendChild(this.groupEl);
+  }
+
+  addSearch(cb: (component: SearchComponent) => any): this {
+    cb(new SearchComponent(this.headerEl));
+    return this;
+  }
+
+  addExtraButton(cb: (component: ExtraButtonComponent) => any): this {
+    cb(new ExtraButtonComponent(this.headerEl));
+    return this;
   }
 
   setHeading(text: string | DocumentFragment): this {
@@ -396,19 +445,37 @@ export class SettingGroup {
     } else {
       headingEl.appendChild(text);
     }
-    this.groupEl.appendChild(headingEl);
+    this.headerEl.prepend(headingEl);
     return this;
   }
 
-  addClass(cls: string): this {
-    this.groupEl.classList.add(cls);
+  addClass(...classes: string[]): this {
+    this.groupEl.classList.add(...classes);
     return this;
   }
 
   addSetting(cb: (setting: Setting) => void): this {
-    cb(new Setting(this.groupEl));
+    cb(new Setting(this.listEl));
     return this;
   }
+}
+
+// Obsidian 1.13 sub-page: rootEl > [titlebarEl, containerEl].
+export abstract class SettingPage {
+  rootEl: HTMLElement;
+  titlebarEl: HTMLElement;
+  containerEl: HTMLElement;
+  title = "";
+
+  constructor() {
+    this.rootEl = document.createElement("div");
+    this.titlebarEl = document.createElement("div");
+    this.containerEl = document.createElement("div");
+    this.rootEl.append(this.titlebarEl, this.containerEl);
+  }
+
+  abstract display(): void;
+  hide(): void {}
 }
 
 // Ensure window and global moment are available
@@ -502,6 +569,8 @@ export class PluginSettingTab {
 
   display() {}
   hide() {}
+  update() {}
+  refreshDomState() {}
 }
 
 export class TFile { 
@@ -527,7 +596,11 @@ export class MarkdownView {
   file?: any;
 }
 
-export class FileView {
+export class View {
+  leaf: any;
+}
+
+export class FileView extends View {
   file?: any;
 }
 
@@ -540,6 +613,7 @@ export class WorkspaceLeaf {
 
 export class FuzzySuggestModal<T = unknown> {
   app: any;
+  modalEl: HTMLElement;
   inputEl: HTMLInputElement;
   limit?: number;
   emptyStateText?: string;
@@ -550,6 +624,7 @@ export class FuzzySuggestModal<T = unknown> {
 
   constructor(app: any) {
     this.app = app;
+    this.modalEl = document.createElement("div");
     this.inputEl = document.createElement("input");
     this.chooser = { values: [], selectedItem: 0 };
   }
@@ -653,13 +728,73 @@ export const Modal = class {
 	close() {
 		(this as any).onClose?.();
 		this.containerEl.remove();
+		this.closeCallback?.();
+	}
+
+	closeCallback?: () => unknown;
+
+	setTitle(title: string) {
+		this.titleEl.textContent = title;
+		return this;
+	}
+
+	setContent(content: string) {
+		this.contentEl.textContent = content;
+		return this;
+	}
+
+	setCloseCallback(callback: () => unknown) {
+		this.closeCallback = callback;
+		return this;
 	}
 
 	// Real Obsidian's Modal defines no-op lifecycle hooks, so subclasses may
 	// call super.onOpen()/super.onClose() (ChoiceBuilder.onClose does).
 	onOpen() {}
 	onClose() {}
+
+	// Like Obsidian's: Esc closes the modal unless the event was handled.
+	onEscapeKey(evt: KeyboardEvent) {
+		if (evt.defaultPrevented) return;
+		evt.preventDefault();
+		this.close();
+	}
 };
+
+/** Like Obsidian's: a button closes the modal after its handler, unless the handler returns truthy. */
+export class ConfirmationModal extends Modal {
+	buttonContainerEl: HTMLElement;
+
+	constructor(app: any) {
+		super(app);
+		this.buttonContainerEl = document.createElement("div");
+		this.buttonContainerEl.className = "modal-button-container";
+		this.modalEl.appendChild(this.buttonContainerEl);
+	}
+
+	addButton(cb: (button: ButtonComponent & { setInitialFocus(): any; setCancel(): any }) => unknown) {
+		const button = new ButtonComponent(this.buttonContainerEl) as any;
+		let handler: () => unknown = () => undefined;
+		button.onClick = (next: () => unknown) => {
+			handler = next;
+			return button;
+		};
+		button.setInitialFocus = () => button;
+		button.setCancel = () => {
+			button.buttonEl.classList.add("mod-cancel");
+			return button;
+		};
+		button.buttonEl.addEventListener("click", () => {
+			if (!handler()) this.close();
+		});
+		cb(button);
+		return this;
+	}
+
+	addCancelButton(text = "Cancel") {
+		return this.addButton((button) => button.setButtonText(text).setCancel());
+	}
+}
 
 export const Scope = class {
   callbacks = new Map<string, (event: any) => unknown>();
@@ -861,13 +996,16 @@ export function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
-// Minimal debounce for tests: execute immediately.
+// Minimal debounce for tests: execute immediately, so nothing is ever pending.
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   _wait: number,
   _resetTimer?: boolean,
-): T {
-  return fn;
+): T & { cancel(): void; run(): void } {
+  return Object.assign((...args: Parameters<T>) => fn(...args), {
+    cancel() {},
+    run() {},
+  }) as T & { cancel(): void; run(): void };
 }
 
 // Standalone setIcon (used by ObsidianIcon.svelte and choiceBuilder.ts).
@@ -957,18 +1095,33 @@ export const Platform = {
 };
 
 // Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
-// Returns a SearchResult-like object when q is a case-insensitive substring of
-// the text, else null — enough for filter tests. The single match range covers
-// the first substring hit; scores are always 0. Do NOT assert true fuzzy
-// (subsequence) semantics or graded scores against this stub.
+// Approximates Obsidian's fuzzy scorer tiers: exact match, then prefix, then
+// word start, then substring, then a gapped subsequence (one range per
+// character); null otherwise. Case-insensitive like the real one. The tier
+// scores mimic the real magnitudes (contiguous matches within ~0.1 of 0,
+// gapped ones around -1) but are invented, so assert relative order and the
+// raw score rather than exact numbers; the real ranking is covered by the
+// one-page suggester E2E test.
 export function prepareFuzzySearch(query: string) {
   const q = query.toLowerCase();
-  return (text: string) => {
-    if (q.length === 0) return { score: 0, matches: [] as Array<[number, number]> };
-    const idx = text.toLowerCase().indexOf(q);
-    return idx >= 0
-      ? { score: 0, matches: [[idx, idx + q.length]] as Array<[number, number]> }
-      : null;
+  return (text: string): { score: number; matches: Array<[number, number]> } | null => {
+    if (q.length === 0) return { score: 0, matches: [] };
+    const lower = text.toLowerCase();
+    const idx = lower.indexOf(q);
+    if (idx >= 0) {
+      const wordStart = idx === 0 || /[^\p{L}\p{N}]/u.test(lower[idx - 1]);
+      const score = lower === q ? 0 : idx === 0 ? -0.01 : wordStart ? -0.02 : -0.1;
+      return { score, matches: [[idx, idx + q.length]] };
+    }
+    const matches: Array<[number, number]> = [];
+    let from = 0;
+    for (const ch of q) {
+      const at = lower.indexOf(ch, from);
+      if (at < 0) return null;
+      matches.push([at, at + 1]);
+      from = at + 1;
+    }
+    return { score: -1, matches };
   };
 }
 
@@ -980,6 +1133,38 @@ export function prepareFuzzySearch(query: string) {
  */
 export function getLanguage(): string {
   return "en";
+}
+
+// Obsidian reads `alias` or `aliases`, any case; a string is one alias.
+export function parseFrontMatterAliases(frontmatter: any | null): string[] | null {
+  if (!frontmatter) return null;
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (!/^aliases?$/i.test(key)) continue;
+    const list = (Array.isArray(value) ? value : [value]).filter(
+      (alias): alias is string => typeof alias === "string" && alias.trim().length > 0,
+    );
+    return list.length ? list : null;
+  }
+  return null;
+}
+
+export function sortSearchResults(results: Array<{ match: { score: number } }>): void {
+  results.sort((a, b) => b.match.score - a.match.score);
+}
+
+// Like Obsidian's: `offset` is added to each range, and ranges outside `text` are dropped.
+export function renderMatches(el: HTMLElement, text: string, matches: Array<[number, number]> | null, offset = 0): void {
+  let at = 0;
+  for (const [rangeStart, rangeEnd] of matches ?? []) {
+    const start = Math.max(0, rangeStart + offset);
+    const end = rangeEnd + offset;
+    if (end <= 0) continue;
+    if (start >= text.length) break;
+    if (start > at) el.appendText(text.slice(at, start));
+    el.createSpan({ cls: "suggestion-highlight", text: text.slice(start, end) });
+    at = end;
+  }
+  if (at < text.length) el.appendText(text.slice(at));
 }
 
 // Minimal FileSystemAdapter so the symlink/realpath write guard
@@ -1018,13 +1203,16 @@ export default {
   PluginSettingTab,
   Setting,
   SettingGroup,
+  SettingPage,
   TFile,
   TFolder,
   MarkdownView,
+  View,
   FileView,
   WorkspaceLeaf,
   FuzzySuggestModal,
   Modal,
+  ConfirmationModal,
   Menu,
   MenuItem,
   Scope,
@@ -1038,6 +1226,9 @@ export default {
   debounce,
   setIcon,
   prepareFuzzySearch,
+  parseFrontMatterAliases,
+  sortSearchResults,
+  renderMatches,
   Platform,
   getLanguage,
 };

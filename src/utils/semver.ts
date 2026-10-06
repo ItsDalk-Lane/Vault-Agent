@@ -4,7 +4,7 @@
  * and build metadata suffixes (e.g., "2.7.0-beta.1", "2.7.0+123").
  */
 
-export interface ParsedVersion {
+interface ParsedVersion {
 	major: number;
 	minor: number;
 	patch: number;
@@ -89,3 +89,11 @@ export function isMajorUpdate(
 	return current.major > previous.major;
 }
 
+
+/**
+ * Orders two parsed versions: negative if `a` is older than `b`, positive if
+ * newer, 0 if equal.
+ */
+export function compareSemver(a: ParsedVersion, b: ParsedVersion): number {
+	return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
+}

@@ -2,6 +2,7 @@
 title: "Capture: Canvas Capture"
 description: Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking
 slug: docs/Examples/Capture_CanvasCapture
+package: canvas-capture
 ---
 
 You end up with a Capture choice that writes into an Obsidian Canvas: either the
@@ -26,6 +27,8 @@ Good fits:
 
 ## Capture to the selected card
 
+Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
+
 1. Create a Capture choice.
 2. Enable **Capture to active file**.
 3. Open a Canvas file.
@@ -33,6 +36,8 @@ Good fits:
 5. Set **Write position** to **Top of file (after frontmatter)**,
    **Bottom of file**, or **After line…** / **Before line…**.
 6. Run the Capture choice.
+
+![Selecting the Contact flow card on a Website brainstorm canvas, running QuickAdd: Run, and picking an Add idea to card Capture that has Capture to active file on, Write position set to Bottom of file, and the format "- {{VALUE}}". After typing "Add a map with the studio address", the text appears as a new bullet at the bottom of the selected card](../Images/examples/canvas-capture-selected-card.gif)
 
 Supported selected-card targets:
 
@@ -75,7 +80,7 @@ If **Capture to active file** is enabled and the write position is still
 
 ## Link-to-captured-file behavior
 
-When **Link to captured file** is set to **Enabled (requires active file)** and
+When **Link to captured file** is set to **Enabled (strict)** and
 capture runs from a Canvas card without a focused Markdown editor, the capture
 still writes. QuickAdd skips link insertion because there is no active Markdown
 file to link from.

@@ -27,7 +27,7 @@ const REPEAT_WINDOW_MS = 10_000;
 /** Bound the dedupe map so a pathological run cannot grow it without limit. */
 const MAX_TRACKED = 50;
 
-export interface UnhandledRejectionReporterHost {
+interface UnhandledRejectionReporterHost {
 	manifest: { id: string };
 	registerDomEvent(
 		el: Window,
@@ -130,9 +130,12 @@ export function registerUnhandledRejectionReporter(
 		if (attribution?.pluginId !== pluginId) return;
 
 		// A dismissed prompt is not a failure. It reaches here when a handler floats a
-		// prompt (e.g. the macro editor's script picker), and telling the user "an
-		// error occurred" because they pressed Escape would be worse than the silence
-		// this replaces.
+		// prompt, and telling the user "an error occurred" because they pressed Escape
+		// would be worse than the silence this replaces.
+		//
+		// This is a backstop, not the fix: Obsidian's `dev:errors` buffer records the
+		// rejection before this listener runs and ignores preventDefault(). Code that
+		// floats a prompt should catch the dismissal itself (reportingHandler).
 		//
 		// Only a USER cancellation is silenced, not every MacroAbortError. Its other
 		// subclass, ChoiceAbortError, is how QuickAdd reports involuntary aborts that

@@ -31,6 +31,11 @@ export interface AIProvider {
 	modelSource: ModelDiscoveryMode;
 	/** Wire protocol. Optional for back-compat; inferred when absent (see getProviderKind). */
 	kind?: ProviderKind;
+	/**
+	 * Outcome of the most recent model sync (auto or manual), shown under the
+	 * provider's Auto-sync setting. `error` is set only when that sync failed.
+	 */
+	lastModelSync?: { at: number; error?: string };
 }
 
 /**
@@ -58,6 +63,27 @@ export function getProviderKind(provider: {
 		return "gemini";
 	}
 	return "openai";
+}
+
+/**
+ * The request format a tool/agent turn is sent in. OpenAI's own API gets the
+ * Responses API: its newest models (gpt-6-*, gpt-5.6-*) reason by default and
+ * reject function tools on Chat Completions (verified live 2026-09-26: "use
+ * /v1/responses or set reasoning_effort to 'none'"). OpenAI-compatible
+ * third-party endpoints keep Chat Completions, the format they all implement.
+ */
+export type ChatWire = ProviderKind | "openai-responses";
+
+export function getChatWire(provider: {
+	kind?: ProviderKind;
+	name?: string;
+	endpoint?: string;
+}): ChatWire {
+	const kind = getProviderKind(provider);
+	if (kind === "openai" && endpointHost(provider.endpoint) === "api.openai.com") {
+		return "openai-responses";
+	}
+	return kind;
 }
 
 /** Lowercased hostname of an endpoint, or "" if it can't be parsed (scheme optional). */
@@ -178,6 +204,37 @@ export interface Model {
 	 * unsupported-parameter recovery instead.
 	 */
 	supportsTemperature?: boolean;
+	/** Release date (YYYY-MM-DD) from model metadata; orders lists newest first. */
+	releaseDate?: string;
+	/**
+	 * True when the model directory marks the model deprecated upstream. Sync
+	 * never adds such models and never removes them either; the provider
+	 * settings badge them and offer a one-click cleanup.
+	 */
+	deprecated?: boolean;
+}
+
+/**
+ * Display order for model lists and pickers: current models before retired
+ * ones, newest release first, and models without a date (usually added by
+ * hand) after dated ones in their stored order. Returns a new array.
+ */
+export function sortModelsForDisplay<T extends Model>(models: readonly T[]): T[] {
+	return models
+		.map((model, index) => ({ model, index }))
+		.sort((a, b) => {
+			const retired = Number(!!a.model.deprecated) - Number(!!b.model.deprecated);
+			if (retired !== 0) return retired;
+			const aDate = a.model.releaseDate ?? "";
+			const bDate = b.model.releaseDate ?? "";
+			if (aDate !== bDate) {
+				if (!aDate) return 1;
+				if (!bDate) return -1;
+				return aDate < bDate ? 1 : -1;
+			}
+			return a.index - b.index;
+		})
+		.map(({ model }) => model);
 }
 
 /**
@@ -185,18 +242,31 @@ export interface Model {
  * offline fallback: live discovery (models.dev / the provider's models endpoint)
  * is the source of truth, and auto-sync keeps lists current without plugin
  * releases. Each entry below was verified live (directory metadata + a real
- * completion) on 2026-07-07. When touching this table, re-verify against
- * https://models.dev/api.json and the provider APIs — never add ids from memory.
+ * completion) on 2026-07-07. Refreshed 2026-09-26: the OpenAI list was
+ * re-verified live (listed by /v1/models, a real completion, and a completion
+ * with temperature to confirm supportsTemperature); the Google and Anthropic
+ * additions come from models.dev metadata cross-checked against the vendors'
+ * model/deprecation docs, without a live completion (no key was available).
+ * When touching this table, re-verify against https://models.dev/api.json and
+ * the provider APIs — never add ids from memory.
  */
 export const CURRENT_MODEL_SEEDS: Record<
 	"openai" | "google" | "anthropic",
 	Model[]
 > = {
 	openai: [
+		{ name: "gpt-6-sol", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-6-luna", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-6-astra", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-sol", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-luna", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-terra", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "gpt-5.5", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4-mini", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4-nano", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		// The gpt-5.4 family accepts temperature (live 200 with temperature: 0.5,
+		// matching models.dev); only gpt-5.5 and newer reject it.
+		{ name: "gpt-5.4", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: true },
+		{ name: "gpt-5.4-mini", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: true },
+		{ name: "gpt-5.4-nano", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: true },
 		{ name: "gpt-4.1", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
 		{ name: "gpt-4.1-mini", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
 		{ name: "gpt-4o", maxTokens: 128_000, maxOutputTokens: 16_384, supportsTemperature: true },
@@ -205,16 +275,23 @@ export const CURRENT_MODEL_SEEDS: Record<
 		{ name: "o4-mini", maxTokens: 200_000, maxOutputTokens: 100_000, supportsTemperature: false },
 	],
 	google: [
+		{ name: "gemini-3.8-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.7-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.6-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.5-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.1-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.1-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
-		{ name: "gemini-3-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		// gemini-3-pro-preview was shut down 2026-03-09 (the id now aliases
+		// gemini-3.1-pro-preview), so it is no longer seeded.
 		{ name: "gemini-3-flash-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-pro", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 	],
 	anthropic: [
+		{ name: "claude-opus-5-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "claude-fable-5-1", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-fable-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-sonnet-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-opus-4-8", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },

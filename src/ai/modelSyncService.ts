@@ -2,13 +2,13 @@ import type { App } from "obsidian";
 import { log } from "src/logger/logManager";
 import { settingsStore } from "src/settingsStore";
 import { discoverProviderModels } from "./modelDiscoveryService";
-import { mergeModels } from "./modelsDirectory";
+import { mergeSyncedModels } from "./modelsDirectory";
 import type { AIProvider, Model } from "./Provider";
 import { resolveProviderApiKey } from "./providerSecrets";
 
 const AUTO_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-export interface ProviderSyncOutcome {
+interface ProviderSyncOutcome {
 	provider: string;
 	added: number;
 	updated: number;
@@ -16,38 +16,126 @@ export interface ProviderSyncOutcome {
 	error?: string;
 }
 
-function countUpdated(before: Model[], after: Model[]): number {
+/**
+ * How `after` differs from `before`, matched by model name: entries that are
+ * new, and entries whose metadata (context/output/sampling) changed.
+ */
+export function diffModelLists(
+	before: Model[],
+	after: Model[],
+): { added: number; updated: number } {
 	const beforeByName = new Map(before.map((m) => [m.name, JSON.stringify(m)]));
+	let added = 0;
 	let updated = 0;
 	for (const model of after) {
 		const prev = beforeByName.get(model.name);
-		if (prev !== undefined && prev !== JSON.stringify(model)) updated += 1;
+		if (prev === undefined) added += 1;
+		else if (prev !== JSON.stringify(model)) updated += 1;
 	}
-	return updated;
+	return { added, updated };
 }
 
 /**
  * Discover the provider's current models and merge them into its list:
  * new models are appended, existing ones get their context/output/sampling
- * metadata refreshed. Mutates `provider.models`; never removes entries.
+ * metadata refreshed; models marked deprecated upstream are never added.
+ * Mutates `provider.models` and records `provider.lastModelSync` (also on
+ * failure, before rethrowing); never removes entries.
+ * Returns what this call changed plus the discovered list, so callers holding
+ * another copy of the provider (e.g. an edit snapshot) can merge it too.
  */
 export async function syncProviderModels(
 	app: App | undefined,
 	provider: AIProvider,
-): Promise<{ added: number; updated: number }> {
-	const apiKey = await resolveProviderApiKey(app, provider);
-	const discovered = await discoverProviderModels(provider, apiKey);
+): Promise<{ added: number; updated: number; discovered: Model[] }> {
+	let discovered: Model[];
+	try {
+		const apiKey = await resolveProviderApiKey(app, provider);
+		discovered = await discoverProviderModels(provider, apiKey);
+	} catch (err) {
+		provider.lastModelSync = {
+			at: Date.now(),
+			error: syncFailureMessage(err),
+		};
+		throw err;
+	}
 	const before = provider.models;
-	provider.models = mergeModels(provider.models, discovered);
-	return {
-		added: provider.models.length - before.length,
-		updated: countUpdated(before, provider.models),
-	};
+	provider.models = mergeSyncedModels(provider.models, discovered);
+	provider.lastModelSync = { at: Date.now() };
+	return { ...diffModelLists(before, provider.models), discovered };
 }
 
-/** Stable identity for matching a synced provider back into current state. */
+/**
+ * Sync one stored provider and merge the result into the store by id. The
+ * request runs against a detached copy, and the discovered models are merged
+ * into the provider as it is when the request returns, so edits made in the
+ * meantime survive (a model the user deleted comes back only if the source
+ * still lists it). The outcome is recorded in `lastModelSync` either way.
+ * Rethrows on failure; resolves to the discovered models, or null when the
+ * provider was removed before the request returned.
+ */
+export async function syncStoredProvider(
+	app: App | undefined,
+	providerId: string,
+): Promise<Model[] | null> {
+	const stored = settingsStore
+		.getState()
+		.ai.providers.find((p) => p.id === providerId);
+	if (!stored) return null;
+	const copy: AIProvider = {
+		...stored,
+		models: stored.models.map((model) => ({ ...model })),
+	};
+
+	let discovered: Model[] | undefined;
+	let failure: { error: unknown } | undefined;
+	try {
+		({ discovered } = await syncProviderModels(app, copy));
+	} catch (error) {
+		failure = { error };
+	}
+
+	let present = false;
+	settingsStore.setState((current) => ({
+		ai: {
+			...current.ai,
+			providers: current.ai.providers.map((provider) => {
+				if (provider.id !== providerId) return provider;
+				present = true;
+				return {
+					...provider,
+					models: discovered
+						? mergeSyncedModels(provider.models, discovered)
+						: provider.models,
+					lastModelSync: copy.lastModelSync,
+				};
+			}),
+		},
+	}));
+
+	if (failure) throw failure.error;
+	return present ? (discovered ?? []) : null;
+}
+
+/**
+ * Nonempty message for a failed sync. An empty `Error("")` message must not
+ * be stored as `error: ""` — consumers treat that as success via truthiness.
+ */
+function syncFailureMessage(err: unknown): string {
+	const message = (err as Error)?.message;
+	if (typeof message === "string" && message.length > 0) return message;
+	const asString = String(err);
+	return asString.length > 0 ? asString : "Unknown error";
+}
+
+/**
+ * Stable identity for matching a synced provider back into current state.
+ * Prefer the unique provider `id`; fall back to name+endpoint only for
+ * pre-migration data that still lacks one.
+ */
 function providerIdentity(provider: AIProvider): string {
-	return `${(provider.name ?? "").trim().toLowerCase()}\u0000${(
+	if (provider.id) return `id:${provider.id}`;
+	return `ne:${(provider.name ?? "").trim().toLowerCase()}\u0000${(
 		provider.endpoint ?? ""
 	)
 		.trim()
@@ -99,8 +187,10 @@ export async function autoSyncEnabledProviders(
 				provider: copy.name,
 				added: 0,
 				updated: 0,
-				error: (err as Error).message ?? String(err),
+				error: syncFailureMessage(err),
 			});
+			// Carries the failure in lastModelSync so settings can show it.
+			synced.set(providerIdentity(copy), copy);
 		}
 	}
 
@@ -111,14 +201,18 @@ export async function autoSyncEnabledProviders(
 		ai: {
 			...current.ai,
 			// Merge each synced model list into the provider as it exists NOW,
-			// keyed by name+endpoint. Providers the user removed mid-sync stay
-			// removed; providers the user edited keep those edits.
+			// keyed by provider id (name+endpoint only as a pre-id fallback).
+			// Providers the user removed mid-sync stay removed; providers the
+			// user edited keep those edits.
 			providers: current.ai.providers.map((provider) => {
 				const result = synced.get(providerIdentity(provider));
 				if (!result) return provider;
 				return {
 					...provider,
-					models: mergeModels(provider.models, result.models),
+					models: result.lastModelSync?.error
+						? provider.models
+						: mergeSyncedModels(provider.models, result.models),
+					lastModelSync: result.lastModelSync,
 				};
 			}),
 			// A completely failed pass (e.g. Obsidian started offline) must not

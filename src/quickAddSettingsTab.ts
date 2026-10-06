@@ -1,31 +1,29 @@
 import type {
 	App,
+	ButtonComponent,
 	Setting,
+	SettingDefinitionGroup,
 	SettingDefinitionItem,
+	SettingDefinitionList,
 	TextAreaComponent,
 } from "obsidian";
-import {
-	ButtonComponent,
-	ExtraButtonComponent,
-	PluginSettingTab,
-	TextComponent,
-} from "obsidian";
+import { Notice, PluginSettingTab } from "obsidian";
+import { t } from "./i18n";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import ChoicesUnavailable from "./gui/choiceList/ChoicesUnavailable.svelte";
 import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import type { Plain } from "./gui/svelte/persist.svelte";
-import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
+import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
-import {
-	getAllFolderPathsInVault,
-	normalizeTemplateFolderPaths,
-} from "./utilityObsidian";
+import { getAllFolderPathsInVault } from "./utils/vaultQueries";
+import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
+import { syncImportedChoiceCommands } from "./services/packageImportCommands";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
 import {
@@ -38,21 +36,35 @@ import { DOCS_URLS } from "./docs";
 import {
 	createSettingDefinitions,
 	descWithDocsLink,
+	PACKAGES_DESC,
 	type SettingsKey,
 } from "./gui/components/settingsDefinitions";
 import { rootChoicesOf } from "./utils/choiceUtils";
-import { t } from "./i18n";
+import { ensureProviderIds } from "./ai/Provider";
+import {
+	AI_ASSISTANT_PAGE_NAME,
+	aiPageSignature,
+	createAIAssistantPage,
+} from "./gui/ai/aiAssistantSettingsPage";
+import {
+	openQuickAddSettings,
+	tryOpenSettingsPage,
+} from "./utils/openPluginSettings";
+import { storedProviders } from "./gui/ai/aiSettingsState";
+import { isCancellationError } from "./utils/errorUtils";
 
-/** Settings-tab description keys for the Packages row — the "packages" UI is
- * shared by the Packages definition (which is what the settings search indexes)
- * and by the rendered description (which the row rewrites as the export state
- * changes), so the two can never drift. */
-const PACKAGES_DESC_KEY = "settings.packages.desc";
-const PACKAGES_DESC_NEEDS_CHOICE_KEY = "settings.packages.descNeedsChoice";
+const AI_KEY_PREFIX = "ai.";
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
-	private choiceViewHandle: MountHandle | null = null;
+	/**
+	 * The choice list, kept mounted while the tab is shown. Obsidian tears the
+	 * tab down when a settings page opens over it (a choice's settings) and
+	 * renders it again when the page is left. Mounting the list again took
+	 * ~300 ms with 300 choices, and cleared its filter and the control that
+	 * opened the page, so the new row gets the same list instead.
+	 */
+	private choiceView: { el: HTMLElement; handle: MountHandle } | null = null;
 	private globalVariablesViewHandle: MountHandle | null = null;
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
@@ -61,6 +73,64 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.icon = "zap";
+
+		// The AI pages address providers by id. Migrations assign ids, but a
+		// hand-edited data.json can still hold a provider without one, or two
+		// providers claiming the same one.
+		const withIds = storedProviders().map((provider) => ({ ...provider }));
+		if (ensureProviderIds(withIds)) {
+			settingsStore.setState((state) => ({
+				ai: { ...state.ai, providers: withIds },
+			}));
+		}
+
+		// Declarative definitions are a snapshot: Obsidian re-renders from them
+		// until update() rebuilds them. Rebuild when the AI page's provider
+		// entries or the template folder list change (the way Obsidian's own
+		// Keychain tab follows its secrets), but not on every store write:
+		// update() re-renders the page on screen.
+		const definitionsSignature = (state: QuickAddSettings): string =>
+			JSON.stringify([
+				aiPageSignature(storedProviders(state)),
+				normalizeTemplateFolderPaths(state.templateFolderPaths),
+			]);
+		let signature = definitionsSignature(settingsStore.getState());
+		plugin.register(
+			settingsStore.subscribe((state) => {
+				const next = definitionsSignature(state);
+				if (next === signature) return;
+				signature = next;
+				this.update();
+			}),
+		);
+	}
+
+	/**
+	 * The "Open AI Assistant settings" command: open the settings window on
+	 * this tab, then the AI Assistant page. The page is hidden while AI and
+	 * online features are off, so say so instead of showing it anyway.
+	 */
+	openAIAssistantPageFromCommand(): void {
+		if (settingsStore.getState().disableOnlineFeatures) {
+			new Notice(
+				t("settings.aiAssistantDisabledNotice"),
+			);
+			return;
+		}
+		if (!openQuickAddSettings(this.app, this.plugin.manifest.id)) return;
+		this.openAIAssistantPage();
+	}
+
+	/**
+	 * Settings → QuickAdd → AI Assistant, for the choice list's "Configure AI
+	 * Assistant" buttons, which live on this tab.
+	 */
+	openAIAssistantPage(): void {
+		if (!tryOpenSettingsPage(this.app, this, [AI_ASSISTANT_PAGE_NAME])) {
+			new Notice(
+				t("settings.aiAssistantPageNotFound", { page: AI_ASSISTANT_PAGE_NAME }),
+			);
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -80,6 +150,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	override getControlValue(key: string): unknown {
 		const state = settingsStore.getState();
 
+		if (key.startsWith(AI_KEY_PREFIX)) {
+			const field = key.slice(AI_KEY_PREFIX.length);
+			return state.ai[field as keyof QuickAddSettings["ai"]];
+		}
+
 		// `inputPrompt` is stored as an enum but surfaced as a boolean toggle.
 		if (key === "inputPrompt") {
 			return state.inputPrompt === "multi-line";
@@ -89,6 +164,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override setControlValue(key: string, value: unknown): void {
+		if (key.startsWith(AI_KEY_PREFIX)) {
+			const field = key.slice(AI_KEY_PREFIX.length);
+			settingsStore.setState((state) => ({
+				ai: { ...state.ai, [field]: value },
+			}));
+			return;
+		}
+
 		if (key === "inputPrompt") {
 			settingsStore.setState({
 				inputPrompt: value ? "multi-line" : "single-line",
@@ -109,39 +192,68 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {
-		const groups = createSettingDefinitions({
+		return createSettingDefinitions({
 			choices: (setting) => this.renderChoicesView(setting),
 			packages: (setting) => this.renderPackages(setting),
 			dateAliases: (setting) => this.renderDateAliases(setting),
-			templateFolders: (setting) => this.renderTemplateFolderPaths(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
-		}, __IS_DEV_BUILD__);
+		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
+	}
 
-		// Local i18n wiring with no upstream counterpart: the UI language
-		// selector, injected at the top of the Appearance group so the
-		// upstream declarative definitions in settingsDefinitions.ts stay
-		// untouched. A `preferredLocale` change needs a plugin reload to
-		// take effect — the description tells the user.
-		const appearanceGroup = groups.find(
-			(group) => group.heading === t("settings.appearance.heading"),
-		);
-		appearanceGroup?.items?.unshift({
-			name: t("settings.language.name"),
-			desc: t("settings.language.desc"),
-			control: {
-				type: "dropdown",
-				key: "preferredLocale",
-				defaultValue: "",
-				options: {
-					"": t("settings.language.auto"),
-					en: t("settings.language.en"),
-					"zh-CN": t("settings.language.zh-CN"),
-				},
+	private templateFoldersList(): SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey> {
+		const paths = templateFolderPaths();
+		const addFolder = { name: "Add folder", action: () => void this.addTemplateFolder() };
+		// Settings search indexes items, not a list's heading or empty state, so
+		// with no folder the section is an "Add folder" row that search can find.
+		// It is a group, not an empty list: Obsidian re-renders a section in place
+		// when its type and heading stay the same, and would keep the list's +.
+		const aliases = ["Template folders"];
+		if (paths.length === 0) {
+			return {
+				type: "group",
+				heading: "Template folders",
+				items: [{
+					...addFolder,
+					desc: "No folders yet. QuickAdd suggests templates from the whole vault.",
+					aliases,
+				}],
+			};
+		}
+		return {
+			type: "list",
+			heading: "Template folders",
+			addItem: addFolder,
+			onDelete: (index) => {
+				settingsStore.setState({
+					templateFolderPaths: templateFolderPaths().filter(
+						(folder) => folder !== paths[index],
+					),
+				});
 			},
-		});
+			items: paths.map((folder) => ({ name: folder, aliases })),
+		};
+	}
 
-		return groups;
+	private async addTemplateFolder(): Promise<void> {
+		const added = new Set(templateFolderPaths());
+		const folders = sortFolderPathsByTree(getAllFolderPathsInVault(this.app))
+			.filter((path) => path !== "/" && !added.has(path));
+		let folder: string;
+		try {
+			folder = await GenericSuggester.Suggest(
+				this.app,
+				folders,
+				folders,
+				"Choose a template folder",
+			);
+		} catch (error) {
+			if (isCancellationError(error)) return;
+			throw error;
+		}
+		const paths = templateFolderPaths();
+		if (paths.includes(folder)) return;
+		settingsStore.setState({ templateFolderPaths: [...paths, folder] });
 	}
 
 	override hide(): void {
@@ -156,8 +268,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	private destroySettingViews(): void {
-		this.choiceViewHandle?.destroy();
-		this.choiceViewHandle = null;
+		this.choiceView?.handle.destroy();
+		this.choiceView = null;
 		this.globalVariablesViewHandle?.destroy();
 		this.globalVariablesViewHandle = null;
 		// Safety net for the Packages subscription: the render cleanup already
@@ -190,48 +302,63 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private mountView(
 		setting: Setting,
-		key: "choiceViewHandle" | "globalVariablesViewHandle",
 		mount: (target: HTMLElement) => MountHandle,
 	): () => void {
 		this.prepareFullWidthSetting(setting);
-		this[key]?.destroy();
+		this.globalVariablesViewHandle?.destroy();
 		const handle = mount(setting.controlEl);
-		this[key] = handle;
+		this.globalVariablesViewHandle = handle;
 		// A stale row cleanup must never destroy or clear its replacement.
 		return () => {
 			handle.destroy();
-			if (this[key] === handle) this[key] = null;
+			if (this.globalVariablesViewHandle === handle) this.globalVariablesViewHandle = null;
 		};
 	}
 
 	private renderChoicesView(setting: Setting): () => void {
-		return this.mountView(setting, "choiceViewHandle", (target) =>
-			mountComponent(
-				target,
-				ChoiceView,
-				{
-					app: this.app,
-					plugin: this.plugin,
-					choices: settingsStore.getState().choices,
-					// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
-					// the call site is a COMPILE error here — this is the real persistence sink
-					// that must never receive a live Svelte $state proxy. Plain<T> is assignable
-					// to T, so setState still accepts it.
-					saveChoices: (choices: Plain<IChoice[]>) => {
-						settingsStore.setState({ choices });
-					},
+		this.prepareFullWidthSetting(setting);
+		if (!this.choiceView) {
+			const el = createDiv();
+			const handle = this.mountChoiceView(el);
+			// A failed mount shows its card; try again on the next render.
+			if (!handle.ok) {
+				setting.controlEl.appendChild(el);
+				return () => handle.destroy();
+			}
+			this.choiceView = { el, handle };
+		}
+		const { el } = this.choiceView;
+		setting.controlEl.appendChild(el);
+		return () => el.remove();
+	}
+
+	private mountChoiceView(target: HTMLElement): MountHandle {
+		return mountComponent(
+			target,
+			ChoiceView,
+			{
+				app: this.app,
+				plugin: this.plugin,
+				choices: settingsStore.getState().choices,
+				// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
+				// the call site is a COMPILE error here — this is the real persistence sink
+				// that must never receive a live Svelte $state proxy. Plain<T> is assignable
+				// to T, so setState still accepts it.
+				saveChoices: (choices: Plain<IChoice[]>) => {
+					settingsStore.setState({ choices });
 				},
-				// The choice list is the one view whose failure has a recovery story worth
-				// spelling out (the data.json advice in ChoicesUnavailable), and the same
-				// card the view itself shows when the tree is unreadable — so a mount
-				// failure and a render failure look identical to the user.
-				{ what: "your choices", fallbackComponent: ChoicesUnavailable },
-			),
+				openAISettings: () => this.openAIAssistantPage(),
+			},
+			// The choice list is the one view whose failure has a recovery story worth
+			// spelling out (the data.json advice in ChoicesUnavailable), and the same
+			// card the view itself shows when the tree is unreadable — so a mount
+			// failure and a render failure look identical to the user.
+			{ what: "your choices", fallbackComponent: ChoicesUnavailable },
 		);
 	}
 
 	private renderGlobalVariablesView(setting: Setting): () => void {
-		return this.mountView(setting, "globalVariablesViewHandle", (target) =>
+		return this.mountView(setting, (target) =>
 			mountComponent(
 				target,
 				GlobalVariablesView,
@@ -248,10 +375,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
 		return descWithDocsLink(
 			hasNothingToExport
-				? `${t(PACKAGES_DESC_NEEDS_CHOICE_KEY)} `
-				: `${t(PACKAGES_DESC_KEY)} `,
+				? `${PACKAGES_DESC} Export becomes available once you have a choice. `
+				: `${PACKAGES_DESC} `,
 			DOCS_URLS.packages,
-			t("settings.docs.packagesLink"),
+			"Learn more about packages",
 		);
 	}
 
@@ -280,7 +407,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText(t("settings.packages.importButton")).onClick(() => {
-				new ImportPackageModal(this.app).open();
+				new ImportPackageModal(this.app, {
+					onImported: (result, previousChoices) =>
+						syncImportedChoiceCommands(this.plugin, previousChoices, result),
+				}).open();
 			}),
 		);
 
@@ -346,103 +476,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 
 		setting.addButton((button) => {
-			button
-				.setButtonText(t("settings.items.dateAliases.resetButton"))
-				.onClick(() => {
-					settingsStore.setState({ dateAliases: DEFAULT_DATE_ALIASES });
-					textAreaRef?.setValue(formatDateAliasLines(DEFAULT_DATE_ALIASES));
-				});
+			button.setButtonText(t("settings.items.dateAliases.resetButton")).onClick(() => {
+				settingsStore.setState({ dateAliases: DEFAULT_DATE_ALIASES });
+				textAreaRef?.setValue(formatDateAliasLines(DEFAULT_DATE_ALIASES));
+			});
 			button.buttonEl.addClass("qa-date-alias-reset");
 		});
-	}
-
-	private renderTemplateFolderPaths(setting: Setting): () => void {
-		// Let this row span the full pane (label/desc stacked above a full-width
-		// list) instead of cramming a growing list into the narrow control column.
-		setting.settingEl.addClass("qa-template-folders-setting");
-
-		const container = setting.controlEl.createDiv("qa-template-folders");
-		const listEl = container.createDiv("qa-template-folder-list");
-
-		const getPaths = (): string[] =>
-			normalizeTemplateFolderPaths(settingsStore.getState().templateFolderPaths);
-		const setPaths = (paths: string[]): void => {
-			settingsStore.setState({ templateFolderPaths: paths });
-		};
-
-		const renderList = (): void => {
-			listEl.empty();
-			const paths = getPaths();
-			if (paths.length === 0) {
-				listEl.createDiv({
-					cls: "qa-template-folder-empty",
-					text: t("settings.items.templateFolderPaths.empty"),
-				});
-				return;
-			}
-			for (const folder of paths) {
-				const row = listEl.createDiv("qa-template-folder-row");
-				// title gives desktop a hover tooltip for paths truncated by ellipsis;
-				// on mobile (no hover) the path wraps instead — see styles.css.
-				row.createSpan({
-					cls: "qa-template-folder-name",
-					text: folder,
-					attr: { title: folder },
-				});
-				new ExtraButtonComponent(row)
-					.setIcon("trash-2")
-					.setTooltip(`${t("common.remove")} ${folder}`)
-					.onClick(() => {
-						setPaths(getPaths().filter((f) => f !== folder));
-						renderList();
-					});
-			}
-		};
-
-		const inputRow = container.createDiv("qa-template-folder-input-row");
-		const input = new TextComponent(inputRow);
-		input.setPlaceholder(t("settings.items.templateFolderPaths.placeholder"));
-		input.inputEl.addClass("qa-template-folder-input");
-		const suggester = new GenericTextSuggester(
-			this.app,
-			input.inputEl,
-			sortFolderPathsByTree(getAllFolderPathsInVault(this.app)).filter(
-				(path) => path !== "/",
-			),
-		);
-
-		const addFolder = (): void => {
-			// Store the canonical (normalized) form so "templates" and "templates/"
-			// can't both be added, and dedupe against the existing list.
-			const [folder] = normalizeTemplateFolderPaths([input.inputEl.value]);
-			input.inputEl.value = "";
-			if (!folder) return;
-			const paths = getPaths();
-			if (paths.includes(folder)) return;
-			setPaths([...paths, folder]);
-			renderList();
-		};
-
-		const onKeydown = (e: KeyboardEvent): void => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				addFolder();
-			}
-		};
-		input.inputEl.addEventListener("keydown", onKeydown);
-		new ButtonComponent(inputRow)
-			.setCta()
-			.setButtonText(t("settings.items.templateFolderPaths.addButton"))
-			.onClick(() => addFolder());
-
-		renderList();
-
-		// The suggester registers global (document/window) listeners while open;
-		// tear it down when the row is rebuilt or the tab hides so nothing leaks.
-		return () => {
-			input.inputEl.removeEventListener("keydown", onKeydown);
-			suggester.destroy();
-		};
 	}
 
 	private renderDevInfo(setting: Setting): void {
@@ -455,4 +494,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			dirty: __DEV_GIT_DIRTY__,
 		});
 	}
+}
+
+function templateFolderPaths(): string[] {
+	return normalizeTemplateFolderPaths(settingsStore.getState().templateFolderPaths);
 }

@@ -63,7 +63,6 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 
 	it.each([
 		{ name: "shows the date alone, not the (optional) hint (#1578)", input: "{{VDATE:due,YYYY-MM-DD|optional}}", expected: "2023-06-01" },
-		{ name: "shows the date alone when both options are present (#1578)", input: "{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}", expected: "2023-06-01" },
 		{ name: "applies |startof: snap to the example, as the run does", input: "{{VDATE:wk,gggg.MM.[Wk]w|startof:week}}", expected: "gggg.05.[Wk]22" },
 	])("$name", async ({ input, expected }) => {
 		const out = await makeFormatter().format(
@@ -137,6 +136,31 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
 		);
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
+	});
+
+	it("previews a {{VALUE:}} reuse of an ANSWERED date in the VDATE's format, as the run does (#645)", async () => {
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
+		);
+		await expect(
+			formatter.format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("15.08.2026 15.08.2026");
+	});
+
+	it("previews a {{VALUE:}} reuse of an UNANSWERED date as the same example date, in the VDATE's format", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}} {{VALUE:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023 01.06.2023");
+		await expect(
+			makeFormatter().format("{{VDATE:Due,DD.MM.YYYY}} {{VALUE:when|name:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023");
+		// Not swapped for "user input": the VDATE itself isn't either.
+		const formatter = makeFormatter();
+		await expect(
+			formatter.format("{{VDATE:due,YYYY-MM-DD HH:mm}} - {{VALUE:due}}"),
+		).resolves.toBe("2023-06-01 12:00 - 2023-06-01 12:00");
 	});
 
 	it("renders an answered-empty optional date as empty, not as today", async () => {

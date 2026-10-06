@@ -6,10 +6,6 @@ import { FileIndex } from './FileIndex';
 import { FileSuggester } from './fileSuggester';
 import { renderExactHighlight } from './utils';
 
-vi.mock("@popperjs/core", () => ({
-    createPopper: () => ({ update: vi.fn(), destroy: vi.fn() }),
-}));
-
 beforeEach(() => {
     HTMLElement.prototype.scrollIntoView ??= vi.fn();
 });
@@ -149,6 +145,89 @@ describe('FileSuggester - Issue #838 and #839', () => {
             const topResults = results.slice(0, 2);
             const gbtFiles = topResults.filter(f => f.file.basename.toLowerCase().startsWith('gbt'));
             expect(gbtFiles.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Issue #838 - Unresolved links rank by how well they match', () => {
+        function vaultApp(names: string[], unresolved: string[]) {
+            (FileIndex as any).instance = null;
+            const vaultFiles = names.map(name => createMockFile(`${name}.md`, name.split('/').pop()!));
+            vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(vaultFiles);
+            return {
+                ...mockApp,
+                metadataCache: {
+                    ...mockApp.metadataCache,
+                    unresolvedLinks: {
+                        'Journal/2025-07-05.md': Object.fromEntries(unresolved.map(link => [link, 1])),
+                    },
+                },
+            } as unknown as App;
+        }
+
+        async function searchVault(names: string[], unresolved: string[], query: string, currentFolder?: string) {
+            const index = FileIndex.getInstance(vaultApp(names, unresolved), mockPlugin);
+            await index.ensureIndexed();
+            return index.search(query, { currentFolder }).map(result => result.displayText);
+        }
+
+        it('puts an unresolved prefix match above weak fuzzy matches of existing notes', async () => {
+            const results = await searchVault(
+                ['Ideas/Move Fast', 'Movies/Clover Field', 'Books/Glove Theory', 'Movies/Love Actually'],
+                ['Love Triangle'],
+                'Love T',
+            );
+
+            expect(results[0]).toBe('Love Triangle');
+            // Fuzzy matches are ordered by match quality, not vault order.
+            expect(results.indexOf('Glove Theory')).toBeLessThan(results.indexOf('Move Fast'));
+        });
+
+        it('keeps an existing note ahead of an unresolved link in a better tier', async () => {
+            const results = await searchVault(['Notes/Love'], ['Love Triangle'], 'Love');
+
+            expect(results).toEqual(['Love', 'Love Triangle']);
+        });
+
+        it('does not drop a good unresolved match behind many weaker ones', async () => {
+            const weaker = Array.from({ length: 30 }, (_, i) => `Topic ${i} lo`);
+            const results = await searchVault([], [...weaker, 'Love Triangle'], 'lo');
+
+            expect(results[0]).toBe('Love Triangle');
+        });
+
+        it('ranks a folder-qualified unresolved link by its last segment', async () => {
+            const results = await searchVault(['Notes/Love Triangle'], ['Projects/Love'], 'Love');
+
+            expect(results).toEqual(['Projects/Love', 'Love Triangle']);
+            expect(await searchVault([], ['Archive/Love', 'Projects/Love'], 'Love', 'Projects'))
+                .toEqual(['Projects/Love', 'Archive/Love']);
+        });
+
+        it('ranks by the full path when the query names a folder', async () => {
+            const results = await searchVault([], ['Archive/Projects/Love', 'Projects/Love'], 'Projects/Love');
+
+            expect(results).toEqual(['Projects/Love', 'Archive/Projects/Love']);
+        });
+
+        it('looks up headings in an existing note, not a better-ranked unresolved link', async () => {
+            const app = vaultApp(['Notes/Love Triangle Notes'], ['Love Triangle']);
+            vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation(file =>
+                (file.basename === 'Love Triangle Notes' ? { headings: [{ heading: 'Plot' }] } : null) as any);
+            await FileIndex.getInstance(app, mockPlugin).ensureIndexed();
+
+            const inputEl = document.createElement('input');
+            inputEl.value = '[[Love T#';
+            inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+            const suggester = new FileSuggester({
+                ...app,
+                dom: { appContainerEl: document.body },
+                keymap: { pushScope: vi.fn(), popScope: vi.fn() },
+                workspace: { on: vi.fn(), getActiveFile: vi.fn(() => null) },
+            } as unknown as App, inputEl);
+
+            expect(suggester.getSuggestions(inputEl.value).map(result => result.displayText))
+                .toEqual(['Love Triangle Notes#Plot']);
+            suggester.destroy();
         });
     });
 
@@ -568,15 +647,18 @@ describe('FileSuggester DOM XSS safety', () => {
                 suggest: { setSuggestions(values: unknown[]): void };
             }).suggest;
 
+            const scrollAdds = () => addSpy.mock.calls.filter(([type]) => type === 'scroll').length;
             suggest.setSuggestions(makeRows(1));
             suggester.open(document.body, inputEl);
+            const scrollAddsWhenOpened = scrollAdds();
             suggest.setSuggestions(makeRows(2));
             suggester.open(document.body, inputEl);
             suggest.setSuggestions(makeRows(3));
             suggester.open(document.body, inputEl);
 
-            const scrollAdds = addSpy.mock.calls.filter(([type]) => type === 'scroll').length;
-            expect(scrollAdds).toBe(1);
+            // The list's own scroll listener plus the tooltip's, and no more per refresh.
+            expect(scrollAddsWhenOpened).toBe(2);
+            expect(scrollAdds()).toBe(scrollAddsWhenOpened);
 
             const suggestion = popoutDocument.querySelector<HTMLElement>('.suggestion-item')!;
             expect(suggestion).not.toBeNull();
@@ -592,10 +674,10 @@ describe('FileSuggester DOM XSS safety', () => {
 
             suggester.close();
             const scrollRemoves = removeSpy.mock.calls.filter(([type]) => type === 'scroll').length;
-            expect(scrollRemoves).toBe(1);
+            expect(scrollRemoves).toBe(2);
 
             suggester.destroy();
-            expect(removeSpy.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(1);
+            expect(removeSpy.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(2);
         } finally {
             addSpy.mockRestore();
             removeSpy.mockRestore();
@@ -730,6 +812,8 @@ describe('FileSuggester DOM XSS safety', () => {
             (suggester as unknown as {
                 suggest: { setSuggestions(values: unknown[]): void };
             }).suggest.setSuggestions(suggestions.map(({ item }) => item));
+            // The list is the input's own, so Enter picks from it as it is.
+            (suggester as unknown as { listQuery: string }).listQuery = inputEl.value;
             suggester.open(document.body, inputEl);
 
             const scope = (suggester as unknown as {

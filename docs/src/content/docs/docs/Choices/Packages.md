@@ -17,14 +17,48 @@ so you always see the scripts and macros before they run.
 3. Use the filter to find the choices you want to share, then tick their
    checkboxes. Any dependent choices or scripts are added automatically.
 4. Review the summary panel to confirm how many choices and assets are included.
-5. Choose **Copy JSON** (puts the package on your clipboard) or **Save to file**.
-   When saving, QuickAdd creates any missing folders inside your vault
-   automatically.
+5. Choose **Copy JSON** (puts the package on your clipboard), or click **Save**
+   in the **Save to file** row to write it to the path shown there. When saving,
+   QuickAdd creates any missing folders inside your vault automatically.
+
+![The Export QuickAdd package modal with the Reading folder, its two choices, and the Weekly review macro ticked. The package summary shows 2 selected choices, 4 total packaged, 2 auto-included, 1 script embedded, and 1 template embedded. Below it are the Save to file row with its Save button, then the Cancel and Copy JSON buttons](../Images/package-export.png)
 
 :::caution
 If a referenced script is missing from your vault, the exporter finishes with a
 warning so you can locate or recreate the file before you share the package.
 :::
+
+## Install an example from the docs {#install-an-example}
+
+Every [example](/docs/Examples/) page has a **Get this workflow** card at the
+top. It installs a ready-made copy of that workflow, so you can try it without
+building it by hand:
+
+1. On the example's page, check what the **Get this workflow** card says the
+   package needs, such as another plugin or an API token, then click **Copy
+   package**. If your browser blocks copying, the card shows the package in a
+   text field; copy it from there, or open **View JSON**.
+2. In Obsidian, open **Settings → QuickAdd**, scroll to **Packages**, and click
+   **Import package…**.
+3. Paste. QuickAdd shows the review described below. If any file under
+   **Files** is marked **Executable**, open **View contents** on each one. If
+   you trust the package, tick the acknowledgement, then click **Import
+   package**.
+4. Back on the example's page, expand **How to install** in the card and follow
+   **After importing** to finish setup and run the workflow.
+
+Don't see **Import package…**? Update QuickAdd, then reopen its settings.
+
+The packages never contain keys or tokens. Where a workflow needs one, **After
+importing** says where to paste it. QuickAdd's secret fields store it in
+Obsidian's secret storage rather than in `data.json`; a token you enter in
+another plugin's settings, such as Toggl Track integration, is that plugin's to
+keep.
+
+Importing the same package again offers **Overwrite** for the choices you
+imported before. Overwriting replaces those choices, including settings you
+changed; review any file overwrites too. Choose **Skip** for anything you want
+to keep as it is.
 
 ## Import a package {#import-a-package}
 
@@ -33,8 +67,13 @@ warning so you can locate or recreate the file before you share the package.
 3. QuickAdd analyses the JSON and shows a **review** of exactly what the package
    will add and run before you commit - see [Review what a package can do](#review-what-a-package-can-do).
 4. Under **Choices**, pick an action for each choice:
-   - **Import** adds a new choice only when its ID does not already exist.
-   - **Overwrite** keeps the original ID and replaces the existing choice.
+   - **Import** adds a choice that isn't in your vault yet. It is offered only
+     for those (QuickAdd 2.30.0 or later; earlier versions also offer it for a
+     choice you already have, and it replaces that choice).
+   - **Overwrite** keeps the original ID and replaces the existing choice. It
+     is offered only for choices already in your vault.
+     Overwriting a folder keeps the choices inside it that you skipped or
+     added yourself.
    - **Duplicate** copies the choice with new IDs so you can keep both versions.
    - **Skip** leaves the choice untouched.
 5. Under **Files**, each bundled file is grouped as **Added** or **Will
@@ -44,7 +83,9 @@ warning so you can locate or recreate the file before you share the package.
    choices to reference the new locations.
 6. If the package runs code, tick the acknowledgement, then click **Import
    package**. The choices list updates immediately and a notice summarises what
-   changed.
+   changed. The package's commands are in the command palette right away, with
+   no reload. Importing doesn't run a startup macro; it first runs the next time
+   Obsidian starts or you reload QuickAdd.
 
 :::note
 QuickAdd rebuilds your choice hierarchy from the stored parent IDs and path
@@ -64,7 +105,9 @@ makes everything visible **before** anything is written.
 A **What this package can do** panel lists the package's capabilities, ranked by
 how much they can affect your vault:
 
-- **Runs custom JavaScript** - a user script, or a script-mode condition, that runs arbitrary code.
+![The Import QuickAdd package modal after pasting a package. The What this package can do callout lists a SCRIPT row for the Weekly review macro's user script, a COMMAND row, and an OVERWRITES row. Below it, the Choices list shows Reading, Weekly review, New book note, and Add to reading list, each set to Import](../Images/package-import-review.png)
+
+- **Runs custom JavaScript** - a user script, a script-mode condition, or an [inline `js quickadd` fence](/docs/InlineScripts/) written into a choice's settings, such as a Capture format. Each runs arbitrary code; open **View code** on a choice to read the code in its settings.
 - **Runs on startup** - a macro set to run automatically every time Obsidian launches, with no interaction.
 - **Adds commands** - choices that register a command in the palette / hotkeys.
 - **Overwrites existing choices or files**, **sends content to an AI provider**, **triggers other Obsidian commands**, and similar.
@@ -80,20 +123,25 @@ Files that are run as code are marked **Executable** (regardless of their
 declared type), and very long or minified scripts are flagged as not fully
 reviewable.
 
-A Markdown note can carry runnable code too. A bundled note whose content
-includes a JavaScript code fence is flagged with a critical **can be run as
-code** capability row and counts toward the acknowledgement gate below, because
-such a note executes when something uses it: a user-script step runs a note's
-first `js` fence as its script, and
-[inline `js quickadd` fences](/docs/InlineScripts/) run whenever the note is
+Besides JavaScript files (`.js`, `.cjs`, `.mjs`), a note, canvas, or Base can
+carry runnable code too. One that contains a JavaScript code fence is flagged
+with a critical **can be run as code** capability row and counts toward the
+acknowledgement gate below, because it executes when something uses it: a
+user-script step runs a note's first `js` fence as its script, and
+[inline `js quickadd` fences](/docs/InlineScripts/) run whenever the file is
 used as a template - **including as an AI Assistant prompt template**, where the
-fence runs on every AI call.
+fence runs on every AI call. Other files, such as a Base without code or an
+image, can't run, so you don't have to open them.
 
 ### Acknowledge the code before importing {#acknowledgement-gate}
 
 When a package can run code, the **Import package** button stays disabled until
-you have opened **View contents** on each bundled executable script and ticked
-the acknowledgement. Reviewed scripts are marked so you can track what is left.
+you have opened **View contents** on each bundled executable file and **View
+code** on each choice with JavaScript in its settings, then ticked the
+acknowledgement. The text beside the button says what is left, and reviewed
+files and choices are marked.
+
+![The Files section of the import modal. Under Added, the bundled script weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded and its destination set to Scripts/weekly-review.js. Under Will overwrite, Book.md goes to Templates/Book.md. The acknowledgement checkbox is ticked, so the Import package button is enabled](../Images/package-import-files.png)
 
 :::caution
 If a referenced script is **not** bundled, QuickAdd warns that it will run from
@@ -110,6 +158,22 @@ obsidian quickadd:package-preview path=path/to/package.quickadd.json
 ```
 
 Add `decode=true` to inline the decoded contents of each bundled file.
+
+`quickadd:package-import` installs a package the same way the modal does, with
+the modal's default decisions: choices whose id already exists are overwritten,
+other choices are added, and templates go to your QuickAdd template folder when
+one is set. A package that runs code is refused until you pass
+`acknowledge=true`, which stands in for the modal's review and acknowledgement.
+
+```bash
+obsidian quickadd:package-import path=path/to/package.quickadd.json acknowledge=true
+```
+
+Use `choices=import|overwrite|duplicate|skip` and `files=write|overwrite|skip`
+to force one mode for every choice or bundled file. `choices=import` never
+replaces a choice: if any of the package's choices is already in your vault,
+the import is refused and nothing changes (QuickAdd 2.30.0 or later). Choose
+`overwrite`, `duplicate`, or `skip` for those instead.
 
 ## Check version compatibility {#version-compatibility}
 

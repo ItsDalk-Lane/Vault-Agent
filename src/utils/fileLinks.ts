@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
+import { processNote } from "./noteContent";
 import { log } from "../logger/logManager";
 import type {
 	AppendLinkDestination,
@@ -26,7 +27,7 @@ type FileLinkTextOptions = {
 	alias?: string;
 };
 
-function usesMarkdownLinks(app: App): boolean {
+export function usesMarkdownLinks(app: App): boolean {
 	// vault.getConfig is the de-facto (untyped) plugin API for editor settings.
 	// Inferring the mode from a generated link's shape instead would misdetect
 	// markdown-link vaults whose note basename starts with "[".
@@ -164,7 +165,7 @@ export async function appendFileLinkToDestinationFile(
 	});
 
 	let mutation: EditorTextMutation | undefined;
-	await app.vault.process(targetFile, (before) => {
+	await processNote(app, targetFile, (before) => {
 		const after = appendLine(before, linkText);
 		mutation = {
 			filePath: targetFile.path, before, after,

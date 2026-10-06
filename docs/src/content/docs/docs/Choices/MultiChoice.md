@@ -7,21 +7,25 @@ slug: docs/Choices/MultiChoice
 A Multi is a **folder for your other choices**. Group related choices under one
 entry in the QuickAdd picker, then open it to see what's inside - handy once your
 picker grows past a handful of items. In the settings list, a Multi is the entry
-you can fold and unfold.
+you can fold and unfold. Create one with **New folder** in **Settings →
+QuickAdd**.
 
-![The Multi choice settings modal](../Images/choices/multi-choice.png)
+![The QuickAdd choice list with a Journal folder unfolded, showing two choices nested inside it](../Images/choices/multi-choice-list.png)
 
 ## Put choices inside a multi {#add-choices}
 
-You add a choice to a multi by **dragging it in**. Make sure the multi is
-unfolded (as in the screenshot above), grab the drag handle of the choice you
-want to move, and drop it just below and slightly to the right of the multi's
-own drag handle. When it works, the choice appears indented under the multi.
+To create a new choice inside a multi, unfold it and click its **Add choice**
+link. To move an existing choice in, **drag it in**. Make sure the multi is
+unfolded (as in the screenshot above), then grab the drag handle (⠿) at the
+right end of the choice's row - it appears when you hover the row - and drop
+the choice onto the rows under the multi. When it works, the choice appears
+indented under the multi.
 
 :::tip
-The first choice is the fiddly one, since there's nothing nested yet to aim for.
-Drop it just below and to the right of the multi's drag handle and watch for the
-indent. Once one choice is inside, the rest are easy.
+An empty multi shows a band that reads **Empty — add a choice or drag one
+here**. Drop your first choice onto that band; it highlights when the drop
+will land inside the multi. Once one choice is inside, drop the rest among the
+nested rows.
 :::
 
 ## Set the search box hint: Placeholder text {#placeholder-text}
@@ -32,6 +36,12 @@ the multi's name is used instead.
 
 Because [search reaches everything nested under the multi](#searching-nested-choices),
 word the hint for the whole group, not just the top level.
+
+To set it, click the gear on the multi's row to open its settings page, fill
+in **Placeholder**, and go back. (Before QuickAdd 2.30.0, the gear opens the
+**Edit folder** dialog; click **Save**.)
+
+![A folder's settings page with Name, Placeholder, and Icon settings](../Images/choices/multi-choice.png)
 
 ## Change a choice's icon {#icons}
 
@@ -56,4 +66,4 @@ Good to know:
 - Searching from inside a multi only covers that multi's sub-choices. Go back (or open the root picker) to search more broadly.
 
 To limit search to the level you have open, turn off **Settings → QuickAdd →
-Search nested choices**.
+Advanced → Search nested choices** (QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab).

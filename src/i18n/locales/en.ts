@@ -14,6 +14,52 @@
  * (slightly better: tsc catches typos in key paths).
  */
 const en = {
+	aiProviderPage: {
+		autoSyncDesc: "Import new models and refreshed context limits from {source} once a day and when this page opens.",
+		browseButton: "Browse…",
+		browseModelsDesc: "Pick models to import from {source}.",
+		connection: "Connection",
+		connectionDesc: "Check that QuickAdd can reach this provider's models endpoint with the linked key.",
+		contextTokens: "Context: {count} tokens",
+		contextWindowPositive: "The context window must be a positive whole number.",
+		contextWindowPrompt: "Context window (tokens)",
+		deleteModelConfirm: "Delete {name}?",
+		deleteModelTooltip: "Delete model",
+		deleteProvider: "Delete provider",
+		deleteProviderConfirm: "Delete {name}?",
+		deleteProviderWarn: "Commands that use its models will need another model.",
+		endpointDesc: "The base URL of the provider's API.",
+		endpointPlaceholder: "https://api.example.com/v1",
+		filterChoicesPlaceholder: "Filter choices...",
+		filterPlaceholder: "Filter models",
+		fixedSampling: "Fixed sampling (no temperature)",
+		imported: "Imported {count}.",
+		importedReplaced: "Imported {count} (replaced the list).",
+		kindOpenAiCompatible: "OpenAI-compatible",
+		modelNamePrompt: "Model name",
+		modelSourceAuto: "Automatic (try provider, fall back to models.dev)",
+		modelSourceDesc: "Where QuickAdd looks when browsing or syncing models for this provider.",
+		modelSyncHeading: "Model sync",
+		modelsHeading: "Models",
+		nameAlreadyInList: "{name} is already in the list.",
+		nameDesc: "The display name of the provider.",
+		nameDescWithId: "ID: {id}. Scripts can address this provider's models as \"{id}/model-name\".",
+		noModelsMatchFilter: "No models match \"{filter}\".",
+		noModelsYet: "No models yet. Sync, browse, or add one.",
+		outputTokens: "Output: {count} tokens",
+		providerMissing: "This provider no longer exists.",
+		released: "Released {date}",
+		removeRetired: "Remove retired",
+		removeRetiredConfirm: "Remove {count} retired by the provider from {name}?",
+		retiredBadge: "Retired",
+		retiredDesc: "Requests to them may fail. Commands that use them need another model.",
+		retiredHeading: "{count} retired by the provider",
+		syncedFromSource: "Synced from {source}: {added} new, {updated} updated.",
+		testConnection: "Test connection",
+		testing: "Testing…",
+		thisProvider: "this provider",
+		untitledProvider: "Untitled provider",
+},
 	command: {
 		run: "Run",
 		runTemplateFromFolder: "New note from template",
@@ -24,7 +70,7 @@ const en = {
 			"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
 		noTemplateChoices: "QuickAdd: No Template choices or template files found. Create a Template choice or set the template folder path in settings.",
 		setTemplateFolder:
-			"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & properties to use “New note from template”.",
+			"QuickAdd: Set a template folder in Settings → QuickAdd → Template folders to use “New note from template”.",
 		noTemplateFiles: "QuickAdd: No template files found in your configured template folder(s).",
 		createdAndCaptured: "Created and captured to {fileName}",
 		createdNothingToCapture:
@@ -34,8 +80,13 @@ const en = {
 			"Canvas capture skipped link insertion because no Markdown editor is focused.",
 		reloadDev: "Reload (dev)",
 		openSettings: "Open settings",
+		openAISettings: "Open AI Assistant settings",
 		resumePrompt: "Return to prompt",
 	},
+	builderPage: {
+		couldNotOpenSettings: "QuickAdd: Couldn't open the settings for “{title}”.",
+		name: "Name",
+},
 	common: {
 		yes: "Yes",
 		no: "No",
@@ -76,6 +127,8 @@ const en = {
 		nounChoiceCapitalized: "Choice",
 	},
 	onePageInput: {
+		optionalBadge: " (optional)",
+		chooseFileForField: "QuickAdd: Choose a file for \"{label}\".",
 		note: "Note",
 		notePlaceholder: "Search notes or create new note",
 		noteSearchUnavailable: "Note search is unavailable. Type a new note title.",
@@ -83,6 +136,12 @@ const en = {
 		provideInputs: "Provide inputs",
 	},
 	macro: {
+		deleteCommandBody: "The command will be removed from this macro.",
+		deleteCommandTitle: "Delete '{name}'?",
+		elseBranchTitle: "Else: {summary}",
+		headingBehavior: "Behavior",
+		headingCommands: "Commands",
+		thenBranchTitle: "Then: {summary}",
 		// CommandSequenceEditor.ts — left column "Add command" pickers
 		obsidianCommand: {
 			name: "Obsidian command",
@@ -186,6 +245,7 @@ const en = {
 			placeholder: "scripts/myCheck.js or Notes/myCheck.md",
 			browse: "Browse",
 			browseTooltip: "Select a script (.js file or note)",
+			browseFailed: "Couldn't select that script",
 			browseEmpty: "No scripts found in your vault",
 			browseLabel: "Select a script (.js file or note with a ```js block)",
 		},
@@ -608,6 +668,8 @@ const en = {
 			headingContent: "Content",
 			task: "Task",
 			taskDesc: "Formats the value as a task.",
+			eachLine: "One entry per line",
+			eachLineDesc: "Writes the format once for each line of {{VALUE}}.",
 			captureFormat: "Capture format",
 			captureFormatDesc: "Set the format of the capture. When off, QuickAdd captures {{VALUE}} on its own - what you type at the prompt, or the current selection.",
 			captureFormatRequired: "Capture format is required when enabled",
@@ -617,6 +679,9 @@ const en = {
 			editorSelectionDesc: "Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}.",
 			templaterAfterCapture: "Run Templater on entire destination file after capture",
 			templaterAfterCaptureDesc: "Advanced / legacy: this executes any <% %> anywhere in the destination file (including inside code blocks).",
+			templaterAfterCaptureDeprecated: "Run Templater on entire destination file after capture (deprecated)",
+			templaterAfterCaptureDeprecatedDesc:
+				"Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination file, including inside code blocks.",
 		},
 		captureTarget: {
 			emptyTargetHint: "Leave empty to pick the note each time this choice runs.",
@@ -649,6 +714,8 @@ const en = {
 			multiDesc: "Properties are written in list order. Deleting the last row turns off property capture.",
 		},
 		templateForm: {
+			fileName: "File name",
+			fileNameDesc: "Leave empty to ask for the note title.",
 			templateFormatSyntaxHint: "Contains format syntax — resolved at run time.",
 			templateNotFound: "Template not found",
 			duplicateFolderWarning: "cannot add same folder twice.",
@@ -695,6 +762,11 @@ const en = {
 			name: "Open",
 		},
 		insertAfter: {
+			headingPickerPlaceholder: "Choose a heading to insert under",
+			headingPickerCreateEmpty: "No headings found — type a heading to create",
+			headingPickerEmpty: "No headings found in the target note",
+			headingPickerCustom: "Insert after new line: {value}",
+			noHeadingSelected: "No heading selected for capture.",
 			chooseHeading: "Choose heading when capturing",
 			chooseHeadingDesc: "Instead of typing a target line now, show a dropdown of the target note's headings when you run this capture and insert under the one you pick.",
 			chooseHeadingHint: "You'll pick a heading from the target note when you run this capture, and the text is inserted under it. Use the toggles below to control placement within that section.",
@@ -837,11 +909,22 @@ const en = {
 		skipTooltipFull: "Skip and leave empty",
 		skipLeaveEmpty: "Skip (leave empty)",
 	},
+	multiSuggester: {
+		selectOneOrMore: "Select one or more",
+},
+	periodicNotes: {
+		cannotReadSettings: "can't read the settings of Periodic Notes 1.0. Use Periodic Notes 0.0.17, or turn it off and use the Daily notes core plugin.",
+		needsPeriodicNotes: "needs the Periodic Notes plugin with {period} notes turned on.",
+		dailyNeedsPlugin: "needs the Daily notes core plugin, or Periodic Notes with daily notes, turned on.",
+		emptyFileName: "The {period} note format \"{format}\" gives an empty file name.",
+		templateMissing: "The {period} note template \"{template}\" doesn't exist. Fix it in Settings → {where}.",
+	},
 	mathModal: {
 		submitHint: "Ctrl/Cmd+Enter to submit · Tab to jump to the cursor marker",
 	},
 
 	datePicker: {
+		clear: "Clear",
 		title: "Edit folder",
 		name: "Name",
 		placeholder: {
@@ -894,6 +977,9 @@ const en = {
 			"QuickAdd: No choices yet. Create your first one in Settings → QuickAdd.",
 	},
 	choiceList: {
+		couldNotSaveNoun: "Couldn't save the {noun} “{name}”",
+		editedDeletedElsewhere: "QuickAdd: “{name}” was deleted elsewhere, so your changes to it were not saved.",
+		renamedDeletedElsewhere: "QuickAdd: “{name}” was deleted elsewhere, so it was not renamed.",
 		newChoice: "New choice",
 		addChoice: "Add choice",
 		newFolder: "New folder",
@@ -923,6 +1009,8 @@ const en = {
 		moveToPrefix: "Move to: ",
 	},
 	settings: {
+		aiAssistantDisabledNotice: "QuickAdd: Turn off “Disable AI & online features” in QuickAdd settings to use the AI Assistant.",
+		aiAssistantPageNotFound: "QuickAdd: Open the {page} page under \"AI & online\" below.",
 		language: {
 			name: "Language",
 			desc: "Choose the plugin UI language. \"Auto (follow Obsidian)\" matches Obsidian's language setting. Reload the plugin after switching languages — command names and modal labels don't update live.",
@@ -1097,7 +1185,9 @@ const en = {
 		commandLoadFailed: "{name} could not be loaded.",
 		exportConfirmOverwriteTitle: "Overwrite existing file?",
 		exportConfirmOverwriteBody:
-			"A file already exists at '{path}'. Saving the package will overwrite it. Continue?",
+			"A file already exists at '{path}'. Saving the package will overwrite it.",
+		exportOverwriteAction: "Overwrite",
+		exportSaveCancelledExists: "Save cancelled: '{path}' already exists.",
 		exportPathEmpty: "Output path cannot be empty.",
 
 		importTitle: "Import QuickAdd package",
@@ -1365,6 +1455,7 @@ const en = {
 		moveNoteTitle: "Move note to match choice settings?",
 		moveNoteBody:
 			"'{choice}' creates notes at '{target}'. Move '{path}' there? Links to the note will be updated.",
+		moveNoteAction: "Move",
 	},
 
 	choiceView: {
@@ -1464,6 +1555,14 @@ const en = {
 		capturedTo: "Captured to '{key}' in '{name}'",
 		created: "Created '{name}'.",
 		capturedToMulti: "Captured {keys} to '{name}'",
+		currentLine: "Captured to current line in {fileName}",
+		newLineAbove: "Captured on a new line above cursor in {fileName}",
+		newLineBelow: "Captured on a new line below cursor in {fileName}",
+		top: "Captured to top of {fileName}",
+		bottom: "Captured to bottom of {fileName}",
+		underHeading: "Captured to {fileName} under '{heading}'",
+		beforeHeading: "Captured to {fileName} before '{heading}'",
+		generic: "Captured to {fileName}",
 		copiedLink: "Copied link to '{name}' to clipboard.",
 		copyLinkFailed:
 			"Created '{name}', but QuickAdd could not copy its link to the clipboard.",
@@ -1477,7 +1576,16 @@ const en = {
 		captureAborted: "Capture aborted",
 	},
 	choiceService: {
-		deleteNoun: "Delete {noun}",
+					deleteConfirmBody: "Are you sure you want to delete '{name}'?",
+			deleteMultiWarning: "Deleting this folder will also delete everything inside it: {parts}.",
+			nounChoice: "choice",
+			nounChoices: "choices",
+			nounFolder: "folder",
+			nounFolders: "folders",
+			andJoiner: " and ",
+			macroCommandsUnreadable: "QuickAdd couldn't read this macro's commands. Deleting it also deletes whatever is still stored under it in data.json.",
+			deleteMacroWarning: "Deleting this choice will also delete its macro commands.",
+			deleteNoun: "Delete {noun}",
 		secretClearFailed:
 			"Could not clear user script secrets. The {noun} was not deleted.",
 		secretClearFailedCommand:
@@ -1575,7 +1683,8 @@ const en = {
 		invalidModelParameter: "Invalid model parameter. Expected a string (e.g., \"gpt-4o\" or \"openai/gpt-4o\") or an object with a name property (e.g., {name: \"gpt-4o\", provider: \"openai\"})",
 		modelNotFoundInProviders: "Model '{model}' not found in configured providers.{hint}",
 		modelNotFoundDidYouMean: " Did you mean {candidates}?",
-		modelNotFoundAddToProviders: " Add it under Edit providers in QuickAdd's AI Assistant settings (the sparkles button below the choice list), or enable auto-sync for that provider.",
+		modelNotFoundAddToProviders:
+			" Add it in Settings → QuickAdd → AI Assistant → your provider, or turn on Auto-sync models for that provider.",
 		modelNotFoundWithAnyProvider: "Model {model} not found with any provider.",
 		modelsDevNoProviderMatch: "models.dev does not list a provider that matches {endpoint}.",
 		providerApiAndModelsDevFailed: "Provider API failed ({error}). Fallback to models.dev also failed: {fallbackError}",
@@ -1605,7 +1714,7 @@ const en = {
 		toolOnlyMarkdownNotes: "This tool only operates on markdown notes (.md); refused path: \"{path}\".",
 		noteNotFound: "Note not found: {path}",
 		releaseFetchFailed: "Failed to fetch releases: {error}",
-		releaseTagNotFound: "Could not find release with tag {tag}",
+		releaseTagNotFound: "Invalid version {tag}",
 		interactiveReplyNotAnOption: "A reply to {what} has to be one of the offered options, and \"{reply}\" is not. Reply with the item's `value` token exactly as it was sent, or `{\"cancelled\": true}` to dismiss it.",
 		interactiveCryptoUnavailable: "Interactive prompts require a secure random source (crypto), which is unavailable here.",
 		interactiveDesktopRequired: "Interactive prompts require desktop Obsidian (Node http is unavailable).",

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, TFolder } from "obsidian";
 import { TFile as ObsidianTFile, TFolder as ObsidianTFolder } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
-import { insertOnNewLineBelow } from "../utilityObsidian";
+import { insertOnNewLineBelow } from "../utils/editorInsertion";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -31,7 +31,6 @@ vi.mock("../quickAddSettingsTab", () => {
 			providers: [],
 		},
 		migrations: {
-			migrateToMacroIDFromEmbeddedMacro: true,
 			useQuickAddTemplateFolder: false,
 			incrementFileNameSettingMoveToDefaultBehavior: false,
 			consolidateFileExistsBehavior: false,
@@ -69,7 +68,6 @@ vi.mock("src/gui/InputPrompt", () => ({
 		factory() {
 			return {
 				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
 			};
 		}
 	},
@@ -113,40 +111,43 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 	default: class {},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
+	insertFileLinkToActiveView: vi.fn(),
+	insertOnNewLineAbove: vi.fn(),
+	insertOnNewLineBelow: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+	isTemplaterTriggerOnCreateEnabled: vi.fn().mockReturnValue(false),
+	jumpToNextTemplaterCursorIfPossible: vi.fn().mockResolvedValue(undefined),
+	overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
+	templaterParseTemplate: vi.fn(async (_app, content) => content),
+	waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
+	getTemplater: vi.fn(() => ({})),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),
 	getMarkdownFilesWithTag: vi.fn().mockResolvedValue([]),
-	insertFileLinkToActiveView: vi.fn(),
-		insertOnNewLineAbove: vi.fn(),
-		insertOnNewLineBelow: vi.fn(),
-		isTemplaterTriggerOnCreateEnabled: vi.fn().mockReturnValue(false),
-		jumpToNextTemplaterCursorIfPossible: vi.fn().mockResolvedValue(undefined),
-		isFolder: vi.fn().mockReturnValue(false),
-		openExistingFileTab: vi.fn().mockReturnValue(null),
-		openFile: vi.fn(),
-		overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
-		templaterParseTemplate: vi.fn(async (_app, content) => content),
-		waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
-		getTemplater: vi.fn(() => ({})),
+	isFolder: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn().mockReturnValue(null),
+	openFile: vi.fn(),
 }));
 
 describe("CaptureChoiceEngine template property types", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("writes a YAML-safe placeholder before post-processing capture frontmatter arrays", async () => {
@@ -193,9 +194,10 @@ describe("CaptureChoiceEngine template property types", () => {
 					return tFile;
 				}),
 				read: vi.fn(async (file: TFile) => createdContent[file.path] ?? ""),
-				modify: vi.fn(async (_file: TFile, content: string) => {
-					writtenContent = content;
-					createdContent[_file.path] = content;
+				process: vi.fn(async (file: TFile, fn: (content: string) => string) => {
+					writtenContent = fn(createdContent[file.path] ?? "");
+					createdContent[file.path] = writtenContent;
+					return writtenContent;
 				}),
 				cachedRead: vi.fn(),
 			},
@@ -206,6 +208,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 			},
 			metadataCache: {
 				getFileCache: vi.fn().mockReturnValue(null),
@@ -288,7 +291,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			basename: "Test",
 			extension: "md",
 		} as unknown as TFile;
-		const modify = vi.fn(async () => {});
+		const process = vi.fn(async () => "");
 
 		const app = {
 			vault: {
@@ -299,7 +302,7 @@ describe("CaptureChoiceEngine template property types", () => {
 					path === targetPath ? existingFile : null,
 				),
 				read: vi.fn(async () => ["# Existing", "Body"].join("\n")),
-				modify,
+				process,
 				cachedRead: vi.fn(),
 			},
 			fileManager: {
@@ -309,6 +312,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 			},
 			metadataCache: {
 				getFileCache: vi.fn().mockReturnValue(null),
@@ -376,7 +380,7 @@ describe("CaptureChoiceEngine template property types", () => {
 
 		await engine.run();
 
-		expect(modify).not.toHaveBeenCalled();
+		expect(process).not.toHaveBeenCalled();
 		expect(applyCapturePropertyVars).not.toHaveBeenCalled();
 	});
 
@@ -412,6 +416,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(tFile),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 				activeLeaf: null,
 				getMostRecentLeaf: vi.fn().mockReturnValue(null),
 			},
@@ -489,12 +494,13 @@ describe("CaptureChoiceEngine template property types", () => {
 				create: vi.fn(),
 				read: vi.fn(async () => existing),
 				cachedRead: vi.fn(async () => existing),
-				modify: vi.fn(async (_f: TFile, content: string) => { written = content; }),
+				process: vi.fn(async (_f: TFile, fn: (content: string) => string) => (written = fn(existing))),
 			},
 			fileManager: { generateMarkdownLink: vi.fn().mockReturnValue(""), processFrontMatter },
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 				activeLeaf: null,
 				getMostRecentLeaf: vi.fn().mockReturnValue(null),
 			},

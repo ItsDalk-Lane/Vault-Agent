@@ -11,6 +11,52 @@
  * - "Return to prompt" = "返回提示"，与 PromptPeek 功能对齐
  */
 const zhCN = {
+	aiProviderPage: {
+		autoSyncDesc: "每天一次、并在打开此页面时，从 {source} 导入新模型和更新后的上下文限制。",
+		browseButton: "浏览…",
+		browseModelsDesc: "挑选要从 {source} 导入的模型。",
+		connection: "连接",
+		connectionDesc: "检查 QuickAdd 能否使用所关联的密钥访问此提供商的模型端点。",
+		contextTokens: "上下文：{count} tokens",
+		contextWindowPositive: "上下文窗口必须是正整数。",
+		contextWindowPrompt: "上下文窗口（tokens）",
+		deleteModelConfirm: "删除 {name}？",
+		deleteModelTooltip: "删除模型",
+		deleteProvider: "删除提供商",
+		deleteProviderConfirm: "删除 {name}？",
+		deleteProviderWarn: "使用其模型的命令将需要改用其他模型。",
+		endpointDesc: "提供商 API 的基础 URL。",
+		endpointPlaceholder: "https://api.example.com/v1",
+		filterChoicesPlaceholder: "筛选选项…",
+		filterPlaceholder: "筛选模型",
+		fixedSampling: "固定采样（不支持 temperature）",
+		imported: "已导入 {count}。",
+		importedReplaced: "已导入 {count}（已替换原列表）。",
+		kindOpenAiCompatible: "OpenAI 兼容",
+		modelNamePrompt: "模型名称",
+		modelSourceAuto: "自动（先尝试提供商，失败则回退到 models.dev）",
+		modelSourceDesc: "QuickAdd 在浏览或同步此提供商的模型时查找的位置。",
+		modelSyncHeading: "模型同步",
+		modelsHeading: "模型",
+		nameAlreadyInList: "{name} 已在列表中。",
+		nameDesc: "提供商的显示名称。",
+		nameDescWithId: "ID：{id}。脚本可以通过「{id}/model-name」引用此提供商的模型。",
+		noModelsMatchFilter: "没有匹配「{filter}」的模型。",
+		noModelsYet: "还没有模型。请先同步、浏览或添加一个。",
+		outputTokens: "输出：{count} tokens",
+		providerMissing: "该提供商已不存在。",
+		released: "发布于 {date}",
+		removeRetired: "移除已弃用模型",
+		removeRetiredConfirm: "要从 {name} 中移除提供商已弃用的 {count} 吗？",
+		retiredBadge: "已弃用",
+		retiredDesc: "对这些模型的请求可能会失败。使用它们的命令需要改用其他模型。",
+		retiredHeading: "提供商已弃用 {count}",
+		syncedFromSource: "已从 {source} 同步：新增 {added} 个，更新 {updated} 个。",
+		testConnection: "测试连接",
+		testing: "正在测试…",
+		thisProvider: "此提供商",
+		untitledProvider: "未命名的提供商",
+},
 	command: {
 		run: "运行",
 		runTemplateFromFolder: "从模板新建笔记",
@@ -22,7 +68,7 @@ const zhCN = {
 		noTemplateChoices:
 			"QuickAdd：未找到 Template 选项或模板文件。请新建 Template 选项或在设置中配置模板文件夹路径。",
 		setTemplateFolder:
-			"QuickAdd：请在 设置 → QuickAdd → 模板与属性 中配置模板文件夹后才能使用「从模板新建笔记」。",
+			"QuickAdd：请在 设置 → QuickAdd → 模板文件夹 中配置模板文件夹后才能使用「从模板新建笔记」。",
 		noTemplateFiles: "QuickAdd：在已配置的模板文件夹中未找到任何模板文件。",
 		createdAndCaptured: "已创建并捕获到 {fileName}",
 		createdNothingToCapture: "已创建 {fileName} — 无内容可捕获",
@@ -31,8 +77,13 @@ const zhCN = {
 			"Canvas 捕获已跳过链接插入，因为没有 Markdown 编辑器处于焦点。",
 		reloadDev: "重新加载（开发）",
 		openSettings: "打开设置",
+		openAISettings: "打开 AI Assistant 设置",
 		resumePrompt: "返回提示",
 	},
+	builderPage: {
+		couldNotOpenSettings: "QuickAdd：无法打开「{title}」的设置。",
+		name: "名称",
+},
 	common: {
 		yes: "是",
 		no: "否",
@@ -71,6 +122,8 @@ const zhCN = {
 		nounChoiceCapitalized: "选项",
 	},
 	onePageInput: {
+		optionalBadge: "（可选）",
+		chooseFileForField: "QuickAdd：请为「{label}」选择一个文件。",
 		note: "笔记",
 		notePlaceholder: "搜索笔记或新建笔记",
 		noteSearchUnavailable: "笔记搜索不可用。请输入新笔记标题。",
@@ -78,6 +131,12 @@ const zhCN = {
 		provideInputs: "填写输入",
 	},
 	macro: {
+		deleteCommandBody: "该命令将从此 Macro 中移除。",
+		deleteCommandTitle: "删除「{name}」？",
+		elseBranchTitle: "Else：{summary}",
+		headingBehavior: "行为",
+		headingCommands: "命令",
+		thenBranchTitle: "Then：{summary}",
 		obsidianCommand: {
 			name: "Obsidian 命令",
 			desc: "添加一个 Obsidian 命令",
@@ -177,6 +236,7 @@ const zhCN = {
 			placeholder: "scripts/myCheck.js 或 Notes/myCheck.md",
 			browse: "浏览",
 			browseTooltip: "选择脚本（.js 文件或笔记）",
+			browseFailed: "无法选择该脚本",
 			browseEmpty: "未在 vault 中找到脚本",
 			browseLabel: "选择脚本（.js 文件或带 ```js 块的笔记）",
 		},
@@ -575,6 +635,8 @@ const zhCN = {
 			headingContent: "内容",
 			task: "任务",
 			taskDesc: "将值格式化为任务。",
+			eachLine: "每行一条",
+			eachLineDesc: "对 {{VALUE}} 的每一行各写入一次该格式。",
 			captureFormat: "Capture 格式",
 			captureFormatDesc: "设置捕获的格式。关闭时，QuickAdd 仅捕获 {{VALUE}}——即你在提示框中输入的内容或当前选区。",
 			captureFormatRequired: "启用后 Capture 格式为必填项",
@@ -584,6 +646,9 @@ const zhCN = {
 			editorSelectionDesc: "控制此 Capture 是否将当前编辑器选区用作 {{VALUE}}。不影响 {{SELECTED}}。",
 			templaterAfterCapture: "捕获后对整个目标文件运行 Templater",
 			templaterAfterCaptureDesc: "高级/旧版：这会执行目标文件中任何位置的 <% %>（包括代码块内）。",
+			templaterAfterCaptureDeprecated: "捕获后对整个目标文件运行 Templater（已弃用）",
+			templaterAfterCaptureDeprecatedDesc:
+				"将在未来版本中移除。QuickAdd 已经会在捕获的内容上运行 Templater。此选项还会执行目标文件中其他所有 <% %>，包括代码块内的。",
 		},
 		captureTarget: {
 			emptyTargetHint: "留空则每次运行此选项时选择笔记。",
@@ -616,6 +681,8 @@ const zhCN = {
 			multiDesc: "按列表顺序写入属性。删除最后一行即关闭属性捕获。",
 		},
 		templateForm: {
+			fileName: "文件名",
+			fileNameDesc: "留空则询问笔记标题。",
 			templateFormatSyntaxHint: "包含格式语法——将在运行时解析。",
 			templateNotFound: "未找到模板",
 			duplicateFolderWarning: "不能重复添加同一个文件夹。",
@@ -662,6 +729,11 @@ const zhCN = {
 			name: "打开",
 		},
 		insertAfter: {
+			headingPickerPlaceholder: "选择要插入其下的标题",
+			headingPickerCreateEmpty: "未找到标题——输入标题即可新建",
+			headingPickerEmpty: "目标笔记中未找到标题",
+			headingPickerCustom: "插入到新行：{value} 之后",
+			noHeadingSelected: "未选择要插入的标题。",
 			chooseHeading: "Capture 时选择标题",
 			chooseHeadingDesc: "无需现在输入目标行，运行此 Capture 时会显示目标笔记的标题下拉框，并插入到所选标题之下。",
 			chooseHeadingHint: "运行此 Capture 时会从目标笔记中选择一个标题，文本将插入到其下方。使用下方开关控制该小节内的插入位置。",
@@ -804,11 +876,22 @@ const zhCN = {
 		skipTooltipFull: "跳过并留空",
 		skipLeaveEmpty: "跳过（留空）",
 	},
+	multiSuggester: {
+		selectOneOrMore: "选择一个或多个",
+},
+	periodicNotes: {
+		cannotReadSettings: "无法读取 Periodic Notes 1.0 的设置。请改用 Periodic Notes 0.0.17，或将其关闭并使用 Daily notes 核心插件。",
+		needsPeriodicNotes: "需要启用 Periodic Notes 插件的 {period} 笔记功能。",
+		dailyNeedsPlugin: "需要启用 Daily notes 核心插件，或启用 Periodic Notes 的每日笔记功能。",
+		emptyFileName: "{period} 笔记格式「{format}」生成了空文件名。",
+		templateMissing: "{period} 笔记模板「{template}」不存在。请在 设置 → {where} 中修复。",
+	},
 	mathModal: {
 		submitHint: "Ctrl/Cmd+Enter 提交 · Tab 跳转到光标标记",
 	},
 
 	datePicker: {
+		clear: "清除",
 		title: "编辑文件夹",
 		name: "名称",
 		placeholder: {
@@ -860,6 +943,9 @@ const zhCN = {
 			"QuickAdd：还没有任何选项。请在 设置 → QuickAdd 中创建第一个选项。",
 	},
 	choiceList: {
+		couldNotSaveNoun: "无法保存{noun}「{name}」",
+		editedDeletedElsewhere: "QuickAdd：「{name}」已在别处被删除，因此你的更改未保存。",
+		renamedDeletedElsewhere: "QuickAdd：「{name}」已在别处被删除，因此未重命名。",
 		newChoice: "新建选项",
 		addChoice: "添加选项",
 		newFolder: "新建文件夹",
@@ -889,6 +975,8 @@ const zhCN = {
 		moveToPrefix: "移动到：",
 	},
 	settings: {
+		aiAssistantDisabledNotice: "QuickAdd：请在 QuickAdd 设置中关闭「禁用 AI 与在线功能」后再使用 AI Assistant。",
+		aiAssistantPageNotFound: "QuickAdd：请在下方「AI 与在线」中打开 {page} 页面。",
 		language: {
 			name: "语言",
 			desc: "选择插件界面语言。「自动（跟随 Obsidian）」会匹配 Obsidian 的语言设置。切换语言后需要重新加载插件——命令名和弹窗标签不会实时更新。",
@@ -1059,7 +1147,9 @@ const zhCN = {
 		commandLoadFailed: "无法加载 {name}。",
 		exportConfirmOverwriteTitle: "覆盖现有文件？",
 		exportConfirmOverwriteBody:
-			"“{path}” 处已存在文件。保存包将覆盖它。是否继续？",
+			"“{path}” 处已存在文件。保存包将覆盖它。",
+		exportOverwriteAction: "覆盖",
+		exportSaveCancelledExists: "已取消保存：「{path}」已存在。",
 		exportPathEmpty: "输出路径不能为空。",
 
 		importTitle: "导入 QuickAdd 套餐",
@@ -1308,6 +1398,7 @@ const zhCN = {
 		moveNoteTitle: "将笔记移动到与选项设置一致的位置？",
 		moveNoteBody:
 			"「{choice}」会在「{target}」创建笔记。要将「{path}」移动到那里吗？指向该笔记的链接会一并更新。",
+		moveNoteAction: "移动",
 	},
 
 	choiceView: {
@@ -1403,6 +1494,14 @@ const zhCN = {
 		capturedTo: "已捕获到「{name}」的「{key}」",
 		capturedToMulti: "已捕获 {keys} 到「{name}」",
 		created: "已创建「{name}」。",
+		currentLine: "已捕获到 {fileName} 的当前行",
+		newLineAbove: "已捕获到 {fileName} 中光标上方的行",
+		newLineBelow: "已捕获到 {fileName} 中光标下方的行",
+		top: "已捕获到 {fileName} 顶部",
+		bottom: "已捕获到 {fileName} 底部",
+		underHeading: "已捕获到 {fileName} 的「{heading}」之下",
+		beforeHeading: "已捕获到 {fileName} 的「{heading}」之前",
+		generic: "已捕获到 {fileName}",
 		copiedLink: "已将「{name}」的链接复制到剪贴板。",
 		copyLinkFailed: "已创建「{name}」，但 QuickAdd 无法将其链接复制到剪贴板。",
 		openSettingsFailed:
@@ -1415,7 +1514,16 @@ const zhCN = {
 		captureAborted: "Capture 已中止",
 	},
 	choiceService: {
-		deleteNoun: "删除{noun}",
+					deleteConfirmBody: "确定要删除「{name}」吗？",
+			deleteMultiWarning: "删除此文件夹将同时删除其中所有内容：{parts}。",
+			nounChoice: "个选项",
+			nounChoices: "个选项",
+			nounFolder: "个文件夹",
+			nounFolders: "个文件夹",
+			andJoiner: "和",
+			macroCommandsUnreadable: "QuickAdd 无法读取此 Macro 的命令。删除它也会一并删除 data.json 中存储的命令。",
+			deleteMacroWarning: "删除此选项也会删除其 Macro 命令。",
+			deleteNoun: "删除{noun}",
 		secretClearFailed: "无法清除用户脚本密钥。该{noun}未被删除。",
 		secretClearFailedCommand: "无法清除用户脚本密钥。命令未被删除。",
 	},
@@ -1508,7 +1616,8 @@ const zhCN = {
 		invalidModelParameter: "模型参数无效。应为字符串（例如 \"gpt-4o\" 或 \"openai/gpt-4o\"），或带有 name 属性的对象（例如 {name: \"gpt-4o\", provider: \"openai\"}）",
 		modelNotFoundInProviders: "在已配置的提供商中找不到模型 '{model}'。{hint}",
 		modelNotFoundDidYouMean: "您是想用 {candidates} 吗？",
-		modelNotFoundAddToProviders: "请在 QuickAdd 的 AI Assistant 设置（选项列表下方的星形按钮）中的「编辑提供商」里添加该模型，或为该提供商启用自动同步。",
+		modelNotFoundAddToProviders:
+			" 请在 设置 → QuickAdd → AI Assistant → 对应提供商 中添加该模型，或为该提供商开启自动同步模型。",
 		modelNotFoundWithAnyProvider: "在任何提供商中都找不到模型 {model}。",
 		modelsDevNoProviderMatch: "models.dev 中没有与 {endpoint} 匹配的提供商。",
 		providerApiAndModelsDevFailed: "提供商 API 请求失败（{error}）。回退到 models.dev 也失败了：{fallbackError}",
@@ -1538,7 +1647,7 @@ const zhCN = {
 		toolOnlyMarkdownNotes: "此工具只处理 Markdown 笔记（.md）；已拒绝路径：「{path}」。",
 		noteNotFound: "未找到笔记：{path}",
 		releaseFetchFailed: "获取版本发布列表失败：{error}",
-		releaseTagNotFound: "找不到标签为 {tag} 的版本发布",
+		releaseTagNotFound: "无效的版本号 {tag}",
 		interactiveReplyNotAnOption: "发给 {what} 的回复必须是所提供的选项之一，而 \"{reply}\" 不是。请按发送时的原样回复条目的 `value` 令牌，或发送 `{\"cancelled\": true}` 来关闭该提示。",
 		interactiveCryptoUnavailable: "交互式提示需要安全的随机源（crypto），当前环境不可用。",
 		interactiveDesktopRequired: "交互式提示需要桌面版 Obsidian（Node http 不可用）。",

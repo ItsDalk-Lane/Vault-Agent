@@ -8,15 +8,17 @@ The docs site (https://quickadd.obsidian.guide), built with [Astro Starlight](ht
   `slug:` explicitly to keep its historical URL, so renaming a file does not
   change its URL. If you do change a slug, add a 301 in `public/_redirects`.
 - `src/pages/index.astro` - the landing page (self-contained, zero client JS).
-- `astro.config.mjs` - Starlight config, including the sidebar.
+- `astro.config.mjs` - Starlight config, including the sidebar. Markdown is
+  rendered by Sätteri with `headingAttributes` on, which supports the
+  `## Heading {#custom-id}` anchors.
 - `public/` - static assets served as-is (`img/`, downloadable example
   `scripts/`, `_redirects`, `_headers`).
-- `plugins/remark-heading-id.mjs` - supports `## Heading {#custom-id}` anchors.
 
-Note on dependencies: `zod` and `unist-util-visit` are direct dependencies on
-purpose. This package lives inside the plugin repo, and under pnpm's isolated
-layout a transitive import that isn't declared here can resolve to the PARENT
-repo's node_modules (a different major of zod broke the build this way).
+Note on dependencies: `zod` is a direct dependency on purpose. This package
+lives inside the plugin repo, and under pnpm's isolated layout an import that
+isn't declared here (Astro's prerender bundle imports `zod/v4`) can resolve to
+the PARENT repo's node_modules (a different major of zod broke the build this
+way).
 
 ## Commands
 
@@ -56,6 +58,11 @@ account runs one build at a time, so a build can sit at "Build in progress"
 while an earlier one runs or is queued; a normal build takes about two
 minutes. Cloudflare does not update its PR comment after the PR is closed, so a
 comment still reading "Build in progress" on a merged PR is expected.
+
+The required "Docs" check in GitHub CI (`.github/workflows/ci.yml`) builds the
+site the same way on every PR (`.node-version`, frozen lockfile) and runs
+`scripts/check-links.py`, so a broken docs build is caught before merge, even
+on branches Cloudflare does not preview.
 
 Docs are single-version: pages go live when they land on `master`. When
 documenting a feature that has not shipped in a plugin release yet, add an

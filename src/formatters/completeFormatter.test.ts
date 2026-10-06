@@ -1,3 +1,4 @@
+import realMoment from "moment";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,9 +25,8 @@ const mocks = vi.hoisted(() => ({
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
-	inputPromptPromptWithContext: vi.fn(),
 	inputPromptFactory: vi.fn(),
-	genericInputPromptWithContext: vi.fn(),
+	genericInputPrompt: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
 	multiSuggesterSuggest: vi.fn(),
@@ -102,14 +102,13 @@ vi.mock("../gui/InputPrompt", () => ({
 			mocks.inputPromptFactory(inputTypeOverride);
 			return {
 				Prompt: mocks.inputPromptPrompt,
-				PromptWithContext: mocks.inputPromptPromptWithContext,
 			};
 		}
 	},
 }));
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
-	default: { PromptWithContext: mocks.genericInputPromptWithContext },
+	default: { Prompt: mocks.genericInputPrompt },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -274,11 +273,10 @@ beforeEach(() => {
 	mocks.getSmartDefaults.mockReturnValue([]);
 	mocks.resolveActiveDefault.mockReturnValue(null);
 
-	// Deterministic clipboard: empty by default. navigator may not exist in
-	// the jsdom-less environment, so define it.
-	(globalThis as any).navigator = {
+	// Deterministic clipboard: empty by default.
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 
 	// Deterministic moment used by the base formatter's VDATE formatting.
 	(globalThis as any).window ??= globalThis;
@@ -357,6 +355,15 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 			"a MACRO_OUT b",
 		);
 		expect(mocks.macroRunAndGetOutput).toHaveBeenCalled();
+	});
+
+	it("inserts a macro's output as text instead of expanding macro tokens in it", async () => {
+		mocks.macroRunAndGetOutput.mockResolvedValue("{{MACRO:again}}");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{MACRO:once}} {{MACRO:once}}")).resolves.toBe(
+			"{{MACRO:again}} {{MACRO:again}}",
+		);
+		expect(mocks.macroRunAndGetOutput).toHaveBeenCalledTimes(2);
 	});
 
 	it("uses an empty string when the macro engine returns nullish", async () => {
@@ -524,6 +531,26 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(vars.get("items")).toEqual(["alpha", "beta"]);
 	});
 
+	it("fills a quoted property from a one-line script, as the docs show", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(3);
+		const f = defaultFormatter();
+		const script = "return this.app.vault.getMarkdownFiles().filter(f => f.parent?.path === 'People').length + 1";
+		const template = [
+			"---",
+			"type: person",
+			'number: "```js quickadd ' + script + '```"',
+			"---",
+		].join("\n");
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent(template),
+		);
+
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledWith(script);
+		expect(result).toBe('---\ntype: person\nnumber: "3"\n---');
+		expect(f.getAndClearTemplatePropertyVars().size).toBe(0);
+	});
+
 	it("does not collect an array when text follows the closing fence", async () => {
 		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
 		const f = defaultFormatter();
@@ -603,6 +630,103 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		await expect(
 			f.formatFolderPath("```js quickadd\nnoop\n```{{VALUE:scriptVar}}"),
 		).resolves.toBe("fromScript");
+	});
+
+	it("runs each fence once, in order, and consumes the closer's whole backtick run", async () => {
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.toUpperCase());
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("a ```js quickadd one``` b ````js quickadd\ntwo\n````` c"),
+		).resolves.toBe("a ONE b TWO c");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["one"], ["two"]]);
+	});
+
+	it("leaves an unterminated fence as text without running it", async () => {
+		const f = defaultFormatter();
+		const template = "```js quickadd one``` then ```js quickadd never closed";
+		mocks.inlineRunAndGetOutput.mockResolvedValue("1");
+
+		await expect(f.formatFileContent(template)).resolves.toBe(
+			"1 then ```js quickadd never closed",
+		);
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs a fence written inside a markdown code block", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ran");
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("````md\n```js quickadd\nreturn 'ran'\n```\n````"),
+		).resolves.toBe("````md\nran\n````");
+	});
+
+	it("runs a fence that a script's output creates", async () => {
+		mocks.inlineRunAndGetOutput
+			.mockResolvedValueOnce("```js quickadd inner```")
+			.mockResolvedValueOnce("done");
+		const f = defaultFormatter();
+
+		await expect(f.formatFileContent("```js quickadd outer```")).resolves.toBe("done");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["outer"], ["inner"]]);
+	});
+
+	it("runs a fence that the text before a script and its output form together", async () => {
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.slice(1));
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("```js quick```js quickadd Xadd 12``` ``` done"),
+		).resolves.toBe("2 done");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["Xadd 12"], ["12"]]);
+	});
+
+	it("replaces fences exactly as the old regex loop did (fuzz)", async () => {
+		// The pre-#1907 loop: find the first match from the start, replace it, repeat.
+		const regexLoop = (input: string) => {
+			const re = /`{3,}js quickadd([\s\S]*?)`{3,}/;
+			let output = input;
+			let m: RegExpExecArray | null;
+			while ((m = re.exec(output)) !== null) {
+				const code = m[1].trim();
+				output = output.slice(0, m.index) + (code ? code.slice(1) : "") + output.slice(m.index + m[0].length);
+			}
+			return output;
+		};
+		// Each script returns its code minus the first character, so outputs can
+		// hold backticks, openers and language fragments, and the loop still ends.
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.slice(1));
+		const f = defaultFormatter() as unknown as {
+			replaceInlineJavascriptInString(input: string): Promise<string>;
+		};
+		const alphabet = ["`", "``", "```", "````", "js quickadd", "```js quickadd", "```js quick", "```js", "js quick", "add", " quickadd", "x", " ", "\n"];
+		let seed = 7;
+		const rnd = (max: number) => {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			return seed % max;
+		};
+
+		for (let t = 0; t < 3000; t++) {
+			let input = "";
+			const len = rnd(25);
+			for (let k = 0; k < len; k++) input += alphabet[rnd(alphabet.length)];
+			expect(await f.replaceInlineJavascriptInString(input), JSON.stringify(input)).toBe(regexLoop(input));
+		}
+	});
+
+	it("does not stall on a long backtick run before the fences (#1907)", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ok");
+		const f = defaultFormatter();
+		const flood = "`".repeat(20_000);
+		const fence = "```js quickadd\nreturn 'ok'\n```";
+
+		const started = performance.now();
+		const result = await f.formatFileContent(`${flood}\n${fence}\n${fence}`);
+
+		expect(result).toBe(`${flood}\nok\nok`);
+		// The old backtracking regex took seconds here; the linear scan takes milliseconds.
+		expect(performance.now() - started).toBeLessThan(500);
 	});
 });
 
@@ -908,9 +1032,9 @@ describe("CompleteFormatter - selection handling", () => {
 
 describe("CompleteFormatter - clipboard handling", () => {
 	it("replaces {{CLIPBOARD}} with clipboard contents", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: { readText: vi.fn().mockResolvedValue("copied!") },
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{CLIPBOARD}}")).resolves.toBe(
 			"copied!",
@@ -918,11 +1042,11 @@ describe("CompleteFormatter - clipboard handling", () => {
 	});
 
 	it("falls back to empty string when clipboard read rejects", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockRejectedValue(new Error("denied")),
 			},
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("[{{CLIPBOARD}}]")).resolves.toBe("[]");
 	});
@@ -1090,6 +1214,56 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		).resolves.toBe("2025-06-21");
 		expect(mocks.vdatePrompt).toHaveBeenCalled();
 	});
+
+	it("renders a {{VALUE:<name>}} reuse of a date in the VDATE's format (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath(
+				"{{VDATE:due date,DD.MM.YYYY}} {{VALUE:due date}} {{VDATE:due date,YYYY}}",
+			),
+		).resolves.toBe("25.02.2024 25.02.2024 2024");
+		expect(mocks.vdatePrompt).toHaveBeenCalledTimes(1);
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("shares the VDATE format with later formatters on the run's variables (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const variables = new Map<string, unknown>();
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const format = (input: string) =>
+			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any)
+				.formatFolderPath(input);
+
+		// A later macro step or an included {{TEMPLATE:}} formats with its own
+		// formatter, sharing only the executor's variables.
+		await format("{{VDATE:due,DD.MM.YYYY}}");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("25.02.2024");
+		// Its own VDATE doesn't replace the first format.
+		await expect(format("{{VDATE:due,YYYY}} {{VALUE:due}}")).resolves.toBe(
+			"2024 25.02.2024",
+		);
+
+		// A different answer, here set by a script, has no VDATE format.
+		variables.set("due", "@date:2024-03-01T12:00:00.000Z");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-03-01");
+
+		// A script deletes the answer to ask again, and the same date is picked.
+		variables.delete("due");
+		await expect(format("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
+			"2024/02/25 2024/02/25",
+		);
+	});
+
+	it("prints an unparseable @date: value as-is", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		const variables = new Map<string, unknown>([["due", "@date:not-a-date"]]);
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any);
+		await expect(f.formatFolderPath("{{VALUE:due}}")).resolves.toBe("@date:not-a-date");
+	});
 });
 
 describe("CompleteFormatter - math value prompting", () => {
@@ -1212,7 +1386,7 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			[],
 			expect.objectContaining({ allowCustomValue: true }),
 		);
-		expect(mocks.genericInputPromptWithContext).not.toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).not.toHaveBeenCalled();
 	});
 
 	it("falls back to a free-form prompt when no values are found", async () => {
@@ -1224,14 +1398,60 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			values: [],
 			hasDefaultValue: false,
 		});
-		mocks.genericInputPromptWithContext.mockResolvedValue("manual");
+		mocks.genericInputPrompt.mockResolvedValue("manual");
 
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{FIELD:status}}")).resolves.toBe(
 			"manual",
 		);
-		expect(mocks.genericInputPromptWithContext).toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).toHaveBeenCalled();
 		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("words every FIELD prompt with its |label: (issue #1797)", async () => {
+		const f = defaultFormatter();
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "client",
+			filters: { defaultValue: "Northwind" },
+			label: "Which client?",
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Northwind", "Globex"],
+			hasDefaultValue: true,
+		});
+		mocks.inputSuggesterSuggest.mockResolvedValue("Globex");
+		await f.formatFolderPath("{{FIELD:client|default:Northwind|label:Which client?}}");
+		expect(mocks.inputSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({
+			placeholder: "Which client? (default: Northwind)",
+		});
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "client",
+			filters: {},
+			multiSelect: true,
+			label: "Clients involved",
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Globex"]);
+		await f.formatFolderPath("{{FIELD:client|multi|label:Clients involved}}");
+		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({
+			placeholder: "Clients involved",
+		});
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "budget",
+			filters: {},
+			label: "Budget code",
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: [],
+			hasDefaultValue: false,
+		});
+		mocks.genericInputPrompt.mockResolvedValue("B-17");
+		await f.formatFolderPath("{{FIELD:budget|label:Budget code}}");
+		expect(mocks.genericInputPrompt.mock.calls.at(-1)?.[1]).toBe(
+			"Budget code",
+		);
 	});
 
 	it("maps a field-suggester cancellation to MacroAbortError", async () => {
@@ -1598,10 +1818,13 @@ function makeSectionView(opts: {
 	mode?: "source" | "preview";
 	cursorLine?: number;
 	value?: string;
+	/** Last saved text; equal to `value` means the buffer has no unsaved edits. */
+	data?: string;
 	getValueThrows?: boolean;
 }) {
 	return {
 		file: { path: opts.path },
+		data: opts.data ?? "",
 		getMode: () => opts.mode ?? "source",
 		editor: {
 			getSelection: () => "",
@@ -1617,6 +1840,11 @@ function makeSectionView(opts: {
 function makeSectionApp(opts: {
 	activeFile?: { basename: string; path: string } | null;
 	view?: ReturnType<typeof makeSectionView> | undefined;
+	/** Obsidian's metadata cache for the note (null = not indexed). */
+	cache?: {
+		headings?: { heading: string; level: number; line: number }[];
+		sections?: { type: string; start: number; end: number }[];
+	} | null;
 }) {
 	const activeFile =
 		opts.activeFile === undefined
@@ -1634,11 +1862,44 @@ function makeSectionApp(opts: {
 				subpath?: string,
 			) => (subpath ? `[[${file.basename}${subpath}]]` : `[[${file.basename}]]`),
 		},
-		metadataCache: { getFileCache: () => null },
+		metadataCache: {
+			getFileCache: () =>
+				opts.cache
+					? {
+							headings: opts.cache.headings?.map((h) => ({
+								heading: h.heading,
+								level: h.level,
+								position: { start: { line: h.line } },
+							})),
+							sections: opts.cache.sections?.map((s) => ({
+								type: s.type,
+								position: { start: { line: s.start }, end: { line: s.end } },
+							})),
+						}
+					: null,
+		},
 	};
 }
 
 const BODY = ["# Project", "", "## Tasks", "- a", "- b"].join("\n");
+
+// A heading-like line inside an Obsidian comment, which Obsidian's metadata
+// cache does not count as a heading.
+const COMMENTED = [
+	"# Project",
+	"## Tasks",
+	"- a",
+	"%%",
+	"## Draft",
+	"%%",
+	"- b",
+].join("\n");
+const COMMENTED_CACHE = {
+	headings: [
+		{ heading: "Project", level: 1, line: 0 },
+		{ heading: "Tasks", level: 2, line: 1 },
+	],
+};
 
 describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 	it("links to the heading the cursor is under", async () => {
@@ -1648,6 +1909,165 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const f = new CompleteFormatter(app as any, makePlugin() as any);
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
+		);
+	});
+
+	it("uses Obsidian's headings for a saved note", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 6,
+				value: COMMENTED,
+				data: COMMENTED,
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("treats a CRLF note as saved when only line endings differ", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 6,
+				value: COMMENTED,
+				data: COMMENTED.replace(/\n/g, "\r\n"),
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("links the whole file when Obsidian finds no headings in a saved note", async () => {
+		const value = ["%%", "# Draft", "%%", "body"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 3, value, data: value }),
+			cache: {},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("parses a just-saved note whose headings Obsidian hasn't re-read yet", async () => {
+		// "## Tasks" was renamed and saved; the cache still has the old name.
+		const value = COMMENTED.replace("## Tasks", "## Todo");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 2, value, data: value }),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Todo]]",
+		);
+	});
+
+	it("parses a just-saved note whose heading level Obsidian hasn't re-read yet", async () => {
+		// The second "X" was "# X" and is now "## X" under B; a stale level-1
+		// entry would make it undisambiguable (whole-file link).
+		const value = ["# A", "## X", "# B", "## X", "body"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 4, value, data: value }),
+			cache: {
+				headings: [
+					{ heading: "A", level: 1, line: 0 },
+					{ heading: "X", level: 2, line: 1 },
+					{ heading: "B", level: 1, line: 2 },
+					{ heading: "X", level: 1, line: 3 },
+				],
+			},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#B#X]]",
+		);
+	});
+
+	it("parses a just-saved note with a heading Obsidian hasn't indexed yet (#2030)", async () => {
+		// "## Rollout" was typed and saved; the cache still reflects the text
+		// before it, and every heading it does have is still in place.
+		const value = `${COMMENTED}\n## Rollout\n- c`;
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 8, value, data: value }),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Rollout]]",
+		);
+	});
+
+	it("keeps Obsidian's headings when the only extra parsed heading is in an HTML block", async () => {
+		const value = ["# Project", "## Tasks", "<div>", "## Draft", "</div>", "- b"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 5, value, data: value }),
+			cache: {
+				headings: [
+					{ heading: "Project", level: 1, line: 0 },
+					{ heading: "Tasks", level: 2, line: 1 },
+				],
+				sections: [
+					{ type: "heading", start: 0, end: 0 },
+					{ type: "heading", start: 1, end: 1 },
+					{ type: "html", start: 2, end: 4 },
+					{ type: "paragraph", start: 5, end: 5 },
+				],
+			},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("keeps an HTML-block heading out while adding a heading Obsidian hasn't indexed yet (#2030)", async () => {
+		// Saved just now: "## Rollout" is new; "## Draft" sits in an HTML block,
+		// which only the (still stale) cache knows about.
+		const value = ["# Project", "## Tasks", "<div>", "## Draft", "</div>", "- b", "## Rollout", "- c"].join("\n");
+		const cache = {
+			headings: [
+				{ heading: "Project", level: 1, line: 0 },
+				{ heading: "Tasks", level: 2, line: 1 },
+			],
+			sections: [
+				{ type: "heading", start: 0, end: 0 },
+				{ type: "heading", start: 1, end: 1 },
+				{ type: "html", start: 2, end: 4 },
+				{ type: "paragraph", start: 5, end: 5 },
+			],
+		};
+		const link = async (cursorLine: number) => {
+			const app = makeSectionApp({
+				view: makeSectionView({ path: "Note.md", cursorLine, value, data: value }),
+				cache,
+			});
+			return new CompleteFormatter(app as any, makePlugin() as any).formatFileContent("{{linksection}}");
+		};
+		await expect(link(5)).resolves.toBe("[[Note#Tasks]]");
+		await expect(link(7)).resolves.toBe("[[Note#Rollout]]");
+	});
+
+	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
+		const value = `${COMMENTED}\n## Rollout\n- c`;
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 8,
+				value,
+				data: COMMENTED,
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Rollout]]",
 		);
 	});
 
@@ -1797,6 +2217,21 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
+	it("titles a named {{VALUE:name}} provider prompt with its |label:", async () => {
+		const inputPrompt = vi.fn(async (_header: string) => "Ada, Grace");
+		const suggester = vi.fn(
+			async (_display: string[], _actual: string[], _placeholder?: string) => "true",
+		);
+		const f = providerFormatter({ inputPrompt, suggester });
+
+		await f.formatFolderPath(
+			"{{VALUE:attendees|label:Who attended?}} {{VALUE:done|type:checkbox|label:Completed?}}",
+		);
+
+		expect(inputPrompt.mock.calls[0]?.[0]).toBe("Who attended?");
+		expect(suggester.mock.calls[0]?.[2]).toBe("Completed?");
+	});
+
 	it("routes {{VALUE:a,b,c|multi}} to the provider's suggesterMulti, not the Obsidian modal", async () => {
 		const suggesterMulti = vi.fn(
 			async (_display: string[], _actual: string[]) => ["a", "c"],
@@ -1886,6 +2321,46 @@ describe("property value formatting", () => {
 		expect(await f.formatPropertyValue("```js quickadd\nreturn ['fresh', 'kept'];\n```")).toEqual(["fresh", "kept"]);
 		mocks.inlineRunAndGetOutput.mockResolvedValue(["a", "b"]);
 		expect(await f.formatPropertyValue("Tags: ```js quickadd\nreturn ['a', 'b'];\n```")).toBe("Tags: a,b");
+	});
+
+	function formatterWithPicks(picks: string[]) {
+		const executor = createChoiceExecutor();
+		executor.variables.set("A,B,C", picks);
+		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+	}
+
+	it.each([
+		["{{VALUE:A,B,C|multi}}\nfixed", "A\nB\nfixed"],
+		["{{VALUE:A,B,C|multi|format:markdown}}\nfixed", "A\nB\nfixed"],
+		["  {{VALUE:A,B,C|multi|format:yaml}}  \nfixed", "  A\nB  \nfixed"],
+		["{{VALUE:A,B,C|multi|format:markdown}}", ["A", "B"]],
+		["{{VALUE:A,B,C|multi|format:spaced}}\nfixed", "A, B\nfixed"],
+		["project/{{VALUE:A,B,C|multi}}", "project/A,B"],
+	])("writes each pick of %j as its own line for a list property", async (format, expected) => {
+		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue(format, { listItems: true })).toEqual(expected);
+	});
+
+	it.each([
+		["{{VALUE:A,B|multi}}", "tags"],
+		["{{VALUE:A,B|multi|label:Topics}}", "Topics"],
+	])("titles the picker of %s after the property unless it has a label", async (format, title) => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyKey", "tags");
+		const f = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["A"]);
+		await f.formatPropertyValue(format, { listItems: true });
+		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({ placeholder: title });
+	});
+
+	it("keeps a pick with a line break whole only when its token is the whole format", async () => {
+		expect(await formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}", { listItems: true }))
+			.toEqual(["Research\nwriting", "B"]);
+		await expect(formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\ninbox", { listItems: true }))
+			.rejects.toThrow("line break");
+	});
+
+	it("keeps comma-joined picks when the property is not a list", async () => {
+		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\nfixed")).toBe("A,B\nfixed");
 	});
 
 	it.each([0, false, ["a,b", "c"], [], { nested: true }])("retains whole-token native values for validation: %j", async (value) => {
@@ -1985,10 +2460,10 @@ describe("property value formatting", () => {
 	});
 
 	it.each([
-		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "beforeafter" },
-		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["beforeafter", "{{VALUE}}"] },
-		{ format: "Added\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbeforeafter\n{{DATE}}" },
-	])("strips cursor markers after expanding $format from $value", async ({ format, value, expected }) => {
+		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "before{{CURSOR}}after" },
+		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"] },
+		{ format: "Added{{CURSOR}}\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbefore{{CURSOR}}after\n{{cursor}}{{DATE}}" },
+	])("keeps cursor markers in the property value as text when expanding $format", async ({ format, value, expected }) => {
 		const executor = createChoiceExecutor();
 		const originalValue = structuredClone(value);
 		executor.variables.set("propertyValue", value);
@@ -1998,9 +2473,9 @@ describe("property value formatting", () => {
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 	});
 
-	it("strips cursor markers from retained VALUE lists without changing native types", async () => {
+	it("keeps retained VALUE lists as they are, cursor markers included", async () => {
 		const value = ["before{{CURSOR}}after", false, 0];
-		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["beforeafter", false, 0]);
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["before{{CURSOR}}after", false, 0]);
 		expect(value).toEqual(["before{{CURSOR}}after", false, 0]);
 	});
 

@@ -68,7 +68,9 @@ vi.mock("./settingsStore", () => ({
 		}),
 	},
 }));
-vi.mock("./utilityObsidian", () => ({ getDate: vi.fn() }));
+vi.mock("./utils/dates", () => ({
+	getDate: vi.fn(),
+}));
 vi.mock("./utils/errorUtils", async () => {
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = await vi.importActual<typeof import("./utils/errorUtils")>(
@@ -155,7 +157,7 @@ describe("executeChoice on an unknown choice (throwing getChoiceByName)", () => 
 
 		await api.executeChoice("MyChoice", { foo: "bar" });
 
-		expect(executor.execute).toHaveBeenCalledWith(choice);
+		expect(executor.execute).toHaveBeenCalledWith(choice, undefined);
 		expect(executor.variables.size).toBe(0);
 		expect(mocks.reportError).not.toHaveBeenCalled();
 	});
@@ -174,7 +176,7 @@ describe("getFieldValues frontmatter array safety", () => {
 		return makeApp({
 			vault: {
 				getMarkdownFiles: () => files,
-				read: read ?? (async () => ""),
+				cachedRead: read ?? (async () => ""),
 			},
 			metadataCache: {
 				getFileCache: (file: FakeFile) => ({

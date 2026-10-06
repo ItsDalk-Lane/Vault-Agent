@@ -16,6 +16,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 	 */
 	private promptScope: PromptScopeKind = "noteBody";
 	private preserveCursorMarkers = false;
+	private keepUserTextProtected = false;
 
 	constructor(
 		app: App,
@@ -29,6 +30,11 @@ export class SingleTemplateEngine extends TemplateEngine {
 
 	public setPreserveCursorMarkers(preserve: boolean): void {
 		this.preserveCursorMarkers = preserve;
+	}
+
+	/** The caller restores user text once it has run Templater on the result. */
+	public setKeepUserTextProtected(keep: boolean): void {
+		this.keepUserTextProtected = keep;
 	}
 
 	public setPromptScope(scope: PromptScopeKind): void {
@@ -50,11 +56,12 @@ export class SingleTemplateEngine extends TemplateEngine {
 			log.logError(t("errors.templateNotFound", { path: resolvedTemplatePath }));
 		}
 
+		const format = () => this.preserveCursorMarkers
+			? this.formatter.formatTemplateContent(templateContent)
+			: this.formatter.formatFileContent(templateContent);
 		templateContent = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope(this.promptScope, templateContent, () =>
-				this.preserveCursorMarkers
-					? this.formatter.formatTemplateContent(templateContent)
-					: this.formatter.formatFileContent(templateContent),
+				this.keepUserTextProtected ? this.formatter.withUserTextProtected(format) : format(),
 			),
 		);
 

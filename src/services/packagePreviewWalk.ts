@@ -1,13 +1,16 @@
-import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
+import { normalizeVaultPathSeparators } from "../utils/pathUtils";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type IChoice from "../types/choices/IChoice";
-import type IMacroChoice from "../types/choices/IMacroChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
+import { getPropertyCaptures } from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ConditionalCondition } from "../types/macros/Conditional/types";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
+import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type {
@@ -15,9 +18,9 @@ import type {
 } from "../types/packages/QuickAddPackage";
 import { isChoiceLike } from "../utils/choiceUtils";
 import { commandListOf, isCommandLike, macroCommandsValueOf } from "../utils/macroUtils";
-import { t } from "../i18n";
+import { captureFormatIncludes } from "../utils/packageTraversal";
 
-import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewUsageSite } from "../types/packages/PackagePreview";
+import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewInlineScript, PreviewUsageSite } from "../types/packages/PackagePreview";
 const KNOWN_COMMAND_TYPES = new Set<string>(Object.values(CommandType));
 // --- Walk -------------------------------------------------------------------
 
@@ -32,6 +35,7 @@ interface ChoiceWalk {
 	usages: PreviewUsageSite[];
 	/** Granular critical/warning rows attributable to this choice. */
 	rows: CapabilityRow[];
+	inlineScripts: PreviewInlineScript[];
 }
 
 interface PackageWalk {
@@ -42,6 +46,21 @@ function joinCrumb(parts: Array<string | undefined>): string {
 	return parts.filter((part): part is string => Boolean(part)).join(" › ");
 }
 
+/**
+ * Whether a step's name already shows its script path, as it does for the steps
+ * the macro builder names after same-named scripts (#1850). A `::member` suffix
+ * doesn't count. The review then shows the path once.
+ */
+export function isNamedAfterScript(label: string, scriptPath: string): boolean {
+	return label.split("::")[0].trim() === scriptPath;
+}
+
+function crumbWithScriptPath(crumbs: string[], label: string, scriptPath: string): string {
+	return isNamedAfterScript(label, scriptPath)
+		? joinCrumb(crumbs)
+		: `${joinCrumb(crumbs)} (${scriptPath})`;
+}
+
 function commandLabel(command: ICommand): string {
 	const name = command.name?.trim();
 	return name && name.length > 0 ? name : String(command.type);
@@ -49,7 +68,7 @@ function commandLabel(command: ICommand): string {
 
 function conditionSummary(condition: ConditionalCondition): string {
 	if (condition.mode === "script") {
-		return `${t("packageManager.conditionScriptPrefix")} ${condition.scriptPath}${condition.exportName ? ` (${condition.exportName})` : ""
+		return `script: ${condition.scriptPath}${condition.exportName ? ` (${condition.exportName})` : ""
 			}`;
 	}
 	const expected =
@@ -57,20 +76,52 @@ function conditionSummary(condition: ConditionalCondition): string {
 	return `${condition.variableName} ${condition.operator}${expected}`;
 }
 
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
+/**
+ * A choice's settings that the formatter runs through `format()`, which executes
+ * every ```js quickadd fence first (CompleteFormatter.format). The template path
+ * and a capture's new-file template are only scalar-formatted, so no code runs
+ * from them. Listed whether or not the setting is switched on: one toggle after
+ * import would run it without another review.
+ */
+function inlineScriptFields(choice: IChoice): Array<[field: string, value: unknown]> {
+	if (isTemplateChoice(choice)) {
+		const folders: unknown[] = Array.isArray(choice.folder?.folders) ? choice.folder.folders : [];
+		return [
+			["file name format", choice.fileNameFormat?.format],
+			...folders.map((folder): [string, unknown] => ["folder", folder]),
+		];
+	}
+	if (isCaptureChoice(choice)) {
+		// Multi-property capture: every row's property name is a scan site.
+		const propertyNames = getPropertyCaptures(choice).map(({ property }) =>
+			property.kind === "named" ? property.format : undefined,
+		);
+		return [
+			["capture to", choice.captureTo],
+			["capture format", choice.format?.format],
+			["insert after", choice.insertAfter?.after],
+			["insert before", choice.insertBefore?.before],
+			...propertyNames.map((name): [string, unknown] => ["property name", name]),
+		];
+	}
+	return [];
 }
 
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	return choice.type === "Multi";
+function hasInlineScript(value: unknown): value is string {
+	return typeof value === "string" && inlineScriptBodies(value).length > 0;
 }
 
-function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
+/** `crumbs` start with the top-level choice's name; the row names it, the code view doesn't. */
+function recordInlineScript(walk: ChoiceWalk, crumbs: string[], text: string, addRow = true): void {
+	walk.inlineScripts.push({ setting: joinCrumb(crumbs.slice(1)), text });
+	if (!addRow) return;
+	walk.flags.add("user-script");
+	walk.rows.push({
+		flag: "user-script",
+		severity: "critical",
+		title: "Runs custom JavaScript written into a choice setting",
+		detail: joinCrumb(crumbs),
+	});
 }
 
 /** True when a template's file-exists behavior can modify an existing note. */
@@ -101,7 +152,7 @@ export function walkPackage(pkg: QuickAddPackage): PackageWalk {
 
 	for (const entry of pkg.choices) {
 		const choice = entry.choice;
-		const location = joinCrumb(entry.pathHint.slice(0, -1)) || t("packageManager.rootLocation");
+		const location = joinCrumb(entry.pathHint.slice(0, -1)) || "Root";
 		const walk: ChoiceWalk = {
 			choiceId: choice.id,
 			name: choice.name,
@@ -112,6 +163,7 @@ export function walkPackage(pkg: QuickAddPackage): PackageWalk {
 			commands: [],
 			usages: [],
 			rows: [],
+			inlineScripts: [],
 		};
 
 		collectChoice(choice, walk, [choice.name], entryIds, 0);
@@ -140,7 +192,7 @@ function collectChoice(
 			walk.rows.push({
 				flag: "run-on-startup",
 				severity: "critical",
-				title: t("packageManager.row.runOnStartup"),
+				title: "Runs automatically every time Obsidian starts",
 				detail: joinCrumb(crumbs),
 			});
 		}
@@ -151,10 +203,10 @@ function collectChoice(
 		if (choice.templatePath) {
 			walk.usages.push({
 				choiceId: walk.choiceId,
-				path: choice.templatePath,
+				path: resolveTemplatePath(choice.templatePath),
 				asScript: false,
 				impliedKind: "template",
-				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.template")]),
+				breadcrumb: joinCrumb([...crumbs, "template"]),
 			});
 		}
 		if (templateModifiesExisting(choice)) {
@@ -172,12 +224,30 @@ function collectChoice(
 		) {
 			walk.usages.push({
 				choiceId: walk.choiceId,
-				path: createCfg.template,
+				path: resolveTemplatePath(createCfg.template),
 				asScript: false,
 				impliedKind: "capture-template",
-				breadcrumb: joinCrumb([...crumbs, t("packageManager.crumb.newFileTemplate")]),
+				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
 			});
 		}
+		for (const path of captureFormatIncludes(choice)) {
+			walk.usages.push({
+				choiceId: walk.choiceId,
+				path,
+				asScript: false,
+				impliedKind: "template",
+				breadcrumb: joinCrumb([...crumbs, "{{TEMPLATE}} include"]),
+			});
+		}
+	}
+
+	// One row per setting, but every value is shown: a choice's folders all
+	// share the "folder" row.
+	const reported = new Set<string>();
+	for (const [field, value] of inlineScriptFields(choice)) {
+		if (!hasInlineScript(value)) continue;
+		recordInlineScript(walk, [...crumbs, field], value, !reported.has(field));
+		reported.add(field);
 	}
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
@@ -217,9 +287,11 @@ function collectCommands(
 					scriptPath: script.path,
 				});
 				if (script.path) {
+					// A script path is an identity: separators are normalized, as
+					// import does, but whitespace is kept because it names a folder.
 					walk.usages.push({
 						choiceId: walk.choiceId,
-						path: script.path,
+						path: normalizeVaultPathSeparators(script.path),
 						asScript: true,
 						impliedKind: "user-script",
 						breadcrumb: joinCrumb(commandCrumbs),
@@ -227,8 +299,8 @@ function collectCommands(
 					walk.rows.push({
 						flag: "user-script",
 						severity: "critical",
-						title: t("packageManager.row.userScript"),
-						detail: `${joinCrumb(commandCrumbs)} (${script.path})`,
+						title: "Runs custom JavaScript with full access to your vault and the network",
+						detail: crumbWithScriptPath(commandCrumbs, label, script.path),
 						scriptPath: script.path,
 					});
 				}
@@ -250,7 +322,7 @@ function collectCommands(
 					walk.flags.add("conditional-script");
 					walk.usages.push({
 						choiceId: walk.choiceId,
-						path: scriptPath,
+						path: normalizeVaultPathSeparators(scriptPath),
 						asScript: true,
 						impliedKind: "conditional-script",
 						breadcrumb: joinCrumb(commandCrumbs),
@@ -258,22 +330,22 @@ function collectCommands(
 					walk.rows.push({
 						flag: "conditional-script",
 						severity: "critical",
-						title: t("packageManager.row.conditionalScript"),
-						detail: `${joinCrumb(commandCrumbs)} (${scriptPath})`,
+						title: "Runs custom JavaScript chosen by a condition",
+						detail: crumbWithScriptPath(commandCrumbs, label, scriptPath),
 						scriptPath,
 					});
 				}
 				collectCommands(
 					conditional.thenCommands ?? [],
 					walk,
-					[...commandCrumbs, t("packageManager.crumb.then")],
+					[...commandCrumbs, "then"],
 					entryIds,
 					depth + 1,
 				);
 				collectCommands(
 					conditional.elseCommands ?? [],
 					walk,
-					[...commandCrumbs, t("packageManager.crumb.else")],
+					[...commandCrumbs, "else"],
 					entryIds,
 					depth + 1,
 				);
@@ -300,7 +372,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "obsidian-command",
 					severity: "warning",
-					title: t("packageManager.row.obsidianCommand"),
+					title: "Triggers another Obsidian command",
 					detail: `${joinCrumb(commandCrumbs)}${obsidian.commandId ? ` (${obsidian.commandId})` : ""
 						}`,
 				});
@@ -311,7 +383,7 @@ function collectCommands(
 				walk.rows.push({
 					flag: "ai",
 					severity: "warning",
-					title: t("packageManager.row.ai"),
+					title: "Sends note content to your AI provider over the network",
 					detail: joinCrumb(commandCrumbs),
 				});
 				break;
@@ -322,6 +394,11 @@ function collectCommands(
 			}
 			case CommandType.OpenFile: {
 				walk.flags.add("open-file");
+				const filePath = (command as IOpenFileCommand).filePath;
+				if (hasInlineScript(filePath)) {
+					previewCommand.flag = "user-script";
+					recordInlineScript(walk, [...commandCrumbs, "file path"], filePath);
+				}
 				break;
 			}
 			case CommandType.Choice:
@@ -336,7 +413,7 @@ function collectCommands(
 					walk.rows.push({
 						flag: "unknown-command",
 						severity: "warning",
-						title: t("packageManager.row.unknownCommand"),
+						title: "Unknown capability. Review it manually.",
 						detail: `${joinCrumb(commandCrumbs)} (${String(command.type)})`,
 					});
 				}

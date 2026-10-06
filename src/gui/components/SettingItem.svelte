@@ -16,6 +16,7 @@ let {
 	labelFor = undefined,
 	control = undefined,
 	children = undefined,
+	body = undefined,
 	onInfoClick = undefined,
 }: {
 	name?: string;
@@ -35,6 +36,12 @@ let {
 	/** Alias for `control` so the row can be used with default slot content. */
 	children?: Snippet | undefined;
 	/**
+	 * A full-width field on its own line under the name (see LabeledField).
+	 * Inside the row, so a settings page's Tab and arrow keys treat it as part
+	 * of the row, as they do a control.
+	 */
+	body?: Snippet | undefined;
+	/**
 	 * Mouse-only affordance: clicking anywhere on the row — name, description,
 	 * or dead space between name and controls — fires this (used for collapsible
 	 * rows). Opt-in, so plain rows keep inert rows. The control area stops
@@ -47,17 +54,22 @@ let {
 } = $props();
 </script>
 
+<!-- tabindex -1, as Obsidian's own rows: a settings page focuses rows on Tab
+     and the arrow keys. Never 0 or more, so not a stop for the browser's Tab. -->
 <!-- Mouse-only affordance, on the WHOLE row: clicking any dead space between
 	the name and the controls toggles (see onInfoClick). The control area
 	stops propagation so its real controls (dropdowns, buttons) never fire
 	the row handler. Keyboard users toggle through a real button in the
 	control area — same pattern as the choice list rows. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
 	class="setting-item"
 	class:setting-item-heading={heading}
+	class:qa-field={body !== undefined}
 	class:qa-setting-info-clickable={!!onInfoClick}
+	tabindex={heading ? undefined : -1}
 	onclick={onInfoClick}
 >
 	<div class="setting-item-info">
@@ -76,4 +88,5 @@ let {
 	>
 		{@render (control ?? children)?.()}
 	</div>
+	{#if body}<div class="qa-field-body">{@render body()}</div>{/if}
 </div>

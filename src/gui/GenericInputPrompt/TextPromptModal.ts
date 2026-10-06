@@ -42,7 +42,6 @@ export abstract class TextPromptModal<
 		private header: string,
 		placeholder?: string,
 		value?: string,
-		private linkSourcePath?: string,
 		description?: string,
 		protected readonly options?: InputPromptOptions,
 	) {
@@ -53,7 +52,7 @@ export abstract class TextPromptModal<
 			kind: this.getPromptKind(),
 			header: this.header,
 			placeholder: this.placeholder,
-			linkSourcePath: this.linkSourcePath,
+			linkSourcePath: options?.linkSourcePath,
 			scopeId: options?.draftScopeId,
 		});
 		this.input = this.draftHandler.hydrate(value ?? "");
@@ -300,7 +299,7 @@ export abstract class TextPromptModal<
 
 	private attachSuggesters() {
 		this.fileSuggester = new FileSuggester(this.app, this.inputComponent.inputEl, {
-			sourcePath: this.linkSourcePath,
+			sourcePath: this.options?.linkSourcePath,
 		});
 		this.tagSuggester = new TagSuggester(this.app, this.inputComponent.inputEl);
 	}

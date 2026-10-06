@@ -13,6 +13,7 @@ import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
 import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
+import type { LoadedUserScript } from "src/utils/userScript";
 import type { IConditionalCommand } from "src/types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "src/types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "src/types/choices/IChoice";
@@ -49,14 +50,24 @@ const {
 	logMessageMock: vi.fn(),
 }));
 
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: getMarkdownFilesInFolderMock,
 	getMarkdownFilesMatchingFilter: getMarkdownFilesMatchingFilterMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getMarkdownFilesWithProperty: getMarkdownFilesWithPropertyMock,
-	getUserScript: getUserScriptMock,
-	getTemplateFile: getTemplateFileMock,
 	isFolder: isFolderMock,
+}));
+vi.mock("src/utils/userScript", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	// getUserScriptMock returns the `::`-drilled export; the collector only
+	// reads quickadd.inputs from it, so the settings definition is irrelevant.
+	loadUserScript: async (...args: unknown[]) => {
+		const script: unknown = await getUserScriptMock(...args);
+		return script === undefined ? undefined : { script, settings: undefined };
+	},
+}));
+vi.mock("src/utils/templateFolderUtils", () => ({
+	getTemplateFile: getTemplateFileMock,
 }));
 
 vi.mock("src/logger/logManager", () => ({
@@ -162,6 +173,22 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("asks for a One entry per line value in a text area (#1996)", async () => {
+		const choice = (eachLine: boolean, format: string) => ({
+			...createCaptureChoice("Inbox.md"),
+			eachLine,
+			format: { enabled: true, format },
+		}) as ICaptureChoice;
+		const valueType = async (c: ICaptureChoice) =>
+			(await collect(c, createChoiceExecutor())).find((r) => r.id === "value")?.type;
+
+		expect(await valueType(choice(true, "- {{VALUE}}"))).toBe("textarea");
+		expect(await valueType(choice(false, "- {{VALUE}}"))).toBe("text");
+		// An explicit type on the token wins.
+		expect(await valueType(choice(true, "- {{VALUE|type:number}}"))).toBe("number");
+		expect(await valueType(choice(true, "- {{VALUE|type:text}}"))).toBe("text");
+	});
+
 	it("collects requirements from TEMPLATE includes in Capture formats", async () => {
 		templateBodies.set(
 			"Templates/Capture Format.md",
@@ -182,6 +209,24 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		expect(cachedReadMock).toHaveBeenCalledWith(
 			expect.objectContaining({ path: "Templates/Capture Format.md" }),
 		);
+	});
+
+	it("follows a TEMPLATE include written with backslashes", async () => {
+		templateBodies.set(
+			"Templates/Capture Format.md",
+			"Included value: {{VALUE:includedValue}}",
+		);
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates\\Capture Format.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(captureChoice, createChoiceExecutor());
+
+		expectCollectedFields(requirements, { id: "includedValue" });
 	});
 
 	it("does not recurse into TEMPLATE includes introduced by global variables", async () => {
@@ -300,6 +345,17 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		const requirements = await collect(captureChoice, choiceExecutor);
 
 		expectCollectedFields(requirements, { id: "insertBeforeHeading" });
+	});
+
+	it("lists a Template's folder before its file name and content, as the run asks (#1997)", async () => {
+		templateBodies.set("Templates/Source.md", "{{VALUE:body}}");
+		const templateChoice = createTemplateChoice("Templates/Source.md");
+		templateChoice.fileNameFormat = { enabled: true, format: "{{VALUE:fname}}" };
+		templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: ["Clients/{{VALUE:client}}"] };
+
+		const requirements = await collect(templateChoice, createChoiceExecutor());
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["client", "fname", "body"]);
 	});
 
 	it("collects requirements from TEMPLATE includes in Template file names", async () => {
@@ -558,12 +614,12 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 			},
 		};
 		getUserScriptMock.mockResolvedValue(exported);
-		const preloadedUserScripts = new Map<string, unknown>();
+		const preloadedUserScripts = new Map<string, LoadedUserScript>();
 
 		await collect(createMacroChoice(scriptCommand), choiceExecutor, { preloadedUserScripts });
 
 		expect(getUserScriptMock).toHaveBeenCalledTimes(1);
-		expect(preloadedUserScripts.get("script.js")).toBe(exported);
+		expect(preloadedUserScripts.get("script.js")?.script).toBe(exported);
 
 		// A second collection pass (e.g. CLI collect followed by the one-page
 		// preflight) must reuse the cached module, not execute it again.
@@ -573,7 +629,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		expectCollectedFields(requirements, { id: "project" });
 	});
 
-	// getUserScript returns the `::`-member-DRILLED export, so the cache key
+	// The cached `script` is the `::`-member-DRILLED export, so the cache key
 	// must include the drill: two commands sharing a path but drilling
 	// different members hold different functions with different inputs, and
 	// caching by path alone made the second command reuse the first member's
@@ -589,7 +645,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		getUserScriptMock
 			.mockResolvedValueOnce(fooExport)
 			.mockResolvedValueOnce(barExport);
-		const preloadedUserScripts = new Map<string, unknown>();
+		const preloadedUserScripts = new Map<string, LoadedUserScript>();
 
 		const macroChoice = createMacroChoice(scriptCommand);
 		macroChoice.macro.commands = [
@@ -600,8 +656,8 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		const requirements = await collect(macroChoice, choiceExecutor, { preloadedUserScripts });
 
 		expect(getUserScriptMock).toHaveBeenCalledTimes(2);
-		expect(preloadedUserScripts.get("script.js::foo")).toBe(fooExport);
-		expect(preloadedUserScripts.get("script.js::bar")).toBe(barExport);
+		expect(preloadedUserScripts.get("script.js::foo")?.script).toBe(fooExport);
+		expect(preloadedUserScripts.get("script.js::bar")?.script).toBe(barExport);
 		expectCollectedFields(requirements, { id: "fooInput" }, { id: "barInput" });
 	});
 
@@ -747,7 +803,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		getFileCacheMock.mockReset();
 		getFileCacheMock.mockImplementation((file: { path: string }) => {
 			if (file.path === "Goals/Alpha.md") {
-				return { frontmatter: { title: "Alpha Goal" } };
+				return { frontmatter: { title: "Alpha Goal", aliases: ["First goal"] } };
 			}
 			if (file.path === "Projects/Beta.md") {
 				return { headings: [{ level: 1, heading: "Beta Heading" }] };
@@ -793,6 +849,31 @@ describe("collectChoiceRequirements - capture targets", () => {
 			.toBe(needsPicker);
 	});
 
+	it("lists the capture target first, as the run asks for it first (#1947)", async () => {
+		isFolderMock.mockReturnValue(true);
+		const choice = createCaptureChoice("Inbox/");
+		choice.format = { enabled: true, format: "- {{VALUE:what}} 📅 {{VDATE:due,YYYY-MM-DD}}" };
+		const requirements = await collect(choice, choiceExecutor);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			captureTargetKeyFor("capture-choice"), "what", "due",
+		]);
+	});
+
+	it("keeps the capture target out of reach of a format token that reuses its id", async () => {
+		isFolderMock.mockReturnValue(true);
+		const choice = createCaptureChoice("Inbox/");
+		choice.format = { enabled: true, format: `{{VALUE:a,b|name:${captureTargetKeyFor("capture-choice")}}}` };
+		const requirements = await collect(choice, choiceExecutor);
+
+		expect(requirements[0]).toMatchObject({
+			id: captureTargetKeyFor("capture-choice"),
+			type: "dropdown",
+			options: [],
+			placeholder: "No files found in target scope",
+		});
+	});
+
 	it("forces the capture target dropdown for a property:field=value target (issue #466)", async () => {
 		const requirements = await collect(createCaptureChoice("property:type=draft"), choiceExecutor);
 
@@ -834,7 +915,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		);
 	});
 
-	it("forces the capture target dropdown for file filter targets", async () => {
+	it("asks for a file filter target's note in a searchable picker that matches aliases", async () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([
 			{ path: "Goals/Alpha.md" } as never,
 			{ path: "Projects/Beta.md" } as never,
@@ -862,6 +943,26 @@ describe("collectChoiceRequirements - capture targets", () => {
 			"Alpha Goal (Alpha)",
 			"Beta Heading (Beta)",
 		]);
+		expect(target?.type).toBe("file-picker");
+		expect(target?.optionAliases).toEqual([["First goal"], []]);
+	});
+
+	it("lets the capture target field take a new note name only when creation is on", async () => {
+		getMarkdownFilesMatchingFilterMock.mockReturnValue([{ path: "Goals/Alpha.md" } as never]);
+		const target = async (choice: ReturnType<typeof createCaptureChoice>) =>
+			(await collect(choice, choiceExecutor)).find(
+				(requirement) => requirement.id === captureTargetKeyFor("capture-choice"),
+			);
+
+		expect(await target(createCaptureChoice("folder:Goals|tag:active"))).not.toHaveProperty("suggesterConfig");
+		// Outside a folder, the new note must not share a name with any note.
+		expect(await target(enableCaptureTargetCreation(createCaptureChoice("folder:Goals|tag:active"))))
+			.toMatchObject({ suggesterConfig: { allowCustomInput: true }, newNoteName: "vault" });
+
+		isFolderMock.mockReturnValue(true);
+		getMarkdownFilesInFolderMock.mockReturnValue([{ path: "Goals/Alpha.md" } as never]);
+		const folderTarget = await target(enableCaptureTargetCreation(createCaptureChoice("Goals/")));
+		expect(folderTarget).toMatchObject({ suggesterConfig: { allowCustomInput: true }, newNoteName: "scope" });
 	});
 
 	it("leaves empty create-enabled capture target scopes to the runtime picker", async () => {
@@ -984,6 +1085,16 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 		// A dynamic path can't be resolved at preflight, so the body walk is
 		// skipped — getTemplateFile must not be called for a tokenized path.
 		expect(getTemplateFileMock).not.toHaveBeenCalled();
+	});
+
+	it("lists a token in the template path first, as the run resolves the path first (#1997)", async () => {
+		const templateChoice = createTemplateChoice("Templates/{{VALUE:kind}}.md");
+		templateChoice.fileNameFormat = { enabled: true, format: "{{VALUE:fname}}" };
+		templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: ["Clients/{{VALUE:client}}"] };
+
+		const requirements = await collect(templateChoice, createChoiceExecutor());
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["kind", "client", "fname"]);
 	});
 
 	it("still walks the body for a literal (token-free) path", async () => {
@@ -1668,6 +1779,21 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			templateThenCapture.find((requirement) => requirement.id === "value")
 				?.runtimeOnly,
 		).toBe(true);
+	});
+
+	it("gives a Macro's shared value the text area a later One entry per line Capture needs (#1996)", async () => {
+		const format = { enabled: true, format: "- {{VALUE}}" };
+		const first = { ...createCaptureChoice("Inbox.md"), id: "first-cap", name: "First", format } as ICaptureChoice;
+		const lines = { ...createCaptureChoice("Tasks.md"), id: "lines-cap", name: "Lines", format, eachLine: true } as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(first), nestedChoice(lines)),
+		);
+
+		expect(requirements.find((requirement) => requirement.id === "value")?.type).toBe("textarea");
 	});
 
 	it("does not flatten captures inside a nested Macro", async () => {

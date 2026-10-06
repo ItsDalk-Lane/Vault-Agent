@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { addProviderSecret } from "./ai/providerSettings";
 import type { App} from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
@@ -6,7 +7,6 @@ import { cloneModelSeeds, uniqueProviderId } from "src/ai/Provider";
 import { syncProviderModels } from "src/ai/modelSyncService";
 import type { ProviderPreset } from "src/ai/providerPresets";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
-import { t } from "../i18n";
 
 export class ProviderPickerModal extends Modal {
   public waitForClose: Promise<AIProvider[] | null>;
@@ -142,7 +142,11 @@ export class ProviderPickerModal extends Modal {
             } catch (err) {
               b.setButtonText(t("ai.connect"));
               b.setDisabled(false);
-              new Notice(t("ai.addProviderFailed", { error: (err as { message?: string }).message ?? String(err) }));
+              new Notice(
+                t("ai.addProviderFailed", {
+                  error: (err as { message?: string }).message ?? err,
+                }),
+              );
             }
           });
         });
@@ -155,7 +159,7 @@ export class ProviderPickerModal extends Modal {
         b.setButtonText(t("ai.customProvider.addButton")).onClick(() => {
           const provider: AIProvider = { id: uniqueProviderId("custom", this.providers), name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
-          new Notice(t("ai.customProviderAdded"));
+          new Notice(t("ai.customProviderAddedOpenList"));
           this.close();
         });
       });
@@ -174,7 +178,10 @@ export class ProviderPickerModal extends Modal {
     try {
       await syncProviderModels(this.app, provider);
       new Notice(
-        t("ai.providerConnected", { name: preset.name, count: provider.models.length }),
+        t("ai.providerConnected", {
+          name: preset.name,
+          count: provider.models.length,
+        }),
       );
     } catch (err) {
       const message = (err as { message?: string }).message ?? String(err);

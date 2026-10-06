@@ -3,7 +3,7 @@ import type IChoice from "../../types/choices/IChoice";
 import { flattenChoices } from "../../utils/choiceUtils";
 import { t } from "../../i18n";
 
-export interface ChoiceTypeMeta {
+interface ChoiceTypeMeta {
 	type: ChoiceType;
 	/** Short, sentence-case label. */
 	label: string;

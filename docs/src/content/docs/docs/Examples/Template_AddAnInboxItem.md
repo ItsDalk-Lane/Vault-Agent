@@ -2,34 +2,45 @@
 title: "Template: Add an Inbox Item"
 description: Create a timestamped inbox note from a template, naming the file with the current date and time plus your input
 slug: docs/Examples/Template_AddAnInboxItem
+package: inbox-item
 ---
 
 This example gives you a QuickAdd choice that creates a new inbox note in one step. QuickAdd asks you for a short name, then makes a note whose file name is the current date and time followed by what you typed - so every capture lands in your inbox as its own dated note, ready to process later.
 
 ## Before you start
 
-- A template note you want each inbox item to start from. This example uses `bins/templates/Inbox Template.md`. The template can be as simple as an empty file or contain any [format placeholders](/docs/FormatSyntax/) you like.
+- A template note you want each inbox item to start from. The package includes the one below as `Templates/Inbox Template.md`. Building by hand? Save it yourself, or use any note: a template can be as simple as an empty file or contain any [format placeholders](/docs/FormatSyntax/) you like.
+
+```markdown
+---
+created: {{DATE:YYYY-MM-DD HH:mm}}
+tags: [inbox]
+---
+# {{NAME}}
+
+```
 
 ## Setup
 
-1. In QuickAdd settings, click **Add Choice**, select **Template**, and give it a name (for example, `Inbox Item`).
-2. Click the configure button (the gear icon) on the choice to open the Template choice settings. For a full tour of these settings, see [the Template choice docs](/docs/Choices/TemplateChoice/).
-3. Set **Template Path** to your inbox template:
+Imported the package above? Follow **After importing** in the card, then skip the manual setup below and read [What you get](#what-you-get).
+
+1. In **Settings → QuickAdd**, click **New choice** → **Template**. The Template choice settings open; click its name at the top to rename it (for example, `Inbox Item`). For a full tour of these settings, see [the Template choice docs](/docs/Choices/TemplateChoice/).
+2. Set **Template path** to your inbox template:
 
    ```
-   bins/templates/Inbox Template.md
+   Templates/Inbox Template.md
    ```
 
-4. Enable **File Name Format** and set it to:
+3. Set **File name** to (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
 
    ```
    {{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}
    ```
 
    `{{DATE:YYYY-MM-DD-HH-mm-ss}}` becomes the current date and time down to the second, and `{{NAME}}` becomes whatever you type when the choice runs. Together they keep every inbox note uniquely named and in date order.
-5. Choose the folder new notes should go into and set the remaining options to your liking.
+4. Set **New note location** to **In a specific folder**, enter `Inbox` in **Folder path**, and click **Add**. Set the remaining options to your liking.
 
-![A Template choice for adding an inbox item](../Images/choices/template-builder.png)
+![The Inbox item Template choice, with the template path, file name, and Inbox folder set](../Images/examples/template-add-inbox-item.png)
 
 ## What you get
 

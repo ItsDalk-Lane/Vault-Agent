@@ -1,35 +1,36 @@
 import type { App, TFile } from "obsidian";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import { Notice } from "obsidian";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
 } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "./choiceChain";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	getMarkdownEditorViewForFile,
-	jumpToNextTemplaterCursorIfPossible,
-} from "../utilityObsidian";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { t } from "../i18n";
+import { readNote } from "../utils/noteContent";
 import {
 	TemplateInsertEngine,
 	templateInsertModes,
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
 
-export type TemplatePickerItem =
+type TemplatePickerItem =
 	| { kind: "choice"; choice: ITemplateChoice }
 	| { kind: "file"; path: string };
 
-export interface ApplyTemplateToNoteParams {
+interface ApplyTemplateToNoteParams {
 	/** Target note; defaults to the active file. */
 	file?: TFile;
 	/** Non-interactive template source; skips the template picker. */
@@ -37,6 +38,8 @@ export interface ApplyTemplateToNoteParams {
 	/** Non-interactive insert mode; skips the mode picker. */
 	mode?: TemplateInsertModeId;
 	choiceExecutor: IChoiceExecutor;
+	/** Chain of the run applying the template, so `{{MACRO:}}` in it is guarded. */
+	chain?: ChoiceChain;
 }
 
 /** A note that only contains whitespace is treated as empty (fast path). */
@@ -50,6 +53,7 @@ export function isNoteEffectivelyEmpty(content: string): boolean {
  * paths default to markdown, matching template content resolution.
  */
 export function isMarkdownTemplatePath(path: string): boolean {
+	path = resolveTemplatePath(path);
 	return (
 		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
 		!BASE_FILE_EXTENSION_REGEX.test(path)
@@ -62,9 +66,17 @@ export function templatePickerItemLabel(item: TemplatePickerItem): string {
 		: `Template: ${item.path}`;
 }
 
-function normalizeTemplatePathForComparison(path: string): string {
-	const stripped = path.replace(/^\/+/, "").toLowerCase();
-	return /\.(md|canvas|base)$/.test(stripped) ? stripped : `${stripped}.md`;
+/**
+ * A configured template setting is typed input, so it is resolved the way the
+ * engine resolves it. A discovered vault file is identity and is only
+ * case-folded, so ` Foo.md` and `Foo.md` stay distinct.
+ */
+function configuredTemplateKey(templatePath: string): string {
+	return resolveTemplatePath(templatePath).toLowerCase();
+}
+
+function vaultTemplateKey(path: string): string {
+	return path.toLowerCase();
 }
 
 /**
@@ -83,9 +95,7 @@ export function buildTemplatePickerItems(
 	);
 
 	const coveredPaths = new Set(
-		templateChoices.map((choice) =>
-			normalizeTemplatePathForComparison(choice.templatePath),
-		),
+		templateChoices.map((choice) => configuredTemplateKey(choice.templatePath)),
 	);
 
 	const items: TemplatePickerItem[] = templateChoices.map((choice) => ({
@@ -95,7 +105,7 @@ export function buildTemplatePickerItems(
 
 	for (const path of templateFilePaths) {
 		if (!isMarkdownTemplatePath(path)) continue;
-		if (coveredPaths.has(normalizeTemplatePathForComparison(path))) continue;
+		if (coveredPaths.has(vaultTemplateKey(path))) continue;
 		items.push({ kind: "file", path });
 	}
 
@@ -159,7 +169,7 @@ export async function applyTemplateToNote(
 			return null;
 		}
 
-		const noteContent = await app.vault.cachedRead(file);
+		const noteContent = await readNote(app, file);
 		const noteIsEmpty = isNoteEffectivelyEmpty(noteContent);
 
 		let mode: TemplateInsertModeId;
@@ -192,6 +202,7 @@ export async function applyTemplateToNote(
 			mode,
 			params.choiceExecutor,
 		);
+		if (params.chain) engine.choiceChain = params.chain;
 		// Prompts raised while applying the template say which choice is driving
 		// and which note is being written (issue #1546). Applying a bare template
 		// has no choice, so only the destination is known. Prompts inside the
@@ -331,15 +342,16 @@ async function maybeReconcileNoteLocation(
 		// the choice's own file-name preview is where the problem is explained.
 		if (!isCreatableFilePath(targetPath)) return;
 
-		const shouldMove = await GenericYesNoPrompt.Prompt(
-			app,
-			t("svelteCards.moveNoteTitle"),
-			t("svelteCards.moveNoteBody", {
+		const shouldMove = await confirmAction(app, {
+			title: t("svelteCards.moveNoteTitle"),
+			message: t("svelteCards.moveNoteBody", {
 				choice: choice.name,
 				target: targetPath,
 				path: file.path,
 			}),
-		);
+			action: t("svelteCards.moveNoteAction"),
+			destructive: false,
+		});
 		if (!shouldMove) return;
 
 		const lastSlash = targetPath.lastIndexOf("/");

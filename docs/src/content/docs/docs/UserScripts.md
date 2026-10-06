@@ -39,6 +39,9 @@ A user script can live in either of two places inside your vault:
 - a note (`.md`) containing a ` ```js ` (or ` ```javascript `) code block.
 
 The note form is handy on mobile, where Obsidian can't open `.js` files at all.
+QuickAdd doesn't run scripts from files with any other extension, such as
+`.cjs` or `.txt`; rename those so they end in `.js`. In QuickAdd 2.30.0 or
+later, a macro step that points at such a file stops the macro with a notice.
 
 :::caution[Where scripts can live]
 A user script must sit inside your Obsidian vault, but **not** in the
@@ -68,7 +71,8 @@ in the script picker.
 In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
 (both `.js` files and notes that contain a code block); it is not a native file
 picker. If you add a script manually, type a `.js` script's basename - for
-`scripts/my-script.js`, enter `my-script` - or, for a note, type its vault path
+`scripts/my-script.js`, enter `my-script` (or its vault path, if another `.js`
+file shares that name) - or, for a note, type its vault path
 (e.g. `Scripts/my-script.md`). For a specific export, append a member expression
 such as `my-script::start` (or `Scripts/my-script.md::start`).
 
@@ -93,6 +97,10 @@ module.exports = async (params) => {
 ````
 
 If the note has no ` ```js ` block, QuickAdd shows a notice and skips the script.
+
+The note only runs when a macro calls it. A ` ```js ` block inside a template or
+capture format is copied into the output as text; to run code there, use an
+[inline script](/docs/InlineScripts/).
 
 :::note
 Only plain ` ```js ` fences are recognized - blocks nested inside callouts or
@@ -160,7 +168,10 @@ The `app` object provides access to the entire Obsidian API, including:
 ### The `settings` object {#settings-object}
 
 `settings` holds the user-configured values for your script's options. It's only
-passed when you use the object structure with a `settings` block.
+populated when your script defines a `settings` block, as in the object
+structure above. An export picked with `::` (for example `my-script::start`)
+gets the values too: QuickAdd uses the nearest `settings` block on the export
+or its parents, up to `module.exports`.
 
 ## Let users configure your script {#configurable-options}
 
@@ -358,6 +369,12 @@ const selected = await quickAddApi.checkboxPrompt(
 );
 ```
 
+`checkboxPrompt` opens a searchable list where the user can tick several items.
+Here a weekly review script offers five areas with Work and Home preselected,
+and the user has also ticked Side projects:
+
+![A QuickAdd checkbox prompt with a search box and the counter "3 selected · 5 options". Work, Home, and Side projects are ticked, Health and Learning are not, and Submit and Cancel buttons sit below](./Images/checkbox-prompt.png)
+
 ### Share values with later steps: variables {#variables}
 
 Set variables that can be used in subsequent template operations:
@@ -387,6 +404,10 @@ const formatted = await quickAddApi.format(
     { title: "My Document" }
 );
 ```
+
+By default, `format` leaves `params.variables` as it found them. The variables you pass
+and the answers to its prompts are gone once it returns, and also when it
+rejects because the user cancelled a prompt.
 
 ### Run another choice {#execute-other-choices}
 
@@ -459,9 +480,9 @@ Prompt cancellations already throw `MacroAbortError` and halt macros automatical
 
 **What happens when you call `abort()`:**
 - Macro execution stops immediately
-- A message is logged: "Macro execution aborted: [your message]"
+- QuickAdd shows your message in a notice: "Macro execution aborted: [your message]". A message containing "cancelled by user" counts as a cancellation, so it gets a notice only when **Show input cancellation notifications** (under [**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-notifications), or the main QuickAdd tab before QuickAdd 2.30.0) is on
 - Remaining commands in the macro are skipped
-- No error is thrown to the user
+- It isn't reported as an error
 
 **QuickAdd API methods that can be cancelled:**
 - `inputPrompt()`
@@ -469,6 +490,8 @@ Prompt cancellations already throw `MacroAbortError` and halt macros automatical
 - `yesNoPrompt()`
 - `suggester()`
 - `checkboxPrompt()`
+- `datePrompt()`
+- `requestInputs()`
 
 Each of these now rejects with `MacroAbortError("Input cancelled by user")` when the user presses Escape or closes the dialog. If you do nothing, the macro will automatically stop (matching user expectations). If you want to handle cancellation in your script, wrap the call in `try/catch` and intercept the error before it reaches the macro engine.
 
@@ -1170,6 +1193,7 @@ For complete working examples, see:
 ## Troubleshooting {#troubleshooting}
 
 **Script not loading:**
+- If QuickAdd says it "could not find" the script, the file was moved, renamed, or deleted, and the macro stops at that step (QuickAdd 2.30.0 or later; earlier versions show two errors and run the rest of the macro). Update the script's path in the macro
 - Check the file path in your macro configuration
 - Ensure the script exports a valid module
 - Check console for syntax errors

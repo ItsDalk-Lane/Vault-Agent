@@ -5,7 +5,6 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { postProcessFrontMatter, shouldPostProcessFrontMatter } from "./helpers/frontmatterPostProcessor";
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 import type { App, TFile } from 'obsidian';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { itPerf } from '../../tests/perfUtils';
@@ -54,7 +53,7 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 		mockApp = {
 			vault: mockVault,
 			fileManager: mockFileManager,
-			workspace: { getActiveFile: () => null, getActiveViewOfType: () => null },
+			workspace: { getActiveFile: () => null, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 		};
 
 		mockPlugin = {

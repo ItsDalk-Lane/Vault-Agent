@@ -28,15 +28,19 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 
 	class Modal {
 		containerEl = document.createElement("div");
+		modalEl = document.createElement("div");
 		contentEl = document.createElement("div");
 		scope = new Scope();
-		constructor(_app: App) { this.containerEl.appendChild(this.contentEl); }
+		constructor(public app: App) {
+			this.modalEl.appendChild(this.contentEl);
+			this.containerEl.appendChild(this.modalEl);
+		}
 		open() {
 			if (noticeMessages && "onOpen" in this && typeof this.onOpen === "function") this.onOpen();
 		}
 		close() {}
 	}
-	const { ButtonComponent, DropdownComponent, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent } =
+	const { ButtonComponent, DropdownComponent, Platform, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent } =
 		await vi.importActual<typeof Obsidian>("obsidian");
 	class Setting extends BaseSetting {
 		constructor(container: HTMLElement) {
@@ -53,7 +57,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 	}
 
 	return {
-		ButtonComponent, DropdownComponent, Modal, Setting, TextAreaComponent, TextComponent, Scope,
+		ButtonComponent, DropdownComponent, Modal, Platform, Setting, TextAreaComponent, TextComponent, Scope,
 		Notice: class { constructor(message: string) { noticeMessages?.push(message); } },
 		debounce: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
 	};
@@ -111,8 +115,8 @@ export function ensureObsidianDomPolyfills(): void {
 	};
 }
 
-export function modalButton(modal: Pick<Modal, "contentEl">, label = "Submit"): HTMLButtonElement {
-	const button = Array.from(modal.contentEl.querySelectorAll("button"))
+export function modalButton(modal: Pick<Modal, "modalEl">, label = "Submit"): HTMLButtonElement {
+	const button = Array.from(modal.modalEl.querySelectorAll("button"))
 		.find((candidate) => candidate.textContent === label);
 	if (!button) throw new Error(`Missing modal button: ${label}`);
 	return button;

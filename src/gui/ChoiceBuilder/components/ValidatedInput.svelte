@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { GenericTextSuggester } from "../../suggesters/genericTextSuggester";
 import type { TextInputSuggest } from "../../suggesters/suggest";
 import { suggester } from "./suggesterAction";
+import { indentOnTab } from "../../components/textareaIndent";
 
 type AnySuggest = Pick<TextInputSuggest<unknown>, "destroy">;
 type HintVariant = "neutral" | "success";
@@ -60,6 +61,9 @@ let {
 } = $props();
 
 let invalid = $state(false);
+// A required field stays neutral until the user has typed in it or left it:
+// flagging a field they haven't reached yet is noise (#2034).
+let touched = $state(false);
 let hintMessage = $state("");
 let hintVariant = $state<HintVariant>("neutral");
 let validateToken = 0;
@@ -83,7 +87,7 @@ function setHint(
 
 async function runValidator(candidate: string): Promise<boolean> {
 	if (required && normalize(candidate).length === 0) {
-		setHint(requiredMessage, true);
+		setHint(touched ? requiredMessage : undefined, touched);
 		return false;
 	}
 	if (!validator) {
@@ -113,6 +117,7 @@ async function runValidator(candidate: string): Promise<boolean> {
 function handleInput(event: Event) {
 	const next = (event.currentTarget as HTMLInputElement | HTMLTextAreaElement)
 		.value;
+	touched = true;
 	value = next;
 	onChange?.(next);
 }
@@ -121,6 +126,7 @@ function handleInput(event: Event) {
 // (mirrors createValidatedInput's runValidator(initialValue) + setRequired()).
 $effect(() => {
 	void required;
+	void touched;
 	const current = value;
 	void runValidator(current);
 });
@@ -142,6 +148,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 }
 </script>
 
+<!-- Paths, tokens and format strings: a spellchecker only underlines them. -->
 {#if inputKind === "textarea"}
 	<textarea
 		class="qa-validated-input-full-width qa-validated-input-margin-8 qa-validated-input-textarea"
@@ -153,9 +160,12 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-label={ariaLabel}
 		aria-invalid={invalid}
 		aria-describedby={hintId}
+		spellcheck={false}
 		{value}
 		oninput={handleInput}
+		onblur={() => (touched = true)}
 		use:suggester={attach}
+		use:indentOnTab
 	></textarea>
 {:else}
 	<input
@@ -169,8 +179,10 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-label={ariaLabel}
 		aria-invalid={invalid}
 		aria-describedby={hintId}
+		spellcheck={false}
 		{value}
 		oninput={handleInput}
+		onblur={() => (touched = true)}
 		use:suggester={attach}
 	/>
 {/if}

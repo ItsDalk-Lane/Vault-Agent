@@ -1,12 +1,36 @@
 import { describe, it, expect } from "vitest";
 import type { AIProvider } from "./Provider";
 import {
+	CURRENT_MODEL_SEEDS,
+	DefaultProviders,
 	activeModelRef,
+	sortModelsForDisplay,
 	ensureProviderIds,
+	getChatWire,
 	getProviderKind,
 	slugifyProviderId,
 	uniqueProviderId,
 } from "./Provider";
+
+describe("getChatWire", () => {
+	it("uses the Responses API only for OpenAI's own endpoint", () => {
+		expect(getChatWire({ kind: "openai", endpoint: "https://api.openai.com/v1" })).toBe("openai-responses");
+		// Legacy providers without an explicit kind infer it first.
+		expect(getChatWire({ name: "OpenAI", endpoint: "https://api.openai.com/v1" })).toBe("openai-responses");
+	});
+
+	it("keeps Chat Completions for OpenAI-compatible endpoints and lookalike hosts", () => {
+		expect(getChatWire({ kind: "openai", endpoint: "https://openrouter.ai/api/v1" })).toBe("openai");
+		expect(getChatWire({ name: "OpenAI", endpoint: "https://proxy.example/v1" })).toBe("openai");
+		expect(getChatWire({ kind: "openai", endpoint: "https://api.openai.com.evil.example/v1" })).toBe("openai");
+		expect(getChatWire({ kind: "openai", endpoint: "https://evil.example/?h=api.openai.com" })).toBe("openai");
+	});
+
+	it("leaves Anthropic and Gemini alone, even on an OpenAI host", () => {
+		expect(getChatWire({ kind: "anthropic", endpoint: "https://api.openai.com/v1" })).toBe("anthropic");
+		expect(getChatWire({ kind: "gemini", endpoint: "https://generativelanguage.googleapis.com" })).toBe("gemini");
+	});
+});
 
 describe("getProviderKind", () => {
 	it("prefers an explicit kind", () => {
@@ -117,5 +141,75 @@ describe("activeModelRef", () => {
 		expect(activeModelRef("o3", ref)).toBeUndefined();
 		expect(activeModelRef(undefined, ref)).toBeUndefined();
 		expect(activeModelRef("gpt-4o", undefined)).toBeUndefined();
+	});
+});
+
+describe("shipped model seeds", () => {
+	// Values verified live on 2026-09-26: listed by /v1/models, a completion
+	// succeeds, and temperature: 0.5 is rejected (400 unsupported_value).
+	it("offer the GPT-6 generation on a fresh install, before any sync", () => {
+		const openai = DefaultProviders.find((p) => p.id === "openai");
+		const byName = new Map(openai?.models.map((m) => [m.name, m]));
+		for (const name of [
+			"gpt-6-sol",
+			"gpt-6-luna",
+			"gpt-6-astra",
+			"gpt-5.6-sol",
+			"gpt-5.6-luna",
+			"gpt-5.6-terra",
+		]) {
+			expect(byName.get(name), name).toEqual({
+				name,
+				maxTokens: 1_050_000,
+				maxOutputTokens: 128_000,
+				supportsTemperature: false,
+			});
+		}
+	});
+
+	it("let the gpt-5.4 family keep a user's temperature (accepted live)", () => {
+		for (const name of ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"]) {
+			const seed = CURRENT_MODEL_SEEDS.openai.find((m) => m.name === name);
+			expect(seed?.supportsTemperature, name).toBe(true);
+		}
+		const gpt55 = CURRENT_MODEL_SEEDS.openai.find((m) => m.name === "gpt-5.5");
+		expect(gpt55?.supportsTemperature).toBe(false);
+	});
+
+	it("no longer seed gemini-3-pro-preview, which Google shut down", () => {
+		const names = CURRENT_MODEL_SEEDS.google.map((m) => m.name);
+		expect(names).not.toContain("gemini-3-pro-preview");
+		expect(names).toContain("gemini-3.8-flash");
+	});
+
+	it("list each model once per provider", () => {
+		for (const [key, seeds] of Object.entries(CURRENT_MODEL_SEEDS)) {
+			const names = seeds.map((m) => m.name);
+			expect(new Set(names).size, key).toBe(names.length);
+		}
+	});
+});
+
+describe("sortModelsForDisplay", () => {
+	it("puts current models newest first, then undated ones in stored order, then retired ones", () => {
+		const models = [
+			{ name: "hand-added", maxTokens: 1 },
+			{ name: "gpt-4o", maxTokens: 1, releaseDate: "2024-05-13" },
+			{ name: "o4-mini", maxTokens: 1, releaseDate: "2025-04-16", deprecated: true },
+			{ name: "gpt-6-sol", maxTokens: 1, releaseDate: "2026-09-22" },
+			{ name: "local-model", maxTokens: 1 },
+			{ name: "gpt-5.5", maxTokens: 1, releaseDate: "2026-04-23" },
+		];
+
+		expect(sortModelsForDisplay(models).map((m) => m.name)).toEqual([
+			"gpt-6-sol",
+			"gpt-5.5",
+			"gpt-4o",
+			"hand-added",
+			"local-model",
+			"o4-mini",
+		]);
+		// Display order only: the stored list is untouched.
+		expect(models[0].name).toBe("hand-added");
 	});
 });

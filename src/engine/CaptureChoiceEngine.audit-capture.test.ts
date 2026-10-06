@@ -1,6 +1,6 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { insertOnNewLineBelow } from "../utilityObsidian";
+import { insertOnNewLineBelow } from "../utils/editorInsertion";
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -36,13 +36,13 @@ vi.mock("../quickAddSettingsTab", () => {
 
 const {
 	formatContentOnlyMock,
-	formatContentWithFileMock,
+	insertFormattedContentMock,
 	setInsertAfterTargetOverrideMock,
 	copyFileLinkToClipboardMock,
 	getAppendLinkDestinationFileMock,
 } = vi.hoisted(() => ({
 	formatContentOnlyMock: vi.fn(async (content: string) => content),
-	formatContentWithFileMock: vi.fn(async () => ""),
+	insertFormattedContentMock: vi.fn(async () => ""),
 	setInsertAfterTargetOverrideMock: vi.fn(),
 	copyFileLinkToClipboardMock: vi.fn(),
 	getAppendLinkDestinationFileMock: vi.fn(),
@@ -64,8 +64,8 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		async formatContentOnly(content: string) {
 			return formatContentOnlyMock(content);
 		}
-		async formatContentWithFile(...args: unknown[]) {
-			return { content: await formatContentWithFileMock(...(args as [])), captureContent: args[0], cursor: { kind: "none" } };
+		async insertFormattedContent(...args: unknown[]) {
+			return { content: await insertFormattedContentMock(...(args as [])), captureContent: args[0], cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -91,22 +91,28 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
+	setMarkdownCursorAtOffset: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+	overwriteTemplaterOnce: vi.fn(),
+	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
-	overwriteTemplaterOnce: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(),
-	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({
@@ -119,7 +125,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 }));
 
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App, Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
@@ -198,12 +203,13 @@ const createRunApp = (captureFile: TFile, fileContent = "existing body") =>
 				path === captureFile.path ? captureFile : null,
 			),
 			read: vi.fn(async () => fileContent),
-			modify: vi.fn(async () => {}),
+			process: vi.fn(async (_file: TFile, fn: (content: string) => string) => fn(fileContent)),
 			create: vi.fn(),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: { getNewFileParent: vi.fn(() => ({ path: "" })) },
 	}) as unknown as App;
@@ -295,7 +301,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		noticeClass.instances.length = 0;
 		formatContentOnlyMock.mockReset();
 		formatContentOnlyMock.mockImplementation(async (content: string) => content);
-		formatContentWithFileMock.mockReset();
+		insertFormattedContentMock.mockReset();
 		copyFileLinkToClipboardMock.mockReset();
 		copyFileLinkToClipboardMock.mockResolvedValue(true);
 		getAppendLinkDestinationFileMock.mockReset();
@@ -307,7 +313,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		// Empty payload: first pass resolves to "", and the with-file pass returns
 		// the file unchanged (the real formatter's empty-content behavior).
 		formatContentOnlyMock.mockResolvedValue("");
-		formatContentWithFileMock.mockResolvedValue("existing body");
+		insertFormattedContentMock.mockResolvedValue("existing body");
 		const engine = buildRunEngine(createCaptureChoice(), app);
 
 		await engine.run();
@@ -322,7 +328,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		formatContentOnlyMock.mockResolvedValue("new line");
-		formatContentWithFileMock.mockResolvedValue("existing body\nnew line");
+		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
 		const engine = buildRunEngine(createCaptureChoice(), app);
 
 		await engine.run();
@@ -338,7 +344,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const app = createRunApp(captureFile, "existing body");
 		// ASCII whitespace only -> the real formatter returns the file unchanged.
 		formatContentOnlyMock.mockResolvedValue("   \n\t");
-		formatContentWithFileMock.mockResolvedValue("existing body");
+		insertFormattedContentMock.mockResolvedValue("existing body");
 		const engine = buildRunEngine(createCaptureChoice(), app);
 
 		await engine.run();
@@ -357,7 +363,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const app = createRunApp(captureFile, "existing body");
 		app.workspace.getActiveFile = vi.fn(() => captureFile);
 		formatContentOnlyMock.mockResolvedValue("");
-		formatContentWithFileMock.mockResolvedValue("existing body");
+		insertFormattedContentMock.mockResolvedValue("existing body");
 		const choice = {
 			...createCaptureChoice(),
 			captureToActiveFile: true,
@@ -378,7 +384,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const app = createRunApp(captureFile, "existing body");
 		app.workspace.getActiveFile = vi.fn(() => captureFile);
 		formatContentOnlyMock.mockResolvedValue("a real line");
-		formatContentWithFileMock.mockResolvedValue("a real line");
+		insertFormattedContentMock.mockResolvedValue("a real line");
 		const choice = {
 			...createCaptureChoice(),
 			captureToActiveFile: true,
@@ -401,8 +407,8 @@ describe("CaptureChoiceEngine |multi degradation warning", () => {
 		noticeClass.instances.length = 0;
 		formatContentOnlyMock.mockReset();
 		formatContentOnlyMock.mockImplementation(async (content: string) => content);
-		formatContentWithFileMock.mockReset();
-		formatContentWithFileMock.mockResolvedValue("existing body\nvalue");
+		insertFormattedContentMock.mockReset();
+		insertFormattedContentMock.mockResolvedValue("existing body\nvalue");
 		copyFileLinkToClipboardMock.mockReset();
 		copyFileLinkToClipboardMock.mockResolvedValue(true);
 		getAppendLinkDestinationFileMock.mockReset();

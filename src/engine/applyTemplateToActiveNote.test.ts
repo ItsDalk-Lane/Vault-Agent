@@ -1,4 +1,4 @@
-import { jumpToNextTemplaterCursorIfPossible } from "../utilityObsidian";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ const {
 	nativeCursorHandledMock,
 	resolvedPathMock,
 	setPromptRunContextMock,
+	chainMock,
 	targetPathMock,
 	yesNoPromptMock,
 	suggestMock,
@@ -19,6 +20,7 @@ const {
 		placeCursorMock: vi.fn(),
 		nativeCursorHandledMock: vi.fn(() => false),
 		setPromptRunContextMock: vi.fn<(context: unknown) => void>(),
+		chainMock: vi.fn<(chain: unknown) => void>(),
 		// Identity by default (raw == resolved); override to simulate a path token
 		// that resolves to a different extension (issue #620).
 		resolvedPathMock: vi.fn((raw: string) => raw),
@@ -32,8 +34,8 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: (...args: unknown[]) => suggestMock(...args) },
 }));
 
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: (...args: unknown[]) => yesNoPromptMock(...(args as [])) },
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => yesNoPromptMock(...(args as [])),
 }));
 
 vi.mock("./TemplateInsertEngine", async (importOriginal) => {
@@ -59,21 +61,20 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 		setPromptRunContext(context: unknown) {
 			setPromptRunContextMock(context);
 		}
+		set choiceChain(chain: unknown) {
+			chainMock(chain);
+		}
 	}
 
 	return { ...actual, TemplateInsertEngine: TemplateInsertEngineMock };
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(
 		async (_app: unknown, content: string) => content,
 	),
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 import { TFile, type App } from "obsidian";
@@ -180,6 +181,30 @@ describe("buildTemplatePickerItems", () => {
 		expect(items).toEqual([{ kind: "choice", choice: nested }]);
 	});
 
+	it.each(["templates\\meeting", "/templates/meeting.md/"])(
+		"dedupes a template file against a choice path written as %j",
+		(templatePath) => {
+			const choices: IChoice[] = [makeTemplateChoice("Meeting", templatePath)];
+			const items = buildTemplatePickerItems(choices, ["templates/meeting.md"]);
+
+			expect(items).toHaveLength(1);
+			expect(items[0]).toMatchObject({ kind: "choice" });
+		},
+	);
+
+	it("keeps a vault file whose name starts with a space distinct from a choice path", () => {
+		const choices: IChoice[] = [makeTemplateChoice("Meeting", "templates/meeting.md")];
+		const items = buildTemplatePickerItems(choices, [
+			"templates/meeting.md",
+			" templates/meeting.md",
+		]);
+
+		expect(items).toEqual([
+			{ kind: "choice", choice: choices[0] },
+			{ kind: "file", path: " templates/meeting.md" },
+		]);
+	});
+
 	it("dedupes template files against choice template paths without extension", () => {
 		const choices: IChoice[] = [
 			makeTemplateChoice("Meeting", "templates/meeting"),
@@ -252,8 +277,8 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	function makeApp(noteContent: string, activeFile: TFile | null): App {
 		return {
-			workspace: { getActiveFile: () => activeFile },
-			vault: { cachedRead: async () => noteContent },
+			workspace: { getActiveFile: () => activeFile, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
+			vault: { read: async () => noteContent },
 		} as unknown as App;
 	}
 
@@ -343,6 +368,17 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			destination: file.path,
 			destinationKind: "file",
 		});
+	});
+
+	it("runs the template inside the caller's choice chain", async () => {
+		const chain = [{ id: "A", name: "A", type: "Macro" }];
+		await applyTemplateToNote(makeApp("CONTENT", makeFile()), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: makeExecutor(),
+			chain: chain as never,
+		});
+
+		expect(chainMock).toHaveBeenCalledWith(chain);
 	});
 
 	it("keeps the draft scope stable across applications of the same template", async () => {
@@ -532,11 +568,11 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 		const createFolder = vi.fn(async () => {});
 		const renameFile = vi.fn(async () => {});
 		const app = {
-			workspace: { getActiveFile: () => activeFile },
+			workspace: { getActiveFile: () => activeFile, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			vault: {
 				// Empty, so the empty-note fast path picks "replace" and the insert
 				// MODE picker is skipped; only the template picker is driven below.
-				cachedRead: async () => "",
+				read: async () => "",
 				adapter: { exists: async () => false },
 				createFolder,
 			},

@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "./choiceChain";
 import type { IAIAssistantCommand } from "../types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "../ai/AIAssistant";
 import { resolveProviderApiKey } from "../ai/providerSecrets";
@@ -8,14 +9,14 @@ import { settingsStore } from "../settingsStore";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import { getQuickAddInstance } from "../quickAddInstance";
 import { resolveModel, type ResolvedModel } from "../ai/aiHelpers";
-import { activeModelRef } from "../ai/Provider";
+import { activeModelRef, sortModelsForDisplay } from "../ai/Provider";
 import { isCancellationError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 
 export async function executeMacroAI(
-	app: App, choice: IMacroChoice, executor: IChoiceExecutor,
+	app: App, choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
 	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -60,6 +61,7 @@ export async function executeMacroAI(
 		choiceName: choice?.name,
 		draftScopeId: `${choice?.id ?? "macro"}#aiAssistant:${command.id}`,
 	});
+	formatter.choiceChain = chain;
 
 	const apiKey = await resolveProviderApiKey(app, modelProvider);
 
@@ -97,8 +99,8 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 	const providers = settingsStore.getState().ai.providers;
 	const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
 		providers.flatMap((provider) =>
-			provider.models.map((model) => ({
-				label: `${model.name} (${provider.name})`,
+			sortModelsForDisplay(provider.models).map((model) => ({
+				label: `${model.name} (${provider.name}${model.deprecated ? ", retired" : ""})`,
 				qualified: `${provider.id ?? provider.name}/${model.name}`,
 				resolved: { provider, model },
 			})),

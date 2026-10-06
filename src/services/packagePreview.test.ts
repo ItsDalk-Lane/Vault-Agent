@@ -22,7 +22,7 @@ import {
 	buildPackagePreview,
 	collectReferencedAssetPaths,
 	decodeAssetPreview,
-	isFullyReviewed,
+	unreviewedScriptCount,
 	requiresAcknowledgement,
 	MAX_PREVIEW_CHARS,
 } from "./packagePreview";
@@ -328,6 +328,27 @@ describe("buildPackagePreview - choice flags & dedupe", () => {
 		expect(row?.detail).toContain("app:toggle-left-sidebar");
 	});
 
+	it("names a script's path once, even when the step is named after it (#1880)", () => {
+		const path = "Scripts/Books/fetch.js";
+		const m = macro("m1", "Fetch media", [
+			userScript("c1", path, path),
+			userScript("c2", `${path}::run`, path),
+			userScript("c3", "fetch", path),
+			conditional("c4", path, { mode: "script", scriptPath: path }),
+		]);
+		const preview = buildPackagePreview(NO_EXISTING, makePackage([pkgChoice(m, ["Fetch media"])]), NONE);
+		expect(
+			preview.capabilityRows
+				.filter((r) => r.flag === "user-script" || r.flag === "conditional-script")
+				.map((r) => r.detail),
+		).toEqual([
+			`Fetch media › ${path}`,
+			`Fetch media › ${path}::run`,
+			`Fetch media › fetch (${path})`,
+			`Fetch media › ${path}`,
+		]);
+	});
+
 	it("stops promising AI for a legacy InfiniteAIAssistant command", () => {
 		// It used to share the AIAssistant row, so the disclosure said "Sends note
 		// content to your AI provider" for a step the engine could not run at all.
@@ -392,6 +413,62 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		expect(preview.criticalScriptPaths).toContain(
 			"scripts/looks-like-template.md",
 		);
+	});
+
+	it("matches a mislabeled script by the path import writes, not the package's spelling", () => {
+		const m = macro("m1", "Sneaky", [userScript("c1", "run", "Scripts\\run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Sneaky"])],
+			[asset("template", "Scripts\\run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
+		expect(
+			preview.capabilityRows.some((r) => r.flag === "mislabeled-executable"),
+		).toBe(true);
+	});
+
+	it("does not let a bundled script cover a step whose path differs by leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", "Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import leaves the step at " Scripts/run.js", a different vault file.
+		expect(preview.missingReferences.map((r) => r.path)).toEqual([" Scripts/run.js"]);
+		expect(preview.orphanAssets).toEqual(["Scripts/run.js"]);
+	});
+
+	it("gates a bundled script whose spelling hides its extension behind a trailing slash", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("user-script", "Scripts/run.js/", "module.exports = () => 1;")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import writes Scripts/run.js, which an existing macro may already run.
+		expect(preview.files[0]?.requiresReview).toBe(true);
+		expect(preview.criticalScriptPaths).toEqual(["Scripts/run.js/"]);
+	});
+
+	it("matches a step to a bundled script spelled with the same leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", " Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import rewrites the step to the asset's destination, so it is covered.
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
 	});
 
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
@@ -530,6 +607,24 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(preview.criticalScriptPaths).toContain("scripts/unused.js");
 	});
 
+	// Import refuses these destinations, so the preview must show the break.
+	it.each([
+		["an absolute path", "/templates/Note.md", "templates/Note.md"],
+		["a config directory", ".obsidian/templates/Note.md", ".obsidian/templates/Note.md"],
+	])("does not let an asset at %s satisfy a reference", (_, assetPath, templatePath) => {
+		const tmpl = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			templatePath,
+		} as unknown as ITemplateChoice;
+		const pkg = makePackage([pkgChoice(tmpl, ["Note"])], [asset("template", assetPath)]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences.map((r) => r.path)).toEqual([templatePath]);
+		expect(preview.orphanAssets).toEqual([assetPath]);
+	});
+
 	it("treats an orphan bundled script as critical and review-required", () => {
 		const m = macro("m1", "Empty", []);
 		const pkg = makePackage(
@@ -541,10 +636,10 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(preview.summary.hasCritical).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("scripts/orphan.js");
 		// Gate is real: not reviewed yet => not fully reviewed.
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(1);
 		expect(
-			isFullyReviewed(preview, new Set(["scripts/orphan.js"])),
-		).toBe(true);
+			unreviewedScriptCount(preview, new Set(["scripts/orphan.js"]), NONE),
+		).toBe(0);
 	});
 
 	it("flags an orphan .md note-script that lies about its kind (#1065)", () => {
@@ -567,39 +662,92 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(file?.requiresReview).toBe(true);
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("Notes/payload.md");
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(1);
 	});
 
-	it("flags an orphan non-.js asset the loader still runs as raw JavaScript", () => {
-		// The user-script loader (src/utils/userScript.ts) runs the RAW bytes of any
-		// non-.md file a macro points at as JavaScript — not just .js. A bundled asset
-		// with a benign-looking extension (or none) that lies about its kind would
-		// otherwise slip the .js-only disclosure heuristic, land on disk, and run via
-		// any macro pointing at its path. The gate must treat it as executable code.
+	it("does not gate bundled files that hold no code QuickAdd runs (#1881)", () => {
+		// The user-script loader only runs .js files and notes, so a Base, a canvas,
+		// or a file with any other extension cannot run, whatever `kind` it claims.
 		const m = macro("m1", "Empty", []);
 		const payload = "module.exports = () => exfiltrate();";
 		const pkg = makePackage(
 			[pkgChoice(m, ["Empty"])],
 			[
-				asset("template", "scripts/payload.txt", payload),
-				asset("capture-template", "scripts/payload.cjs", payload),
+				asset("template", "Templates/Dashboard.base", "views:\n  - type: table\n"),
+				asset("template", "Boards/Plan.canvas", '{"nodes":[],"edges":[]}'),
+				asset("user-script", "scripts/payload.txt", payload),
 				asset("template", "scripts/payload", payload),
 			],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
 
-		for (const path of [
-			"scripts/payload.txt",
-			"scripts/payload.cjs",
-			"scripts/payload",
-		]) {
-			const file = preview.files.find((f) => f.originalPath === path);
-			expect(file?.orphan).toBe(true);
-			expect(file?.requiresReview).toBe(true);
-			expect(preview.criticalScriptPaths).toContain(path);
-		}
+		expect(preview.files.map((file) => file.requiresReview)).toEqual([
+			false, false, false, false,
+		]);
+		expect(preview.criticalScriptPaths).toEqual([]);
+		expect(requiresAcknowledgement(preview)).toBe(false);
+	});
+
+	it("gates every bundled file that holds code QuickAdd runs", () => {
+		const m = macro("m1", "Empty", []);
+		const inline = "```js quickadd\nreturn app.vault.getName();\n```";
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "scripts/Upper.JS", "module.exports = () => {};"),
+				// A reviewed script can require() a module it ships alongside.
+				asset("template", "scripts/lib.cjs", "module.exports = {};"),
+				asset("template", "scripts/lib.mjs", "export default {};"),
+				// The formatter runs a `js quickadd` fence anywhere in a template.
+				asset("template", "Templates/Dashboard.base", `filters: "${inline}"`),
+				asset("template", "Boards/Plan.canvas", `{"nodes":[{"text":"${inline}"}]}`),
+				asset("template", "Templates/inline.md", `Name: \`\`\`js quickadd return 1\`\`\``),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.criticalScriptPaths).toEqual([
+			"scripts/Upper.JS",
+			"scripts/lib.cjs",
+			"scripts/lib.mjs",
+			"Templates/Dashboard.base",
+			"Boards/Plan.canvas",
+			"Templates/inline.md",
+		]);
 		expect(requiresAcknowledgement(preview)).toBe(true);
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+	});
+
+	it("scans a backtick flood in a bundled template in linear time", () => {
+		const m = macro("m1", "Empty", []);
+		const flood = "`".repeat(200_000);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "Templates/flood.base", `name: ${flood}`),
+				asset("template", "Templates/flood.canvas", `${flood}js quickadd return 1;`),
+			],
+		);
+		const started = performance.now();
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(preview.criticalScriptPaths).toEqual([]);
+	});
+
+	it("scans a template's inline fences for AI tool use", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset(
+					"template",
+					"Templates/agent.base",
+					"note: |\n  ```js quickadd\n  await quickAddApi.ai.agent({});\n  ```\n",
+				),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.capabilityRows.map((row) => row.flag)).toContain("ai-tools");
 	});
 
 	it("does not flag a plain .md template with no js code block", () => {
@@ -769,7 +917,7 @@ describe("decodeAssetPreview", () => {
 });
 
 describe("gate predicates", () => {
-	it("isFullyReviewed requires every critical script path to be reviewed", () => {
+	it("unreviewedScriptCount counts every critical script path not yet reviewed", () => {
 		const m = macro("m1", "Two scripts", [
 			userScript("c1", "a", "scripts/a.js"),
 			userScript("c2", "b", "scripts/b.js"),
@@ -779,10 +927,10 @@ describe("gate predicates", () => {
 			[asset("user-script", "scripts/a.js"), asset("user-script", "scripts/b.js")],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
-		expect(isFullyReviewed(preview, new Set(["scripts/a.js"]))).toBe(false);
+		expect(unreviewedScriptCount(preview, new Set(["scripts/a.js"]), NONE)).toBe(1);
 		expect(
-			isFullyReviewed(preview, new Set(["scripts/a.js", "scripts/b.js"])),
-		).toBe(true);
+			unreviewedScriptCount(preview, new Set(["scripts/a.js", "scripts/b.js"]), NONE),
+		).toBe(0);
 	});
 
 	it("requires acknowledgement but has no script gate set for a startup-only macro", () => {
@@ -795,7 +943,7 @@ describe("gate predicates", () => {
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toEqual([]);
 		// Nothing to expand -> trivially reviewed; acknowledgement still required.
-		expect(isFullyReviewed(preview, new Set())).toBe(true);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(0);
 	});
 
 	it("requiresAcknowledgement is false for a package with no critical capability", () => {
@@ -814,5 +962,153 @@ describe("gate predicates", () => {
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
 		expect(preview.files[0]?.requiresReview).toBe(false);
 		expect(requiresAcknowledgement(preview)).toBe(false);
+	});
+});
+
+describe("buildPackagePreview - inline JavaScript in a choice's own settings", () => {
+	const inline = "```js quickadd\nreturn app.vault.getName();\n```";
+	const scriptRows = (preview: ReturnType<typeof buildPackagePreview>) =>
+		preview.capabilityRows
+			.filter((row) => row.flag === "user-script")
+			.map((row) => [row.severity, row.title, row.detail]);
+	const ROW = "Runs custom JavaScript written into a choice setting";
+
+	it("gates each formatted Capture and Template setting that holds a js quickadd fence", () => {
+		const capture = {
+			id: "c1",
+			name: "Log",
+			type: "Capture",
+			command: false,
+			captureTo: `Logs/${inline}.md`,
+			captureToActiveFile: false,
+			format: { enabled: true, format: `- ${inline}` },
+			insertAfter: { enabled: true, after: `## ${inline}` },
+			insertBefore: { enabled: false, before: inline },
+			propertyCapture: { property: { kind: "named", format: inline }, action: "set", createIfMissing: true },
+		} as unknown as ICaptureChoice;
+		const template = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			templatePath: "templates/Note.md",
+			fileNameFormat: { enabled: true, format: `Note ${inline}` },
+			folder: { enabled: true, folders: ["Plain", `Dated/${inline}`, `Again/${inline}`] },
+		} as unknown as ITemplateChoice;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([pkgChoice(capture, ["Log"]), pkgChoice(template, ["Note"])]),
+			NONE,
+		);
+
+		expect(scriptRows(preview)).toEqual([
+			["critical", ROW, "Log › capture to"],
+			["critical", ROW, "Log › capture format"],
+			["critical", ROW, "Log › insert after"],
+			["critical", ROW, "Log › insert before"],
+			["critical", ROW, "Log › property name"],
+			["critical", ROW, "Note › file name format"],
+			["critical", ROW, "Note › folder"],
+		]);
+		expect(preview.choices.map((choice) => choice.flags)).toEqual([
+			expect.arrayContaining(["user-script"]),
+			expect.arrayContaining(["user-script"]),
+		]);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		// The code lives in the choice, not in a bundled file. Each value is shown
+		// whole, including every folder that shares the one "folder" row.
+		expect(preview.criticalScriptPaths).toEqual([]);
+		expect(preview.choices.map((choice) => choice.inlineScripts)).toEqual([
+			[
+				{ setting: "capture to", text: `Logs/${inline}.md` },
+				{ setting: "capture format", text: `- ${inline}` },
+				{ setting: "insert after", text: `## ${inline}` },
+				{ setting: "insert before", text: inline },
+				{ setting: "property name", text: inline },
+			],
+			[
+				{ setting: "file name format", text: `Note ${inline}` },
+				{ setting: "folder", text: `Dated/${inline}` },
+				{ setting: "folder", text: `Again/${inline}` },
+			],
+		]);
+		// Viewing counts per choice, like opening a bundled file.
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(2);
+		expect(unreviewedScriptCount(preview, NONE, new Set(["c1"]))).toBe(1);
+		expect(unreviewedScriptCount(preview, NONE, new Set(["c1", "t1"]))).toBe(0);
+		// A file path is not a choice id, even when a crafted package makes them equal.
+		expect(unreviewedScriptCount(preview, new Set(["c1", "t1"]), NONE)).toBe(2);
+	});
+
+	it("finds it in an inline Multi child and in a macro's Open file path", () => {
+		const child = {
+			id: "c2",
+			name: "Hidden",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			format: { enabled: true, format: inline },
+		} as unknown as ICaptureChoice;
+		const openFile = {
+			id: "o1",
+			name: "Open log",
+			type: CommandType.OpenFile,
+			filePath: `Logs/${inline}.md`,
+		} as unknown as ICommand;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([
+				pkgChoice(multi("f1", "Folder", [child]), ["Folder"]),
+				pkgChoice(macro("m1", "Macro", [openFile]), ["Macro"]),
+			]),
+			NONE,
+		);
+
+		expect(scriptRows(preview).map(([, , detail]) => detail)).toEqual([
+			"Folder › Hidden › capture format",
+			"Macro › Open log › file path",
+		]);
+		expect(preview.choices[1]?.commands[0]?.flag).toBe("user-script");
+		// Shown under the top-level choice, named from there.
+		expect(preview.choices.map((choice) => choice.inlineScripts)).toEqual([
+			[{ setting: "Hidden › capture format", text: inline }],
+			[{ setting: "Open log › file path", text: `Logs/${inline}.md` }],
+		]);
+	});
+
+	it("leaves settings without a runnable fence unflagged", () => {
+		const capture = {
+			id: "c1",
+			name: "Plain",
+			type: "Capture",
+			command: false,
+			captureTo: "Journal/{{DATE:YYYY-MM-DD}}.md",
+			format: {
+				enabled: true,
+				// Tokens, Templater, a plain js code block, and an empty fence
+				// (which the formatter consumes without running anything).
+				format: "- {{DATE:HH:mm}} {{VALUE}} <% tp.date.now() %>\n```js\nconsole.log(1)\n```\n```js quickadd\n```",
+			},
+			insertAfter: { enabled: true, after: "## {{DATE}}" },
+		} as unknown as ICaptureChoice;
+		const template = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			// Not formatted with format(): scalar tokens only, so no code runs here.
+			templatePath: `templates/${inline}.md`,
+			fileNameFormat: { enabled: true, format: "{{VALUE:title}}" },
+			folder: { enabled: true, folders: ["Notes/{{DATE:YYYY}}"] },
+		} as unknown as ITemplateChoice;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([pkgChoice(capture, ["Plain"]), pkgChoice(template, ["Note"])]),
+			NONE,
+		);
+
+		expect(scriptRows(preview)).toEqual([]);
+		expect(preview.summary.hasCritical).toBe(false);
+		expect(preview.choices.flatMap((choice) => choice.inlineScripts)).toEqual([]);
 	});
 });

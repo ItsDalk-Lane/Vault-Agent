@@ -37,7 +37,7 @@ export const fileExistsBehaviorCategoryOptions = [
 
 export type FileExistsBehaviorCategoryId =
 	(typeof fileExistsBehaviorCategoryOptions)[number]["id"];
-export type FileExistsModeCategoryId = Exclude<
+type FileExistsModeCategoryId = Exclude<
 	FileExistsBehaviorCategoryId,
 	"prompt"
 >;
@@ -118,8 +118,6 @@ export const fileExistsModes = [
 ] as const;
 
 export type FileExistsModeId = (typeof fileExistsModes)[number]["id"];
-export type FileExistsResolutionKind =
-	(typeof fileExistsModes)[number]["resolutionKind"];
 export type FileExistsModeDefinition = (typeof fileExistsModes)[number];
 export type TemplateFileExistsBehavior =
 	| { kind: "prompt" }
@@ -238,7 +236,7 @@ export function getModesForCategory(
 	return fileExistsModes.filter((mode) => mode.category === category);
 }
 
-export function getCategoryForMode(
+function getCategoryForMode(
 	modeId: FileExistsModeId,
 ): FileExistsModeCategoryId {
 	return getFileExistsMode(modeId).category;

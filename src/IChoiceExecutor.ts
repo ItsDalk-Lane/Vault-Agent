@@ -10,9 +10,16 @@ import type { PromptProvider } from "./interactive/promptProvider";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
+import type { LoadedUserScript } from "./utils/userScript";
+import type { ChoiceChain } from "./engine/choiceChain";
 
 export interface IChoiceExecutor {
-	execute(choice: IChoice): Promise<void>;
+	/**
+	 * Runs `choice`. A run started from inside another passes that run's chain
+	 * as `ancestry`, and the call fails with the cycle when `choice` is already
+	 * in it.
+	 */
+	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
@@ -24,11 +31,14 @@ export interface IChoiceExecutor {
 	 * trigger note for `{{...|default-from:active}}`. Optional so existing stubs can
 	 * fall back to {@link execute}; `triggerContext` is optional so callers that only
 	 * carry a focused property need not pass it (the executor then reads it live).
+	 * `ancestry` is as for {@link execute}: the chain of the folder run whose
+	 * picker chose this choice.
 	 */
 	executeWithFocusedProperty?(
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
 		triggerContext?: QuickAddTriggerContext | null,
+		ancestry?: ChoiceChain,
 	): Promise<void>;
 	/**
 	 * Executes a Template/Capture choice and returns its structured outcome
@@ -52,6 +62,12 @@ export interface IChoiceExecutor {
 	 * (or another fixed day). Used by `{name} (pick a day)` and `date=ask`.
 	 */
 	pickDate?: boolean;
+	/**
+	 * Sets {@link clocks} from the choice's Which day setting, asking when it is
+	 * Ask each time. A Template that searches existing notes calls this after its
+	 * note picker, and not at all when it only opens the selected note.
+	 */
+	resolveDateOrigin?(choice: IChoice): Promise<void>;
 	/**
 	 * Whether this execution may open blocking interactive UI (suggesters/modals)
 	 * for inputs the requirement collector cannot pre-satisfy — e.g. the
@@ -110,13 +126,14 @@ export interface IChoiceExecutor {
 	 * User-script modules already loaded (and therefore already EXECUTED - loading
 	 * a CommonJS user script runs its top-level code) by a requirement-collection
 	 * pass, keyed by `getUserScriptPreloadKey` (`command.path ?? command.id` plus
-	 * any `::` member-drill suffix - stored values are DRILLED exports, so keying
-	 * by path alone would collide different members of one file). MacroChoiceEngine
+	 * any `::` member-drill suffix - stored values hold the DRILLED export plus the
+	 * module's settings definition, so keying by path alone would collide
+	 * different members of one file). MacroChoiceEngine
 	 * consumes an entry (delete-on-use) instead of re-loading the script, so
 	 * introspecting `quickadd.inputs` in the one-page preflight / non-interactive
 	 * CLI does not make a script's top-level side effects run twice per trigger.
 	 * Optional so existing stubs are unaffected; absent means "no preloaded
 	 * modules".
 	 */
-	preloadedUserScripts?: Map<string, unknown>;
+	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }

@@ -122,6 +122,35 @@ describe("Template actions for discovered existing notes", () => {
 		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
 	});
 
+	it("asks for an Ask-each-time date after the step-by-step picker, only when creating", async () => {
+		const workflow = await seedTemplate("date-after-picker", { body: "Date: {{DATE}}\n", folder: "created" });
+		workflow.template.dateOrigin = { kind: "ask" };
+		await runChoice(workflow.template, false);
+		await chooseExisting(workflow, false);
+		await expectNoPrompt(workflow.obsidian);
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string>("app.workspace.getActiveFile()?.path ?? ''"), POLL_OPTS)
+			.toBe(workflow.targetPath);
+		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
+
+		await workflow.obsidian.exec("command", { id: `quickadd:choice:${workflow.template.id}` });
+		const picker = `input[placeholder=${JSON.stringify(`Search notes or create ${workflow.template.name}`)}]`;
+		await waitForElement(workflow.obsidian, picker);
+		expect(await workflow.obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".qaDatePrompt"))')).toBe(false);
+		await typeInto(workflow.obsidian, picker, "Dated note");
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string>(
+			'document.querySelector(".suggestion-item.is-selected .suggestion-title")?.textContent ?? ""',
+		), POLL_OPTS).toBe("Create new note: Dated note");
+		await pressKey(workflow.obsidian, "Enter");
+		await waitForElement(workflow.obsidian, ".qaDatePrompt .qa-vdate-input");
+		await typeInto(workflow.obsidian, ".qaDatePrompt .qa-vdate-input", "2026-09-15");
+		await pressKey(workflow.obsidian, "Enter");
+		const content = await workflow.sandbox.waitForContent(
+			`${workflow.name}/new/created/Dated note.md`, (text) => text.includes("Date:"), WAIT_OPTS,
+		);
+		expect(content).toBe("Date: 2026-09-15\n");
+		await expectNoPrompt(workflow.obsidian);
+	});
+
 	it("rejects a dynamic template source that resolves to the selected note", async () => {
 		const workflow = await seedTemplate("dynamic-source", { action: "appendBottom" });
 		workflow.template.templatePath = "{{VALUE:source}}";
@@ -270,7 +299,7 @@ describe("Template actions for discovered existing notes", () => {
 		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
 		await pressKey(workflow.obsidian, "Enter", true);
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Follow-up (Ada)"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe(`${INITIAL_CONTENT}\nOwner: Ada\n\nFollow-up (Ada)`);
+		expect(content.trimEnd()).toBe(`${INITIAL_CONTENT}\nOwner: Ada\nFollow-up (Ada)`);
 		await expectNoPrompt(workflow.obsidian);
 		expect(await workflow.obsidian.dev.evalJson<string | null>("app.workspace.getActiveFile()?.path ?? null"))
 			.toBe(workflow.targetPath);

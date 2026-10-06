@@ -10,7 +10,7 @@ import { NOTICE_WARN, type WarnSink } from "./warnSink";
 import { t } from "../i18n";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
-export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
+const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
 export type ValueInputType =
 	| "multiline"

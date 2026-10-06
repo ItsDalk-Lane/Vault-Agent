@@ -3,8 +3,8 @@
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
 	import type QuickAdd from "../../main";
+	import { t } from "../../i18n";
 	import type IChoice from "../../types/choices/IChoice";
-	import type IMultiChoice from "../../types/choices/IMultiChoice";
 
 	import {
 		childChoicesOf,
@@ -18,7 +18,7 @@
 		type MissingAsset,
 	} from "../../services/packageExportService";
 	import type { QuickAddPackageAssetKind } from "../../types/packages/QuickAddPackage";
-	import { t } from "../../i18n";
+	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 
 	let {
 		app,
@@ -37,31 +37,12 @@
 		missingAssets: MissingAsset[];
 	};
 
-	// Looked up at render time (not module scope) so the label follows the
-	// locale active when the modal opens — a module-level record would freeze
-	// whatever locale was set at import time.
-	function assetLabel(kind: QuickAddPackageAssetKind): string {
-		switch (kind) {
-			case "user-script":
-				return t("packageManager.asset.userScript");
-			case "conditional-script":
-				return t("packageManager.asset.conditionalScript");
-			case "template":
-				return t("packageManager.asset.template");
-			case "capture-template":
-				return t("packageManager.asset.captureTemplate");
-		}
-	}
-
-	/** Localized "N choice(s)" fragment used inside several notices. */
-	function choiceCountLabel(count: number): string {
-		return t(
-			count === 1
-				? "packageManager.choiceCount.one"
-				: "packageManager.choiceCount.other",
-			{ count },
-		);
-	}
+	const assetLabels: Record<QuickAddPackageAssetKind, string> = {
+		"user-script": t("packageManager.asset.userScript"),
+		"conditional-script": t("packageManager.asset.conditionalScript"),
+		template: t("packageManager.asset.template"),
+		"capture-template": t("packageManager.asset.captureTemplate"),
+	};
 
 	let searchQuery = $state("");
 	let selectedChoiceIds = $state(new Set<string>());
@@ -79,10 +60,6 @@
 			flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
 		),
 	);
-
-	function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-		return choice.type === "Multi";
-	}
 
 	function getDescendantIds(choice: IChoice): string[] {
 		const ids: string[] = [];
@@ -158,11 +135,7 @@
 		} catch (error) {
 			console.error(error);
 			exportWarnings = null;
-			new Notice(
-				t("packageManager.noticeExportFailed", {
-					error: (error as Error)?.message ?? String(error),
-				}),
-			);
+			new Notice(t("packageManager.noticeExportFailed", { error: (error as Error)?.message ?? String(error) }));
 			return null;
 		}
 	}
@@ -176,11 +149,11 @@
 			if (!buildResult) return;
 
 			const serialized = JSON.stringify(buildResult.pkg, null, 2);
-			await copyToClipboard(serialized);
+			await navigator.clipboard.writeText(serialized);
 
 			new Notice(
 				t("packageManager.noticeCopied", {
-					choices: choiceCountLabel(buildResult.pkg.choices.length),
+					choices: `${buildResult.pkg.choices.length} choice${buildResult.pkg.choices.length === 1 ? "" : "s"}`,
 				}),
 			);
 
@@ -191,11 +164,7 @@
 			}
 		} catch (error) {
 			console.error(error);
-			new Notice(
-				t("packageManager.noticeCopyFailed", {
-					error: (error as Error)?.message ?? String(error),
-				}),
-			);
+			new Notice(t("packageManager.noticeCopyFailed", { error: (error as Error)?.message ?? String(error) }));
 		} finally {
 			actionInProgress = null;
 		}
@@ -220,17 +189,12 @@
 				buildResult.pkg,
 				trimmedPath,
 			);
-			const choiceLabel = choiceCountLabel(buildResult.pkg.choices.length);
+			const choiceCount = buildResult.pkg.choices.length;
+			const choiceLabel = `${choiceCount} choice${choiceCount === 1 ? "" : "s"}`;
 			new Notice(
 				overwritten
-					? t("packageManager.noticeOverwrote", {
-							choices: choiceLabel,
-							path: trimmedPath,
-						})
-					: t("packageManager.noticeSaved", {
-							choices: choiceLabel,
-							path: trimmedPath,
-						}),
+					? t("packageManager.noticeOverwrote", { choices: choiceLabel, path: trimmedPath })
+					: t("packageManager.noticeSaved", { choices: choiceLabel, path: trimmedPath }),
 			);
 
 			if (exportWarnings) {
@@ -242,8 +206,6 @@
 			const message = (error as Error)?.message ?? String(error);
 			// Declining the overwrite confirmation is a deliberate no-op, not a
 			// failure: surface it neutrally instead of "Save failed: Save cancelled: …".
-			// NOTE: the startsWith prefix is an internal contract with
-			// packageExportService (English), not user-visible copy — do not translate.
 			if (message.startsWith("Save cancelled:")) {
 				new Notice(t("packageManager.noticeSaveCancelled"));
 				return;
@@ -254,408 +216,314 @@
 			actionInProgress = null;
 		}
 	}
-
-	async function copyToClipboard(text: string) {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(text);
-			return;
-		}
-
-		const textarea = document.body.createEl("textarea");
-		textarea.value = text;
-		textarea.setAttribute("readonly", "true");
-		textarea.style.position = "fixed";
-		textarea.style.opacity = "0";
-		textarea.focus();
-		textarea.select();
-		const successful = document.execCommand("copy");
-		document.body.removeChild(textarea);
-		if (!successful) {
-			throw new Error(t("packageManager.errorClipboardUnsupported"));
-		}
-	}
 </script>
 
-<div class="exportPackageModal">
-	<header>
-		<h2>{t("packageManager.exportTitle")}</h2>
-		<p>{t("packageManager.exportDesc")}</p>
-	</header>
-
-	<section class="controls">
-		<input
-			type="text"
-			placeholder={t("packageManager.filterPlaceholder")}
-			bind:value={searchQuery}
-			autocapitalize="off"
-			autocorrect="off"
-			spellcheck={false}
-		/>
-		<div class="controlButtons">
-			<button type="button" onclick={selectAllFiltered}>{t("packageManager.selectVisible")}</button>
-			<button type="button" onclick={clearSelection}>{t("packageManager.clearSelection")}</button>
-		</div>
-	</section>
-
-	<section class="choiceList">
-		{#if filteredChoices.length === 0}
-			<p class="emptyState">{t("packageManager.emptyFilter")}</p>
-		{:else}
-			<ul>
-				{#each filteredChoices as entry (entry.id)}
-					<li style={`padding-left: ${entry.depth * 16}px`}>
-						<label>
-						<input
-							type="checkbox"
-							checked={selectedChoiceIds.has(entry.id)}
-							onchange={() => toggleChoice(entry.id)}
-						/>
-							<span class="choiceName">{entry.path.at(-1)}</span>
-							{#if entry.path.length > 1}
-								<span class="choicePath">
-									{entry.path.slice(0, -1).join(" › ")}
-								</span>
-							{/if}
-							<span class="choiceType">{entry.choice.type}</span>
-						</label>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	<section class="summary">
-		<h3>{t("packageManager.packageSummary")}</h3>
-		<div class="summaryGrid">
-			<div>
-				<strong>{summary.rootCount}</strong>
-				<span>{t("packageManager.selectedChoices")}</span>
-			</div>
-			<div>
-				<strong>{summary.totalChoices}</strong>
-				<span>{t("packageManager.totalPackaged")}</span>
-			</div>
-			<div>
-				<strong>{summary.dependencyCount}</strong>
-				<span>{t("packageManager.autoIncluded")}</span>
-			</div>
-			<div>
-				<strong>{summary.userScripts + summary.conditionalScripts}</strong>
-				<span>{t("packageManager.scriptsEmbedded")}</span>
-			</div>
-			<div>
-				<strong>{summary.templateFiles + summary.captureTemplates}</strong>
-				<span>{t("packageManager.templatesEmbedded")}</span>
-			</div>
-		</div>
-		{#if summary.missingChoiceIds.length > 0}
-			<div class="warning">
-				<strong>{t("packageManager.missingDependencies")}</strong>
-				<p>
-					{t("packageManager.missingChoiceIdsDesc")}
-					{summary.missingChoiceIds.join(", ")}
-				</p>
-			</div>
-		{/if}
-	</section>
-
-	{#if exportWarnings}
-		<section class="warning">
-			<h4>{t("packageManager.warnings")}</h4>
-			{#if exportWarnings.missingChoices.length > 0}
-				<p>
-					{t("packageManager.missingChoices")}
-					{exportWarnings.missingChoices
-						.map((id) => choiceNameById.get(id) ?? id)
-						.join(", ")}
-				</p>
-			{/if}
-			{#if exportWarnings.missingAssets.length > 0}
-				<div>
-					<p>{t("packageManager.missingAssets")}</p>
-					<ul>
-						{#each exportWarnings.missingAssets as asset (asset.path)}
-							<li>{asset.path} <span class="assetKind">({assetLabel(asset.kind)})</span></li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
-		</section>
-	{/if}
-
-	<section class="actions">
-		<div class="actionGroup">
-			<button
-				type="button"
-				class="secondary"
-				onclick={copyPackage}
-				disabled={actionInProgress !== null}
-			>
-				{#if actionInProgress === "copy"}
-					{t("packageManager.copying")}
-				{:else}
-					{t("packageManager.copyJson")}
-				{/if}
-			</button>
-		</div>
-		<div class="actionGroup">
-			<label>
-				<span>{t("packageManager.saveToFile")}</span>
-				<div class="saveRow">
-					<input
-						type="text"
-						bind:value={outputPath}
-						placeholder="QuickAdd Packages/quickadd-package-YYYY-MM-DD.quickadd.json"
-					/>
-					<button
-						type="button"
-						onclick={savePackage}
-						disabled={actionInProgress !== null}
+<div class="qa-package-dialog">
+	<div class="qa-package-body">
+		<section class="qa-export-select">
+			<div class="qa-export-controls">
+				<div class="search-input-container">
+					<label class="qa-visually-hidden" for="qa-export-filter"
+						>{t("packageManager.filterPlaceholder")}</label
 					>
-						{#if actionInProgress === "save"}
-							{t("packageManager.saving")}
-						{:else}
-							{t("packageManager.saveToFile")}
-						{/if}
-					</button>
+					<input
+						id="qa-export-filter"
+						type="search"
+						enterkeyhint="search"
+						placeholder={t("packageManager.filterChoicesPlaceholder")}
+						bind:value={searchQuery}
+						autocapitalize="off"
+						autocorrect="off"
+						spellcheck={false}
+					/>
 				</div>
-			</label>
-		</div>
-	</section>
+				<button type="button" onclick={selectAllFiltered}>{t("packageManager.selectVisible")}</button>
+				<button type="button" onclick={clearSelection}>{t("packageManager.clearSelection")}</button>
+			</div>
 
-	<section class="footer">
-		<button type="button" class="secondary" onclick={close} disabled={actionInProgress !== null}>
+			<div class="setting-group">
+				<div class="setting-items qa-export-list">
+					{#if filteredChoices.length === 0}
+						<div class="setting-item mod-empty-state">
+							<div class="setting-item-info">
+								<div class="setting-item-name">
+									No choices match the current filter.
+								</div>
+							</div>
+						</div>
+					{:else}
+						{#each filteredChoices as entry (entry.id)}
+							<label
+								class="qa-export-choice"
+								style={`--qa-export-depth: ${entry.depth}`}
+							>
+								<input
+									type="checkbox"
+									checked={selectedChoiceIds.has(entry.id)}
+									onchange={() => toggleChoice(entry.id)}
+								/>
+								<span class="qa-export-choice-name">{entry.path.at(-1)}</span>
+								{#if entry.path.length > 1}
+									<span class="qa-export-choice-path">
+										{entry.path.slice(0, -1).join(" › ")}
+									</span>
+								{/if}
+								<span class="flair qa-export-choice-type">{entry.choice.type}</span>
+							</label>
+						{/each}
+					{/if}
+				</div>
+			</div>
+		</section>
+
+		<section class="setting-group mod-list">
+			<div class="setting-item setting-item-heading">
+				<div class="setting-item-name">{t("packageManager.packageSummary")}</div>
+			</div>
+			<div class="setting-items">
+				{#each [
+					[t("packageManager.selectedChoices"), summary.rootCount],
+					[t("packageManager.totalPackaged"), summary.totalChoices],
+					[t("packageManager.autoIncluded"), summary.dependencyCount],
+					[t("packageManager.scriptsEmbedded"), summary.userScripts + summary.conditionalScripts],
+					[t("packageManager.templatesEmbedded"), summary.templateFiles + summary.captureTemplates],
+				] as [label, value] (label)}
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">{label}</div>
+						</div>
+						<div class="setting-item-control">
+							<span class="setting-item-value qa-export-count">{value}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
+
+		{#if summary.missingChoiceIds.length > 0}
+			<section class="callout qa-export-callout" data-callout="warning">
+				<div class="callout-title">
+					<div class="callout-icon">
+						<ObsidianIcon iconId="alert-triangle" />
+					</div>
+					<div class="callout-title-inner">{t("packageManager.missingDependencies")}</div>
+				</div>
+				<div class="callout-content">
+					<p>
+						{t("packageManager.missingChoiceIdsDesc")}
+						{summary.missingChoiceIds.join(", ")}
+					</p>
+				</div>
+			</section>
+		{/if}
+
+		{#if exportWarnings}
+			<section class="callout qa-export-callout" data-callout="warning">
+				<div class="callout-title">
+					<div class="callout-icon">
+						<ObsidianIcon iconId="alert-triangle" />
+					</div>
+					<div class="callout-title-inner">{t("packageManager.warnings")}</div>
+				</div>
+				<div class="callout-content">
+					{#if exportWarnings.missingChoices.length > 0}
+						<p>
+							{t("packageManager.missingChoices")}
+							{exportWarnings.missingChoices
+								.map((id) => choiceNameById.get(id) ?? id)
+								.join(", ")}
+						</p>
+					{/if}
+					{#if exportWarnings.missingAssets.length > 0}
+						<p>{t("packageManager.missingAssets")}</p>
+						<ul>
+							{#each exportWarnings.missingAssets as asset (asset.path)}
+								<li>
+									<code>{asset.path}</code>
+									<span class="qa-export-asset-kind">{assetLabels[asset.kind]}</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			</section>
+		{/if}
+
+		<section class="setting-group qa-export-save-group">
+			<div class="setting-items">
+				<div class="setting-item qa-export-save">
+					<div class="setting-item-info">
+						<label class="setting-item-name" for="qa-export-path">{t("packageManager.saveToFile")}</label>
+					</div>
+					<div class="setting-item-control">
+						<input
+							id="qa-export-path"
+							type="text"
+							bind:value={outputPath}
+							placeholder="QuickAdd Packages/quickadd-package-YYYY-MM-DD.quickadd.json"
+						/>
+						<button
+							type="button"
+							onclick={savePackage}
+							disabled={actionInProgress !== null}
+						>
+							{#if actionInProgress === "save"}
+								{t("packageManager.saving")}
+							{:else}
+								{t("common.save")}
+							{/if}
+						</button>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<div class="modal-button-container">
+		<button type="button" onclick={close} disabled={actionInProgress !== null}>
 			{t("common.cancel")}
 		</button>
-	</section>
+		<button
+			type="button"
+			onclick={copyPackage}
+			disabled={actionInProgress !== null}
+		>
+			{#if actionInProgress === "copy"}
+				{t("packageManager.copying")}
+			{:else}
+				{t("packageManager.copyJson")}
+			{/if}
+		</button>
+	</div>
 </div>
 
 <style>
-	.exportPackageModal {
+	.qa-export-select {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		width: min(640px, 100%);
-		min-width: 0;
-		max-height: 75vh;
+		gap: var(--size-4-3);
 	}
 
-	header p {
-		margin: 0;
-		color: var(--text-muted);
-	}
-
-	.controls {
+	.qa-export-controls {
 		display: flex;
-		gap: 0.75rem;
+		flex-wrap: wrap;
 		align-items: center;
-		flex-wrap: wrap;
+		gap: var(--size-4-2);
 	}
 
-	.controls input {
-		flex: 1;
+	.qa-export-controls .search-input-container {
+		flex: 1 1 12rem;
 	}
 
-	.controlButtons {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-	}
-
-	.choiceList {
-		flex: 1;
-		min-height: 180px;
+	.qa-export-list {
 		max-height: 260px;
-		overflow: auto;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 6px;
-		padding: 0.5rem;
+		overflow-y: auto;
+		padding: var(--size-4-1);
 	}
 
-	.choiceList ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.choiceList label {
+	/* List padding + row padding lands on the 16px inset of the mod-list rows
+	   below, so every row in the modal starts on the same edge. */
+	.qa-export-choice {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
+		gap: var(--size-4-2);
+		padding: var(--size-4-1) var(--size-4-3);
+		padding-inline-start: calc(
+			var(--size-4-3) + var(--qa-export-depth, 0) * var(--size-4-4)
+		);
+		font-size: var(--font-ui-small);
+		border-radius: var(--radius-s);
+		cursor: var(--cursor);
 	}
 
-	.choiceList label:hover {
-		background: var(--background-modifier-hover);
+	.qa-export-choice:hover {
+		background-color: var(--background-modifier-hover);
 	}
 
-	.choiceName {
-		font-weight: 600;
-	}
-
-	.choicePath {
-		color: var(--text-muted);
-		font-size: 0.8rem;
-	}
-
-	.choiceType {
-		margin-left: auto;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		color: var(--text-faint);
-	}
-
-	.emptyState {
+	.qa-export-choice input {
+		flex-shrink: 0;
 		margin: 0;
+	}
+
+	.qa-export-choice-name {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.qa-export-choice-path {
+		min-width: 0;
 		color: var(--text-muted);
-		text-align: center;
+		font-size: var(--font-ui-smaller);
+		overflow-wrap: anywhere;
 	}
 
-	.summary {
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 6px;
-		padding: 0.75rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+	.qa-export-choice-type {
+		margin-inline-start: auto;
 	}
 
-	.summary h3 {
-		margin: 0 0 0.5rem 0;
-		font-size: 1rem;
-	}
-
-	.summaryGrid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-		gap: 0.75rem;
-	}
-
-	.summaryGrid div {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.summaryGrid strong {
-		font-size: 1.1rem;
-	}
-
-	/* Neutral surface with an amber-tinted border (these are warnings, not
-	   critical danger): ranked, not a blanket-red fill — matches the import
-	   modal's CapabilityBanner treatment. */
-	.warning {
-		border: 1px solid var(--qa-sev-warning-border);
-		background: var(--background-secondary);
-		border-radius: var(--radius-m, 8px);
-		padding: 0.6rem 0.75rem;
+	.qa-export-count {
 		color: var(--text-normal);
+		font-variant-numeric: tabular-nums;
 	}
 
-	.warning ul {
-		margin: 0.25rem 0 0 1rem;
-		padding: 0;
+	.qa-export-callout {
+		margin: 0;
 	}
 
-	.assetKind {
+	.qa-export-callout .callout-content {
+		font-size: var(--font-ui-small);
+	}
+
+	.qa-export-callout p {
+		margin: var(--size-4-2) 0 0;
+	}
+
+	.qa-export-callout ul {
+		margin: var(--size-4-1) 0 0;
+		padding-inline-start: var(--size-4-5);
+	}
+
+	.qa-export-callout code {
+		font-family: var(--font-monospace);
+		font-size: var(--code-size);
+		background-color: var(--code-background);
+		border-radius: var(--code-radius);
+		padding: 0.1em 0.25em;
+		overflow-wrap: anywhere;
+	}
+
+	.qa-export-asset-kind {
+		margin-inline-start: var(--size-4-1);
 		color: var(--text-muted);
+		font-size: var(--font-ui-smaller);
 	}
 
-	.actions {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
+	/* Same inset as the mod-list summary rows above. Not mod-list itself:
+	   Obsidian keeps mod-list rows horizontal on phones, where this row needs
+	   to stack. */
+	.qa-export-save-group {
+		--setting-items-padding-x: var(--size-4-4);
+		--setting-items-padding-y: var(--size-4-3);
 	}
 
-	.actionGroup {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+	/* The path is the point of this row: let the input take the width the
+	   short name leaves over. */
+	.qa-export-save {
+		align-items: center;
 	}
 
-	.saveRow {
-		display: flex;
-		gap: 0.5rem;
+	/* Phones stack the row and make controls full width; wrap so the path
+	   and Save each get a full line. */
+	:global(.is-phone) .qa-export-save .setting-item-control {
+		flex-wrap: wrap;
 	}
 
-	.saveRow input {
-		flex: 1;
+	.qa-export-save .setting-item-info {
+		flex: 0 0 auto;
 	}
 
-	.footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-	}
-
-	.footer button.secondary {
-		background: transparent;
-	}
-
-	@media (max-width: 600px) {
-		.exportPackageModal {
-			max-height: 90vh;
-			padding-bottom: 0.5rem;
-		}
-
-		.controls {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 0.5rem;
-		}
-
-		.controlButtons {
-			width: 100%;
-			flex-direction: column;
-			gap: 0.5rem;
-			align-items: stretch;
-		}
-
-		.controlButtons button {
-			width: 100%;
-		}
-
-		.choiceList {
-			min-height: 160px;
-			max-height: 40vh;
-		}
-
-		.summaryGrid {
-			grid-template-columns: 1fr;
-		}
-
-		.actions {
-			gap: 0.75rem;
-		}
-
-		.actionGroup {
-			align-items: stretch;
-		}
-
-		.actionGroup button {
-			width: 100%;
-		}
-
-		.saveRow {
-			flex-direction: column;
-		}
-
-		.saveRow button {
-			width: 100%;
-		}
-
-		.footer {
-			flex-direction: column-reverse;
-			align-items: stretch;
-		}
-
-		.footer button {
-			width: 100%;
-		}
+	.qa-export-save input {
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 </style>

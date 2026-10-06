@@ -60,7 +60,7 @@ export function isCancellationError(error: unknown): boolean {
  */
 const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
 	"no input given.", // GenericSuggester, InputSuggester, GenericCheckboxPrompt, MultiSuggester
-	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal, MultiChoiceSettingsModal
+	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal
 	"cancelled", // OnePageInputModal
 ]);
 
@@ -153,6 +153,14 @@ export function reportError(
 }
 
 /**
+ * Record that the user has already seen this failure through another surface,
+ * so a {@link reportError} further up does not show it again.
+ */
+export function markErrorReported(err: unknown): void {
+  if (isTrackable(err)) reportedErrors.set(err, Date.now());
+}
+
+/**
  * Report failures while keeping cancellations silent. Returns whether reported.
  */
 export function reportUnlessCancelled(
@@ -212,17 +220,22 @@ export function reportingHandler<A extends unknown[]>(
 }
 
 /**
- * Return the result, or report an asynchronous failure and return undefined.
+ * Settle exactly like `promise`, except that a cancellation nobody awaits is not an
+ * unhandled rejection. Real failures are left unhandled so they still get reported.
+ *
+ * For promises QuickAdd hands to code it doesn't control, such as `api.executeChoice`
+ * called from a button's click handler without a `.catch`. A caller that awaits or
+ * catches still receives the cancellation. Obsidian's `dev:errors` records every
+ * unhandled rejection, including ones the unhandled-rejection reporter claims with
+ * `preventDefault()`, so the only way to keep Escape out of it is to never leave the
+ * rejection unhandled.
  */
-export async function withAsyncErrorHandling<T>(
-  fn: () => Promise<T>,
-  contextMessage?: string,
-  level: ErrorLevel = ErrorLevelEnum.Error
-): Promise<T | undefined> {
-  try {
-    return await fn();
-  } catch (err) {
-    reportError(err, contextMessage, level);
-    return undefined;
-  }
+export function handledIfCancelled<T>(promise: Promise<T>): Promise<T> {
+  const result: Promise<T> = promise.then(undefined, (error: unknown) => {
+    // A handler attached before `result` rejects marks it handled; awaiting callers
+    // attach their own and still see the error.
+    if (isCancellationError(error)) result.catch(() => undefined);
+    throw error;
+  });
+  return result;
 }

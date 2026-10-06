@@ -1,15 +1,15 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { collectUnhandledRejections } from "../../../tests/helpers/unhandledRejections";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
-import { Notice, TextComponent } from "obsidian";
+import { Notice, prepareFuzzySearch, TextComponent, TFile } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import { CommandSequenceEditor } from "./CommandSequenceEditor";
+import InputSuggester from "../InputSuggester/inputSuggester";
+import { promptCancelled } from "../../errors/UserCancelError";
+import { log } from "../../logger/logManager";
 
 type NoticeTestClass = typeof Notice & {
 	instances: Array<{ message: string }>;
@@ -111,6 +111,40 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 		editor.destroy();
 	});
 
+	// #2122: the first-macro walkthrough says "Add an Editor commands entry and
+	// choose ...", so Add is often clicked before anything is chosen.
+	it("does nothing when Add is clicked with nothing chosen", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app: testApp(),
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		editor.render(container);
+
+		const editorCommands = container.querySelector("select");
+		if (!editorCommands) throw new Error("Editor commands dropdown not found");
+		for (const control of [
+			getInputByPlaceholder(container, "Obsidian command"),
+			editorCommands,
+			getInputByPlaceholder(container, "Choice"),
+		]) {
+			getAddButtonFor(control as HTMLInputElement).click();
+		}
+
+		expect(onCommandsChange).not.toHaveBeenCalled();
+		expect(noticeClass.instances).toEqual([]);
+		expect(logError).not.toHaveBeenCalled();
+
+		editor.destroy();
+		logError.mockRestore();
+	});
+
 	it("warns when adding a user-script name that resolves to nothing", async () => {
 		const onCommandsChange = vi.fn();
 		const editor = new CommandSequenceEditor({
@@ -144,6 +178,158 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 			noticeClass.instances.some((n) => n.message.includes("missingScript"))
 		).toBe(true);
 
+		editor.destroy();
+	});
+});
+
+/**
+ * Obsidian drops a Setting button's click promise, so pressing Escape in the script
+ * picker used to be an unhandled rejection that Obsidian's dev:errors listed as
+ * `MacroAbortError: Input cancelled by user`.
+ */
+describe("CommandSequenceEditor script picker (Browse)", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	function renderEditor() {
+		const app = testApp();
+		const script = new TFile();
+		script.path = "Scripts/ask.js";
+		script.name = "ask.js";
+		script.basename = "ask";
+		script.extension = "js";
+		app.vault.getFiles = () => [script];
+
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app,
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		editor.render(container);
+
+		const browse = Array.from(container.querySelectorAll("button")).find(
+			(button) => button.textContent === "Browse",
+		);
+		if (!browse) throw new Error("Browse button not found");
+		return { editor, browse, onCommandsChange };
+	}
+
+	it("stays quiet when the user dismisses the picker", async () => {
+		const suggest = vi
+			.spyOn(InputSuggester, "Suggest")
+			.mockRejectedValue(promptCancelled());
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const { editor, browse, onCommandsChange } = renderEditor();
+
+		const unhandled = await collectUnhandledRejections(() => fireEvent.click(browse));
+
+		expect(suggest).toHaveBeenCalledTimes(1);
+		expect(unhandled).toEqual([]);
+		expect(logError).not.toHaveBeenCalled();
+		expect(onCommandsChange).not.toHaveBeenCalled();
+		editor.destroy();
+	});
+
+	it("reports a real failure with context instead of leaving it unhandled", async () => {
+		vi.spyOn(InputSuggester, "Suggest").mockRejectedValue(new Error("picker broke"));
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const { editor, browse } = renderEditor();
+
+		const unhandled = await collectUnhandledRejections(() => fireEvent.click(browse));
+
+		expect(unhandled).toEqual([]);
+		expect(logError).toHaveBeenCalledTimes(1);
+		expect((logError.mock.calls[0][0] as Error).message).toBe(
+			"Couldn't add that script: picker broke",
+		);
+		editor.destroy();
+	});
+
+	it("adds a script typed into the picker by its vault path", async () => {
+		vi.spyOn(InputSuggester, "Suggest").mockResolvedValue("Scripts/ask.js");
+		const { editor, browse, onCommandsChange } = renderEditor();
+
+		await fireEvent.click(browse);
+		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalledTimes(1));
+
+		expect(onCommandsChange.mock.calls[0][0]).toMatchObject([
+			{ name: "ask", path: "Scripts/ask.js" },
+		]);
+		editor.destroy();
+	});
+
+	// #942: several `view.js` files in different folders all rendered as "view".
+	// Picking one must save that file, named by its path.
+	it("tells same-named scripts apart by path", async () => {
+		const app = testApp();
+		const files = ["bins/views/books/view.js", "bins/views/progress-bar/view.js"].map((path) => {
+			const file = new TFile();
+			file.path = path;
+			file.name = "view.js";
+			file.basename = "view";
+			file.extension = "js";
+			return file;
+		});
+		app.vault.getFiles = () => files;
+		app.vault.getAbstractFileByPath = (path: string) => files.find((file) => file.path === path) ?? null;
+		let picker: InputSuggester | undefined;
+		vi.spyOn(InputSuggester, "Suggest").mockImplementation((...args) => {
+			picker = new InputSuggester(...args);
+			return picker.promise;
+		});
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app,
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		editor.render(container);
+		const browse = Array.from(container.querySelectorAll("button")).find(
+			(button) => button.textContent === "Browse",
+		);
+		if (!browse) throw new Error("Browse button not found");
+
+		await fireEvent.click(browse);
+		if (!picker) throw new Error("Script picker did not open");
+
+		const rows = picker.getSuggestions("").map((suggestion) => {
+			const el = document.createElement("div");
+			picker?.renderSuggestion(suggestion, el);
+			return el.textContent;
+		});
+		expect(new Set(rows).size).toBe(2);
+		expect(rows.some((row) => row?.includes("bins/views/progress-bar"))).toBe(true);
+
+		picker.inputEl.value = "progress";
+		const matches = picker.getSuggestions("progress");
+		expect(matches.map((match) => match.item)).toEqual([
+			"bins/views/progress-bar/view.js",
+		]);
+		// The row highlights the match, here in its path. The test stub's modal
+		// doesn't fuzzy-match, so match the row's search text with the scorer.
+		const found = prepareFuzzySearch("progress")(picker.getItemText(matches[0].item));
+		const row = document.createElement("div");
+		picker.renderSuggestion({ item: matches[0].item, match: found ?? { score: 0, matches: [] } }, row);
+		expect(Array.from(row.querySelectorAll(".suggestion-note .suggestion-highlight"), (span) => span.textContent))
+			.toEqual(["progress"]);
+
+		picker.selectSuggestion(matches[0], new MouseEvent("click"));
+		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalled());
+		expect(onCommandsChange.mock.lastCall?.[0]).toEqual([
+			expect.objectContaining({
+				name: "bins/views/progress-bar/view.js",
+				path: "bins/views/progress-bar/view.js",
+			}),
+		]);
 		editor.destroy();
 	});
 });

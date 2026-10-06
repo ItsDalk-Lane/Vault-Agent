@@ -12,10 +12,12 @@ can apply a template to a note you already have.
 There are two ways in:
 
 - Run **QuickAdd: Apply template to active note** from the command palette to apply a template to the note currently open.
-- Right-click a Markdown file (in the file explorer, a tab header, and so on) and pick **Apply QuickAdd template** to target that file directly.
+- Right-click a Markdown file (in the file explorer, a tab header, and so on) and pick **QuickAdd: Apply template to active note** to target that file directly.
 
 Either way, you pick a template, choose how it should be added, and QuickAdd
 fills in the placeholders and merges the frontmatter for you.
+
+![Right-clicking the note "Nora Lindqvist" in the file explorer and choosing QuickAdd: Apply template to active note. The picker lists Template choices and template files. Picking "Choice: New person" and then "Insert at top" makes QuickAdd offer to move the note to People/Nora Lindqvist.md. After clicking Yes, the note has the template's properties and headings above the original text](./Images/apply-template-to-note.gif)
 
 ## How it works {#how-it-works}
 
@@ -28,7 +30,7 @@ fills in the placeholders and merges the frontmatter for you.
    [Smart behaviors](#smart-behaviors)):
    - **Insert at cursor**: inserts the template at the cursor. Only offered when the note is open in the active editor.
    - **Insert at top**: inserts the template below the note's frontmatter, or at the very top if there is none.
-   - **Append to bottom**: adds the template content to the end of the note.
+   - **Append to bottom**: adds the template content to the end of the note, after exactly one blank line.
    - **Replace note content**: replaces the entire note with the template.
 
 The template runs through the full QuickAdd
@@ -40,6 +42,9 @@ where typing continues after applying it. All four modes support the marker
 when the destination is focused in an editing mode. Insert and append modes
 leave existing literal markers in the destination note alone. **Replace note
 content** replaces the whole note, including any existing markers.
+
+The [project update example](/docs/Examples/Template_MeetingNotes/#add-an-update-to-an-existing-project)
+shows how to append a dated section and keep typing in it.
 
 :::note
 Only Markdown templates can be applied. Canvas (`.canvas`) and Base (`.base`)

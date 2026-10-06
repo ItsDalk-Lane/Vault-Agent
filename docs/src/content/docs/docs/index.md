@@ -13,7 +13,7 @@ New here? Build your [first workflow](#first-workflow) below in about a minute.
 
 ## Install QuickAdd
 
-Install QuickAdd from Obsidian's Community Plugins browser, then enable it.
+Install QuickAdd from Obsidian's Community plugins browser, then enable it.
 
 If you cannot use the plugin browser, follow the
 [manual installation guide](/docs/ManualInstallation/).
@@ -37,18 +37,27 @@ plugin or API.
 Let's build a capture that adds a timestamped line to your daily journal. It
 takes about a minute.
 
-1. Open **Settings → QuickAdd**. Type a name like `Add to journal`, choose
-   **Capture** in the dropdown, and click **Add Choice**.
-2. Click the gear (⚙) next to your new choice to open its settings.
-3. Set **Capture To** to `Journal/{{DATE}}.md` - the note today's entries land in.
-4. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
-   of one entry.
-5. Close the settings. Open the command palette (Ctrl/Cmd+P), run
+1. Open **Settings → QuickAdd**, click **New choice**, and pick **Capture**. Its
+   settings open right away, as a page of the settings window.
+2. Set **Name** to `Add to journal`. (Before QuickAdd 2.30.0, the settings open
+   in a dialog; click the name at the top to rename it.)
+3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
+4. Turn on **Create file if it doesn't exist**, so the first capture of the day
+   creates today's note instead of stopping with a "Target file missing" notice.
+5. In **Capture format**, enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
+   of one entry. (Before QuickAdd 2.30.0, turn on the **Capture format**
+   toggle first.)
+6. Close the settings. Open the command palette (Ctrl/Cmd+P), run
    **QuickAdd: Run**, pick `Add to journal`, and type your entry.
 
-QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` into today's
-journal note, without opening it. Once it works the way you want, give it a
-hotkey from the ⚡ icon next to the choice or Obsidian's Hotkeys settings.
+QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` to the top of
+today's journal note, without opening it.
+
+![Running QuickAdd: Run from the command palette, picking Add to journal, typing "Standup moved to Wednesday", and the timestamped line appearing at the top of today's journal note](./Images/getting-started-add-to-journal.gif)
+
+Once it works the way you want, click the ⚡ icon next to the choice to add it
+to the command palette, then give it a hotkey in Obsidian's **Settings →
+Hotkeys**.
 
 The `{{DATE}}` and `{{VALUE}}` above are [format syntax](/docs/FormatSyntax/):
 placeholders QuickAdd fills in each time you run the choice. There are

@@ -2,10 +2,13 @@ import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { QuickAddApi } from "./quickAddApi";
+import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { promptCancelled } from "./errors/UserCancelError";
+import { collectUnhandledRejections } from "../tests/helpers/unhandledRejections";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -14,10 +17,6 @@ vi.mock("./quickAddSettingsTab", () => ({
 
 vi.mock("./formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 describe("QuickAddApi.executeChoice", () => {
@@ -59,6 +58,53 @@ describe("QuickAddApi.executeChoice", () => {
 		expect(variables.size).toBe(0);
 	});
 
+	// Buttons in notes call executeChoice without a .catch. Pressing Escape in the
+	// choice's prompt must not become an unhandled rejection (Obsidian's dev:errors).
+	it("leaves no unhandled rejection when a floated call is cancelled by the user", async () => {
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+			promptCancelled(),
+		);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([]);
+	});
+
+	it("still rejects with the user's cancellation for a script that awaits it", async () => {
+		const cancel = promptCancelled();
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(cancel);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(api.executeChoice("My Template")).rejects.toBe(cancel);
+	});
+
+	it("leaves a floated call's real failure unhandled so it is still reported", async () => {
+		const failure = new Error("Template file not found");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockRejectedValueOnce(failure);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([failure]);
+	});
+
+	it("leaves a floated call's involuntary abort unhandled", async () => {
+		const abort = new MacroAbortError("Target file missing");
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abort);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([abort]);
+	});
+
 	it("clears variables and resolves when no abort is signalled", async () => {
 		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
 		await expect(
@@ -66,5 +112,19 @@ describe("QuickAddApi.executeChoice", () => {
 		).resolves.toBeUndefined();
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 		expect(variables.size).toBe(0);
+	});
+
+	it("forgets the run's VDATE formats with its variables (#645)", async () => {
+		const answer = "@date:2024-02-25T12:00:00.000Z";
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+			variables.set("due", answer);
+			rememberDateVariableFormat(variables, "due", "DD.MM.YYYY");
+		});
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+		await api.executeChoice("My Template");
+
+		// The next run on this executor picks the same date.
+		variables.set("due", answer);
+		expect(getDateVariableFormat(variables, "due")).toBeUndefined();
 	});
 });

@@ -3,7 +3,7 @@ import { PROPERTY_REGEX } from "../constants";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 import { t } from "../i18n";
 
-export type CapturePropertyValue = string | number | boolean | string[];
+type CapturePropertyValue = string | number | boolean | string[];
 
 export function validatePropertyName(input: string): string {
 	const key = input.trim();
@@ -40,13 +40,13 @@ export function stringifyPropertyTokenValue(value: unknown): string {
 }
 
 /** Variable keys seeded for property Captures. Reserved while that Capture runs. */
-export const PROPERTY_CAPTURE_SEED_KEYS = [
+const PROPERTY_CAPTURE_SEED_KEYS = [
 	"propertyKey",
 	"propertyValue",
 	"list",
 ] as const;
 
-export type PropertyCaptureSeedSnapshot = Array<{
+type PropertyCaptureSeedSnapshot = Array<{
 	key: (typeof PROPERTY_CAPTURE_SEED_KEYS)[number];
 	present: boolean;
 	value: unknown;
@@ -157,6 +157,18 @@ function propertyType(type: string | null, key: string): PropertyType | null {
 		default:
 			throw new Error(t("errors.propertyTypeUnsupported", { name: key, type }));
 	}
+}
+
+/** Whether the capture writes list items, known before the format runs. */
+export function capturesListItems(args: {
+	key: string;
+	action: PropertyCapture["action"];
+	registeredType: string | null;
+	existing: unknown;
+}): boolean {
+	if (args.action === "addToList") return true;
+	const type = propertyType(args.registeredType, args.key);
+	return type === "list" || (type === null && Array.isArray(args.existing));
 }
 
 function inferType(value: CapturePropertyValue): PropertyType {

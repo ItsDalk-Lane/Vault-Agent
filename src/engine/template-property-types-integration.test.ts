@@ -5,7 +5,6 @@ import { log } from "../logger/logManager";
 
 vi.mock("../main", () => ({ default: class { } }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class { } }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 type Properties = Record<string, unknown>;
 async function createProperties(values: Properties, enabled = true) {
@@ -48,7 +47,7 @@ describe("Template property types through production engines", () => {
 		}
 		const file = h.file("existing.md", "old");
 		expect(await h.engine.overwrite(file, "template.md")).toBe(file);
-		expect(h.vault.modify).toHaveBeenCalledOnce();
+		expect(h.vault.process).toHaveBeenCalledWith(file, expect.any(Function));
 		expect(h.processFrontMatter).toHaveBeenCalledWith(file, expect.any(Function));
 		expect(h.frontmatter(file)).toEqual({ updated: new Date("2025-01-01"), version: 2, status: "active" });
 		expect(h.frontmatter(file).content).toBeUndefined();

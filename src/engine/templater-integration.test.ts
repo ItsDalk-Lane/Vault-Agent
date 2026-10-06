@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
-import type * as UtilityObsidian from "../utilityObsidian";
-import { overwriteTemplaterOnce } from "../utilityObsidian";
+import type * as TemplaterIntegration from "../utils/templaterIntegration";
+import { overwriteTemplaterOnce } from "../utils/templaterIntegration";
 
 vi.mock("../main", () => ({ default: class { } }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class { } }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-vi.mock("../utilityObsidian", async (original) => ({
-	...await original<typeof UtilityObsidian>(),
+vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	overwriteTemplaterOnce: vi.fn(),
 }));
 
@@ -33,7 +32,8 @@ describe("Production template engine Templater boundary", () => {
 		const h = setup({ tags: ["one", "two"] });
 		const file = await h.engine.create("note.md", "template.md");
 		expect(file).not.toBeNull();
-		expect(h.events).toEqual(["create", "properties", "templater", "modify"]);
+		// The trailing process strips {{CURSOR}} markers from the finished note.
+		expect(h.events).toEqual(["create", "properties", "templater", "modify", "process"]);
 		expect(h.vault.create).toHaveBeenCalledWith("note.md", expect.not.stringContaining("{{VALUE:"));
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["one", "two"] }, expect.stringContaining('<% tp.date.now() %>'));
 	});
@@ -87,7 +87,7 @@ describe("Production template engine Templater boundary", () => {
 
 	it("should handle when Templater is not available", async () => {
 		const h = setup({ tags: ["tag"] });
-		const actual = await vi.importActual<typeof UtilityObsidian>("../utilityObsidian");
+		const actual = await vi.importActual<typeof TemplaterIntegration>("../utils/templaterIntegration");
 		vi.mocked(overwriteTemplaterOnce).mockImplementation(actual.overwriteTemplaterOnce);
 		const file = await h.engine.create("note.md", "template.md");
 		expect(file).not.toBeNull();
@@ -122,7 +122,7 @@ describe("Production template engine Templater boundary", () => {
 		const h = setup({ tags: ["one", "two"], count: 42 });
 		const file = h.file("note.md", "old");
 		await h.engine.overwrite(file, "template.md");
-		expect(h.events).toEqual(["modify", "properties", "templater", "modify"]);
+		expect(h.events).toEqual(["process", "properties", "templater", "modify", "process"]);
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["one", "two"], count: 42 }, expect.any(String));
 		expect(overwriteTemplaterOnce).toHaveBeenCalledExactlyOnceWith(h.app, file);
 	});

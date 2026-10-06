@@ -1,6 +1,6 @@
 import { t } from "../i18n";
 
-export interface ScriptExtractionResult {
+interface ScriptExtractionResult {
 	/**
 	 * The runnable JavaScript body, or `null` when the note has no JS fence.
 	 *

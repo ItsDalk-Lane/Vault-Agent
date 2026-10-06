@@ -2,6 +2,7 @@
 title: Book Finder Script
 description: Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required
 slug: docs/Examples/Macro_BookFinder
+package: book-finder
 ---
 
 This macro looks up a book by title and inserts its details into a new note in your vault. It uses the Google Books API, and you don't need an API key because it only reads publicly available information.
@@ -9,17 +10,18 @@ This macro looks up a book by title and inserts its details into a new note in y
 
 ## Installation
 
+Imported the package above? The script, the template, and the **Add book note** macro are already in place; skip to [Usage](#usage).
+
 This works by adding the BookFinder [user script](/docs/UserScripts/) to a [Macro choice](/docs/Choices/MacroChoice/) that you run from the main menu.
 You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. Open the QuickAdd settings, click `Add Choice`, and select `Macro`. You decide what to name it. I named mine `Book`. This is what activates the macro.
-4. Click the configure button (⚙️) on the macro choice to open the Macro Builder.
-5. Add the user script to the command list.
-6. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
+3. In **Settings → QuickAdd**, click **New choice** → **Macro**. This is what activates the macro. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine `Book`.
+4. Add the user script to the command list.
+5. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
+    2. Set **File name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
 
 You can now use the macro to create notes with book information in your vault.
@@ -46,6 +48,8 @@ You can now use the macro to create notes with book information in your vault.
 ```
 
 ## Usage
+
+Run the macro and enter a book title; a short clipboard text is prefilled. The first Google Books match for that title becomes the note; there is no picker, so a full, exact title gives the best result.
 
 You can pull any field from the API response into your template with a `{{VALUE:<variable>}}` placeholder (for example, `{{VALUE:title}}`). Below is an example response for the book 'Flowers for Algernon'. The response is deeply nested, so if you want fields that the example template doesn't already expose, you may need to extend the script to read them out.
 

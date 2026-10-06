@@ -6,7 +6,7 @@ import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import type { PromptProvider } from "src/interactive/promptProvider";
 import { settingsStore } from "src/settingsStore";
-import { getMarkdownFilesInFolder } from "src/utilityObsidian";
+import { getMarkdownFilesInFolder } from "src/utils/vaultQueries";
 import invariant from "src/utils/invariant";
 import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
@@ -54,7 +54,8 @@ async function getTargetPromptTemplate(
 			targetFile = await GenericSuggester.Suggest(
 				app,
 				basenames,
-				promptTemplates
+				promptTemplates,
+				"Select a prompt template"
 			);
 		}
 	}
@@ -150,7 +151,8 @@ export async function runAIAssistant(
 			model,
 			provider,
 			systemPrompt,
-			settings.modelOptions
+			settings.modelOptions,
+			!settings.showAssistantMessages
 		);
 		const res = makeRequest(formattedPrompt);
 
@@ -162,8 +164,7 @@ export async function runAIAssistant(
 
 		return outputVariables(outputVariable, output);
 	} catch (error) {
-		notice.setMessage("dead", (error as { message: string }).message);
-		window.setTimeout(() => notice.hide(), 5000);
+		notice.fail(error);
 		// Always abort on cancelled input
 		if (isCancellationError(error)) {
 			throw new UserCancelError("Input cancelled by user");
@@ -216,7 +217,8 @@ export async function Prompt(
 			model,
 			provider,
 			systemPrompt,
-			modelOptions
+			modelOptions,
+			!settings.showAssistantMessages
 		);
 		const res = makeRequest(formattedPrompt);
 
@@ -228,8 +230,7 @@ export async function Prompt(
 
 		return outputVariables(outputVariable, output);
 	} catch (error) {
-		notice.setMessage("dead", (error as { message: string }).message);
-		window.setTimeout(() => notice.hide(), 5000);
+		notice.fail(error);
 		// No user input in this function - re-throw original error
 		throw error;
 	}

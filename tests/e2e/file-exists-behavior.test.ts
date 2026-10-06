@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-	captureFailureArtifacts,
 	clearVaultRunLockMarker,
 	createSandboxApi,
 } from "obsidian-e2e";
+import { registerFailureArtifacts } from "obsidian-e2e/vitest";
 import type { ObsidianClient, SandboxApi, PluginHandle, VaultRunLock } from "obsidian-e2e";
 import {
 	acquireQuickAddVaultRunLock,
@@ -158,13 +158,7 @@ afterAll(async () => {
 }, 15_000);
 
 beforeEach((ctx) => {
-	ctx.onTestFailed(async () => {
-		await captureFailureArtifacts(
-			{ id: ctx.task.id, name: ctx.task.name },
-			obsidian,
-			{ plugin: qa, captureOnFailure: true },
-		);
-	});
+	registerFailureArtifacts(ctx, obsidian, { captureOnFailure: true }, qa);
 });
 
 // ---------------------------------------------------------------------------
@@ -188,6 +182,8 @@ describe("functional: file collision behaviors", () => {
 				templateChoice("__qa-test-t07-chain", `${root}/qa-t07-chain`, behavior.duplicateSuffix),
 				templateChoice("__qa-test-t08-digits", `${root}/qa-t08-note1`, behavior.duplicateSuffix),
 				templateChoice("__qa-test-t09-abot", `${root}/qa-t09-append-bot`, behavior.appendBottom),
+				templateChoice("__qa-test-t09b-abot-blank", `${root}/qa-t09b-append-bot-blank`, behavior.appendBottom),
+				templateChoice("__qa-test-t09c-abot-empty", `${root}/qa-t09c-append-bot-empty`, behavior.appendBottom),
 				templateChoice("__qa-test-t10-atop", `${root}/qa-t10-append-top`, behavior.appendTop),
 				templateChoice("__qa-test-t11-over", `${root}/qa-t11-overwrite`, behavior.overwrite),
 				templateChoice("__qa-test-t12-noop", `${root}/qa-t12-nothing`, behavior.doNothing),
@@ -248,14 +244,23 @@ describe("functional: file collision behaviors", () => {
 		expect(await sandbox.exists("qa-t08-note2.md")).toBe(false);
 	});
 
-	it("T09: append to bottom", async () => {
+	// #1958: exactly one blank line above the appended template, however the note ends.
+	it("T09: append to bottom of a note without a final line break", async () => {
 		await seedFile("qa-t09-append-bot.md", "ORIGINAL_BOTTOM_TEST");
 		const content = await runChoiceAndWaitForContent("__qa-test-t09-abot", "qa-t09-append-bot.md", TPL_CONTENT);
-		expectOrderedSubstrings(
-			content,
-			"ORIGINAL_BOTTOM_TEST",
-			TPL_CONTENT,
-		);
+		expect(content).toBe(`ORIGINAL_BOTTOM_TEST\n\n${TPL_CONTENT}`);
+	});
+
+	it("T09b: append to bottom of a note ending in blank lines", async () => {
+		await seedFile("qa-t09b-append-bot-blank.md", "ORIGINAL_BOTTOM_TEST\n\n\n");
+		const content = await runChoiceAndWaitForContent("__qa-test-t09b-abot-blank", "qa-t09b-append-bot-blank.md", TPL_CONTENT);
+		expect(content).toBe(`ORIGINAL_BOTTOM_TEST\n\n${TPL_CONTENT}`);
+	});
+
+	it("T09c: append to bottom of an empty note", async () => {
+		await seedFile("qa-t09c-append-bot-empty.md", "");
+		const content = await runChoiceAndWaitForContent("__qa-test-t09c-abot-empty", "qa-t09c-append-bot-empty.md", TPL_CONTENT);
+		expect(content).toBe(TPL_CONTENT);
 	});
 
 	it("T10: append to top", async () => {

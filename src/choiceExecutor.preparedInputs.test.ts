@@ -18,7 +18,6 @@ import { UserCancelError } from "./errors/UserCancelError";
 
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
 vi.mock("./settingsStore", () => ({
@@ -26,7 +25,7 @@ vi.mock("./settingsStore", () => ({
 }));
 vi.mock("./preflight/runOnePagePreflight", () => ({ runOnePagePreflight: vi.fn() }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({ getFocusedPropertyTarget: () => null }));
-vi.mock("./utilityObsidian", async (importOriginal) => ({
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
 	...await importOriginal<Record<string, unknown>>(),
 	getOpenFileOriginLeaf: () => null,
 }));
@@ -81,15 +80,26 @@ describe("ChoiceExecutor prepared input lifecycle", () => {
 		runCapture.mockReset();
 	});
 
-	it.each(["execute", "executeWithOutcome"] as const)(
-		"%s opens an existing note without prompting for its hidden creation date",
-		async (method) => {
+	it.each([
+		{ method: "execute", prepared: true },
+		{ method: "execute", prepared: false },
+		{ method: "executeWithOutcome", prepared: true },
+		{ method: "executeWithOutcome", prepared: false },
+	] as const)(
+		"$method leaves a note-searching Template's date to its engine (prepared: $prepared)",
+		async ({ method, prepared }) => {
 			const runner = executor();
 			const choice = discoveryChoice();
-			prepareExisting(runner, choice);
+			if (prepared) prepareExisting(runner, choice);
+			let appliedDate: Date | undefined;
+			runTemplate.mockImplementation(async (active, target) => {
+				expect(datePrompt).not.toHaveBeenCalled();
+				await active.resolveDateOrigin?.(target);
+				appliedDate = active.clocks?.date;
+			});
 			await runner[method](choice);
-			expect(runTemplate).toHaveBeenCalledTimes(1);
-			expect(datePrompt).not.toHaveBeenCalled();
+			expect(datePrompt).toHaveBeenCalledTimes(1);
+			expect(realMoment(appliedDate).format("YYYY-MM-DD")).toBe("2026-09-06");
 			expect(runner.preparedInputs.active).toBeNull();
 		},
 	);

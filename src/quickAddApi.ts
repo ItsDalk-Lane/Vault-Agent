@@ -1,13 +1,15 @@
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type { ChoiceChain } from "./engine/choiceChain";
 import { CompleteFormatter } from "./formatters/completeFormatter";
+import { restoreDateVariableFormats, snapshotDateVariableFormats } from "./formatters/helpers/dateTokens";
 import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTemplateToActiveNote";
 import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } from "./engine/TemplateInsertEngine";
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
 import { applyInvocationDate } from "./utils/resolveDateOrigin";
-import { reportError } from "./utils/errorUtils";
-import { getDate } from "./utilityObsidian";
+import { handledIfCancelled, reportError } from "./utils/errorUtils";
+import { getDate } from "./utils/dates";
 import type IChoice from "./types/choices/IChoice";
 import type { InputPromptOptions } from "./types/inputPrompt";
 import { PromptApi } from "./api/promptApi";
@@ -15,20 +17,22 @@ import { requestInputs } from "./api/requestInputs";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
 
-function snapshotVariables(
-	vars: Map<string, unknown>,
-): Array<[string, unknown]> {
-	return Array.from(vars.entries());
+function snapshotVariables(vars: Map<string, unknown>) {
+	return {
+		entries: Array.from(vars.entries()),
+		dateFormats: snapshotDateVariableFormats(vars),
+	};
 }
 
 function restoreVariables(
 	vars: Map<string, unknown>,
-	snapshot: Array<[string, unknown]>,
+	snapshot: ReturnType<typeof snapshotVariables>,
 ): void {
 	vars.clear();
-	for (const [key, value] of snapshot) {
+	for (const [key, value] of snapshot.entries) {
 		vars.set(key, value);
 	}
+	restoreDateVariableFormats(vars, snapshot.dateFormats);
 }
 
 export class QuickAddApi {
@@ -41,7 +45,16 @@ export class QuickAddApi {
 	public static checkboxPrompt = PromptApi.checkboxPrompt;
 
 
-	public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
+	/**
+	 * `chain` is the run of the macro whose scripts get this API, so the choices
+	 * and `{{MACRO:}}`s they start run inside it. The public `plugin.api` has none.
+	 */
+	public static GetApi(
+		app: App,
+		plugin: QuickAdd,
+		choiceExecutor: IChoiceExecutor,
+		chain?: ChoiceChain,
+	) {
 		const format = async (
 			input: string,
 			variables?: { [key: string]: unknown; },
@@ -57,17 +70,68 @@ export class QuickAddApi {
 				});
 			}
 
-			const output = await new CompleteFormatter(
-				app,
-				plugin,
-				choiceExecutor,
-			).formatFileContent(input);
-
-			if (shouldClearVariables && snapshot) {
-				restoreVariables(choiceExecutor.variables, snapshot);
+			// Restored on failure too: answers given before a cancelled prompt must
+			// not stay behind for the caller's later format calls and Macro steps.
+			try {
+				const formatter = new CompleteFormatter(app, plugin, choiceExecutor);
+				if (chain) formatter.choiceChain = chain;
+				return await formatter.formatFileContent(input);
+			} finally {
+				if (snapshot) restoreVariables(choiceExecutor.variables, snapshot);
+			}
+		};
+		const executeChoice = async (
+			choiceName: string,
+			variables?: Record<string, unknown>,
+			options?: { date?: string | Date },
+		) => {
+			// getChoiceByName THROWS when the name doesn't match a choice, so
+			// look it up defensively: report + return (don't abort the macro)
+			// to honor the documented "reports an error, does not throw"
+			// contract. The `!choice` fallback also covers any non-throwing
+			// lookup that yields a falsy result.
+			let choice: IChoice | undefined;
+			try {
+				choice = plugin.getChoiceByName(choiceName);
+			} catch {
+				choice = undefined;
 			}
 
-			return output;
+			if (!choice) {
+				reportError(
+					new Error(`Choice named '${choiceName}' not found`),
+					"API executeChoice error",
+				);
+				return;
+			}
+
+			if (!applyInvocationDate(choiceExecutor, options?.date)) {
+				reportError(
+					new Error(`Could not parse date origin '${String(options?.date)}'`),
+					"API executeChoice error",
+				);
+				return;
+			}
+
+			if (variables) {
+				Object.keys(variables).forEach((key) => {
+					choiceExecutor.variables.set(key, variables[key]);
+				});
+			}
+
+			// The clear stays on the non-throw path only, deliberately: this
+			// executor can be a calling macro's own (params.quickAddApi), so the
+			// map holds the CALLER's variables too, and a script that catches a
+			// cancelled sub-choice and carries on must not lose them. The cost is
+			// the long-standing quirk that variables seeded into a cancelled call
+			// linger until the next completed one.
+			await choiceExecutor.execute(choice, chain);
+			const abort = choiceExecutor.consumeAbortSignal?.();
+			choiceExecutor.variables.clear();
+			restoreDateVariableFormats(choiceExecutor.variables, new Map());
+			if (abort) {
+				throw abort;
+			}
 		};
 		return {
 			requestInputs: (inputs: Parameters<typeof requestInputs>[2]) => requestInputs(app, choiceExecutor, inputs),
@@ -164,58 +228,11 @@ export class QuickAddApi {
 					header,
 				);
 			},
-			executeChoice: async (
-				choiceName: string,
-				variables?: Record<string, unknown>,
-				options?: { date?: string | Date },
-			) => {
-				// getChoiceByName THROWS when the name doesn't match a choice, so
-				// look it up defensively: report + return (don't abort the macro)
-				// to honor the documented "reports an error, does not throw"
-				// contract. The `!choice` fallback also covers any non-throwing
-				// lookup that yields a falsy result.
-				let choice: IChoice | undefined;
-				try {
-					choice = plugin.getChoiceByName(choiceName);
-				} catch {
-					choice = undefined;
-				}
-
-				if (!choice) {
-					reportError(
-						new Error(`Choice named '${choiceName}' not found`),
-						"API executeChoice error",
-					);
-					return;
-				}
-
-				if (!applyInvocationDate(choiceExecutor, options?.date)) {
-					reportError(
-						new Error(`Could not parse date origin '${String(options?.date)}'`),
-						"API executeChoice error",
-					);
-					return;
-				}
-
-				if (variables) {
-					Object.keys(variables).forEach((key) => {
-						choiceExecutor.variables.set(key, variables[key]);
-					});
-				}
-
-				// The clear stays on the non-throw path only, deliberately: this
-				// executor can be a calling macro's own (params.quickAddApi), so the
-				// map holds the CALLER's variables too, and a script that catches a
-				// cancelled sub-choice and carries on must not lose them. The cost is
-				// the long-standing quirk that variables seeded into a cancelled call
-				// linger until the next completed one.
-				await choiceExecutor.execute(choice);
-				const abort = choiceExecutor.consumeAbortSignal?.();
-				choiceExecutor.variables.clear();
-				if (abort) {
-					throw abort;
-				}
-			},
+			// Still rejects when the user cancels, so an awaiting script stops. But
+			// callers often wire this to a button and never catch it, and pressing
+			// Escape there must not show up as an error.
+			executeChoice: (...args: Parameters<typeof executeChoice>) =>
+				handledIfCancelled(executeChoice(...args)),
 			applyTemplateToActiveFile: async (
 				templatePath: string,
 				options?: { mode?: TemplateInsertModeId },
@@ -246,6 +263,7 @@ export class QuickAddApi {
 						templatePath,
 						mode: options?.mode,
 						choiceExecutor,
+						chain,
 					});
 				} finally {
 					restoreVariables(choiceExecutor.variables, snapshot);

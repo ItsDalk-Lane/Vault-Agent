@@ -47,6 +47,35 @@ obsidian vault=dev quickadd:list type=Capture
 obsidian vault=dev quickadd:list commands
 ```
 
+Each Template and Capture carries a `writes` object that says what it writes,
+read from its settings (QuickAdd 2.30.0 or later). You (or an agent) can tell
+choices apart without opening them:
+
+```json
+{"name":"Daily log","type":"Capture","writes":{"target":"Daily/{{DATE:YYYY-MM-DD}}.md","position":"after","line":"## Log","format":"- {{TIME}} {{VALUE}}\n","createWithTemplate":"Templates/Daily.md"}}
+{"name":"Meeting note","type":"Template","writes":{"template":"Templates/Meeting.md","folder":"Meetings","fileName":"{{DATE}} {{VALUE:topic}}"}}
+```
+
+| Capture key | Meaning |
+| --- | --- |
+| `target` | The **Capture to** value, or `<active file>` |
+| `position` | `top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`, `newLineBelow`, or `property`, matching **Write position** |
+| `line` | The line for `after` or `before` |
+| `property` | The property a `property` capture writes |
+| `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
+| `task` | `true` when the capture is written as a task |
+| `eachLine` | `true` when [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) is on: each line of `{{VALUE}}` becomes its own entry (QuickAdd 2.30.0 or later) |
+| `createWithTemplate` | The template for a target file that doesn't exist yet |
+
+| Template key | Meaning |
+| --- | --- |
+| `template` | The template file |
+| `folder` | The folder the note goes in; `<default>` is Obsidian's default location for new notes |
+| `fileName` | The **File name**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when the **File name format** toggle is off) |
+
+Formats are shown unexpanded. `<ask>` means QuickAdd asks for that part when the
+choice runs. Macros and Multis have no `writes`.
+
 ### See what a choice still needs: `quickadd:check` {#quickaddcheck}
 
 Check which inputs are still missing before a non-interactive run:
@@ -54,6 +83,19 @@ Check which inputs are still missing before a non-interactive run:
 ```bash
 obsidian vault=dev quickadd:check choice="Daily log"
 ```
+
+### Suggest links and tags: `quickadd:suggest` {#quickaddsuggest}
+
+List what Obsidian's own `[[` link or `#` tag suggester offers, so another app can complete links and tags the way the editor does:
+
+```bash
+obsidian vault=dev quickadd:suggest kind=links
+obsidian vault=dev quickadd:suggest kind=links source="Daily/2026-10-04.md"
+obsidian vault=dev quickadd:suggest kind=tags
+```
+
+- `kind=links` returns one item per linkable file and per alias, newest first, with files in Obsidian's **Excluded files** list last. `text` is what goes inside `[[...]]` (`Plan`, `Projects/Meeting` when two notes share a name, `Plan|Big Plan` for an alias), `path` is the file, and `alias` is set on alias items. Pass `source=<note path>` when you know which note the link goes into: under the **Relative path to file** link format the text depends on it; without `source` the text is computed from the vault root.
+- `kind=tags` returns `{"tag":"work","count":3}` items, most used first, without the `#`.
 
 ### Create a note from a template: `quickadd:run-template` {#quickaddrun-template}
 
@@ -84,6 +126,65 @@ obsidian vault=dev quickadd:save-clipboard-image \
 
 - `sourcePath=` is the note the attachment belongs to (the capture destination). Empty uses vault-root attachment placement and the timestamp name even when title-naming is on.
 - `nameAfterNoteTitle=` overrides the **Name pasted images after the note title** setting for this save. Omit it to use the setting.
+
+### Preview and import a package: `quickadd:package-preview` / `quickadd:package-import` {#quickaddpackage-import}
+
+Review a [package](/docs/Choices/Packages/) as JSON, or install it with the
+import modal's default decisions:
+
+```bash
+obsidian vault=dev quickadd:package-preview path=path/to/package.quickadd.json
+obsidian vault=dev quickadd:package-import path=path/to/package.quickadd.json acknowledge=true
+```
+
+A package that runs code is refused until you pass `acknowledge=true`. See
+[Preview a package from the command line](/docs/Choices/Packages/#preview-from-the-command-line)
+for the other options. `quickadd:package-import` needs QuickAdd 2.28.0 or later.
+
+### Check an AI provider: `quickadd:ai-test-connection` {#quickaddai-test-connection}
+
+Check that an [AI provider](/docs/AIAssistant/#add-a-provider) accepts its
+linked key. This is the provider page's **Test connection** button:
+
+```bash
+obsidian vault=dev quickadd:ai-test-connection provider=openai
+```
+
+- `provider=` is the provider's ID, such as `openai`, or its name. The ID must
+  match exactly; the name can be in any case.
+- A working key returns `"ok":true` and the number of models the provider
+  lists:
+
+  ```json
+  {"command":"quickadd:ai-test-connection","provider":"openai","ok":true,"modelCount":64,"apiKeyLinked":true}
+  ```
+
+  A rejected key returns `"ok":false` with the provider's error.
+- An unknown or missing `provider=` returns `"ok":false` and lists the
+  provider IDs you can use.
+- The output never contains the key. This command needs QuickAdd 2.28.0 or
+  later.
+
+## Let an AI agent write through your choices {#agents}
+
+Coding agents such as Claude Code and Codex can edit your vault's files
+directly, but then they copy your conventions by hand and sometimes miss one.
+QuickAdd ships an [agent skill](https://github.com/chhoumann/quickadd/tree/master/skills/quickadd)
+that tells an agent to list your choices, check their inputs, and run them
+with `verify` instead. It can also create a new choice for you by importing a
+package.
+
+Install it into your vault:
+
+```bash
+npx skills add chhoumann/quickadd
+```
+
+Or copy `skills/quickadd/SKILL.md` into your agent's skills folder, such as
+`.claude/skills/quickadd/` in your vault.
+
+The skill needs QuickAdd 2.30.0 or later: it picks a choice by the `writes`
+object that [`quickadd:list`](#quickaddlist) shows.
 
 ## Pass variables to a choice {#passing-variables}
 
@@ -225,7 +326,16 @@ string, `confirm` → boolean, `checkbox` → string array, `info` →
 acknowledgement, `form` → an object mapping each field's `id` to its value.
 Ordinary and date fields use strings (dates use the `@date:ISO` format), while
 multi-select fields use string arrays. Use the array form for multi-selects so
-values containing commas remain unambiguous. The run's outcome arrives as the
+values containing commas remain unambiguous.
+
+A `form` field that picks notes (a Capture target, a `{{FILE:...}}` field) has
+`"type":"suggester"` like any other pick list, plus `"picker":"file"` (QuickAdd
+2.31.0 and later); other fields omit `picker`. QuickAdd's own form starts a note
+picker empty unless the field has a `defaultValue`, and does not submit while a
+required single-note picker (not `optional`, not `multiSelect`) has no pick.
+Other pick lists have no such rule.
+
+The run's outcome arrives as the
 `done`/`error` poll event: `done` carries the same `verified` and `effect` keys
 described under [Knowing whether anything actually landed](#verified-and-effect).
 

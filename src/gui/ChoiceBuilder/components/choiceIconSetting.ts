@@ -6,7 +6,7 @@ import { GenericTextSuggester } from "../../suggesters/genericTextSuggester";
 import { createOwnedElement } from "../../../utils/activeWindow";
 import { t } from "../../../i18n";
 
-export interface ChoiceIconSettingState {
+interface ChoiceIconSettingState {
 	type: ChoiceType;
 	icon?: string | undefined;
 }

@@ -34,14 +34,16 @@ describe("RequirementCollector", () => {
     const rc = createCollector();
     const multiToken = "low,medium,high|label:Priority";
     await rc.scanString(
-      `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}}`,
+      `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}} {{VALUE:done|type:checkbox|label:Completed?}}`,
     );
 
     const reqs = Array.from(rc.requirements.values());
     const byId = Object.fromEntries(reqs.map((r) => [r.id, r]));
 
-    expect(byId["title"].label).toBe("title");
-    expect(byId["title"].description).toBe("Snake cased name");
+    expect(byId["title"].label).toBe("Snake cased name");
+    expect(byId["title"].description).toBeUndefined();
+    // The run titles a checkbox picker with its label too.
+    expect(byId["done"]).toMatchObject({ label: "Completed?", type: "dropdown" });
     const variableKey = buildValueVariableKey(
       "low,medium,high",
       "Priority",
@@ -49,6 +51,36 @@ describe("RequirementCollector", () => {
     );
     expect(byId[variableKey].label).toBe("Priority");
     expect(byId[variableKey].type).toBe("dropdown");
+  });
+
+  describe("field order (#1876)", () => {
+    it("lists fields in the order the format reads, not by token type", async () => {
+      const rc = createCollector();
+      await rc.scanString(
+        "### {{VALUE}}\n- {{FIELD:client}} {{VDATE:due,YYYY-MM-DD}} {{VALUE:qty}} {{MVALUE}} {{VALUE:due}}",
+      );
+
+      expect([...rc.requirements.keys()]).toEqual([
+        "value", "FIELD:client", "due", "qty", "mvalue",
+      ]);
+    });
+
+    it("places a reused date where the date is first used", async () => {
+      const rc = createCollector();
+      await rc.scanString("{{VALUE:due}} {{VALUE:qty}} {{VDATE:due,YYYY-MM-DD}}");
+
+      expect([...rc.requirements.values()].map(({ id, type }) => [id, type])).toEqual([
+        ["due", "date"], ["qty", "text"],
+      ]);
+    });
+
+    it("keeps fields from an earlier string, like the file name, first", async () => {
+      const rc = createCollector();
+      await rc.scanString("{{VALUE:title}}", true);
+      await rc.scanString("{{VALUE}} {{VDATE:due,YYYY-MM-DD}} {{VALUE:title}}");
+
+      expect([...rc.requirements.keys()]).toEqual(["title", "value", "due"]);
+    });
   });
 
   it("collects VALUE text mappings for option lists", async () => {
@@ -81,8 +113,27 @@ describe("RequirementCollector", () => {
     await rc.scanString("{{VALUE|case:kebab|label:Notes}}");
 
     const requirement = rc.requirements.get("value");
-    expect(requirement?.description).toBe("Notes");
+    // The unnamed VALUE's label is its name, not helper text under "Enter value" (#1876).
+    expect(requirement?.label).toBe("Notes");
+    expect(requirement?.description).toBeUndefined();
     expect(requirement?.defaultValue).toBeUndefined();
+  });
+
+  it("names a VDATE field after its |label: and keeps the name as its id (#1869)", async () => {
+    const rc = createCollector();
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|label:Due|tomorrow}} {{VALUE:due}}");
+
+    expect([...rc.requirements.values()]).toEqual([
+      expect.objectContaining({ id: "due", label: "Due", type: "date", defaultValue: "tomorrow" }),
+    ]);
+  });
+
+  it("gives a file-name {{VALUE:due}} the label of the VDATE that makes it a date", async () => {
+    const rc = createCollector();
+    await rc.scanString("{{VALUE:due}}", true);
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|label:Due}}");
+
+    expect(rc.requirements.get("due")).toMatchObject({ label: "Due", type: "date" });
   });
 
   it("collects VDATE with format and default", async () => {
@@ -184,7 +235,7 @@ Body`);
 
     const requirement = rc.requirements.get("value");
     expect(requirement?.type).toBe("textarea");
-    expect(requirement?.description).toBe("Notes");
+    expect(requirement?.label).toBe("Notes");
   });
 
   it("respects global multiline setting for named VALUE tokens", async () => {
@@ -226,6 +277,18 @@ Body`);
         id: "FIELD:People|folder:Contacts",
         type: "field-suggest",
       });
+    });
+
+    it("names the one-page field after its |label: (issue #1797)", async () => {
+      const rc = new RequirementCollector(makeApp(), makePlugin());
+      await rc.scanString(
+        "{{FIELD:person|label:Host}} {{FIELD:person|label:Note taker}}",
+      );
+
+      expect(rc.requirements.get("FIELD:person|label:Host")?.label).toBe("Host");
+      expect(rc.requirements.get("FIELD:person|label:Note taker")?.label).toBe(
+        "Note taker",
+      );
     });
 
     it("marks FIELD multi-select requirements as runtime-only", async () => {
@@ -438,6 +501,71 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
       defaultValue: "tomorrow",
       optional: true,
     });
+  });
+
+  it("keeps a VDATE a date field when {{VALUE:<name>}} reuses it in the same string", async () => {
+    // The run replaces VDATEs before named VALUEs, so the date prompt comes
+    // first and the VALUE reuses its answer, wherever the VALUE sits.
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString(
+      "Starts {{VALUE:due}}\n- [ ] Throw 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Ship 📅 {{VALUE:due}}",
+    );
+
+    expect(rc.requirements.get("due")).toMatchObject({
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+    });
+
+    const withList = new RequirementCollector(makeApp(), makePlugin());
+    await withList.scanString(
+      "{{VDATE:due,YYYY-MM-DD}} {{VALUE:low,high|name:due|default:high}}",
+    );
+    expect(withList.requirements.get("due")).toMatchObject({ type: "date" });
+    expect(withList.requirements.get("due")?.options).toBeUndefined();
+    expect(withList.requirements.get("due")?.defaultValue).toBeUndefined();
+
+    // The run matches the name case-insensitively: one date field, not two.
+    const otherCase = new RequirementCollector(makeApp(), makePlugin());
+    await otherCase.scanString("{{VDATE:Due,YYYY-MM-DD}} {{VALUE:due}}");
+    expect([...otherCase.requirements.keys()]).toEqual(["Due"]);
+    expect(otherCase.requirements.get("Due")).toMatchObject({ type: "date" });
+  });
+
+  it("asks for a date when a plain {{VALUE:<name>}} in an earlier string reuses a later VDATE", async () => {
+    // The file name is scanned first; the VDATE in the body parses its answer.
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:due}} report", true);
+    await rc.scanString("Due: {{VDATE:due,DD.MM.YYYY|tomorrow}}");
+
+    expect([...rc.requirements.keys()]).toEqual(["due"]);
+    expect(rc.requirements.get("due")).toMatchObject({
+      type: "date",
+      dateFormat: "DD.MM.YYYY",
+      defaultValue: "tomorrow",
+    });
+
+    // The VDATE looks its name up exactly, so another case is a second prompt.
+    const otherCase = new RequirementCollector(makeApp(), makePlugin());
+    await otherCase.scanString("{{VALUE:Due}} report", true);
+    await otherCase.scanString("Due: {{VDATE:due,DD.MM.YYYY}}");
+    expect([...otherCase.requirements.keys()]).toEqual(["Due", "due"]);
+    expect(otherCase.requirements.get("Due")?.type).toBe("text");
+  });
+
+  it("keeps VDATEs whose names differ only in case apart, as the run does", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VDATE:Start,YYYY-MM-DD}} {{VDATE:start,YYYY-MM-DD}}");
+
+    expect([...rc.requirements.keys()]).toEqual(["Start", "start"]);
+
+    // A reuse picks the exact name first.
+    await rc.scanString("{{VALUE:start}}", true);
+    expect(rc.requirements.get("start")?.pathContext).toBe(true);
+    expect(rc.requirements.get("Start")?.pathContext).toBeFalsy();
+
+    // Two case-insensitive matches are ambiguous: the VALUE asks for itself.
+    await rc.scanString("{{VALUE:START}}");
+    expect(rc.requirements.get("START")?.type).toBe("text");
   });
 
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {

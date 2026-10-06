@@ -222,10 +222,8 @@ export function resolveModelInputOrThrow(
 		];
 		const hint = candidates.length
 			? t("errors.modelNotFoundDidYouMean", { candidates: candidates.join(" or ") })
-			// There has never been an "AI" settings group. Providers live behind the
-			// sparkles "Configure AI Assistant" button under the choice list, and
-			// auto-sync is a per-provider flag in the same modal — so the old path
-			// sent people somewhere that does not exist.
+			// Providers live on their own settings sub-page, and auto-sync is a
+			// per-provider toggle there.
 			: t("errors.modelNotFoundAddToProviders");
 		throw new Error(
 			t("errors.modelNotFoundInProviders", {
@@ -237,18 +235,3 @@ export function resolveModelInputOrThrow(
 
 	return resolved;
 }
-
-export function getModelMaxTokens(model: ModelInput) {
-	const resolved = resolveModel(model);
-
-	if (resolved) {
-		return resolved.model.maxTokens;
-	}
-
-	throw new Error(
-		t("errors.modelNotFoundWithAnyProvider", {
-			model: typeof model === "string" ? model : model.name,
-		}),
-	);
-}
-

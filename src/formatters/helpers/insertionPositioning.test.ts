@@ -211,6 +211,9 @@ describe("anchorAllowsSubsections", () => {
 		expect(anchorAllowsSubsections(true, ["## H"], 0)).toBe(true);
 		expect(anchorAllowsSubsections(true, ["- item"], 0)).toBe(false);
 	});
+	it("is false for a # line inside a code fence (#1968)", () => {
+		expect(anchorAllowsSubsections(true, ["```bash", "# comment", "```"], 1)).toBe(false);
+	});
 });
 
 describe("insertTextAfterPositionInBody", () => {
@@ -259,10 +262,14 @@ describe("insertTextAfterPositionInBody", () => {
 			const r = insertTextAfterPositionInBody("x", "a\n", 0, false);
 			expect(r.content).toBe("a\nx");
 		});
-		it("lets a blank line below absorb the text (no doubled blank)", () => {
+		it("keeps a blank line below instead of writing over it", () => {
 			const body = "## Log\n\n- after";
 			const r = insertTextAfterPositionInBody("new", body, 0, false);
-			expect(r.content).toBe("## Log\nnew\n- after");
+			expect(r.content).toBe("## Log\nnew\n\n- after");
+		});
+		it("keeps a blank last line", () => {
+			const r = insertTextAfterPositionInBody("x", "a\n\n", 0, false);
+			expect(r.content).toBe("a\nx\n\n");
 		});
 		it("keeps the #312 task drop intact (no separator re-added)", () => {
 			const body = "## Log\n \n- after"; // whitespace-only blank below

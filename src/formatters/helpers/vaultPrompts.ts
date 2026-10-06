@@ -5,14 +5,14 @@ import InputSuggester from "../../gui/InputSuggester/inputSuggester";
 import MultiSuggester from "../../gui/MultiSuggester/multiSuggester";
 import GenericSuggester from "../../gui/GenericSuggester/genericSuggester";
 import { FieldSuggestionParser } from "../../utils/FieldSuggestionParser";
-import { FieldSuggestionFileFilter } from "../../utils/FieldSuggestionFileFilter";
 import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
-import { buildFileDisplayLabels, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../../utils/fileSyntax";
+import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, itemWithAlias, type ParsedFileToken } from "../../utils/fileSyntax";
 import { UserCancelError } from "../../errors/UserCancelError";
 import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
+import { getFileTokenFiles } from "../../utils/vaultQueries";
 
 interface VaultPromptContext {
 	app: App;
@@ -30,7 +30,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		// on unknown keys here: the field replacer in formatter.ts already parses
 		// the same token with { warnUnknown: true } before calling this, so
 		// warning again would emit a duplicate notice per malformed FIELD token.
-		const { fieldName, filters, multiSelect } =
+		const { fieldName, filters, multiSelect, label } =
 			FieldSuggestionParser.parse(fieldInput);
 
 		// Resolve the active-note default (issue #1429) BEFORE collection but apply
@@ -79,14 +79,11 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			);
 		}
 
-		// Enhance placeholder with context
-		let placeholder = multiSelect
-			? `Select values for ${fieldName}`
-			: `Enter value for ${fieldName}`;
+		const title = label ?? `Enter value for ${fieldName}`;
+		let placeholder =
+			multiSelect && !label ? `Select values for ${fieldName}` : title;
 		if (hasDefaultValue && effectiveDefault) {
-			placeholder = multiSelect
-				? `Select values for ${fieldName} (default: ${effectiveDefault})`
-				: `Enter value for ${fieldName} (default: ${effectiveDefault})`;
+			placeholder = `${placeholder} (default: ${effectiveDefault})`;
 		}
 
 		if (multiSelect) {
@@ -156,19 +153,15 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			}
 
 			if (provider) {
-				return await provider.inputPrompt(
-					`Enter value for ${fieldName}`,
-					fallbackPrompt,
-				);
+				return await provider.inputPrompt(title, fallbackPrompt);
 			}
-			return await GenericInputPrompt.PromptWithContext(
+			return await GenericInputPrompt.Prompt(
 				app,
-				`Enter value for ${fieldName}`,
+				title,
 				fallbackPrompt,
 				undefined,
-				getSourcePath() ?? undefined,
 				undefined,
-				{ allowPeek: true },
+				{ allowPeek: true, linkSourcePath: getSourcePath() ?? undefined },
 			);
 		}
 
@@ -194,11 +187,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 	// is driving; the vault-side file filtering below still runs unchanged.
 	const provider = executor?.promptProvider;
 	try {
-		const files = FieldSuggestionFileFilter.filterFiles(
-			app.vault.getMarkdownFiles(),
-			parsed.filter,
-			(file) => app.metadataCache.getFileCache(file),
-		);
+		const files = getFileTokenFiles(app, parsed);
 
 		const placeholder =
 			parsed.label ?? `Select a file from ${parsed.folderPath}`;
@@ -207,7 +196,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 		// dead-ends, mirroring suggestForField. A typed value is stored as custom
 		// (never resolved to a real file); an empty/skip stays "".
 		if (files.length === 0) {
-			const description = `No markdown files found in "${parsed.folderPath}". Type a value or leave empty.`;
+			const description = `No matching files found in "${parsed.folderPath}". Type a value or leave empty.`;
 			const typed = provider
 				? await provider.inputPrompt(placeholder, description)
 				: await GenericInputPrompt.Prompt(
@@ -224,21 +213,27 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			return typed ? `${FILE_CUSTOM_PREFIX}${typed}` : "";
 		}
 
-		const displayItems = buildFileDisplayLabels(
+		const infos = buildFileDisplayInfos(
 			files,
 			(file) => app.metadataCache.getFileCache(file),
 		);
+		const displayItems = infos.map((info) => info.label);
+		const aliases = infos.map((info) => info.aliases);
 		const items = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
 
 		if (parsed.multiSelect) {
 			const result = provider
-				? await provider.suggesterMulti(displayItems, items, {
+				? (await provider.suggesterMulti(displayItems, items, {
 						placeholder,
 						allowCustomInput: parsed.allowCustomInput,
-					})
+					})).map((reply) =>
+						// The client matches titles only; a typed alias names its note.
+						items.includes(reply) ? reply : (itemWithAlias(items, aliases, reply) ?? reply),
+					)
 				: await MultiSuggester.Suggest(app, displayItems, items, {
 						placeholder,
 						allowCustomValue: parsed.allowCustomInput,
+						aliases,
 						...(parsed.optional ? { skippable: true } : {}),
 					});
 			return result.map((item) =>
@@ -256,9 +251,10 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				),
 			);
 			if (!result) return "";
-			return items.includes(result)
-				? result
-				: `${FILE_CUSTOM_PREFIX}${result}`;
+			if (items.includes(result)) return result;
+			// The client matches titles only. A typed alias names its note, as in
+			// the in-app picker.
+			return itemWithAlias(items, aliases, result) ?? `${FILE_CUSTOM_PREFIX}${result}`;
 		}
 
 		if (parsed.allowCustomInput) {
@@ -266,7 +262,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				files.map((file) => file.basename.toLowerCase()),
 			);
 			const displayLabels = new Set(
-				displayItems.map((label) => label.toLowerCase()),
+				[...displayItems, ...aliases.flat()].map((label) => label.toLowerCase()),
 			);
 			const result = await InputSuggester.Suggest(
 				app,
@@ -274,8 +270,9 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				items,
 				{
 					placeholder,
-					// Typing a real basename (e.g. "Tom", or "tom") should pick that
-					// file, not add a separate, indistinguishable custom row.
+					aliases,
+					// Typing a real basename, label or alias (e.g. "Tom", or "tom")
+					// should pick that file, not add an indistinguishable custom row.
 					valueExists: (typed) =>
 						basenames.has(typed.toLowerCase()) ||
 						displayLabels.has(typed.toLowerCase()),
@@ -295,7 +292,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			items,
 			placeholder,
 			undefined,
-			parsed.optional ? { skippable: true } : undefined,
+			{ aliases, ...(parsed.optional ? { skippable: true } : {}) },
 		);
 		return result ?? "";
 	} catch (error) {

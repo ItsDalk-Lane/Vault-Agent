@@ -2,15 +2,14 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import { hasPropertyCapture } from "../../types/choices/ICaptureChoice";
-import { getTemplateFile } from "../../utilityObsidian";
+import { getTemplateFile } from "../../utils/templateFolderUtils";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { t } from "../../i18n";
 import SettingItem from "../components/SettingItem.svelte";
+import SettingGroup from "../components/SettingGroup.svelte";
 import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
-import ChoiceNameHeader from "./components/ChoiceNameHeader.svelte";
 import ValidatedInput from "./components/ValidatedInput.svelte";
 import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
@@ -79,6 +78,10 @@ function validateTemplate(
 	return getTemplateFile(app, value) !== null || t("choiceBuilder.captureForm.templateNotFound");
 }
 
+// An empty format captures {{VALUE}} on its own; `enabled` just mirrors whether
+// there is text, so choices saved with the old toggle keep working.
+const captureFormat = $derived(choice.format.enabled ? choice.format.format : "");
+
 const selectionOptions = [
 	{ value: "", label: t("choiceBuilder.captureForm.selectionFollowGlobal") },
 	{ value: "enabled", label: t("choiceBuilder.captureForm.selectionUse") },
@@ -106,141 +109,154 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 }
 </script>
 
-<ChoiceNameHeader bind:name={choice.name} {app} />
+<SettingGroup heading={t("choiceBuilder.captureForm.headingLocation")}>
+	<CaptureTargetSetting bind:choice {app} {plugin} />
 
-<SettingItem name={t("choiceBuilder.captureForm.headingLocation")} heading />
-<CaptureTargetSetting bind:choice {app} {plugin} />
+	{#if !choice.captureToActiveFile}
+		<SettingItem name={t("choiceBuilder.captureForm.createFileIfMissing")}>
+			{#snippet control()}
+				<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
+			{/snippet}
+		</SettingItem>
 
-{#if !choice.captureToActiveFile}
-	<SettingItem name={t("choiceBuilder.captureForm.createFileIfMissing")}>
+		{#if choice.createFileIfItDoesntExist.enabled}
+			<LabeledField
+				name={t("choiceBuilder.captureForm.createWithTemplate")}
+				desc={t("choiceBuilder.captureForm.createWithTemplateDesc")}
+				bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
+			>
+				{#snippet control()}
+					<Toggle
+						bind:checked={choice.createFileIfItDoesntExist.createWithTemplate}
+					/>
+				{/snippet}
+				{#snippet children(id)}
+					<ValidatedInput
+						{id}
+						value={choice.createFileIfItDoesntExist.template}
+						placeholder={t("choiceBuilder.templateForm.templatePath")}
+						{app}
+						suggestions={templateFilePaths}
+						maxSuggestions={50}
+						validator={validateTemplate}
+						onChange={(value) =>
+							(choice.createFileIfItDoesntExist.template = value.trim())}
+					/>
+				{/snippet}
+			</LabeledField>
+		{/if}
+	{/if}
+</SettingGroup>
+
+<SettingGroup heading={t("choiceBuilder.captureForm.headingPosition")}>
+	<WritePositionSetting bind:choice {app} {plugin} />
+</SettingGroup>
+
+<SettingGroup heading={t("choiceBuilder.captureForm.headingLinking")}>
+	<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
+	<SettingItem
+		name={t("choiceBuilder.captureForm.copyLinkToClipboard")}
+		desc={t("choiceBuilder.captureForm.copyLinkToClipboardDesc")}
+	>
 		{#snippet control()}
-			<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
+			<Toggle
+				checked={choice.copyLinkToClipboard ?? false}
+				onchange={(value) => (choice.copyLinkToClipboard = value)}
+			/>
+		{/snippet}
+	</SettingItem>
+</SettingGroup>
+
+<SettingGroup heading={t("choiceBuilder.captureForm.headingContent")}>
+	{#if !choice.propertyCapture}
+	<SettingItem name={t("choiceBuilder.captureForm.task")} desc={t("choiceBuilder.captureForm.taskDesc")}>
+		{#snippet control()}
+			<Toggle bind:checked={choice.task} />
+		{/snippet}
+	</SettingItem>
+	<SettingItem
+		name={t("choiceBuilder.captureForm.eachLine")}
+		desc={t("choiceBuilder.captureForm.eachLineDesc")}
+	>
+		{#snippet control()}
+			<Toggle
+				checked={choice.eachLine ?? false}
+				onchange={(value) => (choice.eachLine = value)}
+			/>
+		{/snippet}
+	</SettingItem>
+	{/if}
+
+	<LabeledField
+		name={t("choiceBuilder.captureForm.captureFormat")}
+		desc={t("choiceBuilder.captureForm.captureFormatDesc")}
+	>
+		{#snippet children(id)}
+			{#key formatSuggestContext}
+				<ValidatedInput
+					{id}
+					inputKind="textarea"
+					bind:value={
+						() => captureFormat,
+						(value) => (choice.format = { enabled: value.trim() !== "", format: value })
+					}
+					placeholder={captureFormatPlaceholder}
+					makeSuggesters={formatSuggesters}
+				/>
+			{/key}
+			<FormatTokenHint value={captureFormat} />
+			<FormatPreviewField value={captureFormat} {app} {plugin} />
+		{/snippet}
+	</LabeledField>
+</SettingGroup>
+
+<SettingGroup heading={t("choiceBuilder.captureForm.headingBehavior")}>
+	{#if !choice.captureToActiveFile}
+		<OpenFileSetting bind:openFile={choice.openFile} description={t("choiceBuilder.captureForm.openFileDesc")} />
+		{#if choice.openFile}
+			<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
+		{/if}
+	{/if}
+
+	<SettingItem
+		name={t("choiceBuilder.captureForm.editorSelection")}
+		desc={t("choiceBuilder.captureForm.editorSelectionDesc")}
+	>
+		{#snippet control()}
+			<Dropdown
+				value={selectionOverride}
+				options={selectionOptions}
+				onchange={onSelectionChange}
+			/>
 		{/snippet}
 	</SettingItem>
 
-	{#if choice.createFileIfItDoesntExist.enabled}
-		<LabeledField
-			name={t("choiceBuilder.captureForm.createWithTemplate")}
-			desc={t("choiceBuilder.captureForm.createWithTemplateDesc")}
-			bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
-		>
-			{#snippet control()}
-				<Toggle
-					bind:checked={choice.createFileIfItDoesntExist.createWithTemplate}
-				/>
-			{/snippet}
-			{#snippet children(id)}
-				<ValidatedInput
-					{id}
-					value={choice.createFileIfItDoesntExist.template}
-					placeholder={t("choiceBuilder.placeholder.templatePath")}
-					{app}
-					suggestions={templateFilePaths}
-					maxSuggestions={50}
-					validator={validateTemplate}
-					onChange={(value) =>
-						(choice.createFileIfItDoesntExist.template = value.trim())}
-				/>
-			{/snippet}
-		</LabeledField>
-	{/if}
-{/if}
-
-<SettingItem name={t("choiceBuilder.captureForm.headingPosition")} heading />
-<WritePositionSetting bind:choice {app} {plugin} />
-
-<SettingItem name={t("choiceBuilder.captureForm.headingLinking")} heading />
-<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
-<SettingItem
-	name={t("choiceBuilder.captureForm.copyLinkToClipboard")}
-	desc={t("choiceBuilder.captureForm.copyLinkToClipboardDesc")}
->
-	{#snippet control()}
-		<Toggle
-			checked={choice.copyLinkToClipboard ?? false}
-			onchange={(value) => (choice.copyLinkToClipboard = value)}
-		/>
-	{/snippet}
-</SettingItem>
-
-<SettingItem name={t("choiceBuilder.captureForm.headingContent")} heading />
-{#if !hasPropertyCapture(choice)}
-<SettingItem name={t("choiceBuilder.captureForm.task")} desc={t("choiceBuilder.captureForm.taskDesc")}>
-	{#snippet control()}
-		<Toggle bind:checked={choice.task} />
-	{/snippet}
-</SettingItem>
-{/if}
-
-<LabeledField
-	name={t("choiceBuilder.captureForm.captureFormat")}
-	desc={t("choiceBuilder.captureForm.captureFormatDesc")}
-	bodyVisible={choice.format.enabled}
->
-	{#snippet control()}
-		<Toggle bind:checked={choice.format.enabled} />
-	{/snippet}
-	{#snippet children(id)}
-		{#key formatSuggestContext}
-			<ValidatedInput
-				{id}
-				inputKind="textarea"
-				bind:value={choice.format.format}
-				placeholder={captureFormatPlaceholder}
-				required
-				requiredMessage={t("choiceBuilder.captureForm.captureFormatRequired")}
-				makeSuggesters={formatSuggesters}
+	<!-- Deprecated (#2014): shown only to choices that already have it on, so they
+	     can turn it off. -->
+	{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
+	<SettingItem
+		name={t("choiceBuilder.captureForm.templaterAfterCaptureDeprecated")}
+		desc={t("choiceBuilder.captureForm.templaterAfterCaptureDeprecatedDesc")}
+	>
+		{#snippet control()}
+			<Toggle
+				checked={choice.templater?.afterCapture === "wholeFile"}
+				onchange={onTemplaterAfterCaptureChange}
 			/>
-		{/key}
-		<FormatTokenHint value={choice.format.format} />
-		<FormatPreviewField value={choice.format.format} {app} {plugin} />
-	{/snippet}
-</LabeledField>
-
-<SettingItem name={t("choiceBuilder.captureForm.headingBehavior")} heading />
-{#if !choice.captureToActiveFile}
-	<OpenFileSetting bind:openFile={choice.openFile} description={t("choiceBuilder.captureForm.openFileDesc")} />
-	{#if choice.openFile}
-		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
+		{/snippet}
+	</SettingItem>
 	{/if}
-{/if}
 
-<SettingItem
-	name={t("choiceBuilder.captureForm.editorSelection")}
-	desc={t("choiceBuilder.captureForm.editorSelectionDesc")}
->
-	{#snippet control()}
-		<Dropdown
-			value={selectionOverride}
-			options={selectionOptions}
-			onchange={onSelectionChange}
-		/>
-	{/snippet}
-</SettingItem>
+	<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 
-{#if !hasPropertyCapture(choice)}
-<SettingItem
-	name={t("choiceBuilder.captureForm.templaterAfterCapture")}
-	desc={t("choiceBuilder.captureForm.templaterAfterCaptureDesc")}
->
-	{#snippet control()}
-		<Toggle
-			checked={choice.templater?.afterCapture === "wholeFile"}
-			onchange={onTemplaterAfterCaptureChange}
-		/>
-	{/snippet}
-</SettingItem>
-{/if}
+	<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 
-<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
+	<CommandPaletteSetting
+		bind:command={choice.command}
+		bind:pickDayCommand={choice.pickDayCommand}
+		name={choice.name}
+		dateOrigin={choice.dateOrigin}
+	/>
 
-<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
-
-<CommandPaletteSetting
-	bind:command={choice.command}
-	bind:pickDayCommand={choice.pickDayCommand}
-	name={choice.name}
-	dateOrigin={choice.dateOrigin}
-/>
-
-<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
+	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
+</SettingGroup>

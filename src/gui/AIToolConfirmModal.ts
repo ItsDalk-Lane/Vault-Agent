@@ -1,8 +1,9 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
 import { t } from "../i18n";
+import { addArrowKeyNavigation } from "./confirmAction";
 
-export type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
+type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
 
 /**
  * Confirmation modal for an AI-requested tool call (#714). The model chose the tool
@@ -141,21 +142,4 @@ function safeStringify(value: unknown): string {
 	} catch {
 		return String(value);
 	}
-}
-
-function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
-	buttons.forEach((button) => {
-		button.addEventListener("keydown", (event) => {
-			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-				const currentIndex = buttons.indexOf(button);
-				const nextIndex =
-					(currentIndex +
-						(event.key === "ArrowRight" ? 1 : -1) +
-						buttons.length) %
-					buttons.length;
-				buttons[nextIndex].focus();
-				event.preventDefault();
-			}
-		});
-	});
 }

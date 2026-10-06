@@ -2,6 +2,7 @@
   import type { App } from "obsidian";
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+  import { indentOnTab } from "../components/textareaIndent";
   import type QuickAdd from "../../main";
   import { t } from "../../i18n";
 
@@ -87,6 +88,7 @@
   function debouncedPersist(it: GV) {
     if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
+      debounceTimer = undefined;
       persistToSettings();
     }, 200);
   }
@@ -100,7 +102,11 @@
     });
     loadFromSettings();
     return () => {
-      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      // Closing Settings right after typing must not drop the edit: write it now.
+      if (debounceTimer !== undefined) {
+        window.clearTimeout(debounceTimer);
+        persistToSettings();
+      }
       unsubscribe();
     };
   });
@@ -135,6 +141,7 @@
         <div class="qa-gv__cell qa-gv__value">
           <textarea rows="2"
                     use:attachSuggester
+                    use:indentOnTab
                     bind:value={it.value}
                     oninput={() => debouncedPersist(it)}
                     placeholder={t("globalVariables.valuePlaceholder")}></textarea>
@@ -146,8 +153,8 @@
     {/each}
   </div>
 
-  <!-- Below the list, matching the sibling "Template folder paths" row and the
-       choices list, which both put their add affordance under what it adds to. -->
+  <!-- Below the list, matching the choices list, which puts its add affordance
+       under what it adds to. -->
   <div class="qa-gv__actions">
     <button class="mod-cta" onclick={addVariable}>{t("globalVariables.addVariableButton")}</button>
   </div>
@@ -158,7 +165,6 @@
   /* Keeps "Add variable" right-aligned now that it is the row's only child. */
   .qa-gv__actions { display: flex; justify-content: flex-end; }
   .qa-gv__desc { color: var(--text-muted); font-size: 12px; }
-  /* Mirrors .qa-template-folder-empty, the sibling list's empty state. */
   .qa-gv__empty { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 6px 0; }
   .qa-gv__table { display: grid; gap: 8px; }
   .qa-gv__row { display: grid; grid-template-columns: 180px 1fr 140px; gap: 8px; align-items: start; }

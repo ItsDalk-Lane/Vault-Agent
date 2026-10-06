@@ -2,6 +2,7 @@
 title: "Template: Create an MOC Note with a Link Dashboard"
 description: Create a map-of-content note with an embedded Base dashboard showing its backlinks and outgoing links, via a Template choice
 slug: docs/Examples/Template_CreateMOCNoteWithLinkDashboard
+package: moc-link-dashboard
 ---
 
 Use this pattern when you want QuickAdd to create a new map-of-content note
@@ -24,6 +25,8 @@ This works well for maps of knowledge, hub notes, topic notes, and evergreen
 indexes.
 
 ## Setup
+
+Imported the package above? Run **New MOC note** from the command palette and enter a title, then skip to [What you get](#what-you-get).
 
 1. Create a reusable `.base` template, for example
    `Templates/MOC Link Dashboard.base`:
@@ -90,7 +93,7 @@ outgoing links for this note.
 3. Create a **Template** choice (see [the Template choice docs](/docs/Choices/TemplateChoice/)) with settings like these:
 
 - **Template Path**: `Templates/MOC Link Dashboard.md`
-- **File Name Format**: `{{VALUE:moc_title}}`
+- **File name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
 - **Create in folder**: your MOC folder, for example `MOCs`
 - **Open**: enabled
 - **If the target file already exists**: `Create another file`

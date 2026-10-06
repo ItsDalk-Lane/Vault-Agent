@@ -9,7 +9,7 @@ tag from memory. Start typing a trigger like `[[` and QuickAdd shows a
 searchable list of matches, exactly like Obsidian's own link and tag
 autocomplete. Pick one, and QuickAdd drops it in where you were typing.
 
-![The QuickAdd suggester listing files after typing two square brackets](https://github.com/user-attachments/assets/cc89f672-3451-42c0-89b8-89e0a1ebc780)
+![The QuickAdd suggester listing files after typing two square brackets](./Images/suggester-file-search.png)
 
 ## What you can search for {#special-search-modes}
 
@@ -26,7 +26,9 @@ Type one of these triggers anywhere in a prompt:
 The `#` and `[[` triggers work in QuickAdd's single-line and multi-line input
 prompts, and in text and textarea fields on the
 [one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts).
-Field and pick-list widgets keep their own inline suggestions.
+Field and pick-list widgets keep their own inline suggestions. The
+[math prompt](/docs/FormatSyntax/#mvalue) (`{{MVALUE}}`) suggests LaTeX
+commands instead.
 :::
 
 ### Search your tags: `#` {#tag-search}
@@ -35,10 +37,9 @@ Type `#` to search every tag in your vault, then pick one.
 
 ### Search your files: `[[` {#file-search}
 
-Type `[[` to search every file in your vault. Each result is labelled by its
-frontmatter `title` if it has one, then its first level-1 heading, then its file
-name - but whichever label you see, QuickAdd always inserts a link to the real
-file.
+Type `[[` to search every file in your vault. A file shows its name, or the
+alias you matched, with its path beside it. Links to notes that don't exist yet
+are listed too, marked **Unresolved link**.
 
 #### Search a nearby folder: `./` and `../` {#relative-path-navigation}
 

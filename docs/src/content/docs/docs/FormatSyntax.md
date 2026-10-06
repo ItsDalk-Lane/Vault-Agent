@@ -11,6 +11,14 @@ answer you type, a link to the note you came from.
 You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
+In the format fields of a choice's settings (such as **Capture format**,
+**Capture to**, **File name**, and the insert after/before targets), type
+`{{` to get a list of placeholders, then keep typing to filter it. Template
+files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
+an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
+
+![Typing two curly braces in a Capture format field opens a list of placeholders with a short description of each. Typing "val" narrows it to VALUE variants, Enter inserts {{VALUE}}, and picking {{VDATE:}} leaves the cursor inside so "due,YYYY-MM-DD" can be typed. The preview under the field updates as the format changes](./Images/format-syntax-autocomplete.gif)
+
 For example, a Capture with this format:
 
 ```markdown
@@ -24,6 +32,11 @@ asks you for a value, and if you answer `Standup moved to Wednesday`, it inserts
 ```
 
 You describe the shape once; QuickAdd fills in the blanks every run.
+
+Answers, selected text, clipboard contents and `value-` URI parameters are
+inserted as written. A placeholder or Templater `<% %>` tag inside them stays
+text. A Templater tag in the format itself can still use an answer, as in
+`<% "{{VALUE:title}}".toUpperCase() %>`.
 
 ## Quick reference {#quick-reference}
 
@@ -50,6 +63,8 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{DATE+7}}`](#date) | Seven days from today |
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
 | [`{{TIME}}`](#time) | The current time, like `14:05` |
+| [`{{DAILY}}`](#daily) | The daily note, like `Journal/2026-07-08` |
+| [`{{WEEKLY}}`](#periodic-notes) | This week's note, like `Weekly/2026-W28` |
 
 **The note you ran QuickAdd from**
 
@@ -104,6 +119,17 @@ Review on {{DATE+7}}
 Daily/2026-07-08.md
 Review on 2026-07-15
 ```
+
+<a id="obsidian-date-placeholders"></a>
+
+:::note[Seeing `+3` or `{{DATE+3}}` in your note?]
+Obsidian's **Daily notes** and **Templates** core plugins fill `{{date}}`,
+`{{time}}`, and `{{title}}` themselves, and nothing else. If **Open today's
+daily note** or **Insert template** filled in the note, `{{DATE}}` works, but
+`{{DATE:YYYY-MM-DD+3}}` becomes `2026-07-08+3`, `{{DATE+3}}` stays as-is, and
+`|startof:` turns into gibberish. Run the file from a QuickAdd
+[Template choice](/docs/Choices/TemplateChoice/) instead.
+:::
 
 ### Choose the date format: `{{DATE:<format>}}` {#date-format}
 
@@ -181,6 +207,7 @@ order.
 
 Good to know:
 
+- Snaps are QuickAdd-only. Obsidian's **Open today's daily note** and **Insert template** garble them; see [above](#obsidian-date-placeholders).
 - The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` means "the start of next week".
 - `endof:` snaps to the last moment of the period (`23:59:59.999`), so `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
 - `|startof:`, `|endof:`, and `|case:` are special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`. Put a literal `|case:lower` inside square brackets.
@@ -209,6 +236,52 @@ Unlike `{{DATE}}`, `{{TIME}}` takes no `+N` offset. For a time other than "now",
 use `{{DATE:HH:mm}}` with an offset, or ask for one with
 [`{{VDATE:<name>, <format>|time}}`](#vdate).
 
+### The daily note: `{{DAILY}}` {#daily}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{DAILY}}` is the path of the day's daily note, from the folder and date
+format in Obsidian's **Daily notes** settings. Set **Capture to** to
+`{{DAILY}}` and entries land in the note **Open today's daily note** opens,
+even after you change those settings.
+
+| You write | You get (Daily notes folder `Journal`, format `YYYY-MM-DD`) |
+| --- | --- |
+| `{{DAILY}}` | `Journal/2026-07-08` |
+| `{{DAILY\|link}}` | `[[2026-07-08]]` |
+
+When the [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
+plugin manages daily notes, `{{DAILY}}` uses its settings instead.
+
+Good to know:
+
+- The day follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
+- If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
+- `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
+- If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
+
+### Weekly, monthly, quarterly, and yearly notes: `{{WEEKLY}}` {#periodic-notes}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}` work like
+[`{{DAILY}}`](#daily) for the notes the
+[Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) plugin
+manages, with that plugin's folder, format, and template for each period.
+
+| You write (on Thursday 1 June 2023, weekly format `gggg.MM.[Wk]w`) | You get |
+| --- | --- |
+| `{{WEEKLY}}` | `Weekly/2023.05.Wk22` |
+| `{{MONTHLY}}` | `Monthly/2023-06` |
+| `[[{{QUARTERLY}}]]` or `{{QUARTERLY\|link}}` | A link to `2023-Q2` |
+
+Good to know:
+
+- A note is named from the start of its period, the way Periodic Notes names it. The week of 1 June 2023 starts on 28 May, so it files under May.
+- A missing note is created from the period's template with Periodic Notes' placeholders. In weekly notes, `{{sunday:<format>}}` through `{{saturday:<format>}}` give that day of the week. In all periods, `{{date:<format>}}` is the start of the period.
+- If Periodic Notes doesn't manage the period, the run stops with an error.
+- Periodic Notes 1.0 (beta) isn't supported yet; use the released version, 0.0.17.
+
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 
 `{{VDATE:due,YYYY-MM-DD}}` opens a date prompt and inserts your answer in the
@@ -229,6 +302,33 @@ Due: 2026-07-10
 Week: 2026-W28
 ```
 
+#### Reuse the date with `{{VALUE:<name>}}` {#vdate-reuse}
+
+_Requires QuickAdd 2.29.0 or later._
+
+`{{VALUE:due}}` after `{{VDATE:due,<format>}}` prints the same date, in that
+VDATE's format. It's a short way to repeat a date you already asked for. With
+several VDATEs for one name, the first one's format is used.
+
+```markdown title="You write"
+- [ ] Throw and trim 📅 {{VDATE:due,YYYY-MM-DD}}
+- [ ] Glaze fire 📅 {{VALUE:due}}
+```
+
+```markdown title="You get (after answering "friday")"
+- [ ] Throw and trim 📅 2026-07-10
+- [ ] Glaze fire 📅 2026-07-10
+```
+
+A `{{VALUE:due}}` in a template you include with
+[`{{TEMPLATE:path}}`](#template) reuses the date the same way (QuickAdd 2.30.0
+or later). An include asks its prompts first, so step by step the date prompt
+opens when the include needs the date.
+
+A date that a script set, with no VDATE for that name, prints as
+`YYYY-MM-DD`. QuickAdd 1.14.0 to 2.28.0 printed the stored value instead, such
+as `@date:2026-07-10T10:00:00.000Z`.
+
 :::note
 Pipes (`|`) can't be part of a VDATE date format; everything after the first
 pipe is read as the default value and flags. For a literal separator, use
@@ -245,6 +345,16 @@ short aliases (`t`, `tm`, `yd`) also work as defaults.
 A default combines with the [`optional` flag](#optional-fields) in any order:
 `{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}` and
 `{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}` are equivalent.
+
+#### Name the date prompt: `|label:` {#vdate-label}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{VDATE:due,YYYY-MM-DD|label:When is it due?}}` asks "When is it due?"
+instead of "due", in the date prompt and in the
+[one-page input form](/docs/Advanced/onePageInputs/). The name is still the
+variable, so `{{VALUE:due}}` reuses the answer as before. With several VDATEs
+for one name, the first one's label is used.
 
 #### Ask for a time too: `|time` {#vdate-time}
 
@@ -425,7 +535,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
@@ -458,11 +568,20 @@ Good to know:
 These options work on text prompts and pickers alike. Combine them freely:
 `{{VALUE:title|label:Note title|default:Untitled}}`.
 
-#### Add helper text: `|label:` {#value-label}
+#### Name the prompt: `|label:` {#value-label}
 
-`{{VALUE:project|label:Client or project name}}` shows the helper text below
-the prompt's header - handy for instructions or reminders. On an option list,
-the label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
+`{{VALUE:project|label:Which client or project?}}` asks "Which client or
+project?" instead of "project", in the prompt and in the
+[one-page input form](/docs/Advanced/onePageInputs/). The name is still the
+variable, so `{{VALUE:project}}` reuses the answer. On an option list, the
+label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`. An
+unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
+builder's preview.
+
+Before QuickAdd 2.30.0, a named prompt kept its name as the title and showed
+the label as helper text below it. If you wrote a label as an instruction,
+such as `|label:Comma-separated names`, reword it as the question you want
+asked.
 
 #### Pre-fill a default: `|<default>` {#value-default}
 
@@ -616,7 +735,7 @@ Source: {{LINKCURRENT}}
 Source: [[Meeting with Alice]]
 ```
 
-When the append-link setting is **Enabled (skip if no active file)**, this
+When the append-link setting is **Enabled (skip if unavailable)**, this
 placeholder becomes empty instead of erroring when no note is focused.
 
 ### A link to the current section: `{{LINKSECTION}}` {#linksection}
@@ -638,7 +757,7 @@ The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
-In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+In a Template [File name](/docs/Choices/TemplateChoice/#optional),
 `{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
 the active note.
 
@@ -649,7 +768,7 @@ The active note's folder, as a vault-relative path with no trailing slash
 confused with [`{{FOLDER}}`](#folder), which is the folder a *new* note is
 being created in.
 
-This makes per-project captures work without a macro. With **Capture To** set
+This makes per-project captures work without a macro. With **Capture to** set
 to:
 
 ```text
@@ -779,6 +898,28 @@ one-page inputs first, then opens the regular multi-select for the FIELD
 value.
 :::
 
+#### Label the prompt: `|label:` {#field-label}
+
+_Requires QuickAdd 2.28.0 or later._
+
+`{{FIELD:client|label:Which client?}}` asks "Which client?" instead of
+"Enter value for client". The label replaces that wording wherever the prompt
+appears: the picker's placeholder, the title of the text prompt you get when
+the property has no values yet, and the field's name in the
+[one-page input form](/docs/Advanced/onePageInputs/).
+
+```markdown title="You write"
+---
+client: {{FIELD:client|label:Which client?}}
+contact: {{FIELD:contact|label:Who did you talk to?}}
+---
+```
+
+FIELD placeholders share one answer only when they match exactly, label
+included. To ask twice from the same property, give each placeholder its own
+label: `{{FIELD:person|label:Host}}` and `{{FIELD:person|label:Note taker}}`.
+To ask once, write the same label (or none) everywhere.
+
 #### Default to the active note's value: `|default-from:active` {#field-default-from-active}
 
 `{{FIELD:project|default-from:active}}` pre-fills the prompt with the value
@@ -860,6 +1001,9 @@ In a Template or Capture body, `{{CURSOR}}` marks where you want to continue typ
 - {{CURSOR}}
 ```
 
+For complete setups, see
+[meeting notes and project updates](/docs/Examples/Template_MeetingNotes/).
+
 QuickAdd removes the marker and places the cursor there when the target note
 is already focused in an editing mode, or when **Open** opens and focuses it.
 The marker never opens a note by itself, switches out of Reading view, or
@@ -870,10 +1014,10 @@ note, or adding the template at the top or bottom. It also works in all
 [Apply Template to Note](/docs/ApplyTemplateToNote/) modes, Capture's **At cursor**
 and **New line above/below cursor**, and included `{{TEMPLATE:...}}` content.
 
-The first marker sets the position. Additional markers in the inserted content
-are removed. Spelling is case-insensitive. Insert and append operations leave
-literal markers already in the destination note alone; replacing the note
-replaces its old content.
+The first marker in the note body sets the position. Additional markers in the
+inserted content are removed. Spelling is case-insensitive. Insert and append
+operations leave literal markers already in the destination note alone;
+replacing the note replaces its old content.
 
 A Template containing only markers can create an empty note. A Capture containing
 only markers and whitespace does nothing. If Templater needs a new target note
@@ -940,6 +1084,9 @@ The picker labels each note by its frontmatter `title` if present, then its
 first level-1 heading, then its file name - but always inserts based on the
 actual file, so friendly labels never change what you get.
 
+You can also find a note by its `aliases`: the row shows the alias with the
+note's name beneath it, and still inserts the note (QuickAdd 2.30.0 or later).
+
 Output modes:
 
 | You write | You get |
@@ -967,6 +1114,7 @@ Options:
 - `|optional` - allow skipping the pick (becomes nothing).
 - `|custom` - also allow typing a value that isn't in the folder.
 - `|multi` - pick several files. In frontmatter property positions, including a whole-token [property capture](/docs/Choices/CaptureChoice/#property), QuickAdd writes a YAML list. In note bodies, file names, and other text positions it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every pick.
+- `|type:image` - pick images instead of notes. See [Pick attachments](#file-type).
 - `|label:Pick a person` - set the picker's placeholder text.
 - `|name:<id>` - share one pick between placeholders. FILE placeholders are cached by their full definition: placeholders that differ (folder, filters, mode, or `|label:`) prompt independently, while identical ones reuse one pick. To pick **two different** people, give the placeholders different labels (`{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}`). To reuse **the same** pick - say, a name in one place and a link in another - give them the same `|name:`. Placeholders sharing an id should target the same folder and filters; the shared pick is required if *any* occurrence omits `|optional`.
 - Filters reuse the FIELD syntax: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
@@ -976,14 +1124,39 @@ Good to know:
 - The folder is the first part of the placeholder. A `|folder:` option is FIELD syntax and is ignored here.
 - The folder matches **recursively** (subfolders included). Point at a leaf folder (like `{{FILE:fields/people}}`) to scope tightly.
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
-- Markdown files only.
+- Markdown notes only, unless you add `|type:`.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
-- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
+- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe. A required single picker starts empty, and the form waits for a file before it submits (QuickAdd 2.30.0 or later).
 
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
 of links without relying on the capture context.
+
+#### Pick attachments: `|type:` {#file-type}
+
+_Requires QuickAdd 2.28.0 or later._
+
+Add `|type:` to pick images, PDFs, and other attachments instead of notes. Put
+`!` in front of a link to embed the file:
+
+```markdown
+!{{FILE:Attachments|type:image|link}}
+```
+
+| Type | Picks |
+| --- | --- |
+| `image` | avif, bmp, gif, jpeg, jpg, png, svg, webp |
+| `audio` | 3gp, flac, m4a, mp3, ogg, wav, webm |
+| `video` | mkv, mov, mp4, ogv, webm |
+| `pdf` | pdf |
+| `note` | md |
+| `any` | Every file |
+
+Any other value is a file extension, so `|type:canvas` picks canvases. Combine
+types with commas: `|type:image,pdf`. The default mode inserts the file name
+with its extension (`photo.png`). `|tag:` only matches notes, since attachments
+have no tags.
 
 ## Insert other content
 
@@ -1031,6 +1204,14 @@ match exactly as you defined it.
 
 Opens a math prompt for writing LaTeX, with a live preview. Submit with
 Ctrl/Cmd+Enter: `Equation: ${{MVALUE}}$`.
+
+The math prompt only suggests LaTeX commands, so `#` tag and `[[` link search
+don't work there. For multi-line plain text, use
+[`|type:multiline`](#value-multiline) instead:
+
+```markdown
+- {{TIME}} {{VALUE|type:multiline}}
+```
 
 ### A random ID: `{{RANDOM:<length>}}` {#random}
 

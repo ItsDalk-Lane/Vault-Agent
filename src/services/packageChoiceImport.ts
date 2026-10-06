@@ -1,9 +1,16 @@
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../utils/uuid";
+import { normalizeVaultPathSeparators } from "../utils/pathUtils";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
+import { isTemplateChoice, normalizeTemplateChoice } from "../migrations/helpers/normalizeTemplateFileExistsBehavior";
+import { coerceLegacyOpenFileInNewTab, createFileOpeningFromLegacy } from "../migrations/helpers/file-opening-legacy";
+import { walkChoiceTree } from "../migrations/helpers/choice-traversal";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -11,6 +18,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import {
 	childChoicesOf,
+	clearEmptyFormatFlag,
 	hasUnreadableChildren,
 	isChoiceLike
 } from "../utils/choiceUtils";
@@ -20,10 +28,57 @@ import {
 	isMacroObject,
 	macroCommandsValueOf,
 } from "../utils/macroUtils";
+import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import {
 	stripUserScriptSecretRefsFromCommand
 } from "../utils/userScriptSecrets";
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Bring an imported Template or Capture to the shape the rest of QuickAdd
+ * expects. Import runs after the one-time migrations, so it applies their
+ * per-choice conversions itself (legacy file-exists and file-opening settings),
+ * then fills any setting the package leaves out from the defaults a new choice
+ * of that type starts with - older exports and hand-written packages omit
+ * settings added since. Values the package sets always win.
+ */
+export function normalizeImportedChoice(choice: IChoice): void {
+	if (isTemplateChoice(choice)) normalizeTemplateChoice(choice);
+	if (choice.type === "Capture" || choice.type === "Template") {
+		// As migrateFileOpeningSettings does for data.json.
+		const legacy = choice as IChoice & { fileOpening?: unknown; openFileInNewTab?: unknown; openFileInMode?: unknown };
+		const legacyTab = coerceLegacyOpenFileInNewTab(legacy.openFileInNewTab);
+		if (!legacy.fileOpening && legacyTab) {
+			legacy.fileOpening = createFileOpeningFromLegacy(legacyTab, legacy.openFileInMode);
+		}
+	}
+	// New Captures start with these on (#2007), but a package that leaves them
+	// out has always run with them off.
+	const insertAfter = (choice as IChoice & { insertAfter?: unknown }).insertAfter;
+	if (choice.type === "Capture" && isPlainObject(insertAfter)) {
+		insertAfter.insertAtEnd ??= false;
+		insertAfter.createIfNotFound ??= false;
+	}
+	const defaults =
+		choice.type === "Capture" ? new CaptureChoice(choice.name) :
+		choice.type === "Template" ? new TemplateChoice(choice.name) :
+		undefined;
+	if (!defaults) return;
+	const target = choice as unknown as Record<string, unknown>;
+	for (const [key, value] of Object.entries(defaults)) {
+		if (value === undefined) continue;
+		const current = target[key];
+		if (current === undefined) target[key] = value;
+		else if (isPlainObject(current) && isPlainObject(value)) target[key] = { ...value, ...current };
+	}
+	// As loading data.json does: a package exported by 2.29 or earlier can hold
+	// a switched-on but empty Capture format or File name.
+	clearEmptyFormatFlag(choice);
+}
 
 export function remapChoiceTree(
 	choice: IChoice,
@@ -31,6 +86,7 @@ export function remapChoiceTree(
 	importableChoiceIds: Set<string>,
 	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): IChoice {
+	normalizeImportedChoice(choice);
 	const originalId = choice.id;
 	const finalId = idMap.get(originalId) ?? originalId;
 	choice.id = finalId;
@@ -124,6 +180,10 @@ function remapCommands(
 						importableChoiceIds,
 						secretSanitizerOptions,
 					);
+				} else if (isChoiceLike(nested.choice)) {
+					// An embedded choice has no flat package entry of its own, so
+					// normalize its whole tree here (a Multi's children, a Macro's steps).
+					walkChoiceTree(nested.choice, normalizeImportedChoice);
 				}
 				break;
 			}
@@ -131,6 +191,88 @@ function remapCommands(
 				break;
 		}
 	}
+}
+
+export function findChoiceInTree(choices: IChoice[], id: string): IChoice | undefined {
+	for (const current of choices) {
+		if (!isChoiceLike(current)) continue;
+		if (current.id === id) return current;
+		const found = findChoiceInTree(childChoicesOf(current), id);
+		if (found) return found;
+	}
+	return undefined;
+}
+
+/** Whether `child` sits directly inside the folder `parentId`, wherever that folder is. */
+export function isDirectChildOf(
+	choices: IChoice[],
+	parentId: string,
+	childId: string,
+): boolean {
+	const parent = findChoiceInTree(choices, parentId);
+	return (
+		parent !== undefined &&
+		childChoicesOf(parent).some(
+			(choice) => isChoiceLike(choice) && choice.id === childId,
+		)
+	);
+}
+
+/**
+ * Overwriting a folder must not cost the reader what they put in it. Each
+ * child the package carries replaces its existing counterpart where it sits,
+ * so the reader's order survives; children they skipped, added themselves, or
+ * that the package no longer carries stay where they are; children new to the
+ * package go last. Nested folders merge the same way, including one the reader
+ * had dragged out of this folder: the stray-copy pass detaches it before
+ * placement, and `detached` hands what it held back to its incoming copy.
+ * Entries that are not choices are carried over untouched, never repaired
+ * (#1566), and a folder whose children cannot be read at all is left to the
+ * wholesale replace. `existing` is undefined when the folder is new to the
+ * vault; only detached folders are folded in then.
+ */
+export function mergeFolderChildren(
+	existing: IMultiChoice | undefined,
+	incoming: IMultiChoice,
+	detached: ReadonlyMap<string, IChoice>,
+): void {
+	if (!Array.isArray(incoming.choices)) return;
+	if (existing && !Array.isArray(existing.choices)) return;
+	const pending = new Map<string, IChoice>();
+	for (const choice of incoming.choices) {
+		if (isChoiceLike(choice)) pending.set(choice.id, choice);
+	}
+	const merged: IChoice[] = [];
+	for (const current of existing?.choices ?? []) {
+		const replacement = isChoiceLike(current)
+			? pending.get(current.id)
+			: undefined;
+		if (!replacement) {
+			merged.push(current);
+			continue;
+		}
+		if (current.type === "Multi" && replacement.type === "Multi") {
+			mergeFolderChildren(
+				current as IMultiChoice,
+				replacement as IMultiChoice,
+				detached,
+			);
+		}
+		merged.push(replacement);
+		pending.delete(replacement.id);
+	}
+	for (const replacement of pending.values()) {
+		const source = detached.get(replacement.id);
+		if (replacement.type === "Multi") {
+			mergeFolderChildren(
+				source?.type === "Multi" ? (source as IMultiChoice) : undefined,
+				replacement as IMultiChoice,
+				detached,
+			);
+		}
+		merged.push(replacement);
+	}
+	incoming.choices = merged;
 }
 
 export function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): boolean {
@@ -146,6 +288,21 @@ export function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): b
 		}
 	}
 	return false;
+}
+
+/** Remove the choice with `id` wherever it sits in the tree; returns it, or undefined when absent. */
+export function removeChoiceFromTree(choices: IChoice[], id: string): IChoice | undefined {
+	for (let i = 0; i < choices.length; i++) {
+		const current = choices[i];
+		if (!isChoiceLike(current)) continue;
+		if (current.id === id) {
+			choices.splice(i, 1);
+			return current;
+		}
+		const removed = removeChoiceFromTree(childChoicesOf(current), id);
+		if (removed) return removed;
+	}
+	return undefined;
 }
 
 export function insertUnderParent(
@@ -225,7 +382,9 @@ export function applyAssetPathOverrides(
 		}
 		case "Template": {
 			const templateChoice = choice as ITemplateChoice;
-			const replacement = pathOverrides.get(templateChoice.templatePath);
+			const replacement =
+				pathOverrides.get(resolveTemplatePath(templateChoice.templatePath)) ??
+				pathOverrides.get(templateChoice.templatePath);
 			if (replacement) {
 				templateChoice.templatePath = replacement;
 			}
@@ -235,12 +394,23 @@ export function applyAssetPathOverrides(
 			const captureChoice = choice as ICaptureChoice;
 			const templatePath = captureChoice.createFileIfItDoesntExist?.template;
 			if (templatePath) {
-				const replacement = pathOverrides.get(templatePath);
+				const replacement =
+					pathOverrides.get(resolveTemplatePath(templatePath)) ??
+					pathOverrides.get(templatePath);
 				if (replacement) {
 					captureChoice.createFileIfItDoesntExist = {
 						...captureChoice.createFileIfItDoesntExist,
 						template: replacement,
 					};
+				}
+			}
+			// The format's `{{TEMPLATE:...}}` includes are vault paths too; a
+			// bundled include written elsewhere must be followed the same way.
+			const format = captureChoice.format;
+			if (format && typeof format.format === "string") {
+				const rewritten = rewriteTemplateIncludes(format.format, pathOverrides);
+				if (rewritten !== format.format) {
+					captureChoice.format = { ...format, format: rewritten };
 				}
 			}
 			break;
@@ -257,6 +427,23 @@ export function applyAssetPathOverrides(
 	}
 }
 
+/**
+ * Where an imported script step should point, or undefined to leave it: its
+ * bundled asset's destination, found by the step's own spelling or by its
+ * separator-normalized form, else that form itself. A script path is an
+ * identity: the loader resolves it with forward slashes only, so
+ * `Scripts\\run.js` must not survive import, while leading whitespace names a
+ * real vault folder and is never folded into a different asset's path.
+ */
+function scriptPathReplacement(
+	path: string,
+	pathOverrides: Map<string, string>,
+): string | undefined {
+	const identity = normalizeVaultPathSeparators(path);
+	const replacement = pathOverrides.get(path) ?? pathOverrides.get(identity) ?? identity;
+	return replacement === path ? undefined : replacement;
+}
+
 function applyOverridesToCommands(
 	commands: unknown,
 	pathOverrides: Map<string, string>,
@@ -267,7 +454,7 @@ function applyOverridesToCommands(
 		switch (command.type) {
 			case CommandType.UserScript: {
 				const userScript = command as IUserScript;
-				const replacement = pathOverrides.get(userScript.path);
+				const replacement = scriptPathReplacement(userScript.path, pathOverrides);
 				if (replacement) {
 					// Note-backed scripts use the vault path as their command name
 					// (and member selector, `path::member`); keep it in sync when the
@@ -289,8 +476,9 @@ function applyOverridesToCommands(
 					conditional.condition.mode === "script" &&
 					conditional.condition.scriptPath
 				) {
-					const replacement = pathOverrides.get(
+					const replacement = scriptPathReplacement(
 						conditional.condition.scriptPath,
+						pathOverrides,
 					);
 					if (replacement) {
 						conditional.condition = {

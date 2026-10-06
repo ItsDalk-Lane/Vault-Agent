@@ -67,6 +67,12 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		).resolves.toBe("2023-06-01 (default: tomorrow)");
 	});
 
+	it("never previews a |label: as the default (#1869)", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:due|label:Due|tomorrow}}"),
+		).resolves.toBe("2023-06-01 (default: tomorrow)");
+	});
+
 	it("still leaves a NAMELESS token literal, as the run does", async () => {
 		await expect(makeFormatter().format("{{VDATE:}}")).resolves.toBe(
 			"{{VDATE:}}",
@@ -84,6 +90,42 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
 		);
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
+	});
+
+	it("previews a {{VALUE:}} reuse of an ANSWERED date in the VDATE's format, as the run does (#645)", async () => {
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
+		);
+		await expect(
+			formatter.format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("15.08.2026 15.08.2026");
+	});
+
+	it("previews a {{VALUE:}} reuse of an UNANSWERED date as the same example date, in the VDATE's format", async () => {
+		// "due date" matches the generic date example (2024-01-15), which the
+		// builder used to show for the reuse next to today's date for the VDATE.
+		await expect(
+			makeFormatter().format(
+				"{{VDATE:due date,DD.MM.YYYY}} {{VALUE:due date}} {{VALUE:due date}}",
+			),
+		).resolves.toBe("01.06.2023 01.06.2023 01.06.2023");
+		// The first VDATE's format wins, as in the run.
+		await expect(
+			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VDATE:due,YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("01.06.2023 2023 01.06.2023");
+		// The run matches the name case-insensitively and honours a |name: alias.
+		await expect(
+			makeFormatter().format("{{VDATE:Due,DD.MM.YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023");
+		await expect(
+			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:when|name:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023");
+		// Two case-insensitive matches are ambiguous at run time: no date reuse.
+		await expect(
+			makeFormatter().format("{{VDATE:Start,YYYY}} {{VDATE:start,MM}} {{VALUE:START}}"),
+		).resolves.toBe("2023 06 START_value");
 	});
 
 	it("keeps the text stable for a half-typed |startof: unit, and still reports it", async () => {
@@ -114,5 +156,18 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		await expect(
 			makeFormatter().format("{{VDATE:due,dddd, MMMM Do|case:lower}}"),
 		).resolves.toBe("thursday, june 1st");
+	});
+});
+
+describe("FormatDisplayFormatter unnamed {{VALUE}} stand-in (#1877)", () => {
+	it("previews an unnamed VALUE by its |label:, the name its prompt shows", async () => {
+		await expect(
+			makeFormatter().format(
+				"### {{VALUE|label:What's the order?}}\n- [ ] Deliver 📅 {{VDATE:due date,YYYY-MM-DD}}",
+			),
+		).resolves.toBe("### What's the order?\n- [ ] Deliver 📅 2023-06-01");
+		await expect(makeFormatter().format("- {{VALUE}}")).resolves.toBe(
+			"- user input",
+		);
 	});
 });

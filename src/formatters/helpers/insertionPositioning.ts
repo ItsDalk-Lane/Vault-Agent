@@ -1,5 +1,5 @@
 import type { BlankLineAfterMatchMode } from "../../types/choices/ICaptureChoice";
-import { getMarkdownHeadings } from "./getEndOfSection";
+import { extractHeadingsFromLines } from "./sectionLink";
 import { maskFencedHeadings, type OrderedSlot } from "./orderedSectionPlacement";
 import { getBodyStartOffset } from "../../utils/noteContentInsertion";
 
@@ -172,7 +172,8 @@ function stripTrailingWhitespace(line: string): string {
  * getEndOfSection() throws if asked to consider subsections of a non-heading
  * line. Multi-line anchors made non-heading start lines newly matchable
  * (issue #742), so degrade to false when the anchor is not a heading
- * (using getEndOfSection's own heading definition) instead of throwing.
+ * (using getEndOfSection's own heading definition, in context: a `#` line
+ * inside a code fence is not a heading) instead of throwing.
  */
 export function anchorAllowsSubsections(
 	considerSubsections: boolean,
@@ -180,7 +181,7 @@ export function anchorAllowsSubsections(
 	anchorLine: number,
 ): boolean {
 	if (!considerSubsections) return false;
-	return getMarkdownHeadings([lines[anchorLine] ?? ""]).length > 0;
+	return extractHeadingsFromLines(lines).some((heading) => heading.line === anchorLine);
 }
 
 export function shouldSkipBlankLinesAfterMatch(
@@ -291,6 +292,20 @@ export function getBodyStartLine(fileContent: string): number {
 		: 0;
 }
 
+export function isHeadingLine(line: string): boolean {
+	return extractHeadingsFromLines([line.replace(/\r$/, "")]).length > 0;
+}
+
+/** Blanks every line that doesn't start a heading, keeping line indices. */
+export function onlyHeadingLines(lines: string[]): string[] {
+	const headingLines = new Set(
+		extractHeadingsFromLines(lines.map((line) => line.replace(/\r$/, ""))).map(
+			(heading) => heading.line,
+		),
+	);
+	return lines.map((line, index) => (headingLines.has(index) ? line : ""));
+}
+
 /**
  * Returns CRLF-stripped lines with frontmatter lines blanked and fenced-code
  * headings neutralized, so the ordered target search never matches a heading
@@ -332,13 +347,11 @@ export function insertTextAfterPositionInBody(
 
 	// "Format as task" injects a trailing newline onto the capture content
 	// (getCaptureContent in CaptureChoiceEngine) so a bare task is always a
-	// complete line. When the line directly below the insertion point is already
-	// blank, that injected newline stacks on top of the existing blank line and
-	// renders a spurious blank line AFTER the task (issue #312) — an asymmetry
-	// the user does not see without the task option. Drop the redundant injected
-	// newline in that case; the existing blank line still separates the task from
-	// the following content. A user-typed trailing newline in the format string
-	// is intentional content and is left untouched (gated on choice.task, this
+	// complete line. #312 asked for no blank line after a task captured above a
+	// blank line, so that injected newline is dropped there and the task takes
+	// the blank line's place. This is the one case where an insert removes a
+	// blank line. A user-typed trailing newline in the format string is
+	// intentional content and is left untouched (gated on choice.task, this
 	// only collapses QuickAdd's own injected task newline).
 	//
 	// Detect the blank line via the split index, not `post.startsWith("\n")`, so
@@ -360,15 +373,13 @@ export function insertTextAfterPositionInBody(
 			? rawText.slice(0, -1)
 			: rawText;
 
-	// `post` starts with the following line's CONTENT (join adds no leading
-	// "\n"), so a `text` without a trailing newline would be glued straight
-	// onto it - "## Log\n- existing" + "new" became "## Log\nnew- existing".
-	// Mirror insertTextBeforePositionInBody's separator guard. Only a
-	// non-blank line below needs the separator: a blank/whitespace-only line
-	// absorbs the text instead (the #312 task-newline drop above relies on
-	// exactly that), and the EOF artifact slot is not content.
-	const separator =
-		!text.endsWith("\n") && lineBelowTrimmed !== "" ? "\n" : "";
+	// `post` starts with the following line (join adds no leading "\n"), so a
+	// `text` without a trailing newline would take that line's place: glued onto
+	// content ("## Log\n- existing" + "new" became "## Log\nnew- existing"), or
+	// replacing a blank line. End the entry's line whenever any line follows.
+	// `post` is empty only at the end of the note (including the EOF artifact
+	// slot). Judged on `rawText`, so the #312 drop above stays a drop.
+	const separator = !rawText.endsWith("\n") && post.length > 0 ? "\n" : "";
 
 	return {
 		content: `${pre}\n${text}${separator}${post}`,

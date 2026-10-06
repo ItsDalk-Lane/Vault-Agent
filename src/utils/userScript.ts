@@ -1,8 +1,9 @@
 import type { App, TAbstractFile } from "obsidian";
 import { Notice, TFile } from "obsidian";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { log } from "../logger/logManager";
-import { t } from "../i18n";
+import {
+	JAVASCRIPT_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../constants";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
@@ -57,6 +58,14 @@ function reportAndThrowUserScriptLoadError(
 	throw error;
 }
 
+function unsupportedScriptFileMessage(path: string): string {
+	return `QuickAdd could not run ${path}. A user script must be a .js file or a note with a \`\`\`js code block. Rename the file so it ends in .js.`;
+}
+
+function missingScriptMessage(path: string): string {
+	return `QuickAdd could not find ${path}. If you moved or renamed the script, update its path in the macro.`;
+}
+
 function savedWebpageMessage(path: string): string {
 	return `QuickAdd could not load ${path}. This file looks like a saved webpage, not a JavaScript file. Open the script on GitHub, use the Raw button, then download the .js file and select that file in QuickAdd.`;
 }
@@ -70,6 +79,42 @@ function missingModuleMessage(path: string, moduleName: string | undefined): str
 		? `the required module "${moduleName}"`
 		: "a required module";
 	return `QuickAdd could not load ${path} because it could not find ${missing}. Check that the required file or package exists, and that the capitalization in require(...) matches the file name exactly.`;
+}
+
+function syntaxErrorMessage(
+	path: string,
+	message: string,
+	line: number | undefined,
+): string {
+	const where = line === undefined ? "" : ` on line ${line}`;
+	return `QuickAdd could not load ${path} because it has a syntax error${where}: ${message}. Fix the script and run it again.`;
+}
+
+const USER_SCRIPT_PARAMETERS = ["require", "module", "exports"];
+
+type NodeVm = {
+	compileFunction(code: string, params: string[], options: { filename: string }): unknown;
+};
+
+/**
+ * `new Function` reports a syntax error without its position. On desktop, Node's
+ * `vm` compiles the same source and starts the error stack with `<filename>:<line>`.
+ * The two parsers differ in places: `vm` accepts a leading shebang line and
+ * `new Function` does not, so a shebang script gets no line, and the line is
+ * only trusted when `vm` failed with the same message as `new Function`.
+ * Mobile has no `require`, so the error there names the file but not the line.
+ */
+function getSyntaxErrorLine(source: string, message: string): number | undefined {
+	if (source.startsWith("#!")) return undefined;
+	const vm = window.require?.("vm") as NodeVm | undefined;
+	try {
+		vm?.compileFunction(source, USER_SCRIPT_PARAMETERS, { filename: "user-script" });
+	} catch (error) {
+		if (!(error instanceof Error) || error.message !== message) return undefined;
+		const line = error.stack?.match(/^user-script:(\d+)\n/)?.[1];
+		if (line) return Number(line);
+	}
+	return undefined;
 }
 
 function getMissingModuleName(error: unknown): string | undefined {
@@ -128,12 +173,13 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 }
 
 /**
- * Cache key for a preloaded user-script module (the map shared between the
- * requirement collector and MacroChoiceEngine). It must include the `::`
- * member drill from `command.name`, because getUserScript returns the
- * DRILLED value: two commands sharing one path but drilling different
- * members (`lib::foo` vs `lib::bar`) hold different functions and must
- * never consume each other's preloaded entry.
+ * Cache key for a preloaded user script (the map shared between the
+ * requirement collector and MacroChoiceEngine; values are
+ * {@link LoadedUserScript}). It must include the `::` member drill from
+ * `command.name`, because the cached `script` is the DRILLED value: two
+ * commands sharing one path but drilling different members (`lib::foo` vs
+ * `lib::bar`) hold different functions and must never consume each other's
+ * preloaded entry.
  */
 export function getUserScriptPreloadKey(
 	command: IUserScript,
@@ -146,21 +192,74 @@ export function getUserScriptPreloadKey(
 		: base;
 }
 
-// Slightly modified version of Templater's user script import implementation
-// Source: https://github.com/SilentVoid13/Templater
+/**
+ * A loaded user script: `script` is the value selected by the `::` member
+ * drill in `command.name` (what runs), and `settings` is the script's settings
+ * definition. The definition belongs to the module, not to the drilled
+ * export: `Script::Export` usually drills to a bare function, while
+ * `settings` lives on `module.exports`. So `settings` is taken from the
+ * nearest value along the drill path - the drilled export itself first, then
+ * each parent, ending at the module root - that exports a `settings` object.
+ */
+export type LoadedUserScript = {
+	script: unknown;
+	settings: Record<string, unknown> | undefined;
+};
+
+function getOwnSettingsDefinition(
+	value: unknown,
+): Record<string, unknown> | undefined {
+	if (!isRecord(value) && typeof value !== "function") return undefined;
+	const settings = (value as { settings?: unknown }).settings;
+	return isRecord(settings) ? settings : undefined;
+}
+
+export function selectUserScriptMember(
+	moduleExports: unknown,
+	memberAccess: readonly string[],
+): LoadedUserScript {
+	let script = moduleExports;
+	let settings = getOwnSettingsDefinition(script);
+	for (const member of memberAccess) {
+		// Untyped CommonJS exports: a missing intermediate member throws, as before.
+		script = (script as Record<string, unknown>)[member];
+		settings = getOwnSettingsDefinition(script) ?? settings;
+	}
+	return { script, settings };
+}
+
+/** The drilled export only; use {@link loadUserScript} when settings matter. */
 export async function getUserScript(
 	command: IUserScript,
 	app: App,
 	options: GetUserScriptOptions = {},
 ) {
+	return (await loadUserScript(command, app, options))?.script;
+}
+
+// Slightly modified version of Templater's user script import implementation
+// Source: https://github.com/SilentVoid13/Templater
+export async function loadUserScript(
+	command: IUserScript,
+	app: App,
+	options: GetUserScriptOptions = {},
+): Promise<LoadedUserScript | undefined> {
 	// @ts-ignore
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
-		log.logError(t("errors.loadUserScriptFileFailed", { path: command.path }));
-		return;
+		reportAndThrowUserScriptLoadError(missingScriptMessage(command.path), options);
 	}
 
 	if (file instanceof TFile) {
+		const isNote = MARKDOWN_FILE_EXTENSION_REGEX.test(file.path);
+		// Code runs only from .js files and notes, the same files the script
+		// pickers offer and the package import review asks you to read.
+		if (!isNote && !JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path)) {
+			reportAndThrowUserScriptLoadError(
+				unsupportedScriptFileMessage(command.path),
+				options,
+			);
+		}
 
 		const req = (s: string) => window.require && window.require(s);
 		const exp: Record<string, unknown> = {};
@@ -172,7 +271,7 @@ export async function getUserScript(
 		// in a note (#1065) — the latter is editable on mobile. For a note we run the
 		// first js fence and ignore surrounding prose; the .js path is byte-identical.
 		let scriptSource = fileContent;
-		if (MARKDOWN_FILE_EXTENSION_REGEX.test(file.path)) {
+		if (isNote) {
 			const { code, error } = extractScriptFromMarkdown(fileContent);
 			if (code === null || code.length === 0) {
 				// Surface a visible, actionable reason (the caller's generic "failed to
@@ -197,9 +296,25 @@ export async function getUserScript(
 			);
 		}
 
+		let fn: (...args: unknown[]) => unknown;
 		try {
-			const fn = new Function("require", "module", "exports", scriptSource);
+			fn = new Function(...USER_SCRIPT_PARAMETERS, scriptSource) as typeof fn;
+		} catch (error) {
+			if (error instanceof SyntaxError) {
+				reportAndThrowUserScriptLoadError(
+					syntaxErrorMessage(
+						command.path,
+						error.message,
+						getSyntaxErrorLine(scriptSource, error.message),
+					),
+					options,
+				);
+			}
 
+			throw error;
+		}
+
+		try {
 			fn(req, mod, exp);
 		} catch (error) {
 			if (isMissingModuleError(error)) {
@@ -219,24 +334,15 @@ export async function getUserScript(
 		const userScript = exp["default"] || mod.exports;
 		if (!userScript) return;
 
-		let script = userScript;
 		const usesExplicitDefaultExport = Boolean(exp["default"]);
 
-		const { memberAccess } = getUserScriptMemberAccess(command.name);
-		const hasMemberAccess = Boolean(memberAccess && memberAccess.length > 0);
-		if (memberAccess && memberAccess.length > 0) {
-			let member: string;
-			while ((member = memberAccess.shift() as string)) {
-				//@ts-ignore
-
-				script = script[member];
-			}
-		}
+		const memberAccess = getUserScriptMemberAccess(command.name).memberAccess ?? [];
+		const loaded = selectUserScriptMember(userScript, memberAccess);
 
 		if (
 			usesExplicitDefaultExport &&
-			!hasMemberAccess &&
-			!isRunnableUserScriptExport(script)
+			memberAccess.length === 0 &&
+			!isRunnableUserScriptExport(loaded.script)
 		) {
 			reportAndThrowUserScriptLoadError(
 				defaultExportMessage(command.path),
@@ -244,6 +350,6 @@ export async function getUserScript(
 			);
 		}
 
-		return script;
+		return loaded;
 	}
 }

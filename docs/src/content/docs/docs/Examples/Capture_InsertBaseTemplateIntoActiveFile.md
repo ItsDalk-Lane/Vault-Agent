@@ -2,6 +2,7 @@
 title: "Capture: Insert a Related Notes Base into an MOC Note"
 description: Insert a live Base view of related notes into an active MOC note by capturing from a .base template into the current file
 slug: docs/Examples/Capture_InsertBaseTemplateIntoActiveFile
+package: moc-related-notes
 ---
 
 You end up with one QuickAdd command that inserts a live "related notes" Base
@@ -21,6 +22,8 @@ This is useful for MOCs where you want a note-local index of backlinks.
 
 ## Setup
 
+Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
+
 1. Create a `.base` template file, for example
    `Templates/MOC Related Notes.base`:
 
@@ -38,7 +41,7 @@ views:
 2. Create a Capture choice.
 3. Enable **Capture to active file**.
 4. Set **Write position** to **Top of file (after frontmatter)**.
-5. In **Capture format**, reference your `.base` template with an explicit file
+5. (Before QuickAdd 2.30.0, turn on the **Capture format** toggle first.) In **Capture format**, reference your `.base` template with an explicit file
    extension:
 
 Example:

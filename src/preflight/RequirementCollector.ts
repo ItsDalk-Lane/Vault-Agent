@@ -1,7 +1,9 @@
 import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
+	FIELD_VAR_REGEX_WITH_FILTERS,
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
 	MATH_VALUE_REGEX,
@@ -24,17 +26,17 @@ import {
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
-import { FieldSuggestionFileFilter } from "src/utils/FieldSuggestionFileFilter";
 import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import { resolveActiveNoteFieldDefault } from "src/utils/activeNoteFieldDefault";
 import {
-	buildFileDisplayLabels,
+	buildFileDisplayInfos,
 	FILE_PICK_PREFIX,
 	type ParsedFileToken,
 	parseFileToken,
 } from "src/utils/fileSyntax";
+import { getFileTokenFiles } from "src/utils/vaultQueries";
 
-export type { FieldType, FieldRequirement, FieldGroup } from "./fieldRequirements";
+export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
 
 /**
@@ -101,7 +103,16 @@ export class RequirementCollector extends Formatter {
 	 * knows that much.
 	 */
 	private scanningScope: PromptScopeKind = "generic";
+	/** Set while scanning a One entry per line Capture's format: its {{VALUE}} takes several lines. */
+	public valueTakesLines = false;
 	private scanningSoleValue = false;
+	/**
+	 * Where each field first appears in the string being scanned. Dates, named
+	 * values and files are recorded by the passes below before the formatter
+	 * pass records the rest, so without this the form would list fields by
+	 * token type instead of in the order the format reads (#1876).
+	 */
+	private scanPositions = new Map<string, number>();
 
 	// Entry points -------------------------------------------------------------
 	public async scanString(
@@ -115,12 +126,16 @@ export class RequirementCollector extends Formatter {
 		this.scanningPathContext = pathContext;
 		this.scanningScope = scope;
 		this.scanningSoleValue = valueAnswersWholeScope(scope, input);
+		const known = new Set(this.requirements.keys());
+		this.scanPositions = new Map();
 		try {
 			// Expand global variables first so we can detect inner requirements
 			const expanded = await this.replaceGlobalVarInString(input);
-			// Run a safe formatting pass that collects variables but avoids side-effects
-			this.scanVariableTokens(expanded);
+			// Run a safe formatting pass that collects variables but avoids side-effects.
+			// Dates first, as the run replaces VDATEs before named VALUEs: a
+			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.
 			this.scanDateTokens(expanded);
+			this.scanVariableTokens(expanded);
 			this.scanFileTokens(expanded);
 			// Anonymous {{VALUE}}/{{NAME}} and {{MVALUE}} resolutions are
 			// cached, so their prompt hooks fire once per collector; a path
@@ -139,11 +154,42 @@ export class RequirementCollector extends Formatter {
 				}
 			}
 			await this.format(expanded);
+			this.orderNewFieldsByPosition(known, expanded);
 		} finally {
 			this.scanningPathContext = previousContext;
 			this.scanningScope = previousScope;
 			this.scanningSoleValue = previousSoleValue;
 		}
+	}
+
+	/**
+	 * Lists the fields this string added in the order they first appear in it.
+	 * Fields from earlier strings (a file name, an earlier macro step) keep
+	 * their place ahead of them.
+	 */
+	private orderNewFieldsByPosition(known: Set<string>, input: string): void {
+		this.notePosition("value", input.search(NAME_VALUE_REGEX));
+		this.notePosition("mvalue", input.search(MATH_VALUE_REGEX));
+		const fieldTokens = new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi");
+		for (const match of input.matchAll(fieldTokens)) {
+			this.notePosition(
+				`${FIELD_VARIABLE_PREFIX}${match[1]}${match[2] ?? ""}`,
+				match.index,
+			);
+		}
+
+		const added = [...this.requirements].filter(([id]) => !known.has(id));
+		const position = (id: string) =>
+			this.scanPositions.get(id) ?? Number.MAX_SAFE_INTEGER;
+		added.sort(([a], [b]) => position(a) - position(b));
+		for (const [id] of added) this.requirements.delete(id);
+		for (const [id, requirement] of added) this.requirements.set(id, requirement);
+	}
+
+	private notePosition(id: string, index: number): void {
+		if (index < 0) return;
+		const seen = this.scanPositions.get(id);
+		if (seen === undefined || index < seen) this.scanPositions.set(id, index);
 	}
 
 	/** Sticky path-context marking: one path occurrence taints the field. */
@@ -189,7 +235,7 @@ export class RequirementCollector extends Formatter {
 			let m: RegExpExecArray | null;
 			while ((m = re.exec(output)) !== null) {
 				const path = m[1];
-				if (path) this.templatesToScan.add(path);
+				if (path) this.templatesToScan.add(normalizeVaultPath(path));
 			}
 		}
 
@@ -224,9 +270,17 @@ export class RequirementCollector extends Formatter {
 
 			if (!variableName) continue;
 
-			const displayLabel = hasOptions && label ? label : variableName;
-			const description = !hasOptions && label ? label : undefined;
+			const displayLabel = label ?? variableName;
 			const requirementId = variableKey;
+
+			// A VDATE with this name asks first at run time, which matches names
+			// case-insensitively, so this VALUE only reuses the date.
+			const reusedDate = this.findRequirementIgnoringCase(requirementId, "date");
+			this.notePosition(reusedDate?.id ?? requirementId, match.index);
+			if (reusedDate) {
+				this.markScanContext(reusedDate);
+				continue;
+			}
 
 			if (!this.requirements.has(requirementId)) {
 				// |type:checkbox renders a forced true/false dropdown and
@@ -237,7 +291,6 @@ export class RequirementCollector extends Formatter {
 					id: requirementId,
 					label: displayLabel,
 					type: hasOptions ? this.optionFieldType(parsed) : inputType,
-					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
@@ -288,6 +341,25 @@ export class RequirementCollector extends Formatter {
 				existing.optional = (existing.optional ?? false) && parsed.optional;
 			}
 		}
+	}
+
+	/**
+	 * A named VALUE finds an earlier answer by its exact name, or else by the
+	 * one name that matches case-insensitively (two are ambiguous at run time).
+	 */
+	private findRequirementIgnoringCase(
+		key: string,
+		type: FieldType,
+	): FieldRequirement | undefined {
+		const exact = this.requirements.get(key);
+		if (exact) return exact.type === type ? exact : undefined;
+		const lower = key.toLowerCase();
+		const matches = [...this.requirements.values()].filter(
+			(req) => req.id.toLowerCase() === lower,
+		);
+		return matches.length === 1 && matches[0].type === type
+			? matches[0]
+			: undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
@@ -355,18 +427,20 @@ export class RequirementCollector extends Formatter {
 		while ((match = re.exec(input)) !== null) {
 			const variableName = match[1]?.trim();
 			if (!variableName) continue;
+			this.notePosition(variableName, match.index);
 
-			const { defaultValue, optional, withTime } = parseVDateOptions(
+			const { defaultValue, optional, withTime, label } = parseVDateOptions(
 				match[3],
 			);
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
+			// A VDATE finds an earlier answer by its exact name at run time.
 			const existing = this.requirements.get(variableName);
 			if (!existing) {
 				this.requirements.set(variableName, {
 					id: variableName,
-					label: variableName,
+					label: label ?? variableName,
 					type: "date",
 					defaultValue,
 					dateFormat,
@@ -375,6 +449,17 @@ export class RequirementCollector extends Formatter {
 					source: "collected",
 				});
 			} else {
+				// A plain {{VALUE:<name>}} seen first, say in the file name, is
+				// answered with text that this VDATE then parses: ask for a date.
+				if (
+					(existing.type === "text" || existing.type === "textarea") &&
+					!this.hasOptionList(existing)
+				) {
+					existing.type = "date";
+					existing.dateFormat = dateFormat;
+					existing.withTime = withTime;
+					if (label) existing.label = label;
+				}
 				// Only backfill date metadata onto date requirements — a
 				// same-name VALUE requirement must not inherit a VDATE default.
 				if (
@@ -398,16 +483,22 @@ export class RequirementCollector extends Formatter {
 	protected async promptForValue(header?: string): Promise<string> {
 		const key = "value";
 		if (!this.requirements.has(key)) {
-			const type = this.inputFieldType(this.valuePromptContext);
+			// A |type: on the token wins over One entry per line.
+			const type = this.valueTakesLines && !this.valuePromptContext?.inputTypeOverride
+				? "textarea"
+				: this.inputFieldType(this.valuePromptContext);
 			const derived = describeValuePrompt(
 				this.scanningScope,
 				this.scanningSoleValue,
 			);
 			this.requirements.set(key, {
 				id: key,
-				label: derived.title || header || "Enter value",
+				label:
+					this.valuePromptContext?.label ||
+					derived.title ||
+					header ||
+					"Enter value",
 				type,
-				description: this.valuePromptContext?.description,
 				placeholder: derived.placeholder,
 				defaultValue: this.valuePromptContext?.defaultValue,
 				numericConfig: this.valuePromptContext?.numericConfig,
@@ -454,9 +545,8 @@ export class RequirementCollector extends Formatter {
 			const type = hasOptions ? "dropdown" : this.inputFieldType(context);
 			const req: FieldRequirement = {
 				id: key,
-				label: variableName,
+				label: context?.label ?? variableName,
 				type,
-				description: context?.description,
 				numericConfig: context?.numericConfig,
 				sliderConfig: context?.sliderConfig,
 				source: "collected",
@@ -500,7 +590,7 @@ export class RequirementCollector extends Formatter {
 		if (!this.requirements.has(key)) {
 			const requirement: FieldRequirement = {
 				id: key,
-				label: parsed.fieldName || variableName,
+				label: parsed.label ?? (parsed.fieldName || variableName),
 				type: "field-suggest",
 				source: "collected",
 				runtimeOnly: parsed.multiSelect,
@@ -547,6 +637,7 @@ export class RequirementCollector extends Formatter {
 		while ((match = re.exec(input)) !== null) {
 			const parsed = parseFileToken(match[1] ?? "");
 			if (!parsed) continue;
+			this.notePosition(parsed.variableKey, match.index);
 			this.recordFileRequirement(parsed);
 		}
 	}
@@ -578,28 +669,26 @@ export class RequirementCollector extends Formatter {
 		// Options are the folder's files encoded as `@file:<path>` (display =
 		// basenames) so the chosen value round-trips to the runtime formatter,
 		// which decodes it back to the file.
-		const files = FieldSuggestionFileFilter.filterFiles(
-			this.app.vault.getMarkdownFiles(),
-			parsed.filter,
-			(file) => this.app.metadataCache.getFileCache(file),
-		);
+		const files = getFileTokenFiles(this.app, parsed);
 		const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
-		const displayOptions = buildFileDisplayLabels(
+		const infos = buildFileDisplayInfos(
 			files,
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
+		const displayOptions = infos.map((info) => info.label);
 		// The dedicated picker keeps display labels separate from the encoded file
 		// paths, so both single and multi FILE tokens can search inline without the
 		// comma serialization that made multi-select runtime-only. Preserve the
 		// previous empty-folder one-page behavior by permitting a literal value when
 		// no real file options exist.
 		const allowCustomInput = parsed.allowCustomInput || options.length === 0;
-		// Disambiguate same-scope tokens that differ only by mode (e.g. a basename
-		// and a link to the same folder) when no explicit |label.
-		const autoLabel =
-			parsed.mode === "name"
-				? `File from ${parsed.folderPath}`
-				: `File from ${parsed.folderPath} (${parsed.mode})`;
+		// Disambiguate same-folder tokens that differ only by type or mode (e.g. an
+		// image and a PDF link from one folder) when no explicit |label.
+		const qualifiers = [...parsed.types];
+		if (parsed.mode !== "name") qualifiers.push(parsed.mode);
+		const autoLabel = qualifiers.length
+			? `File from ${parsed.folderPath} (${qualifiers.join(", ")})`
+			: `File from ${parsed.folderPath}`;
 		this.requirements.set(key, {
 			id: key,
 			label: parsed.label ?? autoLabel,
@@ -607,6 +696,7 @@ export class RequirementCollector extends Formatter {
 			source: "collected",
 			options,
 			displayOptions,
+			optionAliases: infos.map((info) => info.aliases),
 			optional: parsed.optional,
 			suggesterConfig: {
 				allowCustomInput,

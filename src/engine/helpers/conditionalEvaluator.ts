@@ -12,7 +12,7 @@ import {
 } from "../../utils/conditionalHelpers";
 import { t } from "../../i18n";
 
-export interface EvaluateConditionContext {
+interface EvaluateConditionContext {
 	variables: Record<string, unknown>;
 	evaluateScriptCondition: (condition: ScriptCondition) => Promise<boolean>;
 }
@@ -41,11 +41,10 @@ function evaluateVariableCondition(
 		return false;
 	}
 
+	// A variable nothing has set yet is empty: only "is falsy" holds for it, and
+	// every other operator takes the Else branch, as it always has.
 	if (!(variableName in variables)) {
-		log.logWarning(
-			t("errors.conditionalVariableNotDefined", { name: variableName })
-		);
-		return false;
+		return condition.operator === "isFalsy";
 	}
 
 	const rawValue = variables[variableName];

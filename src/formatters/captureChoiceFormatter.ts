@@ -8,15 +8,17 @@ import {
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_ORDERED,
 	CREATE_IF_NOT_FOUND_TOP,
+	NAME_VALUE_REGEX,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { templaterParseTemplate } from "../utilityObsidian";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { t } from "../i18n";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
+import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
 import * as positioning from "./helpers/insertionPositioning";
-import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
+import { blockquoteSeparator, insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 import {
 	buildImageEmbedLink,
@@ -203,10 +205,37 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		fileContent: string,
 		file: TFile,
 	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+		return this.captureIntoFile(input, choice, fileContent, file, true);
+	}
+
+	/**
+	 * Places text that formatContentOnly already formatted. That text now holds
+	 * the selection, clipboard and prompt answers, which are data: formatting it
+	 * again would expand tokens and inline scripts written inside them.
+	 */
+	public async insertFormattedContent(
+		formatted: string,
+		choice: ICaptureChoice,
+		fileContent: string,
+		file: TFile,
+	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+		return this.captureIntoFile(formatted, choice, fileContent, file, false);
+	}
+
+	private async captureIntoFile(
+		input: string,
+		choice: ICaptureChoice,
+		fileContent: string,
+		file: TFile,
+		format: boolean,
+	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
-		if (!choice || !file || fileContent === null) return { content: input, captureContent: input, cursor: { kind: "none" } };
+		if (!choice || !file || fileContent === null) {
+			const content = restoreUserText(input);
+			return { content, captureContent: content, cursor: { kind: "none" } };
+		}
 		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 
@@ -219,8 +248,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			!choice.captureToActiveFile ||
 			choice.activeFileWritePosition === "top" ||
 			choice.activeFileWritePosition === "bottom";
-		const formatted = await this.formatCapture(input, shouldRunTemplater);
-		return formatted;
+		return await this.formatCapture(input, shouldRunTemplater, format);
 	}
 
 	public async formatContent(
@@ -237,13 +265,19 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return (await this.formatCapture(input, runTemplater)).content;
 	}
 
-	private async formatCapture(input: string, runTemplater: boolean): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+	private async formatCapture(input: string, runTemplater: boolean, format = true): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
-		let formatted = await this.withClipboardImageFallback(async () =>
-			this.withPromptScope("captureText", input, async () =>
-				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
-			),
-		);
+		let formatted = format
+			? await this.withValueLines(!!this.choice?.eachLine, () =>
+				this.withClipboardImageFallback(async () =>
+					this.withPromptScope("captureText", input, async () =>
+						this.withUserTextProtected(async () =>
+							super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+						),
+					),
+				),
+			)
+			: input;
 
 		// Run templater only once per capture payload to prevent #533 double execution
 		if (runTemplater && this.file && !this.templaterProcessed) {
@@ -258,7 +292,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.templaterProcessed = true;
 		}
 
-		const payload = prepareCapture(formatted);
+		// User text stays marked until Templater and the {{CURSOR}} search are done.
+		const payload = restoreUserTextInCapture(prepareCapture(formatted));
 		const placement = payload.cursor.kind === "none"
 			? { content: this.fileContent, cursor: payload.cursor }
 			: await this.insertCapture(payload);
@@ -266,26 +301,36 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertCapture(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
-		const formatted = payload.content;
 		const shouldAppendToBottom = this.choice.prepend ||
 			(this.choice.captureToActiveFile && this.choice.activeFileWritePosition === "bottom");
-		if (shouldAppendToBottom) {
-			const needsLeadingNewline = this.fileContent.length > 0 &&
-				!this.fileContent.endsWith("\n") && !formatted.startsWith("\n");
-			const separator = !this.choice.task || needsLeadingNewline ? "\n" : "";
-			return surroundCapture(payload, this.fileContent + separator);
-		}
+		if (shouldAppendToBottom) return surroundCapture(payload, this.withLastLineEnded());
 		if (this.choice.insertAfter.enabled) return this.insertAfterHandler(payload);
 		if (this.choice.insertBefore?.enabled) return this.insertBeforeHandler(payload);
 		return this.insertAtNoteBodyStartTracking(payload);
 	}
 
-	async formatContentOnly(input: string): Promise<string> {
-		// Process the input with templater (if needed) at this stage
-		// This is the first pass where we want to run any templater code
-		const formatted = await this.withClipboardImageFallback(async () =>
-			this.withPromptScope("captureText", input, async () =>
-				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+	/**
+	 * The note, ready for text appended at the bottom. Like the other write
+	 * positions, this adds a line break only to end the note's last line. Any
+	 * blank line comes from the format.
+	 */
+	private withLastLineEnded(): string {
+		const content = this.fileContent;
+		return content.length > 0 && !content.endsWith("\n") ? `${content}\n` : content;
+	}
+
+	/**
+	 * Formats the capture text. User text in the result stays marked until the
+	 * text is placed. `eachLine` writes the format once per line of {{VALUE}}.
+	 */
+	async formatContentOnly(input: string, options: { eachLine?: boolean } = {}): Promise<string> {
+		const formatted = await this.withValueLines(options.eachLine ?? false, () =>
+			this.withClipboardImageFallback(async () =>
+				this.withPromptScope("captureText", input, async () =>
+					this.withUserTextProtected(async () =>
+						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+					),
+				),
 			),
 		);
 
@@ -295,6 +340,63 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
+	}
+
+	private splitValueLines = false;
+
+	/** Formats the capture text with One entry per line on or off. */
+	private async withValueLines<T>(eachLine: boolean, work: () => Promise<T>): Promise<T> {
+		this.splitValueLines = eachLine;
+		this.defaultValueInputType = eachLine ? "multiline" : undefined;
+		try {
+			return await work();
+		} finally {
+			this.splitValueLines = false;
+			this.defaultValueInputType = undefined;
+		}
+	}
+
+	/**
+	 * One entry per line: scripts, macros, and includes run once, then the
+	 * format's tokens are filled once per line of the {{VALUE}} answer. Every
+	 * other answer is kept by the first line and reused. {{MVALUE}} keeps no
+	 * answer, so it is filled once for all lines.
+	 */
+	protected async format(input: string): Promise<string> {
+		if (!this.splitValueLines) return super.format(input);
+		// Only the capture format itself; anything it formats later is whole.
+		this.splitValueLines = false;
+
+		const expanded = await this.expandCodeAndIncludes(input);
+		if (!NAME_VALUE_REGEX.test(expanded)) return this.formatScalarTokens(expanded);
+		const answer = await this.resolveValue(expanded);
+		const lines = answer.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean);
+		if (lines.length === 0) {
+			// An empty answer means the token's default, as it does without this option.
+			const context = this.valuePromptContext;
+			if (!context?.defaultValue || context.optional) return "";
+			lines.push("");
+		}
+
+		const shared = await this.replaceMathValueInString(expanded);
+		// A value passed in by a script, the URI, the CLI, or the one-page form
+		// lives in the variables map, where {{VALUE}} reads it first.
+		const seeded = this.hasConcreteVariable("value");
+		const seededValue = this.variables.get("value");
+		const entries: string[] = [];
+		try {
+			for (const line of lines) {
+				this.value = line;
+				if (seeded) this.variables.set("value", line);
+				entries.push(await this.formatScalarTokens(shared));
+			}
+		} finally {
+			this.value = answer;
+			if (seeded) this.variables.set("value", seededValue);
+		}
+		return entries
+			.map((entry, index) => index < entries.length - 1 && !entry.endsWith("\n") ? `${entry}\n` : entry)
+			.join("");
 	}
 
 	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {
@@ -344,10 +446,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		// Ordered searches mask YAML and fenced headings without shifting indices; other searches remain unmasked.
-		const searchLines = this.isOrderedCreate()
-			? positioning.maskNonBodyHeadingsForSearch(fileContentLines, this.fileContent)
-			: fileContentLines;
+		// A picked (or typed) heading matches only heading lines, never a
+		// same-text line in the frontmatter, a code fence or a paragraph. A typed
+		// line that isn't a heading keeps the plain search, so a second run finds
+		// the line the first one created. Ordered searches mask YAML and fenced
+		// headings; all keep line indices. Other searches are unmasked.
+		const searchLines =
+			override !== null && positioning.isHeadingLine(override)
+				? positioning.onlyHeadingLines(fileContentLines)
+				: this.isOrderedCreate()
+					? positioning.maskNonBodyHeadingsForSearch(fileContentLines, this.fileContent)
+					: fileContentLines;
 		const { start, end } = positioning.findInsertAfterRange(searchLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
@@ -551,7 +660,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		});
 	}
 
-	/** All create modes share placement and errors; each keeps its cursor insertion semantics. */
+	/**
+	 * All create modes share placement and errors; each keeps its cursor insertion
+	 * semantics. Top and Bottom add a blank line only where the created block and
+	 * the note would put two blockquote lines next to each other.
+	 */
 	private createMissingTarget({ payload, location, rawTarget, insertAtCursor }: {
 		payload: CapturePlacementResult;
 		location: string | undefined;
@@ -560,9 +673,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}): CapturePlacementResult {
 		switch (location) {
 			case CREATE_IF_NOT_FOUND_TOP:
-				return this.insertAtNoteBodyStartTracking(payload);
-			case CREATE_IF_NOT_FOUND_BOTTOM:
-				return surroundCapture(payload, `${this.fileContent}\n`);
+				return this.insertAtNoteBodyStartTracking(payload, true);
+			case CREATE_IF_NOT_FOUND_BOTTOM: {
+				const note = this.withLastLineEnded();
+				return surroundCapture(payload, note + blockquoteSeparator(note, payload.content));
+			}
 			case CREATE_IF_NOT_FOUND_CURSOR: {
 				const view = getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
@@ -579,8 +694,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult): CapturePlacementResult {
-		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content);
+	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult, separateBlockquotes = false): CapturePlacementResult {
+		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content, { separateBlockquotes });
 		return placeCapture(payload, result.content,
 			result.insertedStartOffset === null || payload.cursor.kind === "none"
 				? null : result.insertedStartOffset + payload.cursor.value);

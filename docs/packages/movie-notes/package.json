@@ -1,0 +1,95 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-movie-notes"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-movie-notes",
+				"name": "Add movie note",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-movie-notes-macro",
+					"name": "Add movie note",
+					"commands": [
+						{
+							"id": "qa-pkg-movie-notes-script",
+							"name": "movies",
+							"type": "UserScript",
+							"path": "scripts/movies.js",
+							"settings": {}
+						},
+						{
+							"id": "qa-pkg-movie-notes-nested",
+							"name": "Movie note",
+							"type": "NestedChoice",
+							"choice": {
+								"id": "qa-pkg-movie-notes-template",
+								"name": "Movie note",
+								"type": "Template",
+								"command": false,
+								"templatePath": "Templates/Movie.md",
+								"fileNameFormat": {
+									"enabled": true,
+									"format": "{{VALUE:fileName}}"
+								},
+								"discoverExistingNotesBeforeCreate": false,
+								"folder": {
+									"enabled": true,
+									"folders": [
+										"Movies"
+									],
+									"chooseWhenCreatingNote": false,
+									"createInSameFolderAsActiveFile": false,
+									"chooseFromSubfolders": false
+								},
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"openFile": true,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"fileExistsBehavior": {
+									"kind": "prompt"
+								}
+							}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Add movie note"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/movies.js",
+			"source": "../../public/scripts/movies.js"
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/Movie.md",
+			"source": "files/Movie.md"
+		}
+	],
+	"install": {
+		"requires": [
+			"an OMDb API key ([free at omdbapi.com](https://www.omdbapi.com/apikey.aspx))"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Add movie note**, then the cog on the **movies** step. Paste your key into **OMDb API Key** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"Run **Add movie note** from the command palette and search for a title or IMDb id (like `tt0111161`). The note lands in `Movies/`; change **Folder path** on the **Movie note** step to use another folder."
+		]
+	}
+}

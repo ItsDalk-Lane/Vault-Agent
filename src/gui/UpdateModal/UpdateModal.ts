@@ -6,8 +6,9 @@ import {
 	Modal,
 	requestUrl,
 } from "obsidian";
-import { log } from "src/logger/logManager";
 import { t } from "../../i18n";
+import { log } from "src/logger/logManager";
+import { compareSemver, parseSemver } from "src/utils/semver";
 
 type Release = {
 	tag_name: string;
@@ -18,15 +19,14 @@ type Release = {
 };
 
 /**
- * Fetches the releases for a repository on GitHub and returns the release notes for every release
- * that comes after a specific release.
+ * Fetches the releases for a repository on GitHub and returns every stable release
+ * whose version is newer than the given one, newest first.
  *
  * @param repoOwner The owner of the repository.
  * @param repoName The name of the repository.
- * @param releaseTagName The tag name of the release to start getting release notes from.
+ * @param releaseTagName The version the user is upgrading from.
  * @returns An array of Release objects, each containing the tag name and release notes for a single release.
- * @throws An error if there was an error fetching the releases or if the release with the specified tag name
- *         could not be found.
+ * @throws An error if the releases could not be fetched or the given version is not valid semver.
  */
 export async function getReleaseNotesAfter(
 	repoOwner: string,
@@ -34,7 +34,9 @@ export async function getReleaseNotesAfter(
 	releaseTagName: string
 ): Promise<Release[]> {
 	const response = await requestUrl({
-		url: `https://api.github.com/repos/${repoOwner}/${repoName}/releases`,
+		// The newest 100 releases (GitHub's page-size cap). Anyone further behind
+		// sees the latest 100.
+		url: `https://api.github.com/repos/${repoOwner}/${repoName}/releases?per_page=100`,
 		throw: false,
 	});
 
@@ -59,19 +61,16 @@ export async function getReleaseNotesAfter(
 		throw new Error(t("errors.releaseFetchFailed", { error: message }));
 	}
 
-	const releases = body as Release[];
-
-	const startReleaseIdx = releases.findIndex(
-		(release) => release.tag_name === releaseTagName
-	);
-
-	if (startReleaseIdx === -1) {
+	const previous = parseSemver(releaseTagName);
+	if (!previous) {
 		throw new Error(t("errors.releaseTagNotFound", { tag: releaseTagName }));
 	}
 
-	return releases
-		.slice(0, startReleaseIdx)
-		.filter((release) => !release.draft && !release.prerelease);
+	return (body as Release[]).filter((release) => {
+		if (release.draft || release.prerelease) return false;
+		const version = parseSemver(release.tag_name);
+		return version !== null && compareSemver(version, previous) > 0;
+	});
 }
 
 const USER_ATTACHMENT_VIDEO_URL =
@@ -158,25 +157,6 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-function addExtraHashToHeadings(
-	markdownText: string,
-	numHashes = 1
-): string {
-	// Split the markdown text into an array of lines
-	const lines = markdownText.split("\n");
-
-	// Loop through each line and check if it starts with a heading syntax (#)
-	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].startsWith("#")) {
-			// If the line starts with a heading syntax, add an extra '#' to the beginning
-			lines[i] = "#".repeat(numHashes) + lines[i];
-		}
-	}
-
-	// Join the array of lines back into a single string and return it
-	return lines.join("\n");
-}
-
 export class UpdateModal extends Modal {
 	releases: Release[];
 	private releaseNotesPromise: Promise<Release[]>;
@@ -205,15 +185,16 @@ export class UpdateModal extends Modal {
 
 				this.releases = releases;
 
-                if (this.releases.length === 0) {
-                    this.close();
-                    return;
-                }
+				if (this.releases.length === 0) {
+					this.close();
+					return;
+				}
 
 				this.display();
 			})
 			.catch((err) => {
 				log.logError(t("update.fetchReleaseNotesFailed", { error: String(err) }));
+				if (!this.isClosed) this.close();
 			});
 	}
 
@@ -255,22 +236,22 @@ export class UpdateModal extends Modal {
 		contentEl.empty();
 		contentEl.classList.add("quickadd-update-modal-container");
 
-        const header = t("update.header", { version: this.releases[0].tag_name });
+		const header = t("update.header", { version: this.releases[0].tag_name });
 		const text = t("update.thanks");
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
-		const contentDiv = contentEl.createDiv("quickadd-update-modal");
+		const contentDiv = contentEl.createDiv(
+			"quickadd-update-modal markdown-rendered",
+		);
 		const releaseNotes = this.releases
 			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
-		const andNow = t("update.andNow", { version: this.previousVersion });
-        const feedbackForm = t("update.feedbackForm", {
-            link: `<a href="https://forms.gle/WRq1ewcKK8qmkqps6">${t("update.feedbackLinkText")}</a>`,
-        });
-		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${addExtraHashToHeadings(
-			releaseNotes
-		)}`;
+		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
+        const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
+		// The notes render exactly as written, code examples included. CSS in
+		// styles.css shows their headings one level smaller than in a note.
+		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${releaseNotes}`;
 
 		this.markdownComponent.load();
 		void MarkdownRenderer.render(

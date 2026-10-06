@@ -30,6 +30,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		setPromptRunContext() {}
 		setTargetFolderPath(path: string) { setTargetFolderPathMock(path); }
 		getAnonymousValue() { return undefined; }
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(_scope: string, _input: string, work: () => Promise<T>) {
 			return await work();
 		}
@@ -64,14 +67,19 @@ vi.mock("./promptForTemplateNoteDiscovery", async () => {
 	};
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
-	getAllFolderPathsInVault: vi.fn(() => []),
-	getTemplateFile: (app: App, path: string) => app.vault.getAbstractFileByPath(path),
 	templaterParseTemplate: async (_app: App, content: string) => content,
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: insertFileLinkMock,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: openExistingFileTabMock,
 	openFile: openFileMock,
 }));
@@ -89,10 +97,6 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 import { TFile, type App } from "obsidian";
@@ -153,6 +157,7 @@ function buildEngine(
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),
@@ -182,6 +187,7 @@ function buildEngine(
 		recordExecutionResult: vi.fn(),
 		signalAbort: vi.fn(),
 		consumeAbortSignal: vi.fn(),
+		resolveDateOrigin: vi.fn(async () => {}),
 	};
 	const plugin = { settings: { globalVariables: {} } } as never;
 	const engine = new TemplateChoiceEngine(
@@ -226,6 +232,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		}
 		expect(formatFileContentMock).not.toHaveBeenCalled();
 		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(context.app.vault.process).not.toHaveBeenCalled();
 	});
 
 	it.each(["Templates/Project.md", "/Templates/Project", "  /Templates/Project.md  "])
@@ -240,6 +247,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 			message: expect.stringContaining("own template source"),
 		}));
 		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(context.app.vault.process).not.toHaveBeenCalled();
 		expect(formatFileContentMock).not.toHaveBeenCalled();
 		expect(context.contents.get(source.path)).toBe("Reusable {{VALUE:owner}}");
 	});
@@ -284,7 +292,34 @@ describe("TemplateChoiceEngine note discovery", () => {
 	});
 
 	it.each([
-		["appendBottom", "---\nstatus: active\n---\nOriginal body\nUpdate"],
+		{ action: "open", pick: "existing", asksDate: false },
+		{ action: "appendBottom", pick: "existing", asksDate: true },
+		{ action: "open", pick: "create", asksDate: true },
+	] as const)("resolves Which day after the picker only when a note is written: $action/$pick", async ({ action, pick, asksDate }) => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue(
+			pick === "existing" ? { kind: "existing", file: existing } : { kind: "create", title: "Bob" },
+		);
+		const templateChoice = choice({ existingNoteAction: action });
+		const { engine, choiceExecutor, files, contents } = buildEngine(templateChoice);
+		files.set(existing.path, existing);
+		contents.set(existing.path, "Original body");
+
+		await engine.run();
+
+		const resolveDateOrigin = vi.mocked(choiceExecutor.resolveDateOrigin!);
+		if (!asksDate) {
+			expect(resolveDateOrigin).not.toHaveBeenCalled();
+			return;
+		}
+		expect(resolveDateOrigin).toHaveBeenCalledExactlyOnceWith(templateChoice);
+		const dateOrder = resolveDateOrigin.mock.invocationCallOrder[0];
+		expect(promptForTemplateNoteDiscoveryMock.mock.invocationCallOrder[0]).toBeLessThan(dateOrder);
+		expect(dateOrder).toBeLessThan(formatFileContentMock.mock.invocationCallOrder[0]);
+	});
+
+	it.each([
+		["appendBottom", "---\nstatus: active\n---\nOriginal body\n\nUpdate"],
 		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],
 		["overwrite", "Update"],
 	] as const)("applies %s to the selected file without creating or rerouting a note", async (action, expected) => {

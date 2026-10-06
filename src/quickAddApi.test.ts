@@ -1,6 +1,7 @@
 import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
+import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 
 // ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ vi.mock("./settingsStore", () => ({
 	},
 }));
 
-vi.mock("./utilityObsidian", () => ({
+vi.mock("./utils/dates", () => ({
 	getDate: mocks.getDate,
 }));
 
@@ -974,7 +975,7 @@ describe("executeChoice", () => {
 		await api.executeChoice("MyChoice", { foo: "bar" });
 
 		expect(plugin.getChoiceByName).toHaveBeenCalledWith("MyChoice");
-		expect(executor.execute).toHaveBeenCalledWith(choice);
+		expect(executor.execute).toHaveBeenCalledWith(choice, undefined);
 		// Variables are cleared after execution.
 		expect(executor.variables.size).toBe(0);
 	});
@@ -1049,6 +1050,45 @@ describe("format", () => {
 		// The temporary variable must NOT leak; the original snapshot is restored.
 		expect(executor.variables.get("pre")).toBe("existing");
 		expect(executor.variables.has("temp")).toBe(false);
+	});
+
+	it("restores the VDATE formats with the variables (#645)", async () => {
+		const answer = "@date:2024-02-25T12:00:00.000Z";
+		const executor = makeChoiceExecutor();
+		executor.variables.set("start", answer);
+		rememberDateVariableFormat(executor.variables, "start", "YYYY");
+		mocks.formatFileContent.mockImplementationOnce(async () => {
+			rememberDateVariableFormat(executor.variables, "due", "DD.MM.YYYY");
+			return "out";
+		});
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await api.format("in", { due: answer });
+
+		// The caller's format survives; the call's own is gone, even if a later
+		// call supplies the same date.
+		expect(getDateVariableFormat(executor.variables, "start")).toBe("YYYY");
+		executor.variables.set("due", answer);
+		expect(getDateVariableFormat(executor.variables, "due")).toBeUndefined();
+	});
+
+	it("restores the variables when a prompt is cancelled (#1871)", async () => {
+		const executor = makeChoiceExecutor();
+		executor.variables.set("pre", "existing");
+		const cancel = promptCancelled();
+		mocks.formatFileContent.mockImplementationOnce(async () => {
+			// The date was answered, then the next prompt was dismissed.
+			executor.variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+			rememberDateVariableFormat(executor.variables, "due", "YYYY-MM-DD");
+			throw cancel;
+		});
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await expect(api.format("in", { temp: "value" })).rejects.toBe(cancel);
+
+		expect([...executor.variables.entries()]).toEqual([["pre", "existing"]]);
+		executor.variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+		expect(getDateVariableFormat(executor.variables, "due")).toBeUndefined();
 	});
 
 	it("keeps injected variables when shouldClearVariables is false", async () => {
@@ -1223,7 +1263,7 @@ describe("fieldSuggestions.getFieldValues", () => {
 		return makeApp({
 			vault: {
 				getMarkdownFiles: () => files,
-				read: async (file: FakeFile) => contentByPath[file.path] ?? "",
+				cachedRead: async (file: FakeFile) => contentByPath[file.path] ?? "",
 			},
 			metadataCache: {
 				getFileCache: (file: FakeFile) => ({
@@ -1280,7 +1320,7 @@ describe("fieldSuggestions.getFieldValues", () => {
 		const app = makeApp({
 			vault: {
 				getMarkdownFiles: () => [{ path: "a.md" }],
-				read: readSpy,
+				cachedRead: readSpy,
 			},
 			metadataCache: { getFileCache: () => ({ frontmatter: {} }) },
 		});

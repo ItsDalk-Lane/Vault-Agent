@@ -14,6 +14,7 @@ import {
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import { t } from "../../i18n";
+import { reportingHandler } from "../../utils/errorUtils";
 import {
 	type ScriptCandidate,
 	loadScriptCandidates,
@@ -259,7 +260,9 @@ export class ConditionalCommandSettingsModal extends Modal {
 				button
 					.setButtonText(t("macro.scriptPath.browse"))
 					.setTooltip(t("macro.scriptPath.browseTooltip"))
-					.onClick(async () => {
+					// Obsidian drops the click handler's promise: without this, pressing
+					// Escape in the picker is an unhandled rejection.
+					.onClick(reportingHandler(t("macro.scriptPath.browseFailed"), async () => {
 						// Refresh so notes/scripts created while this modal is open appear.
 						this.loadScriptCandidates();
 						if (this.scriptCandidates.length === 0) {
@@ -276,7 +279,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 							paths,
 							{
 								placeholder:
-									"Select a script (.js file or note with a ```js block)",
+									t("macro.scriptPath.browseLabel"),
 								emptyStateText: t("macro.scriptPath.browseEmpty"),
 							}
 						);
@@ -301,7 +304,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 
 						condition.scriptPath = selected;
 						input.setValue(selected);
-					})
+					}))
 			);
 	}
 

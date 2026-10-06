@@ -2,9 +2,16 @@ import type { CliData, CliFlags } from "obsidian";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import { checkChoiceHandler, listChoicesHandler, previewPackageHandler } from "./inspectChoices";
-import { CHECK_FLAGS, INTERACTIVE_FLAGS, LIST_FLAGS, PREVIEW_FLAGS, RUN_FLAGS, RUN_TEMPLATE_FLAGS } from "./params";
+import { CHECK_FLAGS, INTERACTIVE_FLAGS, LIST_FLAGS, PREVIEW_FLAGS, RUN_FLAGS, RUN_TEMPLATE_FLAGS, SUGGEST_FLAGS } from "./params";
+import { obsidianSuggestSource, suggestHandler } from "./suggestCli";
 import { runChoice, runInteractive, runTemplate } from "./runChoice";
+import {
+	AI_TEST_CONNECTION_COMMAND,
+	AI_TEST_CONNECTION_FLAGS,
+	aiTestConnectionHandler,
+} from "./aiConnectionCli";
 import { SAVE_CLIPBOARD_IMAGE_COMMAND, SAVE_CLIPBOARD_IMAGE_FLAGS, saveClipboardImageHandler } from "./saveClipboardImageCli";
+import { PACKAGE_IMPORT_COMMAND, PACKAGE_IMPORT_FLAGS, importPackageHandler } from "./importPackageCli";
 
 type CliResult = { ok: boolean;[key: string]: unknown };
 interface RegisterCliHandlerTarget {
@@ -22,9 +29,12 @@ const CLI_COMMANDS = {
 	runTemplate: "quickadd:run-template",
 	list: "quickadd:list",
 	check: "quickadd:check",
+	suggest: "quickadd:suggest",
 	preview: "quickadd:package-preview",
+	packageImport: PACKAGE_IMPORT_COMMAND,
 	interactive: "quickadd:interactive",
 	saveClipboardImage: SAVE_CLIPBOARD_IMAGE_COMMAND,
+	aiTestConnection: AI_TEST_CONNECTION_COMMAND,
 } as const;
 
 export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
@@ -81,16 +91,34 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		(params: CliData) => checkChoiceHandler(plugin, params),
 	);
 	register(
+		CLI_COMMANDS.suggest,
+		"List Obsidian's own [[ link or # tag suggestions for completion in another app",
+		SUGGEST_FLAGS,
+		(params: CliData) => suggestHandler(obsidianSuggestSource(plugin.app), params),
+	);
+	register(
 		CLI_COMMANDS.preview,
 		"Preview a QuickAdd package before importing (files + capabilities)",
 		PREVIEW_FLAGS,
 		(params: CliData) => previewPackageHandler(plugin, params),
 	);
 	register(
+		CLI_COMMANDS.packageImport,
+		"Import a QuickAdd package with the modal's default decisions (pass acknowledge=true after reviewing a package that runs code)",
+		PACKAGE_IMPORT_FLAGS,
+		(params: CliData) => importPackageHandler(plugin, params),
+	);
+	register(
 		CLI_COMMANDS.interactive,
 		"Run a choice interactively: forwards its runtime prompts to the caller over a local server (returns host/port/sessionId/token to attach)",
 		INTERACTIVE_FLAGS,
 		(params: CliData) => runInteractive(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.aiTestConnection,
+		"Check an AI provider's models endpoint with its linked API key (reports the model count or the provider's error; never the key)",
+		AI_TEST_CONNECTION_FLAGS,
+		(params: CliData) => aiTestConnectionHandler(plugin, params),
 	);
 	cliTarget.registerCliHandler.call(cliTarget,
 		CLI_COMMANDS.saveClipboardImage,

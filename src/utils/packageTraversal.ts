@@ -1,7 +1,5 @@
 import type IChoice from "../types/choices/IChoice";
-import type IMacroChoice from "../types/choices/IMacroChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
-import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -10,47 +8,39 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
 import { commandListOf, isCommandLike } from "./macroUtils";
+import { resolveTemplatePath } from "./templateFolderUtils";
+import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
 
-export interface ChoiceCatalogEntry {
+interface ChoiceCatalogEntry {
 	choice: IChoice;
 	parentId: string | null;
 	path: string[];
 }
 
-export interface ChoiceClosureResult {
+interface ChoiceClosureResult {
 	catalog: Map<string, ChoiceCatalogEntry>;
 	choiceIds: string[];
 	missingChoiceIds: string[];
 }
 
-export interface ScriptDependencyCollection {
+interface ScriptDependencyCollection {
 	userScriptPaths: Set<string>;
 	conditionalScriptPaths: Set<string>;
 }
 
-export interface FileDependencyCollection {
+interface FileDependencyCollection {
 	templatePaths: Set<string>;
 	captureTemplatePaths: Set<string>;
+	/**
+	 * Files pulled in by `{{TEMPLATE:...}}` in an enabled Capture format. The
+	 * formatter reads them as vault paths at run time, so a package without
+	 * them imports fine and then captures a "template not found" placeholder.
+	 */
+	includePaths: Set<string>;
 }
 
 const EMPTY_SET = new Set<string>();
-
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	return choice.type === "Multi";
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
-}
-
-function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
-}
 
 function shouldIncludeChoice(
 	choice: IChoice | null | undefined,
@@ -200,7 +190,7 @@ function collectDependenciesFromCommands(
 	}
 }
 
-export interface CollectChoiceClosureOptions {
+interface CollectChoiceClosureOptions {
 	excludedChoiceIds?: ReadonlySet<string>;
 }
 
@@ -319,16 +309,29 @@ export function collectFileDependencies(
 ): FileDependencyCollection {
 	const templatePaths = new Set<string>();
 	const captureTemplatePaths = new Set<string>();
+	const includePaths = new Set<string>();
 	visitIncludedChoices(catalog, choiceIds, (choice) => {
 		if (isTemplateChoice(choice) && choice.templatePath) {
-			templatePaths.add(choice.templatePath);
+			templatePaths.add(resolveTemplatePath(choice.templatePath));
 		}
 		if (isCaptureChoice(choice)) {
 			const creation = choice.createFileIfItDoesntExist;
 			if (creation?.enabled && creation.createWithTemplate && creation.template) {
-				captureTemplatePaths.add(creation.template);
+				captureTemplatePaths.add(resolveTemplatePath(creation.template));
+			}
+			for (const path of captureFormatIncludes(choice)) {
+				includePaths.add(path);
 			}
 		}
 	}, () => { });
-	return { templatePaths, captureTemplatePaths };
+	return { templatePaths, captureTemplatePaths, includePaths };
+}
+
+/** `{{TEMPLATE:...}}` paths a Capture's format splices in when it runs. */
+export function captureFormatIncludes(choice: ICaptureChoice): Set<string> {
+	const format = choice.format;
+	if (!format?.enabled || typeof format.format !== "string") {
+		return new Set<string>();
+	}
+	return collectTemplateIncludePaths(format.format);
 }

@@ -7,7 +7,7 @@ import globals from 'globals';
 export default [
     {
         // Global ignores: a standalone object with only `ignores` applies repo-wide in flat config.
-        ignores: ['node_modules/**', 'dist/**', 'docs/**', '.audit/**', 'main.js', '**/*.d.ts'],
+        ignores: ['node_modules/**', 'dist/**', 'docs/**', '.audit/**', '.obsidian-e2e-vaults/**', 'main.js', '**/*.d.ts'],
     },
     {
         files: ['**/*.ts'],
@@ -83,7 +83,13 @@ export default [
             '@typescript-eslint/no-unnecessary-type-assertion': 'error',
             '@typescript-eslint/prefer-promise-reject-errors': 'error',
             '@typescript-eslint/unbound-method': 'error',
+            // Obsidian's plugin review reports both. Obsidian's components are
+            // thenable (`then()` chains), so returning one where `void` is
+            // expected counts as a misused promise too.
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-misused-promises': 'error',
             'no-useless-escape': 'error',
+            '@typescript-eslint/no-deprecated': 'error',
         },
     },
     {
@@ -113,7 +119,30 @@ export default [
                     selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="setDynamicTooltip"]',
                     message: 'Slider values are shown inline; setDynamicTooltip has no effect.',
                 },
+                {
+                    selector: 'Literal[regex.pattern=/\\(\\?<[=!]/]',
+                    message: 'No regex lookbehind: iOS before 16.4 cannot parse it, and Obsidian runs on iOS 15.6, so QuickAdd would not load at all.',
+                },
+                // The four cases of obsidianmd/no-static-styles-assignment, which
+                // Obsidian's plugin review reports.
+                ...[
+                    'AssignmentExpression[left.object.type="MemberExpression"][left.object.computed=false][left.object.property.name="style"][right.type="Literal"]',
+                    'CallExpression[callee.property.name="setProperty"][callee.object.property.name="style"][arguments.1.type="Literal"]',
+                    'CallExpression[callee.property.name="setAttribute"][arguments.0.value="style"][arguments.1.type="Literal"]',
+                    'CallExpression[callee.property.name=/^setCss(Props|Styles)$/] > ObjectExpression > Property[key.type="Literal"][key.value=/^(?!--)/]',
+                ].map((selector) => ({
+                    selector,
+                    message: 'Put a static style in styles.css; set a computed one with setCssStyles, or a CSS variable with setCssProps.',
+                })),
             ],
+        },
+    },
+    {
+        // execCommand("insertText") is the only edit to an input or textarea
+        // that the browser's own undo (Ctrl/Cmd+Z) can take back.
+        files: ['src/gui/components/textareaIndent.ts', 'src/gui/imagePasteHandler.ts'],
+        rules: {
+            '@typescript-eslint/no-deprecated': ['error', { allow: [{ from: 'lib', name: 'execCommand' }] }],
         },
     },
     {
@@ -126,6 +155,34 @@ export default [
         rules: {
             // Disable any import sorting in main.ts to preserve dependency order
             'sort-imports': 'off',
+        },
+    },
+    {
+        // Obsidian's plugin review reports code built from a string at run time.
+        files: ['src/**/*.ts', 'src/**/*.svelte'],
+        ignores: ['src/**/*.test.ts'],
+        rules: {
+            'no-new-func': 'error',
+            'no-implied-eval': 'error',
+        },
+    },
+    {
+        // The type-aware version also catches a string held in a variable.
+        files: ['src/**/*.ts'],
+        ignores: ['src/**/*.test.ts'],
+        rules: {
+            'no-implied-eval': 'off',
+            '@typescript-eslint/no-implied-eval': 'error',
+        },
+    },
+    {
+        // Running the user's own scripts is the feature: a user script is the
+        // user's .js file or a note's js code block, run as a CommonJS module
+        // through new Function. The review still lists this line.
+        files: ['src/utils/userScript.ts'],
+        rules: {
+            'no-new-func': 'off',
+            '@typescript-eslint/no-implied-eval': 'off',
         },
     },
 ];

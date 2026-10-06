@@ -6,11 +6,12 @@ import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
-import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
+import { getUserScript, getUserScriptMemberAccess } from "../utils/userScript";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { enterChoice, type ChoiceChain } from "./choiceChain";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import {
 	commandListOf,
@@ -99,6 +100,7 @@ export class SingleMacroEngine {
 	public async runAndGetOutput(
 		macroName: string,
 		context?: { label?: string },
+		ancestry: ChoiceChain = [],
 	): Promise<string> {
 		this.emittedConflictNotice = false;
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
@@ -151,6 +153,8 @@ export class SingleMacroEngine {
 			this.variables,
 			undefined,
 			context?.label,
+			null,
+			enterChoice(macroChoice, ancestry),
 		);
 
 		if (memberAccess?.length) {

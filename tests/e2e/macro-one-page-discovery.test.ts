@@ -6,6 +6,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("macro-one-page-discovery");
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
@@ -48,12 +49,7 @@ async function closeOpenPrompts() {
 	})()`);
 	for (let remaining = 10; remaining > 0; remaining--) {
 		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container"))')) break;
-		for (const type of ["keyDown", "keyUp"]) {
-			await obsidian.exec("dev:cdp", {
-				method: "Input.dispatchKeyEvent",
-				params: JSON.stringify({ type, key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }),
-			});
-		}
+		await pressKey(obsidian, "Escape");
 	}
 	await expectNoPrompt(obsidian);
 }
@@ -143,7 +139,7 @@ describe("macro discovery and one-page input overrides", () => {
 			return true;
 		})()`)).toBe(true);
 		const content = await sandbox.waitForContent(relativePath, (text) => text.includes(answer), WAIT_OPTS);
-		expect(content.trimEnd()).toBe(`${initialContent}\n${answer}`);
+		expect(content.trimEnd()).toBe(`${initialContent}${answer}`);
 		expect(await obsidian.dev.evalJson<boolean>(
 			`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(sandbox.path(`${scenario.name}/${answer}.md`))}))`,
 		)).toBe(false);
@@ -250,7 +246,7 @@ describe("combined discovery form", () => {
 		await typeInto(obsidian, formField("details"), "Extra detail");
 		await clickElement(obsidian, ".onePageInputModal button.mod-cta");
 		const content = await sandbox.waitForContent(relativePath, (text) => text.includes("First capture Extra detail"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe("# Existing note\n\nFirst capture Extra detail");
+		expect(content.trimEnd()).toBe("# Existing note\nFirst capture Extra detail");
 		await expectNoPrompt(obsidian);
 	});
 
@@ -278,7 +274,7 @@ describe("combined discovery form", () => {
 		}
 		await clickElement(obsidian, ".onePageInputModal button.mod-cta");
 		const content = await sandbox.waitForContent(`combined-create/${createdName}.md`, (text) => text.includes("Capture draft Details draft"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe("Owner: Alice\n\nCapture draft Details draft");
+		expect(content.trimEnd()).toBe("Owner: Alice\nCapture draft Details draft");
 		expect(await sandbox.read(relativePath)).toBe("# Existing note\n");
 		await expectNoPrompt(obsidian);
 	});
@@ -297,22 +293,10 @@ describe("combined discovery form", () => {
 		await typeInto(obsidian, formField("details1"), "Second details");
 		await clickElement(obsidian, ".onePageInputModal button.mod-cta");
 		const content = await sandbox.waitForContent(relativePath, (text) => text.includes("Second answer Second details"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe("# Existing note\n\nFirst answer First details\nSecond answer Second details");
+		expect(content.trimEnd()).toBe("# Existing note\nFirst answer First details\nSecond answer Second details");
 		await expectNoPrompt(obsidian);
 	});
 });
-
-async function pressEnter(obsidian: ObsidianClient, modified = false) {
-	const modifiers = modified
-		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
-		: 0;
-	for (const type of ["keyDown", "keyUp"]) {
-		await obsidian.exec("dev:cdp", {
-			method: "Input.dispatchKeyEvent",
-			params: JSON.stringify({ type, key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, modifiers }),
-		});
-	}
-}
 
 async function fillKeyboardCapture(workflow: Awaited<ReturnType<typeof seedCombinedWorkflow>>) {
 	await typeInto(workflow.obsidian, formField(`__qa.value.${workflow.macro.macro.commands[1].id}`), "Keyboard capture");
@@ -338,7 +322,7 @@ async function waitForExactSuggestion(workflow: Awaited<ReturnType<typeof seedCo
 async function expectKeyboardCreated(workflow: Awaited<ReturnType<typeof seedCombinedWorkflow>>, title: string, firstLine: string) {
 	const folder = workflow.relativePath.slice(0, workflow.relativePath.lastIndexOf("/"));
 	const content = await workflow.sandbox.waitForContent(`${folder}/${title}.md`, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
-	expect(content.trimEnd()).toBe(`${firstLine}\n\nKeyboard capture Keyboard details`);
+	expect(content.trimEnd()).toBe(`${firstLine}\nKeyboard capture Keyboard details`);
 	expect(await workflow.sandbox.read(workflow.relativePath)).toBe("# Existing note\n");
 	await expectNoPrompt(workflow.obsidian);
 }
@@ -349,13 +333,13 @@ describe("discovery keyboard submission", () => {
 		await waitForElement(workflow.obsidian, ".onePageInputModal");
 		await fillKeyboardCapture(workflow);
 		const title = await typeFuzzyNewTitle(workflow);
-		await pressEnter(workflow.obsidian);
+		await pressKey(workflow.obsidian, "Enter");
 		expect(await workflow.obsidian.dev.evalJson<string>(
 			'document.querySelector(".qa-onepage-file-picker__chip-label")?.textContent ?? ""',
 		)).toBe(`Create: ${title}`);
 		await expectOwnerVisible(workflow.obsidian, true);
 		await typeInto(workflow.obsidian, formField("owner"), "Keyboard owner");
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		await expectKeyboardCreated(workflow, title, "Owner: Keyboard owner");
 	});
 
@@ -364,13 +348,13 @@ describe("discovery keyboard submission", () => {
 		await waitForElement(workflow.obsidian, ".onePageInputModal");
 		await fillKeyboardCapture(workflow);
 		const title = await typeFuzzyNewTitle(workflow);
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		await expectOwnerVisible(workflow.obsidian, true);
 		expect(await workflow.obsidian.dev.evalJson<string>(
 			'document.activeElement?.getAttribute("aria-labelledby") ?? ""',
 		)).toBe("qa-onepage-label-owner");
 		await typeInto(workflow.obsidian, formField("owner"), "Keyboard owner");
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		await expectKeyboardCreated(workflow, title, "Owner: Keyboard owner");
 	});
 
@@ -379,7 +363,7 @@ describe("discovery keyboard submission", () => {
 		await waitForElement(workflow.obsidian, ".onePageInputModal");
 		await fillKeyboardCapture(workflow);
 		const title = await typeFuzzyNewTitle(workflow);
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		await expectKeyboardCreated(workflow, title, "Plain template");
 	});
 
@@ -389,14 +373,14 @@ describe("discovery keyboard submission", () => {
 		await fillKeyboardCapture(workflow);
 		await typeInto(workflow.obsidian, `[aria-label=${JSON.stringify(`Note for ${workflow.template.name}`)}]`, workflow.noteName);
 		await waitForExactSuggestion(workflow);
-		await pressEnter(workflow.obsidian);
+		await pressKey(workflow.obsidian, "Enter");
 		await expectOwnerVisible(workflow.obsidian, false);
 		expect(await workflow.obsidian.dev.evalJson<string>(
 			'document.querySelector(".qa-onepage-file-picker__chip-label")?.textContent ?? ""',
 		)).toBe(workflow.sandbox.path(workflow.relativePath).replace(/\.md$/, ""));
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe("# Existing note\n\nKeyboard capture Keyboard details");
+		expect(content.trimEnd()).toBe("# Existing note\nKeyboard capture Keyboard details");
 		await expectNoPrompt(workflow.obsidian);
 	});
 
@@ -406,17 +390,17 @@ describe("discovery keyboard submission", () => {
 		await fillKeyboardCapture(workflow);
 		const input = `[aria-label=${JSON.stringify(`Note for ${workflow.template.name}`)}]`;
 		await typeInto(workflow.obsidian, input, "../outside");
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter", true);
 		expect(await workflow.obsidian.dev.evalJson<boolean>(
 			'Boolean(document.querySelector(".onePageInputModal")) && !document.querySelector(".qa-onepage-file-picker__chip")',
 		)).toBe(true);
 		expect(await workflow.sandbox.read(workflow.relativePath)).toBe("# Existing note\n");
 		await typeInto(workflow.obsidian, input, workflow.noteName);
 		await waitForExactSuggestion(workflow);
-		await pressEnter(workflow.obsidian);
-		await pressEnter(workflow.obsidian, true);
+		await pressKey(workflow.obsidian, "Enter");
+		await pressKey(workflow.obsidian, "Enter", true);
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe("# Existing note\n\nKeyboard capture Keyboard details");
+		expect(content.trimEnd()).toBe("# Existing note\nKeyboard capture Keyboard details");
 		await expectNoPrompt(workflow.obsidian);
 	});
 });
@@ -441,16 +425,16 @@ describe("discovery alias keyboard selection", () => {
 		expect(await workflow.obsidian.dev.evalJson<string[]>(
 			'Array.from(document.querySelectorAll(".qa-onepage-file-suggestion__label"), (item) => item.textContent)',
 		)).not.toContain(`Create new note: ${alias}`);
-		await pressEnter(workflow.obsidian, modified);
+		await pressKey(workflow.obsidian, "Enter", modified);
 		if (!modified) {
 			await expectOwnerVisible(workflow.obsidian, false);
 			expect(await workflow.obsidian.dev.evalJson<string>(
 				'document.querySelector(".qa-onepage-file-picker__chip-label")?.textContent ?? ""',
 			)).toBe(workflow.sandbox.path(workflow.relativePath).replace(/\.md$/, ""));
-			await pressEnter(workflow.obsidian, true);
+			await pressKey(workflow.obsidian, "Enter", true);
 		}
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe(`${workflow.initialContent}\nKeyboard capture Keyboard details`);
+		expect(content.trimEnd()).toBe(`${workflow.initialContent}Keyboard capture Keyboard details`);
 		expect(await workflow.sandbox.read(`${name}/${alias} overview.md`)).toBe("Distractor must stay unchanged\n");
 		expect(await workflow.obsidian.dev.evalJson<boolean>(
 			`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(workflow.sandbox.path(`${name}/${alias}.md`))}))`,

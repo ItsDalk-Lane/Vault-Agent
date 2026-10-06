@@ -30,6 +30,8 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 
 	constructor(app: App, choice: ITemplateChoice, candidates: DiscoveryCandidate[]) {
 		super(app);
+		// `qa-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
+		this.modalEl.addClass("qa-suggester");
 		this.rows = candidates.map(candidate => ({ kind: "candidate", candidate }));
 		this.action = existingNoteActionVerb(choice.existingNoteAction);
 		// Compare the action ID, never the localized verb string.

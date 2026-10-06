@@ -1,17 +1,18 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+export { findDateVariableFormat } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
 	decodeFileValue,
-	fileBasenameFromPath,
+	fileLinkNameFromPath,
 	type ParsedFileToken,
 	parseFileToken,
 } from "../utils/fileSyntax";
 import { renderStoredFileValue } from "./helpers/fileTokenRendering";
+import { getPeriodicNoteSettings, PERIODIC_NOTE_REGEX, type Period, periodicNoteLink, periodicNotePath } from "../utils/periodicNotes";
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -20,6 +21,7 @@ import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { stringifyPropertyTokenValue } from "../engine/captureProperty";
+import type { CompleteFormatter } from "./completeFormatter";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 export { type PromptContext } from "./valueFormatter";
@@ -27,6 +29,8 @@ export { type PromptContext } from "./valueFormatter";
 export interface TemplateInclusionState {
 	visited: Set<string>;
 	depth: number;
+	/** The formatter whose text this `{{TEMPLATE:}}` is spliced into. */
+	includer?: CompleteFormatter;
 }
 
 export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
@@ -54,9 +58,36 @@ export abstract class Formatter extends ValueFormatter {
 		this.templateInclusion = state;
 	}
 	protected replaceDateInString(input: string): string {
-		return replaceDateInString(input, {
+		const output = replaceDateInString(input, {
 			clocks: () => this.runClocks(),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
+		});
+		return PERIODIC_NOTE_REGEX.test(output) ? this.replacePeriodicNotesInString(output) : output;
+	}
+
+	/**
+	 * The periodic note {{DAILY}}, {{WEEKLY}}, ... named while formatting a
+	 * Capture target, so the engine can treat that target as the note even when
+	 * the token came from a global snippet.
+	 */
+	public periodicNoteTarget: { path: string; period: Period } | null = null;
+
+	/** The formatter whose text an included template's text finally lands in. */
+	private outermostIncluder(): Formatter {
+		return this.templateInclusion?.includer?.outermostIncluder() ?? this;
+	}
+
+	/** {{DAILY}}, {{WEEKLY}}, ... are dates too: they name the note for the run's Which day. */
+	private replacePeriodicNotesInString(input: string): string {
+		const clocks = this.runClocks();
+		const date = window.moment(clocks?.date ?? clocks?.now);
+		const regex = new RegExp(PERIODIC_NOTE_REGEX.source, "gi");
+		return input.replace(regex, (_token, name: string, link?: string) => {
+			const period = name.toLowerCase() as Period;
+			const path = periodicNotePath(getPeriodicNoteSettings(this.app, period), period, date);
+			if (link && this.app) return periodicNoteLink(this.app, path, this.getLinkSourcePath() ?? "");
+			if (this.promptScope === "captureTarget") this.outermostIncluder().periodicNoteTarget = { path, period };
+			return path;
 		});
 	}
 	protected replaceTimeInString(input: string): string {
@@ -76,7 +107,8 @@ export abstract class Formatter extends ValueFormatter {
 		// it every iteration and grow without bound, hanging Obsidian (#1358-class).
 		// A function replacer inserts it literally and is never re-scanned.
 		const regex = new RegExp(SELECTED_REGEX.source, "gi");
-		return input.replace(regex, () => selectedText);
+		const replacement = this.userText(selectedText);
+		return input.replace(regex, () => replacement);
 	}
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
@@ -84,7 +116,8 @@ export abstract class Formatter extends ValueFormatter {
 
 		const clipboardContent = await this.getClipboardContent();
 		const regex = new RegExp(CLIPBOARD_REGEX.source, "gi");
-		return input.replace(regex, () => clipboardContent);
+		const replacement = this.userText(clipboardContent);
+		return input.replace(regex, () => replacement);
 	}
 
 
@@ -257,7 +290,7 @@ export abstract class Formatter extends ValueFormatter {
 					);
 				}
 
-				output += replacement;
+				output += this.userText(replacement);
 			} else {
 				output += match[0];
 			}
@@ -312,9 +345,9 @@ export abstract class Formatter extends ValueFormatter {
 					heuristicEnabled: false,
 					multiFormat: parsed.multiFormat,
 				});
-				output += replacement ?? renderedValue.join(",");
+				output += this.userText(replacement ?? renderedValue.join(","));
 			} else {
-				output += renderedValue;
+				output += this.userText(renderedValue);
 			}
 			lastIndex = regex.lastIndex;
 		}
@@ -340,10 +373,10 @@ export abstract class Formatter extends ValueFormatter {
 				this.app?.fileManager.generateMarkdownLink(
 					file,
 					this.getLinkSourcePath() ?? "",
-				) ?? `[[${fileBasenameFromPath(path)}]]`
+				) ?? `[[${fileLinkNameFromPath(path)}]]`
 			);
 		}
-		return `[[${fileBasenameFromPath(path)}]]`;
+		return `[[${fileLinkNameFromPath(path)}]]`;
 	}
 
 	/**
@@ -394,7 +427,7 @@ export abstract class Formatter extends ValueFormatter {
 
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
-			output += collectedValue ?? (await this.promptForMathValue());
+			output += this.userText(collectedValue ?? (await this.promptForMathValue()));
 			lastIndex = match.index + match[0].length;
 		}
 
@@ -402,38 +435,32 @@ export abstract class Formatter extends ValueFormatter {
 		return output;
 	}
 
+	/**
+	 * Expands every `{{MACRO:...}}` once, left to right. A macro's output is
+	 * inserted as text, not rescanned for macro tokens: a macro that returned
+	 * `{{MACRO:A}}` would otherwise run again under this formatter's own chain,
+	 * outside the re-entry guard, forever.
+	 */
 	protected async replaceMacrosInString(input: string): Promise<string> {
-		let output: string = input;
+		const regex = new RegExp(MACRO_REGEX.source, "gi");
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
 
-		while (MACRO_REGEX.test(output)) {
-			const exec = MACRO_REGEX.exec(output);
-			if (!exec) continue;
-			if (!exec[1]) {
-				// Empty macro name (e.g. {{MACRO:}}): consume the token so the
-				// loop terminates instead of re-testing the unchanged string forever.
-				output = this.replacer(output, MACRO_REGEX, "");
-				continue;
-			}
-
-			const parsed = parseMacroToken(exec[1]);
-			if (!parsed) {
-				output = this.replacer(output, MACRO_REGEX, "");
-				continue;
-			}
-
-			const { macroName, label } = parsed;
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
+			lastIndex = match.index + match[0].length;
+			// An empty ({{MACRO:}}) or unparseable token is dropped.
+			const parsed = match[1] ? parseMacroToken(match[1]) : null;
+			if (!parsed) continue;
 			const macroOutput = await this.getMacroValue(
-				macroName,
-				label ? { label } : undefined,
+				parsed.macroName,
+				parsed.label ? { label: parsed.label } : undefined,
 			);
-
-			output = this.replacer(
-				output,
-				MACRO_REGEX,
-				macroOutput ? macroOutput.toString() : "",
-			);
+			output += macroOutput ? macroOutput.toString() : "";
 		}
 
+		output += input.slice(lastIndex);
 		return output;
 	}
 
@@ -453,6 +480,25 @@ export abstract class Formatter extends ValueFormatter {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
+	}
+
+	protected getValueTokenText(variableName: string): string {
+		const stored = this.variables.get(variableName);
+		// An unparseable @date: value prints as-is, as it always has.
+		if (
+			typeof stored === "string" &&
+			stored.startsWith("@date:") &&
+			window.moment?.(stored.slice(6)).isValid()
+		) {
+			const dateFormat =
+				getDateVariableFormat(this.variables, variableName) ??
+				defaultDateVariableFormat(false);
+			return (
+				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)
+					?.text ?? ""
+			);
+		}
+		return super.getValueTokenText(variableName);
 	}
 
 	protected async replaceTemplateInString(input: string): Promise<string> {
@@ -676,7 +722,7 @@ export abstract class Formatter extends ValueFormatter {
 				raw === undefined ? "" : raw,
 			);
 		}
-		const text = stringifyPropertyTokenValue(raw);
+		const text = this.userText(stringifyPropertyTokenValue(raw));
 		return input.replace(new RegExp(PROPERTY_REGEX.source, "gi"), () => text);
 	}
 }

@@ -22,6 +22,7 @@ import {
 } from "../utils/yamlScalarQuoting";
 import {
 	renderExplicitMultiValue,
+	writesPicksAsItems,
 	type MultiValueFormat,
 } from "../utils/multiValueFormat";
 import { toWikiLink } from "../utils/linkWrap";
@@ -42,7 +43,6 @@ export interface PromptContext {
 	dateFormat?: string;
 	defaultValue?: string;
 	label?: string;
-	description?: string;
 	placeholder?: string;
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
@@ -64,6 +64,8 @@ export abstract class ValueFormatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected valuePromptContext?: PromptContext;
+	/** The {{VALUE}} prompt's input type when the token sets none. */
+	protected defaultValueInputType?: ValueInputType;
 	/** Declared prompt scope, restored by withPromptScope across nested formatting. */
 	protected promptScope: PromptScopeKind = "generic";
 	/** Whether an anonymous {{VALUE}} answers the whole of what the scope names. */
@@ -75,6 +77,12 @@ export abstract class ValueFormatter {
 	private readonly propertyCollector: TemplatePropertyCollector;
 	private templatePropertyCollectionDepth = 0;
 	private singleTokenValue?: { input: string; result?: { value: unknown } };
+	/** Set while formatting a list property value, where each pick of a list is one line, so one item. */
+	protected listPicksAsLines = false;
+
+	protected writesListPicksAsLines(): boolean {
+		return this.listPicksAsLines;
+	}
 
 	/** A format that is exactly one token or one inline script keeps its native value (number, list, ...). */
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
@@ -91,10 +99,12 @@ export abstract class ValueFormatter {
 		}
 	}
 
-	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): void {
+	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): boolean {
 		if (this.singleTokenValue?.input === input && start === 0 && end === input.length) {
 			this.singleTokenValue.result = { value };
+			return true;
 		}
+		return false;
 	}
 
 	private propertyTokenValue(value: unknown, inputType?: string): unknown {
@@ -196,6 +206,15 @@ export abstract class ValueFormatter {
 		return this.value;
 	}
 
+	/**
+	 * Wraps text substituted from an answer, selection, clipboard or picked
+	 * value. CompleteFormatter marks it so later steps leave tokens and
+	 * Templater tags inside it alone (see helpers/userText).
+	 */
+	protected userText(text: string): string {
+		return text;
+	}
+
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
 		return str.replace(reg, function () {
 			return replaceValue;
@@ -219,13 +238,9 @@ export abstract class ValueFormatter {
 
 	protected abstract promptForValue(header?: string): Promise<string> | string;
 
-	protected async replaceValueInString(input: string): Promise<string> {
-		let output: string = input;
-
-		// Fast path: nothing to do.
-		if (!NAME_VALUE_REGEX.test(output)) return output;
-
-		this.valuePromptContext = this.getValuePromptContext(output);
+	/** Settles the {{VALUE}} answer for `input`'s tokens, asking at most once per run. */
+	protected async resolveValue(input: string): Promise<string> {
+		this.valuePromptContext = this.getValuePromptContext(input);
 
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
@@ -237,6 +252,16 @@ export abstract class ValueFormatter {
 		if (this.value === undefined) {
 			this.value = await this.promptForValue();
 		}
+		return this.value;
+	}
+
+	protected async replaceValueInString(input: string): Promise<string> {
+		let output: string = input;
+
+		// Fast path: nothing to do.
+		if (!NAME_VALUE_REGEX.test(output)) return output;
+
+		await this.resolveValue(output);
 
 		// Replace all occurrences in a single non-recursive pass.
 		// Important: use a replacer function so `$` in user input is treated literally.
@@ -250,12 +275,12 @@ export abstract class ValueFormatter {
 			if (optionsIndex === -1) {
 				this.retainSingleTokenValue(source, offset, offset + token.length,
 					this.hasConcreteVariable("value") ? this.variables.get("value") : this.value);
-				return escapeValueInsideQuotedYamlScalar(
+				return this.userText(escapeValueInsideQuotedYamlScalar(
 					source,
 					offset,
 					offset + token.length,
 					this.value,
-				);
+				));
 			}
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions, {
@@ -281,16 +306,16 @@ export abstract class ValueFormatter {
 				transformed !== "" &&
 				shouldQuoteTextScalar(source, offset, offset + token.length)
 			) {
-				return quoteYamlDouble(transformed);
+				return this.userText(quoteYamlDouble(transformed));
 			}
 			// Same contract as the named form: a value substituted inside an
 			// author-quoted front matter scalar must be escaped for those quotes.
-			return escapeValueInsideQuotedYamlScalar(
+			return this.userText(escapeValueInsideQuotedYamlScalar(
 				source,
 				offset,
 				offset + token.length,
 				transformed,
-			);
+			));
 		});
 
 		return output;
@@ -342,8 +367,9 @@ export abstract class ValueFormatter {
 			});
 			if (!context) context = {};
 
-			if (!context.description && parsed.label) {
-				context.description = parsed.label;
+			// An unnamed VALUE has no name of its own, so its |label: names it.
+			if (!context.label && parsed.label) {
+				context.label = parsed.label;
 			}
 			if (!context.defaultValue && parsed.defaultValue) {
 				context.defaultValue = parsed.defaultValue;
@@ -387,6 +413,15 @@ export abstract class ValueFormatter {
 		heuristicEnabled: boolean;
 		multiFormat?: MultiValueFormat;
 	}): string | undefined {
+		if (this.writesListPicksAsLines() && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
+			const picks = args.rawValue.map(String);
+			const whole = this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
+			// Lines are the item boundary, so a pick with a line break would silently become several items.
+			if (!whole && picks.some((pick) => /[\r\n]/.test(pick))) {
+				throw new Error("A list item that contains a line break can only be written when its token is the whole Capture format.");
+			}
+			return picks.join("\n");
+		}
 		if (!args.multiFormat || args.multiFormat === "auto") {
 			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
 		}
@@ -481,6 +516,7 @@ export abstract class ValueFormatter {
 		} = parsed;
 
 		this.warnOnNamedOptionConflict(parsed);
+		await this.resolveIncludingTextDate(variableKey);
 
 		const resolvedKey = resolveExistingVariableKey(
 			this.variables,
@@ -489,8 +525,11 @@ export abstract class ValueFormatter {
 
 		if (resolvedKey) return resolvedKey;
 
-		const helperText = !hasOptions && label ? label : undefined;
-		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+		// A picker in a property Capture is answering for that property, so it is named after it.
+		const propertyKey = this.promptScope === "propertyValue" ? this.variables.get("propertyKey") : undefined;
+		const suggesterPlaceholder = hasOptions
+			? label || (typeof propertyKey === "string" ? propertyKey : undefined)
+			: undefined;
 
 		// |multi opens a multi-select picker and stores a real ARRAY so the
 		// property collector writes a proper YAML list (no beta flag needed).
@@ -518,7 +557,7 @@ export abstract class ValueFormatter {
 			// For single-value prompts, pass default value to pre-populate the input
 			variableValue = await this.promptForVariable(variableName, {
 				defaultValue,
-				description: helperText,
+				label,
 				inputTypeOverride: parsed.inputTypeOverride,
 				numericConfig: parsed.numericConfig,
 				sliderConfig: parsed.sliderConfig,
@@ -652,7 +691,7 @@ export abstract class ValueFormatter {
 			} else {
 				const stringVal = String(
 					this.applyValueTextOptions(
-						this.getVariableValue(effectiveKey),
+						this.getValueTokenText(effectiveKey),
 						parsed,
 					) ?? "",
 				);
@@ -691,6 +730,7 @@ export abstract class ValueFormatter {
 			}
 
 			// Replace in output and adjust regex position
+			replacement = this.userText(replacement);
 			const replaceStart = consumeQuotes ? match.index - 1 : match.index;
 			const replaceEnd =
 				match.index + match[0].length + (consumeQuotes ? 1 : 0);
@@ -702,6 +742,18 @@ export abstract class ValueFormatter {
 	}
 
 	protected abstract getVariableValue(variableName: string): string;
+
+	/**
+	 * Lets a `{{VALUE:<name>}}` in an included template reuse a
+	 * `{{VDATE:<name>,...}}` of the text that includes it. Only CompleteFormatter
+	 * renders includes.
+	 */
+	protected async resolveIncludingTextDate(_variableName: string): Promise<void> {}
+
+	/** The text a `{{VALUE:<name>}}` token renders for a resolved variable. */
+	protected getValueTokenText(variableName: string): string {
+		return this.getVariableValue(variableName);
+	}
 
 	protected abstract suggestForValue(
 		suggestedValues: string[],

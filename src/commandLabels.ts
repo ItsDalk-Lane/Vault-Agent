@@ -15,6 +15,7 @@ export function quickAddCommandLabels() {
 		applyTemplate: t("command.applyTemplate"),
 		reloadDev: t("command.reloadDev"),
 		openSettings: t("command.openSettings"),
+		openAISettings: t("command.openAISettings"),
 		resumePrompt: t("command.resumePrompt"),
 	} as const;
 }

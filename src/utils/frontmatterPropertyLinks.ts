@@ -1,4 +1,5 @@
 import type { App, TFile } from "obsidian";
+import { processNoteFrontMatter } from "./noteContent";
 import { log } from "../logger/logManager";
 import {
 	DEFAULT_FRONTMATTER_HANDLING,
@@ -169,28 +170,6 @@ function normalizePropertyKey(propertyKey: string): string {
 	return propertyKey.trim().toLowerCase();
 }
 
-export async function appendLinkToConfiguredFrontmatterProperty(
-	app: App,
-	targetFile: TFile,
-	propertyKey: string,
-	fileToLink: TFile,
-	frontmatterHandling: FrontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
-): Promise<void> {
-	const linkText = app.fileManager.generateMarkdownLink(
-		fileToLink,
-		targetFile.path,
-	);
-
-	await app.fileManager.processFrontMatter(targetFile, (frontmatter) => {
-		appendConfiguredFrontmatterPropertyLinkValue(
-			frontmatter,
-			propertyKey,
-			linkText,
-			frontmatterHandling,
-		);
-	});
-}
-
 export async function appendLinkToFrontmatterProperty(
 	app: App,
 	target: FrontmatterPropertyTarget,
@@ -202,7 +181,7 @@ export async function appendLinkToFrontmatterProperty(
 	);
 
 	try {
-		await app.fileManager.processFrontMatter(target.file, (frontmatter) => {
+		await processNoteFrontMatter(app, target.file, (frontmatter) => {
 			appendFrontmatterPropertyLinkValue(frontmatter, target.key, linkText);
 		});
 		return true;

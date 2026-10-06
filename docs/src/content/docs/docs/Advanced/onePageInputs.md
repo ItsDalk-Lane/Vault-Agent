@@ -10,6 +10,8 @@ runs. This is nicer when a choice asks for several things at once - a title, a
 date, and a status, say - and you would rather see them all together than click
 through them one by one.
 
+![The one-page Provide inputs form for a New project Template choice. It shows the file name preview "Community garden workshop", a title field, a Status dropdown set to active, a priority slider at 4, an optional Summary textarea, an optional due date field where "friday" previews as 2026-10-02 above a calendar, and an area field filled with Home](../Images/one-page-input-form.png)
+
 For a task-oriented overview of prompts in general, see
 [Controlling Prompts](/docs/ControllingPrompts/).
 
@@ -21,6 +23,14 @@ It works with Template, Capture, and Macro choices.
 
 When you run a Macro, the Templates and Captures you added to it share one
 form.
+
+Fields appear in the order the choice uses them: the day first when
+[Which day](/docs/Choices/TemplateChoice/#date-origin) is **Ask each time**,
+then a Capture's note picker (when it captures to a folder or a tag), a
+Template's template path, folder and file name before the note content, a
+Macro's steps in turn, and within each, the order they have in the format.
+Step-by-step prompts group one text's fields by kind instead; see
+[The order prompts appear in](/docs/ControllingPrompts/#prompt-order).
 
 The form stops at the first step that might fill in or skip later answers:
 another Macro, a Multi, a Conditional, a user script, or an AI command.
@@ -74,7 +84,7 @@ QuickAdd scans the choice for placeholders and turns each one into a field:
 - Nested `{{TEMPLATE:path}}` includes are scanned recursively, so their prompts show up too.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` become textareas.
 - `{{VALUE:name|type:number|min:1|max:10}}` becomes a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` becomes a slider plus numeric input.
-- The capture target file, when you are capturing to a folder or a tag.
+- The capture target file, when you are capturing to a folder or a tag. It is a searchable picker like a [FILE input](#file-ux), and it also finds notes by their aliases. With **Create file if it doesn't exist**, typing a new name offers **Create new note: name**, as the run's picker does, and the capture creates that note. A note's name or alias picks the note instead. The picker starts empty, and the form waits for a note before it submits (QuickAdd 2.30.0 or later; earlier versions picked the first note for you).
 - Inputs declared by a user script inside a macro, if the script provides them.
 
 For [property captures](/docs/Choices/CaptureChoice/#property), a plain `VALUE`
@@ -96,13 +106,15 @@ field if you have not focused one.
 
 ### How FIELD inputs behave {#field-ux}
 
-- `{{FIELD:...}}` inputs suggest values from your vault (using Dataview when it is available, with a manual fallback otherwise).
+- `{{FIELD:...}}` inputs suggest the values the property already has in your notes' frontmatter (plus inline `key:: value` fields with `|inline:true`).
+- The field is named after the property, or after its [`|label:`](/docs/FormatSyntax/#field-label) when it has one.
 - `{{FIELD:...|multi}}` is not shown inline in the form, because vault field values can contain commas. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
 
 ### How FILE inputs behave {#file-ux}
 
 - `{{FILE:folder}}` appears as a searchable picker in the form. Search matches the friendly note title, file name, and full vault path.
-- The selected file is shown above the search field and can be removed or replaced. Single-select fields keep the same first-file default as the previous dropdown.
+- The selected file is shown above the search field and can be removed or replaced.
+- A single-select picker starts empty. Until a required one has a file, **Submit** and **Ctrl/Cmd+Enter** don't submit: a notice names the field, and the form takes you to it. Where the field accepts a typed value, picking **Create new note: name** or **Use “name”** counts as its file. QuickAdd 2.30.0 or later; earlier versions picked the first file, so an untouched form used it.
 - `{{FILE:folder|multi}}` stays in the same form. Pick several files without opening a second modal, and remove the last pick by pressing Backspace in an empty search field.
 - Multi-select results keep the folder's file order. File names and friendly labels containing commas are handled as complete values.
 
@@ -119,6 +131,7 @@ Good to know:
 
 - A field counts as optional only when **every** occurrence of that variable across the scanned formats is flagged.
 - Optional dropdowns get a **Skip (leave empty)** entry; the first real option stays preselected.
+- An optional single-file picker starts empty and submits empty unless you pick a file, like **Skip** in the step-by-step picker (QuickAdd 2.30.0 or later).
 - An optional date field left blank resolves to empty. If what you typed cannot be read as a date, the field is handed to the regular step-by-step date prompt after you submit, instead of silently becoming empty.
 
 ## When the form is skipped {#skipping-the-modal}
@@ -213,11 +226,12 @@ Field type details:
 - `textarea`: multi-line text input
 - `dropdown`: fixed dropdown menu (no search, must select from list)
 - `date`: date input with natural language support
-- `field-suggest`: vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `field-suggest`: vault field suggestions (uses `{{FIELD:...}}` syntax). Matches are ranked like `suggester` options.
 - `slider`: bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; invalid configs fall back to `number`.
 - `suggester`: searchable autocomplete with custom options (allows typing custom values)
+  - Matches are ranked the way Obsidian's quick switcher ranks them: an exact match first, then options that start with what you typed, then options with a word that starts with it, then options that contain it anywhere, and finally fuzzy matches. Within a group, shorter options come first. With `caseSensitive`, only options that contain the typed text in the same case are listed. Ranking needs QuickAdd 2.28.0 or later; earlier versions list matches in the order of `options`.
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
-  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection.
+  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection. The text after the last comma is what gets ranked.
 
 ## Scripts: request inputs at runtime (API) {#scripts-request-inputs-at-runtime-api}
 

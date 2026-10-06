@@ -2,8 +2,13 @@ import type { App, Debouncer } from "obsidian";
 import { Notice, TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type { InputPromptOptions } from "../../types/inputPrompt";
-import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
+import {
+	attachCalendarToggle,
+	createDatePicker,
+	type DatePickerController,
+} from "../date-picker/datePicker";
 import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
+import { positionInputPromptCursor } from "../inputPromptCursor";
 import { settingsStore } from "../../settingsStore";
 import {
 	formatDateAliasInline,
@@ -22,8 +27,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	private isOpen = true;
 	private defaultValue: string | undefined;
 	private withTime: boolean;
+	private dateFieldEl: HTMLElement;
 	private pickerHostEl: HTMLElement;
 	private datePicker?: DatePickerController;
+	private unsubscribeCalendarToggle?: () => void;
 	private selectedIso?: string;
 	private lastPickerDisplayValue?: string;
 	private static readonly PREVIEW_PLACEHOLDER = "Preview will appear here";
@@ -59,7 +66,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		withTime?: boolean
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
-		super(app, header, placeholder, defaultValue ?? "", undefined, undefined, options);
+		super(app, header, placeholder, defaultValue ?? "", undefined, options);
 
 		this.containerEl.addClass("qaDatePrompt");
 		this.withTime = withTime === true;
@@ -80,6 +87,18 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// control reflects the |time/|datetime flag.
 		this.mountDatePicker();
 
+		// A run that failed keeps what this prompt submitted, `@date:<ISO>`. Show
+		// that date the way the picker would, without counting it as an edit. The
+		// prompt already opened, so place the cursor again for the new text. A kept
+		// value that isn't a date stays as it is, so the field shows what submits.
+		if (this.currentInput.startsWith("@date:")) {
+			const iso = this.currentInput.slice(6).trim();
+			if (iso && formatISODate(iso, this.dateFormat) !== null) {
+				this.applyPickerSelection(iso, false);
+				positionInputPromptCursor(this.inputComponent.inputEl, options);
+			}
+		}
+
 		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
 			this.updatePreview.bind(this),
@@ -98,7 +117,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		container.addClass("qa-date-input");
 
 		// Create TextComponent directly to avoid duplicate onChange listeners
-		const textComponent = new TextComponent(container);
+		this.dateFieldEl = container.createDiv({ cls: "qa-date-field" });
+		const textComponent = new TextComponent(this.dateFieldEl);
 		
 		textComponent.inputEl.addClass("qa-vdate-input");
 		textComponent
@@ -138,6 +158,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				else this.clearPickerSelection();
 			},
 		});
+		this.unsubscribeCalendarToggle = attachCalendarToggle(
+			this.dateFieldEl,
+			this.pickerHostEl,
+		);
 	}
 
 	private createPreviewElement(container: HTMLElement) {
@@ -239,14 +263,15 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.datePicker?.setSelectedIso(iso, { updateView });
 	}
 
-	private applyPickerSelection(iso: string) {
+	private applyPickerSelection(iso: string, byUser = true) {
 		const displayValue = this.formatIsoForInput(iso);
 		this.selectedIso = iso;
 		this.lastPickerDisplayValue = displayValue;
 		if (this.inputComponent?.inputEl) {
 			this.inputComponent.inputEl.value = displayValue;
 		}
-		this.onInputChanged(displayValue);
+		if (byUser) this.onInputChanged(displayValue);
+		else this.input = displayValue;
 		this.currentInput = displayValue;
 		this.syncPickerSelection(iso);
 		this.renderPreviewFromIso(iso);
@@ -339,6 +364,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 		// Cancel any pending debounced calls
 		this.updatePreviewDebounced.cancel();
+		this.unsubscribeCalendarToggle?.();
 
 		// If input is empty and we have a default, use the default.
 		// Never for optional prompts (incl. Skip): empty is the answer.

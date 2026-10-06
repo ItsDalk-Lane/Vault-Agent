@@ -1,6 +1,9 @@
 export type * from "../types/packages/PackagePreview";
 export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import {
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../constants";
+import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
 import type IChoice from "../types/choices/IChoice";
 import type { CapabilityRow, MissingReference, PackagePreview, PreviewChoice, PreviewFile, PreviewFlag, PreviewSeverity, PreviewSummary, PreviewUsageSite } from "../types/packages/PackagePreview";
 import type {
@@ -10,6 +13,10 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
+import { isWritableAssetDestination } from "../utils/vaultPathBoundary";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
+import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
 import { t } from "../i18n";
@@ -32,59 +39,38 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 	return kind === "user-script" || kind === "conditional-script";
 }
 
-// A bundled asset that can be executed as code: a declared script kind, OR any
-// non-`.md` file — because `kind` is an untrusted hint and a macro (in this
-// package or already in the vault) loads it via the user-script loader, which
-// runs the RAW bytes of ANY non-`.md` file as JavaScript (src/utils/userScript.ts:
-// only `.md` is special-cased, to extract its first ```js fence). A `.js`-only
-// check under-discloses: a payload at `scripts/x.txt`, `x.cjs`, or no extension
-// runs identically. `.md` notes are handled by markdownAssetIsExecutable so plain
-// templates stay un-flagged. Path-only check keeps this App-free.
-function isExecutableBundledAsset(
-	kind: QuickAddPackageAssetKind,
-	originalPath: string,
-): boolean {
-	return isScriptKind(kind) || !MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath);
-}
+// The loader itself runs only .js, but a reviewed script can require() a .cjs or
+// .mjs module it ships alongside, so every JavaScript file is shown as code.
+const JAVASCRIPT_MODULE_EXTENSION_REGEX = /\.[cm]?js$/i;
 
-// Since #1065 a `.md` note is loadable as a user script (its first ```js fence
-// runs). The `.js` path check above can't see that, so a bundled note that lies
-// about its `kind` (e.g. "template") and is referenced by no choice would slip the
-// disclosure gate, land on disk, and run via any macro pointing at its path.
-// Decode the bundled content and run the SAME extractor the loader uses: only a
-// note that actually contains a runnable js fence is treated as executable, so
-// plain `.md` templates are not flagged. Pure/App-free — operates on the payload.
-function markdownAssetIsExecutable(
-	originalPath: string,
-	content: string,
-): boolean {
-	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) return false;
-	let decoded: string;
-	try {
-		decoded = decodeFromBase64(content);
-	} catch {
-		return false;
-	}
-	const { code } = extractScriptFromMarkdown(decoded);
-	return code !== null && code.length > 0;
-}
-
-// The runnable code of a bundled executable asset, for static disclosure scans:
-// a `.md` note yields its first js fence (what the loader runs); any other
-// executable asset (a `.js`, or a script-kind asset) yields its decoded body.
-// Pure/App-free — operates on the bundled payload only.
-function bundledScriptCode(originalPath: string, content: string): string | null {
+/**
+ * The code QuickAdd can run from a bundled file once it is in the vault, or
+ * null when the file holds none. It mirrors the two places that execute vault
+ * files, so the review asks you to read exactly the files that can run:
+ * - the user-script loader (src/utils/userScript.ts) runs a `.js` file's bytes,
+ *   or the first ```js fence of a `.md` note, and refuses every other file
+ *   (a `.cjs`/`.mjs` module counts too, since a script can require() it);
+ * - the formatter runs each ```js quickadd fence in a template, and any
+ *   `.md`, `.canvas` or `.base` file can be used as one.
+ * The package-declared `kind` is an untrusted hint and plays no part.
+ */
+function bundledRunnableCode(originalPath: string, content: string): string | null {
 	let decoded: string;
 	try {
 		decoded = decodeFromBase64(content);
 	} catch {
 		return null;
 	}
+	if (JAVASCRIPT_MODULE_EXTENSION_REGEX.test(originalPath)) return decoded;
+	if (!hasTemplateExtension(originalPath)) return null;
+
+	const blocks: string[] = [];
 	if (MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) {
 		const { code } = extractScriptFromMarkdown(decoded);
-		return code !== null && code.length > 0 ? code : null;
+		if (code) blocks.push(code);
 	}
-	return decoded;
+	for (const code of inlineScriptBodies(decoded)) blocks.push(code);
+	return blocks.length > 0 ? blocks.join("\n") : null;
 }
 
 // #714: a bundled script that wires up QuickAdd's AI tool-calling lets an AI MODEL
@@ -109,19 +95,122 @@ const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
 // --- Public analysis --------------------------------------------------------
 
 /**
- * Every script/template path the package references (deduped). The orchestrator
- * uses this to resolve existence for both bundled and unbundled references in a
+ * Every script/template path the package references (deduped), including the
+ * `{{TEMPLATE:...}}` includes inside bundled templates. The orchestrator uses
+ * this to resolve existence for both bundled and unbundled references in a
  * single vault pass.
  */
 export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
-	const { choiceWalks } = walkPackage(pkg);
-	const paths = new Set<string>();
+	return Array.from(collectPackageUsages(pkg, walkPackage(pkg).choiceWalks).keys());
+}
+
+// Matches the formatter's inclusion depth cap; bounds a crafted package whose
+// bundled notes include each other in a cycle.
+const MAX_INCLUDE_ROUNDS = 10;
+
+/**
+ * The key a bundled asset is matched under: the path import will write it to,
+ * whatever kind the package claims (kinds are untrusted). Import normalizes
+ * separators but never adds an extension, so an asset is keyed by its
+ * normalized path only. Template usages are recorded through the template
+ * resolver, which does add `.md`, so an extensionless asset such as
+ * `Templates/foo` correctly fails to cover a usage of `Templates/foo.md`: the
+ * choice would not find it after import either. The displayed `originalPath`
+ * keeps the package's own spelling.
+ */
+function assetKey(asset: QuickAddPackage["assets"][number]): string {
+	return normalizeVaultPath(asset.originalPath);
+}
+
+/**
+ * Every key a writable asset satisfies a usage under: its matching key and, when
+ * different, its exact spelling with separators normalized. Import rewrites a
+ * step whose spelling equals the asset's (leading whitespace included) to the
+ * asset's destination, so the preview must count that step as covered too.
+ */
+function assetKeys(asset: QuickAddPackage["assets"][number]): string[] {
+	const matching = assetKey(asset);
+	const identity = normalizeVaultPathSeparators(asset.originalPath);
+	return identity === matching ? [matching] : [matching, identity];
+}
+
+/**
+ * Assets import will actually write. One it refuses (absolute, traversing, or
+ * in a hidden/config directory) must not satisfy any reference, or the preview
+ * would hide a package that fails on confirm; it is listed as an orphan instead.
+ */
+function writableAssets(pkg: QuickAddPackage): QuickAddPackage["assets"] {
+	return pkg.assets.filter((asset) => isWritableAssetDestination(asset.originalPath));
+}
+
+/**
+ * Usage sites indexed by referenced path: the command-graph references from
+ * the walk, plus every `{{TEMPLATE:...}}` include found inside a bundled note
+ * that some choice uses as a template (transitively). Includes are attributed
+ * to the choice(s) whose template pulls them in, so the preview can name where
+ * a missing or bundled include comes from.
+ */
+function collectPackageUsages(
+	pkg: QuickAddPackage,
+	choiceWalks: ReturnType<typeof walkPackage>["choiceWalks"],
+): Map<string, PreviewUsageSite[]> {
+	const usagesByPath = new Map<string, PreviewUsageSite[]>();
+	const addUsage = (usage: PreviewUsageSite) => {
+		if (!usage.path) return;
+		const list = usagesByPath.get(usage.path) ?? [];
+		list.push(usage);
+		usagesByPath.set(usage.path, list);
+	};
 	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			if (usage.path) paths.add(usage.path);
-		}
+		for (const usage of walk.usages) addUsage(usage);
 	}
-	return Array.from(paths);
+
+	const assetsByPath = new Map(
+		writableAssets(pkg).flatMap((asset) => assetKeys(asset).map((key) => [key, asset] as const)),
+	);
+	const scanned = new Set<string>();
+	let frontier = Array.from(usagesByPath.keys());
+	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
+		const next: string[] = [];
+		for (const path of frontier) {
+			if (scanned.has(path)) continue;
+			const asset = assetsByPath.get(path);
+			if (!asset || !hasTemplateExtension(path)) continue;
+			// A note referenced only as a script runs its js fence; the formatter
+			// never resolves includes in it. Leave it unscanned so a later
+			// `{{TEMPLATE:...}}` reference to the same note still gets a walk.
+			const templateUsages = (usagesByPath.get(path) ?? []).filter((u) => !u.asScript);
+			if (templateUsages.length === 0) continue;
+			scanned.add(path);
+			let decoded: string;
+			try {
+				decoded = decodeFromBase64(asset.content);
+			} catch {
+				continue;
+			}
+			const includes = collectTemplateIncludePaths(decoded);
+			if (includes.size === 0) continue;
+			const referrers = new Map<string, PreviewUsageSite>();
+			for (const usage of templateUsages) {
+				if (!referrers.has(usage.choiceId)) referrers.set(usage.choiceId, usage);
+			}
+			for (const include of includes) {
+				for (const referrer of referrers.values()) {
+					addUsage({
+						choiceId: referrer.choiceId,
+						path: include,
+						asScript: false,
+						impliedKind: "template",
+						breadcrumb: `${referrer.breadcrumb} › {{TEMPLATE}} include`,
+					});
+				}
+				if (!scanned.has(include)) next.push(include);
+			}
+		}
+		frontier = next;
+	}
+
+	return usagesByPath;
 }
 
 // Cheap decoded-size estimate (no decode). Assumes RFC 4648 base64 as produced
@@ -156,37 +245,43 @@ export function buildPackagePreview(
 		flattenChoices(existingChoices).map((choice) => choice.id),
 	);
 
-	// Index usage sites by referenced path.
-	const usagesByPath = new Map<string, PreviewUsageSite[]>();
-	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			const list = usagesByPath.get(usage.path) ?? [];
-			list.push(usage);
-			usagesByPath.set(usage.path, list);
-		}
-	}
+	// Usage sites by referenced path (command graph + template includes).
+	const usagesByPath = collectPackageUsages(pkg, choiceWalks);
 	const referencedAsScript = new Set<string>();
 	for (const [path, usages] of usagesByPath) {
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);
 	}
 
-	const bundledPaths = new Set(pkg.assets.map((asset) => asset.originalPath));
+	const bundledPaths = new Set(writableAssets(pkg).flatMap(assetKeys));
+
+	// Classified by the path import writes, so a spelling such as
+	// `Scripts/run.js/` cannot hide an extension from the review gate.
+	const runnableCodeByPath = new Map(
+		pkg.assets.map((asset) => [
+			asset.originalPath,
+			bundledRunnableCode(assetKey(asset), asset.content),
+		]),
+	);
 
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
-		const usages = usagesByPath.get(asset.originalPath) ?? [];
-		const executable = referencedAsScript.has(asset.originalPath);
+		const keys = assetKeys(asset);
+		// Only an asset import will write can cover a usage or overwrite a file;
+		// a refused one must not borrow an existence probe made for a reference.
+		const writable = bundledPaths.has(keys[0]);
+		const usages = writable ? keys.flatMap((key) => usagesByPath.get(key) ?? []) : [];
+		const executable = keys.some((key) => referencedAsScript.has(key));
 		const requiresReview =
-			executable ||
-			isExecutableBundledAsset(asset.kind, asset.originalPath) ||
-			markdownAssetIsExecutable(asset.originalPath, asset.content);
+			executable || runnableCodeByPath.get(asset.originalPath) != null;
 		return {
 			originalPath: asset.originalPath,
 			kind: asset.kind,
 			bundled: true,
 			executable,
 			requiresReview,
-			exists: existsByPath.has(asset.originalPath),
+			exists:
+				writable &&
+				(keys.some((key) => existsByPath.has(key)) || existsByPath.has(asset.originalPath)),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
 			referencedBy: usages,
@@ -208,6 +303,7 @@ export function buildPackagePreview(
 			registersCommand: walk.registersCommand,
 			flags,
 			commands: walk.commands,
+			inlineScripts: walk.inlineScripts,
 		};
 	});
 
@@ -247,12 +343,11 @@ export function buildPackagePreview(
 		});
 	}
 
-	// A bundled file written to disk can be executed by any macro that points at
-	// its path (in this package OR already in the user's vault), so it must be
-	// reviewed even when no choice in THIS package references it.
-	// isExecutableBundledAsset covers declared script kinds AND every non-`.md`
-	// path (the loader runs the raw bytes of any non-`.md` file), regardless of
-	// what `kind` the package claims.
+	// A bundled file written to disk can be executed by any macro or template
+	// that points at its path (in this package OR already in the user's vault),
+	// so it must be reviewed even when no choice in THIS package references it.
+	// bundledRunnableCode decides which files can run, whatever `kind` the
+	// package claims.
 	for (const file of files) {
 		if (!file.requiresReview) continue;
 		if (file.executable) continue; // already a critical user-script/mislabeled row + in criticalScriptPaths
@@ -267,12 +362,9 @@ export function buildPackagePreview(
 
 	// AI-tools disclosure (#714): scan each reviewable bundled script for AI
 	// tool-calling and surface a distinct critical row. Scans the SAME decoded code
-	// the loader runs, so a note that hides a js fence is covered too.
+	// QuickAdd runs, so a note that hides a js fence is covered too.
 	for (const file of files) {
-		if (!file.requiresReview) continue;
-		const asset = pkg.assets.find((a) => a.originalPath === file.originalPath);
-		if (!asset) continue;
-		const code = bundledScriptCode(asset.originalPath, asset.content);
+		const code = runnableCodeByPath.get(file.originalPath);
 		if (!code || !scriptUsesAiTools(code)) continue;
 		capabilityRows.push({
 			flag: "ai-tools",
@@ -427,6 +519,20 @@ function looksMinified(text: string): boolean {
 	return longestLine > 1000 || avgPerLine > 250;
 }
 
+/** What the review shows of some code: capped, and flagged when too dense to read. */
+export function textPreview(text: string): AssetPreviewContent {
+	const truncated = text.length > MAX_PREVIEW_CHARS;
+	const shown = truncated ? text.slice(0, MAX_PREVIEW_CHARS) : text;
+	return {
+		found: true,
+		text: shown,
+		truncated,
+		sizeBytes: byteLength(text),
+		// Scan only the previewed slice — enough to spot minification.
+		looksMinified: looksMinified(shown),
+	};
+}
+
 /**
  * Decode a bundled asset's content for display. Lazy by design — call this only
  * when the user expands a file, never during initial analysis.
@@ -448,17 +554,7 @@ export function decodeAssetPreview(
 	}
 
 	try {
-		const decoded = decodeFromBase64(asset.content);
-		const truncated = decoded.length > MAX_PREVIEW_CHARS;
-		const text = truncated ? decoded.slice(0, MAX_PREVIEW_CHARS) : decoded;
-		return {
-			found: true,
-			text,
-			truncated,
-			sizeBytes: byteLength(decoded),
-			// Scan only the previewed slice — enough to spot minification.
-			looksMinified: looksMinified(text),
-		};
+		return textPreview(decodeFromBase64(asset.content));
 	} catch (error) {
 		return {
 			found: true,
@@ -477,14 +573,22 @@ export function requiresAcknowledgement(preview: PackagePreview): boolean {
 }
 
 /**
- * True when every bundled critical script has been expanded/reviewed at least
- * once. Used to gate the acknowledgement checkbox.
+ * How many scripts are still unopened: bundled files that can run, and choices
+ * with inline code. Zero unlocks the acknowledgement checkbox. The two sets are
+ * kept apart so a crafted choice id can't pass for a file path.
  */
-export function isFullyReviewed(
+export function unreviewedScriptCount(
 	preview: PackagePreview,
 	reviewedScriptPaths: ReadonlySet<string>,
-): boolean {
-	return preview.criticalScriptPaths.every((path) =>
-		reviewedScriptPaths.has(path),
-	);
+	reviewedChoiceIds: ReadonlySet<string>,
+): number {
+	const files = preview.criticalScriptPaths.filter(
+		(path) => !reviewedScriptPaths.has(path),
+	).length;
+	const choices = preview.choices.filter(
+		(choice) =>
+			choice.inlineScripts.length > 0 &&
+			!reviewedChoiceIds.has(choice.choiceId),
+	).length;
+	return files + choices;
 }

@@ -23,23 +23,26 @@ import { CaptureChoice } from "../../types/choices/CaptureChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import {
 	type ScriptCandidate,
-	candidateLabel,
+	candidateLabels,
 	loadScriptCandidates,
 	noteScriptError,
 	resolveScriptSelector,
 } from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { t } from "../../i18n";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
+import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
+import { buildFileDisplayInfos } from "../../utils/fileSyntax";
+import { t } from "../../i18n";
 import { log } from "../../logger/logManager";
+import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "../../settingsStore";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
-import { getUserScriptMemberAccess } from "../../utilityObsidian";
+import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 import {
@@ -48,15 +51,20 @@ import {
 } from "../../utils/macroUtils";
 import DataUnreadable from "../svelte/DataUnreadable.svelte";
 
-type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
+/**
+ * Opens a branch's commands as a page. Mutates the command when the page is
+ * left and then calls `onEdited`, synchronously, so the edit is saved before
+ * the page under it saves (see BuilderPage).
+ */
+type BranchHandler = (command: IConditionalCommand, onEdited: () => void) => void;
 
 export interface CommandSequenceEditorConditionalHandlers {
-	configureCondition?: ConditionalHandler;
-	editThenBranch?: ConditionalHandler;
-	editElseBranch?: ConditionalHandler;
+	configureCondition?: (command: IConditionalCommand) => Promise<boolean>;
+	editThenBranch?: BranchHandler;
+	editElseBranch?: BranchHandler;
 }
 
-export interface CommandSequenceEditorOptions {
+interface CommandSequenceEditorOptions {
 	app: App;
 	plugin: QuickAdd;
 	/**
@@ -96,7 +104,7 @@ export class CommandSequenceEditor {
 		this.plugin = options.plugin;
 		// data.json is untrusted, so the value arrives raw and is made editable
 		// here — the one seam every host that shows a command list goes through
-		// (MacroBuilder, ConditionalBranchEditorModal). Normalizing keeps a
+		// (MacroBuilder, ConditionalBranchEditorPage). Normalizing keeps a
 		// duplicate-id or id-less command under a fresh uuid instead of letting
 		// the keyed {#each} throw and cost the user the whole editor (#1593).
 		// Nothing is persisted by this: the repair reaches disk only with the
@@ -114,7 +122,7 @@ export class CommandSequenceEditor {
 	/**
 	 * @returns whether the editor is fully usable. False means the command list is
 	 * showing a card instead, and the host must not commit `commandsRef` anywhere
-	 * (see ConditionalBranchEditorModal's Save button).
+	 * (see ConditionalBranchEditorPage.result).
 	 */
 	public render(containerEl: HTMLElement): boolean {
 		this.destroy();
@@ -192,15 +200,15 @@ export class CommandSequenceEditor {
 				const command = this.commandsRef.find((c) => c.id === commandId);
 
 				if (!command) {
-					log.logError(t("errors.commandNotFound"));
-					throw new Error(t("errors.commandNotFound"));
+					log.logError("command not found");
+					throw new Error("command not found");
 				}
 
-				const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
-					this.app,
-					t("packageManager.confirmDeleteTitle"),
-					t("packageManager.confirmDeleteBody", { name: command.name }),
-				);
+				const promptAnswer = await confirmAction(this.app, {
+					title: t("macro.deleteCommandTitle", { name: command.name }),
+					message: t("macro.deleteCommandBody"),
+					action: t("common.delete"),
+				});
 				if (!promptAnswer) return;
 
 				const secretsCleared = await clearUserScriptSecretsFromCommand(
@@ -208,9 +216,7 @@ export class CommandSequenceEditor {
 					command
 				);
 				if (!secretsCleared) {
-					new Notice(
-						t("macro.secretClearFailedCommand"),
-					);
+					new Notice(t("macro.secretClearFailedCommand"));
 					return;
 				}
 
@@ -232,7 +238,7 @@ export class CommandSequenceEditor {
 			commandListEl,
 			CommandList,
 			this.commandListProps,
-			{ what: t("svelteCards.whatMacroCommands") },
+			{ what: t("svelteCards.whatMacroCommands") }
 		);
 
 		return this.commandListHandle.ok;
@@ -279,10 +285,11 @@ export class CommandSequenceEditor {
 
 		const addObsidianCommandFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const obsidianCommand = this.obsidianCommands.find((v) => v.name === value);
 
 			if (!obsidianCommand) {
-				log.logError(t("errors.obsidianCommandNotFound", { name: value }));
+				log.logError(`Could not find Obsidian command with name "${value}"`);
 				return;
 			}
 
@@ -301,7 +308,7 @@ export class CommandSequenceEditor {
 			.setName(t("macro.obsidianCommand.name"))
 			.setDesc(t("macro.obsidianCommand.desc"))
 			.addText((textComponent) => {
-			input = this.configureSuggestedInput(
+				input = this.configureSuggestedInput(
 					textComponent,
 					t("macro.obsidianCommand.placeholder"),
 					this.obsidianCommands.map((c) => c.name),
@@ -317,10 +324,11 @@ export class CommandSequenceEditor {
 		let dropdownComponent: DropdownComponent;
 
 		const addEditorCommandFromDropdown = () => {
+			if (!dropdownComponent.getValue()) return;
 			const Command = editorCommands.get(dropdownComponent.getValue());
 			if (!Command) {
-				log.logError(t("errors.invalidEditorCommandType"));
-				throw new Error(t("errors.invalidEditorCommandType"));
+				log.logError("invalid editor command type");
+				throw new Error("invalid editor command type");
 			}
 			this.addCommand(new Command());
 			dropdownComponent.setValue("");
@@ -360,16 +368,16 @@ export class CommandSequenceEditor {
 				selector,
 			);
 			if (!resolved) {
-				new Notice(
-					t("macro.scriptNotFound", { name: value }),
-				);
+				new Notice(t("macro.scriptNotFound", { name: value }));
 				return;
 			}
 
 			if (resolved.isMarkdown) {
 				const reason = await noteScriptError(this.app, resolved.file);
 				if (reason) {
-					new Notice(t("macro.commandRunFailed", { path: resolved.file.path, reason }));
+					new Notice(
+						t("macro.commandRunFailed", { path: resolved.file.path, reason })
+					);
 					return;
 				}
 			}
@@ -389,7 +397,7 @@ export class CommandSequenceEditor {
 				input = this.configureSuggestedInput(
 					textComponent,
 					t("macro.userScript.placeholder"),
-					this.scriptCandidates.map(candidateLabel),
+					candidateLabels(this.scriptCandidates),
 					addUserScriptFromInput,
 				);
 			})
@@ -397,15 +405,12 @@ export class CommandSequenceEditor {
 				button
 					.setButtonText(t("macro.userScript.browse"))
 					.setTooltip(t("macro.userScript.browseTooltip"))
-					.onClick(async () => {
-						const selected = await this.showScriptPicker();
-						if (selected) {
-							const name = selected.isMarkdown
-								? selected.file.path
-								: selected.file.basename;
-							this.addCommand(new UserScript(name, selected.file.path));
-						}
-					})
+					// Obsidian drops the click handler's promise: without this, pressing
+					// Escape in the picker is an unhandled rejection.
+					.onClick(reportingHandler(t("choiceRename.couldNotAdd", { noun: "script" }), async () => {
+						const script = await this.showScriptPicker();
+						if (script) this.addCommand(script);
+					}))
 			)
 			.addButton((button) => {
 				addButton = button;
@@ -427,6 +432,7 @@ export class CommandSequenceEditor {
 
 		const addChoiceFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const choice = this.choices.find((c) => c.name === value);
 			if (!choice) {
 				new Notice(t("macro.noChoiceNamed", { name: value }));
@@ -499,7 +505,7 @@ export class CommandSequenceEditor {
 			.onClick(() => this.addCommand(create()));
 	}
 
-	private async showScriptPicker(): Promise<ScriptCandidate | null> {
+	private async showScriptPicker(): Promise<UserScript | null> {
 		// Refresh so scripts/notes created while this editor is open are listed.
 		this.loadScriptCandidates();
 		if (this.scriptCandidates.length === 0) {
@@ -508,38 +514,49 @@ export class CommandSequenceEditor {
 		}
 
 		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
+		// Rows show the name (a note's title or heading) with the full path beneath
+		// it, and search matches both, so same-named scripts in different folders
+		// can be told apart and a note is found by the name its row shows.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
-		const labels = this.scriptCandidates.map((c) => candidateLabel(c));
+		const labels = candidateLabels(this.scriptCandidates);
+		const titles = buildFileDisplayInfos(
+			this.scriptCandidates.map((c) => c.file),
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
 		const selectedPath = await InputSuggester.Suggest(
 			this.app,
 			labels,
 			paths,
 			{
 				placeholder: t("macro.scriptPath.browseLabel"),
-				emptyStateText: t("macro.scriptPath.browseEmpty"),
+				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
+					matches,
+					pathOffset: titles[paths.indexOf(path)].primary.length + 1,
+				}),
+				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
+				allowCustomValue: false,
 			}
 		);
 
-		if (!selectedPath) return null;
-
-		const candidate = this.scriptCandidates.find(
-			(c) => c.file.path === selectedPath
-		);
-		if (!candidate) return null;
+		const index = paths.indexOf(selectedPath);
+		if (index === -1) return null;
+		const candidate = this.scriptCandidates[index];
 
 		if (candidate.isMarkdown) {
 			const reason = await noteScriptError(this.app, candidate.file);
 			if (reason) {
-				new Notice(t("macro.commandRunFailed", { path: candidate.file.path, reason }));
+				new Notice(
+					t("macro.commandRunFailed", { path: candidate.file.path, reason })
+				);
 				return null;
 			}
 		}
 
-		return candidate;
+		return new UserScript(labels[index], candidate.file.path);
 	}
 
 	private addCommand(command: ICommand) {
-		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorModal) track
+		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorPage) track
 		// changes via onCommandsChange, not in-place mutation of the passed array.
 		this.commandsRef = [...this.commandsRef, command];
 		this.emitCommandsChanged();

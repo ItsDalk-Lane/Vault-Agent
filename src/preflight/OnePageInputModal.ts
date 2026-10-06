@@ -3,6 +3,7 @@ import {
 	ButtonComponent,
 	Modal,
 	Notice,
+	Platform,
 	Setting,
 	TextComponent,
 	debounce,
@@ -212,8 +213,11 @@ export class OnePageInputModal extends Modal {
 		// ("Example Title") over prefilled answers for 150ms.
 		if (this.computePreview) void this.updatePreviews();
 
-		const buttonBar = this.contentEl.createDiv({
-			cls: "qa-prompt-actions",
+		// A sibling of the fields rather than their last row, so Submit stays in
+		// view however long the form is (#1910).
+		this.modalEl.addClass("qa-has-modal-footer");
+		const buttonBar = this.modalEl.createDiv({
+			cls: "qa-prompt-actions qa-modal-footer",
 		});
 		const primary = buttonBar.createDiv({
 			cls: "qa-prompt-actions-primary",
@@ -233,6 +237,21 @@ export class OnePageInputModal extends Modal {
 				.setButtonText(t("common.peekAtNote"))
 				.onClick(() => this.peek.peek()),
 		);
+	}
+
+	// Obsidian focuses the modal's first focusable element after onOpen. When the
+	// first field is a file picker holding a provided note, that is the note's
+	// remove button: typing goes nowhere and Enter drops the note. Start at the
+	// first field without a picked note instead, usually the capture text. An
+	// empty picker is that field itself.
+	open() {
+		super.open();
+		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove")) return;
+		const controls = Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
+			.filter((control) => !control.closest("[hidden]") && !control.matches(":disabled"));
+		const unpicked = controls.find((control) =>
+			!control.closest(".qa-onepage-file-picker")?.querySelector(".qa-onepage-file-picker__chip"));
+		(unpicked ?? controls[0])?.focus();
 	}
 
 	onOpen() {
@@ -445,9 +464,9 @@ export class OnePageInputModal extends Modal {
 			publish: (control) => this.publishControl(control),
 			updatePreview: () => this.updatePreviewDebounced(),
 			decorateLabel: (requirement) => this.decorateLabel(requirement),
-			attachFreeText: (requirement, input, setting) => {
+			attachFreeText: (requirement, input) => {
 				this.enableImagePaste(requirement, input);
-				this.attachFreeTextBehaviors(requirement, input, setting);
+				this.attachFreeTextBehaviors(requirement, input);
 			},
 		}).render(req);
 	}
@@ -455,13 +474,8 @@ export class OnePageInputModal extends Modal {
 	private attachFreeTextBehaviors(
 		req: FieldRequirement,
 		el: HTMLInputElement | HTMLTextAreaElement,
-		setting: Setting,
 	): void {
 		const id = req.id;
-		if (!setting.nameEl.id) {
-			setting.nameEl.id = `qa-onepage-label-${id}`;
-		}
-		el.setAttribute("aria-labelledby", setting.nameEl.id);
 
 		const field: OnePageFreeTextField = {
 			id,
@@ -523,7 +537,7 @@ export class OnePageInputModal extends Modal {
 		const doc = this.contentEl.ownerDocument;
 		const fragment = doc.win.createFragment();
 		fragment.appendChild(doc.createTextNode(req.label));
-		fragment.createSpan({ text: " (optional)", cls: "qa-onepage-optional-badge" });
+		fragment.createSpan({ text: t("onePageInput.optionalBadge"), cls: "qa-onepage-optional-badge" });
 		return fragment;
 	}
 
@@ -548,10 +562,21 @@ export class OnePageInputModal extends Modal {
 				return;
 			}
 		}
+		// A required single-file picker starts empty, so Submit waits for a pick.
+		// Multi-file pickers may stay empty, as the run's multi-select allows.
+		const needsPick = (req: FieldRequirement) =>
+			req.type === "file-picker" && !req.optional && !req.suggesterConfig?.multiSelect;
 		const revealed = this.requirements.find((req) => previouslyHidden.has(req.id) && this.isFieldVisible(req.id) &&
-			!req.optional && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
+			!req.optional && !needsPick(req) && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
 		if (revealed) {
-			this.fieldElements.get(revealed.id)?.[0]?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+			this.focusField(revealed.id);
+			return;
+		}
+		const unpicked = this.requirements.find((req) =>
+			this.isFieldVisible(req.id) && needsPick(req) && !this.result.get(req.id));
+		if (unpicked) {
+			new Notice(t("onePageInput.chooseFileForField", { label: unpicked.label }));
+			this.focusField(unpicked.id);
 			return;
 		}
 		// A pasted image may still be saving in one of the fields; defer so
@@ -580,6 +605,7 @@ export class OnePageInputModal extends Modal {
 			new Notice(
 				t("datePicker.invalidDateNotice", { label: erroredDate.label }),
 			);
+			this.focusField(erroredDate.id);
 			return;
 		}
 
@@ -596,6 +622,18 @@ export class OnePageInputModal extends Modal {
 		this.settled = true;
 		this.close();
 		this.resolvePromise(out);
+	}
+
+	/**
+	 * Take the user to a field Submit refused. On a phone, focus would raise the
+	 * keyboard, and a note picker's list would then cover the notice and the
+	 * field's name, so the field is only scrolled into view, as Obsidian does
+	 * not focus a phone dialog's fields itself.
+	 */
+	private focusField(id: string): void {
+		const field = this.fieldElements.get(id)?.[0];
+		if (Platform.isPhone) field?.scrollIntoView({ block: "nearest" });
+		else field?.querySelector<HTMLElement>("input, textarea, select")?.focus();
 	}
 
 	/**

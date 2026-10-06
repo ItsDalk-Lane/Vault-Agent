@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { t } from "../i18n";
 import type { IUserScript } from "../types/macros/IUserScript";
-export { detectUserScriptSecretOptions, type UserScriptSecretOptionDetection } from "./userScriptSecretDetection";
+export { detectUserScriptSecretOptions } from "./userScriptSecretDetection";
 import { macroCommandsValueOf } from "./macroUtils";
 
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
@@ -30,7 +30,7 @@ export type UserScriptSettingsDefinition = {
 	options?: Record<string, UserScriptOptionDefinition>;
 };
 
-export type UserScriptSecretRef = {
+type UserScriptSecretRef = {
 	[SECRET_MARKER]: true;
 	secretRef: string;
 };
@@ -170,7 +170,7 @@ export function buildUserScriptSecretId(
 	);
 }
 
-export function getSecretOptionNames(
+function getSecretOptionNames(
 	userScriptSettings: UserScriptSettingsDefinition | undefined,
 ): string[] {
 	const options = userScriptSettings?.options;
@@ -478,13 +478,6 @@ export async function clearUserScriptSecretsFromCommand(
 	return clearScriptSecrets(app, userScriptsInCommand(command));
 }
 
-export async function clearUserScriptSecretsFromCommands(
-	app: App | undefined,
-	commands: unknown,
-): Promise<boolean> {
-	return clearScriptSecrets(app, userScriptsInCommands(commands));
-}
-
 function getSecretOptionNamesForCommand(
 	command: Record<string, unknown>,
 	options?: UserScriptSecretSanitizerOptions,
@@ -538,13 +531,6 @@ export function stripUserScriptSecretRefsFromCommand(
 	options?: UserScriptSecretSanitizerOptions,
 ): void {
 	stripScriptSecrets(userScriptsInCommand(command), options);
-}
-
-export function stripUserScriptSecretRefsFromCommands(
-	commands: unknown,
-	options?: UserScriptSecretSanitizerOptions,
-): void {
-	stripScriptSecrets(userScriptsInCommands(commands), options);
 }
 
 export function stripUserScriptSecretRefsFromChoice(

@@ -1,31 +1,23 @@
 import type { App } from "obsidian";
 import { CREATE_IF_NOT_FOUND_TOP } from "../../constants";
-import { t } from "../../i18n";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import { isCanvasTargetPath } from "./canvasNodes";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
-import {
-	createCaptureChoiceFormProps,
-	type CaptureChoiceFormProps,
-} from "./captureChoiceFormProps.svelte";
 import { ChoiceBuilder } from "./choiceBuilder";
 
-export class CaptureChoiceBuilder extends ChoiceBuilder {
-	choice: ICaptureChoice;
-	private formProps?: CaptureChoiceFormProps;
-
+export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 	constructor(
 		app: App,
 		choice: ICaptureChoice,
-		private plugin: QuickAdd,
+		plugin: QuickAdd,
+		onSave: (choice: IChoice) => void,
 	) {
-		super(app);
-		this.choice = choice;
+		super(app, choice, plugin, onSave, CaptureChoiceForm, "this capture choice's settings");
+		this.containerEl.addClass("captureChoiceBuilder");
 		this.normalizeChoice();
-		this.display();
 	}
 
 	/**
@@ -62,22 +54,5 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		if (this.choice.openFile) {
 			this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
 		}
-	}
-
-	protected display() {
-		this.containerEl.addClass("captureChoiceBuilder");
-		this.formProps = this.mountForm(
-			CaptureChoiceForm,
-			createCaptureChoiceFormProps({
-				choice: this.choice,
-				app: this.app,
-				plugin: this.plugin,
-			}),
-			t("svelteCards.whatCaptureSettings"),
-		);
-	}
-
-	protected getResultChoice(): IChoice {
-		return this.formProps?.choice ?? this.choice;
 	}
 }

@@ -110,7 +110,61 @@ exit 0
 		expect(result.status).toBe(23);
 		expect(result.stderr).toContain("status 23");
 		expect(fs.readFileSync(log, "utf8")).toContain("stop:e2e-obsidian");
-		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e --");
+		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e");
+	});
+
+	// Runs run-e2e against a mock pnpm whose start prints this instance's paths
+	// and whose Vitest run reports `ran` passed tests.
+	function runWithMockVitest(name: string, args: string[], ran: number) {
+		const instanceName = `${name}-${process.pid}-${Date.now()}`;
+		const initialRoot = prepareProfileRoot();
+		const home = path.join(profileRoot, instanceName, "home");
+		fs.mkdirSync(home, { recursive: true });
+		const vault = path.join(repoRoot, ".obsidian-e2e-vaults", instanceName);
+		fs.mkdirSync(vault, { recursive: true });
+		const bin = temporaryDirectory("quickadd-mock-bin-args-");
+		const log = path.join(bin, "calls.log");
+		fs.writeFileSync(path.join(bin, "pnpm"), `#!/usr/bin/env bash
+echo "$*" >> ${JSON.stringify(log)}
+if [[ "$*" == *"start:e2e-obsidian"* ]]; then
+	for prefix in OBSIDIAN QUICKADD; do
+		echo "export \${prefix}_E2E_VAULT='${instanceName}'"
+		echo "export \${prefix}_E2E_VAULT_PATH='${vault}'"
+		echo "export \${prefix}_E2E_OBSIDIAN_HOME='${home}'"
+	done
+fi
+if [[ "$*" == *"test:e2e"* ]]; then
+	for arg in "$@"; do
+		[[ "$arg" == --outputFile.json=* ]] && echo '{"numPassedTests":${ran},"numFailedTests":0}' > "\${arg#--outputFile.json=}"
+	done
+fi
+exit 0
+`, { mode: 0o755 });
+
+		try {
+			const result = spawnSync(runE2E, args, {
+				env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+				encoding: "utf8",
+			});
+			return { result, calls: fs.readFileSync(log, "utf8") };
+		} finally {
+			fs.rmSync(vault, { recursive: true, force: true });
+			cleanProfileInstance(instanceName, initialRoot);
+		}
+	}
+
+	it("passes its arguments to Vitest as filters", () => {
+		const { result, calls } = runWithMockVitest("orb-args-test", ["tests/e2e/field-label.test.ts", "-t", "label"], 1);
+		expect(result.status, result.stderr).toBe(0);
+		expect(calls).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label --reporter=default --reporter=json --outputFile.json=");
+	});
+
+	// Vitest exits 0 when a -t filter matches no test.
+	it("fails when its arguments match no test", () => {
+		const { result, calls } = runWithMockVitest("orb-no-spec-test", ["tests/e2e/field-label.test.ts", "-t", "no such test"], 0);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("No spec ran");
+		expect(calls).toContain("stop:e2e-obsidian");
 	});
 
 	it("rejects rather than evaluates unexpected start output", () => {
@@ -165,7 +219,7 @@ exit 0
 				expect(result.status, testCase.name).toBe(1);
 				const calls = fs.readFileSync(log, "utf8");
 				expect(calls, testCase.name).toContain("stop:e2e-obsidian");
-				expect(calls, testCase.name).not.toContain("test:e2e --");
+				expect(calls, testCase.name).not.toContain("test:e2e");
 			}
 			expect(fs.existsSync("/tmp/quickadd-env-injected")).toBe(false);
 		} finally {

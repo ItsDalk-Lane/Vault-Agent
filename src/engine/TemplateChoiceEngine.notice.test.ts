@@ -53,6 +53,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
 		}
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(
 			_scope: string,
 			_input: string,
@@ -78,11 +81,17 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: vi.fn(),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 }));
@@ -97,10 +106,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { TFile, TFolder, type App } from "obsidian";
 import { Notice } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
@@ -110,7 +115,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
-import { insertFileLinkToActiveView } from "../utilityObsidian";
+import { insertFileLinkToActiveView } from "../utils/editorInsertion";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -303,11 +308,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		const { engine } = createEngine("ignored");
 		formatFileNameMock.mockRejectedValueOnce(new Error("Disk full"));
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		store.handleSubmittedDraft(draftKey, "Submitted template name");
 
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
@@ -328,11 +333,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			true,
 		);
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		store.handleSubmittedDraft(draftKey, "Submitted template name");
 
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
@@ -370,11 +375,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			"overwriteFileWithTemplate",
 		).mockResolvedValue(null);
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		store.handleSubmittedDraft(draftKey, "Submitted template name");
 
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
@@ -395,11 +400,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			}
 		).createFileWithTemplate = vi.fn().mockResolvedValue(null);
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		store.handleSubmittedDraft(draftKey, "Submitted template name");
 
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
@@ -618,11 +623,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			}
 		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		store.handleSubmittedDraft(draftKey, "Submitted template name");
 
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({

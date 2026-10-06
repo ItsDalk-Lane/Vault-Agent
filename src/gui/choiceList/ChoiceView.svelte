@@ -8,13 +8,11 @@
 	import type QuickAdd from "../../main";
 	import { CommandRegistry } from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
-	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { DOCS_URLS } from "../../docs";
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import ChoicesUnavailable from "./ChoicesUnavailable.svelte";
-	import { reportingHandler } from "../../utils/errorUtils";
 	import { type Plain } from "../svelte/persist.svelte";
 
 	import { createChoiceViewActions } from "./createChoiceViewActions";
@@ -25,12 +23,16 @@
 		plugin,
 		choices = $bindable([]),
 		saveChoices,
+		openAISettings,
 	}: {
 		app: App;
 		plugin: QuickAdd;
 		choices?: IChoice[];
 		// Accepts only Plain<IChoice[]> (from snapshot()) — see persist.svelte.ts.
 		saveChoices: (choices: Plain<IChoice[]>) => void;
+		// Opens Settings → QuickAdd → AI Assistant; the settings tab owns that
+		// navigation because this view is mounted inside it.
+		openAISettings: () => void;
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
@@ -87,19 +89,6 @@
 		saveChoices: (value) => saveChoices(value),
 	});
 
-	const openAISettings = reportingHandler(
-		"Couldn't open the AI assistant settings",
-		async () => {
-			const newSettings = await new AIAssistantSettingsModal(
-				app,
-				settingsStore.getState().ai,
-			).waitForClose;
-
-			if (newSettings) {
-				settingsStore.setState((state) => ({ ...state, ai: newSettings }));
-			}
-		},
-	);
 </script>
 
 
@@ -137,6 +126,19 @@
 			<div class="choiceEmptyActions">
 				<AddChoiceControls onAddChoice={actions.onAddChoice} />
 			</div>
+			{#if !disableOnlineFeatures}
+				<!-- The bottom bar (and its AI icon) only renders once choices exist,
+				     so without this a new user had no way into AI settings. -->
+				<button
+					type="button"
+					class="qaAIAssistantBtn qaAIAssistantEmptyBtn clickable-icon"
+					aria-label="Configure AI Assistant"
+					onclick={openAISettings}
+				>
+					<ObsidianIcon iconId="sparkles" size={16} />
+					<span>Configure AI Assistant</span>
+				</button>
+			{/if}
 		</div>
 	{:else}
 		<div class="choiceFilterBar">
@@ -221,6 +223,16 @@
 </div>
 
 <style>
+	.qaAIAssistantEmptyBtn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		margin-top: 0.75rem;
+		width: auto;
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+	}
+
 	.choiceViewBottomBar {
 		display: flex;
 		flex-direction: row;

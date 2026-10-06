@@ -14,7 +14,7 @@ New to QuickAdd entirely? Start with [Getting Started](/docs/) for the choice ty
 
 ## Point QuickAdd at your template folder
 
-You don't need to move or rewrite your template files to start. Add your existing template folder(s) under **Template folder paths** in [Settings → Templates & properties](/docs/Settings/#templates--properties). That single step powers:
+You don't need to move or rewrite your template files to start. Add your existing template folder(s) under [Settings → QuickAdd → Template folders](/docs/Settings/#template-folders). That single step powers:
 
 - the **QuickAdd: New note from template** command, which lists every template in those folders and prompts for the new note's name - no per-template setup;
 - the **QuickAdd: Apply template to active note** command, whose picker offers those template files too;
@@ -49,7 +49,7 @@ A [Template choice](/docs/Choices/TemplateChoice/) creates a note from a templat
 
 To position user input at an exact spot in the new note, put the token exactly where the text belongs. One named value can drive both the file name and the body:
 
-File name format: `{{VALUE:topic}}`
+File name: `{{VALUE:topic}}`
 
 ```markdown
 ---
@@ -76,14 +76,14 @@ A [Capture choice](/docs/Choices/CaptureChoice/) whose format is `{{TEMPLATE:Tem
 
 ### Today's daily note
 
-Appending to today's note is a Capture choice with a date-formatted target path - the file doesn't have to exist beforehand:
+Appending to today's note is a Capture choice that targets the daily note - the file doesn't have to exist beforehand:
 
-- **Capture to**: `Daily/{{DATE}}.md`
-- **Create file if it doesn't exist**, with your daily template
+- **Capture to**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
+- **Create file if it doesn't exist**, with **Create file with a template** set to your daily template, so QuickAdd fills in its tokens
 - **Insert after**: `## Log`, with **Create line if not found**
 - **Capture format**: `- {{VALUE}}`
 
-Say today is 2026-07-06: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
+Say today is 2026-07-06 and your daily notes live in `Daily`: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. Before QuickAdd 2.30.0, set **Capture to** to a date-formatted path such as `Daily/{{DATE}}.md` instead. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
 
 ## Templates chosen by folder
 
@@ -115,7 +115,7 @@ Named values are shared across an entire run. `{{VALUE:topic}}` in the file name
 
 That sharing spans [Macro choice](/docs/Choices/MacroChoice/) steps too. A classic two-step flow - log a task in today's daily note and create its note - is a macro of two choices sharing one name:
 
-1. A Capture choice into `Daily/{{DATE}}.md` with the format `- [ ] [[{{VALUE:task}}]]`
+1. A Capture choice into `{{DAILY}}` (before QuickAdd 2.30.0, `Daily/{{DATE}}.md`) with the format `- [ ] [[{{VALUE:task}}]]`
 2. A Template choice with file name format `{{VALUE:task}}` creating the note in your `Tasks` folder
 
 You type the task name once. Scripts join the same pool: anything a script assigns to `params.variables.task` is what `{{VALUE:task}}` resolves to in later steps - see the [scripting guide](/docs/Advanced/ScriptingGuide/).
@@ -148,4 +148,5 @@ These are the classic symptoms of splitting one template between two engines - e
 
 - **You get prompted twice.** QuickAdd resolves all of its prompts before the file is created. If another engine prompts in the same template, you answer twice - once per engine. Let QuickAdd own the prompt with `{{VALUE:name}}` and reuse the answer everywhere it's needed.
 - **Template syntax shows up unrendered.** QuickAdd renders QuickAdd tokens; another engine's syntax is only rendered by that engine. If it isn't installed or doesn't run on the file, its markup stays behind as literal text. Port the line to the matching token from [the map](#the-quick-map).
+- **Templater code runs twice.** A macro that runs Templater's **Replace templates in the active file** right after a QuickAdd Template or Capture step runs the templates a second time: QuickAdd already ran them when it wrote the note. That step is deprecated, and QuickAdd 2.30.0 or later shows a notice once per session when a macro runs it. Remove it from the macro.
 - **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create file if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).

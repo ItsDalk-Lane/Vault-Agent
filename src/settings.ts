@@ -75,6 +75,8 @@ export interface QuickAddSettings {
 	showInputCancellationNotification: boolean;
 	enableTemplatePropertyTypes: boolean;
 	dateAliases: Record<string, string>;
+	/** Whether date fields show their calendar. The calendar button in each date field toggles it. */
+	showDateCalendar: boolean;
 	ai: {
 		// Either a configured model's name or the "Ask me" sentinel. Model["name"]
 		// is `string`, which already covers the sentinel — adding `| "Ask me"` would
@@ -101,7 +103,6 @@ export interface QuickAddSettings {
 		confirmToolCalls: "never" | "destructive" | "always";
 	};
 	migrations: {
-		migrateToMacroIDFromEmbeddedMacro: boolean;
 		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 		consolidateFileExistsBehavior: boolean;
@@ -142,6 +143,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	showInputCancellationNotification: false,
 	enableTemplatePropertyTypes: false,
 	dateAliases: DEFAULT_DATE_ALIASES,
+	showDateCalendar: true,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\\text{new}}:=w_{ij}^{\\text{current}}+\\eta\\cdot\\delta_j\\cdot x_{ij}$$ on a separate line, but you can write "($\\eta$ = learning rate, $\\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -150,15 +152,9 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		providers: DefaultProviders,
 		confirmToolCalls: "destructive",
 	},
+	// Older data.json files may still hold a migrateToMacroIDFromEmbeddedMacro
+	// flag from a removed migration. Nothing reads it; loading keeps it as is.
 	migrations: {
-		/**
-			* @deprecated kept for backward compatibility; always true, ignored.
-			* The migration this flag once gated was a no-op (the data model moved
-			* back to embedded macros) and its file was removed. The key stays so
-			* old data.json files keep parsing; it is excluded from the runner via
-			* Omit in src/migrations/Migrations.ts.
-			*/
-		migrateToMacroIDFromEmbeddedMacro: true,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
 		consolidateFileExistsBehavior: false,

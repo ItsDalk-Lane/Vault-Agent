@@ -1,4 +1,4 @@
-import type { CachedMetadata, TFile } from "obsidian";
+import { parseFrontMatterAliases, type CachedMetadata, type TFile } from "obsidian";
 import {
 	FieldSuggestionParser,
 	type FieldFilter,
@@ -42,11 +42,42 @@ export type ParsedFileToken = {
 	multiSelect: boolean;
 	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
 	multiFormat: MultiValueFormat;
+	/** Normalized `|type:` values as written, e.g. `["image", "pdf"]`. */
+	types: readonly string[];
+	/** Extensions `|type:` lists; undefined means Markdown notes only. */
+	extensions?: ReadonlySet<string> | "any";
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
 	variableKey: string;
 };
 
 const MODE_FLAGS = new Set<FileMode>(["name", "link", "path"]);
+
+// Obsidian's accepted file formats, grouped for `|type:`. Any other value is
+// taken as a bare extension, so `|type:canvas` picks canvases.
+const FILE_TYPE_EXTENSIONS = new Map<string, readonly string[]>([
+	["note", ["md"]],
+	["image", ["avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp"]],
+	["audio", ["3gp", "flac", "m4a", "mp3", "ogg", "wav", "webm"]],
+	["video", ["mkv", "mov", "mp4", "ogv", "webm"]],
+	["pdf", ["pdf"]],
+]);
+
+function parseFileTypes(value: string): string[] {
+	return value
+		.split(",")
+		.map((part) => part.trim().toLowerCase().replace(/^\./, ""))
+		.filter(Boolean);
+}
+
+function getFileTypeExtensions(
+	types: readonly string[],
+): Set<string> | "any" | undefined {
+	if (types.length === 0) return undefined;
+	if (types.includes("any")) return "any";
+	return new Set(
+		types.flatMap((type) => FILE_TYPE_EXTENSIONS.get(type) ?? [type]),
+	);
+}
 
 /** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
 function normalizeFolder(path: string): string {
@@ -73,8 +104,16 @@ function encodeSignatureList(
  * files the picker lists (folder + tag/exclude-* filters). Two tokens that share
  * this list can meaningfully share a pick; two that don't, can't.
  */
-function buildFileScopeSignature(folderPath: string, filter: FieldFilter): string {
+function buildFileScopeSignature(
+	folderPath: string,
+	filter: FieldFilter,
+	extensions: ParsedFileToken["extensions"],
+): string {
 	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	if (extensions)
+		parts.push(
+			`types=${extensions === "any" ? "any" : encodeSignatureList([...extensions])}`,
+		);
 	if (filter.folders?.length)
 		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeFolder)}`);
 	if (filter.tags?.length)
@@ -104,11 +143,20 @@ function buildFileSignature(parsed: {
 	allowCustomInput: boolean;
 	multiSelect: boolean;
 	filter: FieldFilter;
+	extensions: ParsedFileToken["extensions"];
 }): string {
-	const { folderPath, mode, label, optional, allowCustomInput, multiSelect, filter } =
-		parsed;
+	const {
+		folderPath,
+		mode,
+		label,
+		optional,
+		allowCustomInput,
+		multiSelect,
+		filter,
+		extensions,
+	} = parsed;
 	const parts = [
-		buildFileScopeSignature(folderPath, filter),
+		buildFileScopeSignature(folderPath, filter, extensions),
 		`mode=${mode}`,
 	];
 	if (label) parts.push(`label=${label}`);
@@ -123,7 +171,7 @@ function buildFileSignature(parsed: {
  *
  * The first pipe-part is the (required) folder path. FILE-specific options are
  * peeled off here — the bare mode flags `name`/`link`/`path`, `optional`,
- * `custom`, and the key:value `label:` / `name:` — then the remainder is handed
+ * `custom`, and the key:value `label:` / `name:` / `type:` — then the remainder is handed
  * to {@link FieldSuggestionParser.parse} so the folder/tag/exclude-* filter
  * grammar can never diverge from {{FIELD}}. The folder (first segment) is the
  * picker SCOPE, so it is applied as `filter.folder` regardless of any `|folder:`.
@@ -165,16 +213,21 @@ export function parseFileToken(
 		afterMode.push(part);
 	}
 
-	// Peel key:value options that are FILE-specific (label/name); everything else
-	// (tag/exclude-*) is parsed by FieldSuggestionParser below.
+	// Peel key:value options that are FILE-specific (label/name/type); everything
+	// else (tag/exclude-*) is parsed by FieldSuggestionParser below.
 	let label: string | undefined;
 	let aliasName: string | undefined;
+	const types: string[] = [];
 	for (const part of afterMode) {
 		const parsed = parsePipeKeyValue(part);
 		if (!parsed) continue;
 		if (parsed.key === "label" && parsed.value) label = parsed.value;
 		else if (parsed.key === "name" && parsed.value) aliasName = parsed.value;
+		else if (parsed.key === "type")
+			for (const type of parseFileTypes(parsed.value))
+				if (!types.includes(type)) types.push(type);
 	}
+	const extensions = getFileTypeExtensions(types);
 
 	// Delegate filter parsing to the shared FIELD parser (it skips unknown keys
 	// like label/name and bare flags), then force the scope folder. The first
@@ -199,7 +252,7 @@ export function parseFileToken(
 	// must not silently reuse each other's pick. Mode/label/optional/custom are
 	// intentionally NOT in the alias key, so one pick renders across modes.
 	const variableKey = aliasName
-		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter)}${multiSelect ? "|multi" : ""}`
+		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter, extensions)}${multiSelect ? "|multi" : ""}`
 		: `${FILE_VARIABLE_PREFIX}${buildFileSignature({
 				folderPath,
 				mode,
@@ -208,6 +261,7 @@ export function parseFileToken(
 				allowCustomInput,
 				multiSelect,
 				filter,
+				extensions,
 			})}`;
 
 	return {
@@ -221,11 +275,13 @@ export function parseFileToken(
 		filter,
 		multiSelect,
 		multiFormat,
+		types,
+		extensions,
 		variableKey,
 	};
 }
 
-export type DecodedFileValue =
+type DecodedFileValue =
 	| { kind: "empty" }
 	| { kind: "file"; path: string }
 	| { kind: "custom"; text: string }
@@ -267,6 +323,12 @@ export function fileBasenameFromPath(value: string): string {
 	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
+/** File name as Obsidian links it: notes drop `.md`, other files keep their extension. */
+export function fileLinkNameFromPath(value: string): string {
+	const segment = value.split("/").pop() ?? value;
+	return segment.replace(/\.md$/i, "");
+}
+
 function scalarTitleValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
 		? value.trim()
@@ -293,15 +355,34 @@ function parentLabel(file: TFile): string {
 	return "vault root";
 }
 
+/** What name mode inserts: attachments keep their extension (`photo.png`). */
 function basenameFor(file: TFile): string {
-	if (file.basename) return file.basename;
-	return fileBasenameFromPath(file.path);
+	if (file.extension && file.extension !== "md") return file.name;
+	return file.basename || fileLinkNameFromPath(file.path);
 }
 
-export interface FileDisplayInfo {
+interface FileDisplayInfo {
 	primary: string;
 	secondary: string;
 	label: string;
+	/** The note's aliases, which pickers also match. */
+	aliases: string[];
+}
+
+/**
+ * The first item one of whose aliases is `name`, ignoring case: an alias names
+ * its note. `aliases` is by index, as buildFileDisplayInfos returns them.
+ */
+export function itemWithAlias<T>(
+	items: readonly T[],
+	aliases: readonly (readonly string[])[],
+	name: string,
+): T | undefined {
+	const wanted = name.trim().toLowerCase();
+	const index = aliases.findIndex((names) =>
+		names.some((alias) => alias.toLowerCase() === wanted),
+	);
+	return index >= 0 ? items[index] : undefined;
 }
 
 export function buildFileDisplayInfos(
@@ -318,7 +399,8 @@ export function buildFileDisplayInfos(
 		const label = primary === basename
 			? basename
 			: `${primary} (${basename})`;
-		return { file, primary, label };
+		const aliases = parseFrontMatterAliases(metadata?.frontmatter) ?? [];
+		return { file, primary, label, aliases };
 	});
 
 	const counts = new Map<string, number>();
@@ -326,7 +408,7 @@ export function buildFileDisplayInfos(
 		counts.set(label, (counts.get(label) ?? 0) + 1);
 	}
 
-	return baseLabels.map(({ file, primary, label }) => {
+	return baseLabels.map(({ file, primary, label, aliases }) => {
 		const uniqueLabel = (counts.get(label) ?? 0) <= 1
 			? label
 			: `${label} - ${parentLabel(file)}`;
@@ -334,6 +416,7 @@ export function buildFileDisplayInfos(
 			primary,
 			secondary: file.path,
 			label: uniqueLabel,
+			aliases,
 		};
 	});
 }

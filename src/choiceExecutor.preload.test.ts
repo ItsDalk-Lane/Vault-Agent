@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 // of MacroChoiceEngine.entry.test.ts and choiceSuggester.test.ts).
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -21,13 +20,10 @@ vi.mock("./engine/runTemplateFromFolder", () => ({
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
-vi.mock("./utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<Record<string, unknown>>();
-	return {
-		...actual,
-		getOpenFileOriginLeaf: vi.fn(() => null),
-	};
-});
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getOpenFileOriginLeaf: vi.fn(() => null),
+}));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
 
@@ -41,7 +37,10 @@ describe("ChoiceExecutor preloadedUserScripts lifecycle", () => {
 		// ran (cancelled modal / aborted macro): the entry must not survive to
 		// the NEXT trigger on a long-lived executor, where it would hand the
 		// engine a module loaded before the user's latest edits.
-		executor.preloadedUserScripts.set("stale.js", { entry: () => {} });
+		executor.preloadedUserScripts.set("stale.js", {
+			script: { entry: () => {} },
+			settings: undefined,
+		});
 
 		await executor.execute({
 			id: "unknown",
@@ -57,7 +56,7 @@ describe("ChoiceExecutor preloadedUserScripts lifecycle", () => {
 			{ workspace: { getActiveFile: () => null } } as never,
 			{} as never,
 		);
-		executor.preloadedUserScripts.set("outer.js", {});
+		executor.preloadedUserScripts.set("outer.js", { script: {}, settings: undefined });
 
 		// Depth 2 -> 1: a nested execute() ending must NOT wipe the outer
 		// run's preloaded modules.

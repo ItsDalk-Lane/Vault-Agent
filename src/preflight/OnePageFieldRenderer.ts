@@ -1,6 +1,6 @@
 import { DropdownComponent, Setting, TextAreaComponent, TextComponent, type App } from "obsidian";
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
-import { createDatePicker } from "src/gui/date-picker/datePicker";
+import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { FilePickerInputSuggest, type FilePickerOption } from "src/gui/suggesters/FilePickerInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
@@ -8,7 +8,8 @@ import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
-import { decodeFileValue } from "src/utils/fileSyntax";
+import { decodeFileValue, fileBasenameFromPath } from "src/utils/fileSyntax";
+import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import type { FieldRequirement } from "./RequirementCollector";
 import { mapMappedSuggesterValue, resolveDropdownInitialValue } from "./suggesterValueMapping";
 
@@ -31,7 +32,12 @@ interface FieldRendererHost {
 	publish(control: FieldControl): void;
 	updatePreview(): void;
 	decorateLabel(requirement: FieldRequirement): string | DocumentFragment;
-	attachFreeText(requirement: FieldRequirement, input: HTMLInputElement | HTMLTextAreaElement, setting: Setting): void;
+	attachFreeText(requirement: FieldRequirement, input: HTMLInputElement | HTMLTextAreaElement): void;
+}
+
+function labelId(req: FieldRequirement): string {
+	// Encoded: an id with a space would read as two references in aria-labelledby.
+	return `qa-onepage-label-${encodeURIComponent(req.id)}`;
 }
 
 export class OnePageFieldRenderer {
@@ -41,10 +47,24 @@ export class OnePageFieldRenderer {
 		private readonly host: FieldRendererHost,
 	) {}
 
+	// The Setting of the field being rendered, so its controls can be named
+	// after the label once created.
+	private fieldSetting?: Setting;
+
 	private setting(req: FieldRequirement, describe = true): Setting {
 		const setting = new Setting(this.contentEl).setName(this.host.decorateLabel(req));
+		setting.nameEl.id = labelId(req);
 		if (describe && req.description) setting.setDesc(req.description);
+		this.fieldSetting = setting;
 		return setting;
+	}
+
+	// Name the field's controls after its label, unless they carry their own name.
+	private labelControls(req: FieldRequirement): void {
+		this.fieldSetting?.controlEl
+			.querySelectorAll("input:not([aria-label]), textarea:not([aria-label]), select:not([aria-label])")
+			.forEach((el) => el.setAttribute("aria-labelledby", labelId(req)));
+		this.fieldSetting = undefined;
 	}
 
 	render(req: FieldRequirement) {
@@ -67,7 +87,7 @@ export class OnePageFieldRenderer {
 				input.setPlaceholder(req.placeholder ?? "").setValue(starting)
 					.onChange((value) => setValue(req.id, value));
 				if (req.type === "textarea") input.inputEl.addClass("qa-onepage-textarea");
-				this.host.attachFreeText(req, input.inputEl, setting);
+				this.host.attachFreeText(req, input.inputEl);
 				break;
 			}
 			case "number": {
@@ -182,7 +202,8 @@ export class OnePageFieldRenderer {
 				const container = setting.controlEl.createDiv({
 					cls: "qa-date-input",
 				});
-				const input = new TextComponent(container);
+				const field = container.createDiv({ cls: "qa-date-field" });
+				const input = new TextComponent(field);
 				const placeholder =
 					"Enter a date (e.g., 'today', 'next friday', '2025-12-25')";
 
@@ -217,6 +238,7 @@ export class OnePageFieldRenderer {
 				});
 
 				control.dispose.push(() => datePicker.destroy());
+				control.dispose.push(attachCalendarToggle(field, pickerContainer));
 
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,
@@ -403,12 +425,35 @@ export class OnePageFieldRenderer {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
-				this.host.attachFreeText(req, input.inputEl, setting);
+				this.host.attachFreeText(req, input.inputEl);
 			}
 		}
 
+		this.labelControls(req);
 		// Initialize stored value for empty inputs to ensure presence
 		this.host.publish(control);
+	}
+
+	/**
+	 * Whether a typed name or path names a note the field's notes ("scope") or
+	 * the vault ("vault") already has, read the way the capture reads it
+	 * (CaptureTargetEngine: captureTargetExists, captureTargetAlreadyExists).
+	 */
+	private noteNameExists(within: "scope" | "vault", paths: string[]): (value: string) => boolean {
+		const notePaths = within === "vault" ? this.app.vault.getMarkdownFiles().map((file) => file.path) : paths;
+		const names = new Set(notePaths.map((path) => fileBasenameFromPath(path).toLowerCase()));
+		return (value) => {
+			let path: string;
+			try {
+				path = normalizeGeneratedFilePath(value, "Capture target file path");
+			} catch {
+				return false;
+			}
+			const base = path.replace(/\.(md|canvas)$/i, "");
+			if (names.has(base.slice(base.lastIndexOf("/") + 1).toLowerCase())) return true;
+			return within === "vault" &&
+				[path, `${base}.md`, `${base}.canvas`].some((candidate) => !!this.app.vault.getAbstractFileByPath(candidate));
+		};
 	}
 
 	private renderFilePickerField(
@@ -427,6 +472,7 @@ export class OnePageFieldRenderer {
 				value,
 				label: displayValues[index] ?? value,
 				path: decoded.kind === "file" ? decoded.path : value,
+				aliases: req.optionAliases?.[index],
 			};
 		});
 		const optionByValue = new Map(options.map((option) => [option.value, option]));
@@ -442,13 +488,16 @@ export class OnePageFieldRenderer {
 			const option = {
 				value,
 				label: value,
-				path: "Custom value",
+				path: req.newNoteName ? "New note" : "Custom value",
 				isCustom: true,
 			};
 			customOptions.set(value, option);
 			return option;
 		};
 
+		// Only a provided value starts picked. The first file is not picked for
+		// the user: an untouched Submit would capture into a note they never
+		// chose, so a required picker blocks Submit until it has a pick.
 		if (starting && optionByValue.has(starting)) {
 			selected.add(starting);
 		} else if (starting && allowCustomInput) {
@@ -457,10 +506,6 @@ export class OnePageFieldRenderer {
 				decoded.kind === "custom" ? decoded.text : starting;
 			addCustomOption(customValue);
 			selected.add(customValue);
-		} else if (!multiSelect && options.length > 0) {
-			// Preserve the former dropdown's untouched-submit behavior. The first
-			// file stays selected by default, but is now visible and removable.
-			selected.add(options[0].value);
 		}
 
 		const container = setting.controlEl.createDiv({
@@ -555,6 +600,9 @@ export class OnePageFieldRenderer {
 				selectOption,
 				multiSelect,
 				allowCustomInput,
+				req.newNoteName
+					? this.noteNameExists(req.newNoteName, options.map((option) => option.path))
+					: undefined,
 			);
 			this.host.controlFor(req).suggesters.push(suggester);
 		} catch {

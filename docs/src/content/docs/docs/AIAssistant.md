@@ -14,20 +14,30 @@ By the end you have an AI step wired into a choice: generate a note title,
 summarize a selection, or answer a question from your vault.
 
 :::note
-The AI settings button and AI requests are available only when **Disable AI &
+The AI Assistant settings and AI requests are available only when **Disable AI &
 online features** is turned off in QuickAdd settings.
 :::
 
 ## Setup {#setup}
 
-1. Create a folder for AI prompt templates, for example `bins/ai_prompts`.
-2. Open QuickAdd settings.
-3. In the choice list, click the **Configure AI Assistant** icon button. It uses the sparkles icon at the bottom of the list.
-4. Set **Prompt template folder path** to the folder you created.
-5. Click **Edit providers** and configure at least one provider and model.
-6. Choose a **Default model**, or leave it as **Ask me** to pick a model each run.
+1. Create a folder for AI prompt templates, for example `AI prompts`.
+2. Open **Settings → QuickAdd**, turn off **Disable AI & online features**
+   (under **AI & online**), and open **AI Assistant** just below it. The
+   **Configure AI Assistant** button in the choice list (the sparkles icon at
+   the bottom of the list) and the **QuickAdd: Open AI Assistant settings**
+   command open the same page.
+3. Set **Prompt template folder** to the folder you created.
+4. Under **Providers**, set up at least one provider. OpenAI and Gemini are
+   already listed: open one, link an API key secret with **Link...**, and click
+   **Sync now** to pull the provider's current models. To add another provider,
+   click **+**. See [Connect a provider](#providers-and-local-models).
+5. Choose a **Default model**, or leave it as **Ask me** to pick a model each run.
 
-![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
+Changes on these pages save as you make them. The settings pages need QuickAdd
+2.28.0 or later; earlier versions edit providers in dialogs with **Save** and
+**Cancel**.
+
+![Setting up the AI Assistant: turning on AI features, opening the AI Assistant page, setting the prompt template folder, linking an OpenAI API key, testing the connection and syncing models, then choosing gpt-6-luna as the default model](./Images/AI_Assistant_Setup.gif)
 
 Prompt templates are Markdown notes in your prompt template folder. They can use
 QuickAdd [Format Syntax](/docs/FormatSyntax/), including values collected earlier
@@ -47,7 +57,12 @@ After setup, add an **AI Assistant** command to a Macro. The command formats the
 selected prompt template, sends it to the selected model, then stores the
 response as macro variables for later steps.
 
-![AI Assistant Macro](./Images/AI_Assistant_Macro.gif)
+In the recording below, a `Summarize` prompt template (containing
+`{{SELECTED}}`) feeds the selected paragraph to the model, the command stores
+the reply as `summary`, and a Capture writes `{{VALUE:summary}}` to the bottom of
+the active note.
+
+![Building a Summarize selection macro with an AI Assistant command and a Capture, then running it on a selected paragraph to append a summary](./Images/AI_Assistant_Macro.gif)
 
 ## What each setting does {#settings-semantics}
 
@@ -55,7 +70,7 @@ Some of these settings are read live on every run; two of them are only a
 template for new commands. The difference matters, so it is called out per
 setting:
 
-- **Prompt template folder path** is the folder QuickAdd reads prompt-template notes from. Read live on every run.
+- **Prompt template folder** is the folder QuickAdd reads prompt-template notes from. Read live on every run.
 - **Providers** is the list of model endpoints and model ids QuickAdd can use. Read live on every run.
 - **Default model** and **Default system prompt** are the starting values for **new** AI Assistant Macro commands: they are copied into a command when you add it. Editing a default later does not change commands you already created - edit each command instead. Setting the default model to **Ask me** makes new commands open a model picker at run time.
 - **Show assistant** controls QuickAdd's AI progress notices. Read live on every run.
@@ -108,10 +123,10 @@ are migrated to SecretStorage.
 
 ### Add a provider {#add-a-provider}
 
-1. Open **AI Assistant settings**.
-2. Click **Edit providers**.
-3. Click **Add provider**.
-4. Pick a provider card, select a SecretStorage entry for the API key, then click **Connect**.
+1. Open **Settings → QuickAdd → AI Assistant**.
+2. Next to **Providers**, click **+** (on mobile, tap **Add provider** below
+   the list).
+3. Pick a provider card, select a SecretStorage entry for the API key, then click **Connect**.
 
 Connecting a provider imports its current model list right away, so you can pick
 a working model immediately. If the live import fails (for example, while
@@ -119,8 +134,23 @@ offline), the built-in providers fall back to a shipped model list and refresh
 automatically once the provider is reachable.
 
 For a provider that is not listed, click **Add custom...** under **Custom
-provider**. Set the provider name, endpoint, API key secret if needed, model
+provider**, then open the new provider in the list. Set its name, endpoint, API key secret if needed, model
 source, and models manually.
+
+To check a key, open the provider and click **Test connection**. QuickAdd asks
+the provider's own models endpoint with the linked key and shows either how many
+models it lists or the provider's error.
+
+The [Obsidian CLI](/docs/Advanced/CLI/#quickaddai-test-connection) runs the same
+check. Name the provider by its ID or its name:
+
+```bash
+obsidian vault=dev quickadd:ai-test-connection provider=openai
+```
+
+It prints `"ok":true` with `modelCount`, or `"ok":false` with the provider's
+error. `apiKeyLinked` says whether a key is linked. The output never contains
+the key.
 
 ### Local models and Ollama {#local-models-and-ollama}
 
@@ -142,14 +172,15 @@ requests still include an empty `Bearer` header. If your local server rejects
 that, configure the server to allow it or select a SecretStorage entry with the
 token it expects.
 
-When adding a model manually, the model name must match the id your server
-expects, such as `mistral` or `llama3.1`. The **Max tokens** value is the model's
-context window. See [Model settings and token budgets](#model-settings-and-token-budgets).
+When adding a model manually (the **+** next to **Models** on the provider's
+page), the model name must match the id your server expects, such as `mistral`
+or `llama3.1`. The **Context window** value is the model's context window in
+tokens. See [Model settings and token budgets](#model-settings-and-token-budgets).
 
 ### One name, two providers {#provider-ids-and-duplicate-model-names}
 
 Every provider has a stable **ID** - a short slug like `openai` or `my-proxy`,
-shown in the provider's edit form. The ID never changes, even if you rename the
+shown under the provider's **Name** on its settings page. The ID never changes, even if you rename the
 provider, and scripts use it to address a model on a specific provider.
 
 Two providers can serve models with the same name - for example, the official
@@ -172,8 +203,16 @@ Each provider has a **Model source** setting:
 - **Automatic** tries the provider first and falls back to models.dev when QuickAdd can map the endpoint.
 
 Imports skip entries that cannot serve chat requests (image generators,
-text-to-speech voices, embedding models), and they carry each model's context
-window, output limit, and sampling support where the source reports them.
+text-to-speech voices, embedding models, realtime audio models) and pinned dated
+snapshots such as `gpt-4o-2024-11-20` when the undated id is listed. They carry
+each model's context window, output limit, sampling support, and release date
+where the source reports them.
+
+The model list shows the newest models first and has a filter box. Models the
+provider has deprecated carry a **Retired** badge and are listed last, the
+provider's entry on the AI Assistant page shows a warning with the count, and
+**Remove retired** clears them in one step. QuickAdd never removes
+them on its own, because saved commands may still use them.
 
 If model import fails, you can still add models manually. Use the provider's
 exact model id and the model's context-window token count.
@@ -182,9 +221,15 @@ exact model id and the model's context-window token count.
 
 Each provider has an **Auto-sync models** toggle. While it is on, QuickAdd
 imports new models and refreshed context limits from the provider's model source
-once a day and whenever provider settings open, so model lists stay current
+once a day and whenever you open the provider's page, so model lists stay current
 without plugin updates. Auto-sync only adds models and updates metadata - it
-never removes models you have configured. Use **Sync now** to refresh on demand.
+never removes models you have configured, and it does not add models the
+directory already marks as deprecated. Use **Sync now** to refresh on demand.
+The line under the toggle shows when the provider last synced, or why the last
+sync failed.
+Models that arrive while the provider's page is open appear in its list right
+away, and the **Sync now** notice counts every model added to the list you were
+looking at when you clicked it.
 
 Auto-sync is on by default for the built-in OpenAI and Gemini providers and for
 providers added from a card. It does nothing while **Disable AI & online
@@ -194,7 +239,8 @@ features** is on.
 
 ### Max tokens is the context window {#max-tokens}
 
-In the provider model list, **Max tokens** means the model's context window. It
+In the provider's model list, **Context** (stored as `maxTokens`) is the
+model's context window. It
 is the total amount of prompt plus response context the model can handle,
 according to the configured provider metadata or the value you entered manually.
 
@@ -295,7 +341,7 @@ Then use a Macro with two steps:
    - Output variable name: `aiTitle`
    - Use a low temperature if you want more repeatable titles.
 2. **Template** command
-   - File Name Format: `{{VALUE:aiTitle}}`
+   - File name: `{{VALUE:aiTitle}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
    - Template body can also include `{{VALUE:aiTitle}}`.
 
 The same pattern works with Capture choices and User Script commands that run
@@ -492,13 +538,16 @@ For the full script API surface, see the
 
 ### The AI settings button is missing {#the-ai-settings-button-is-missing}
 
-Turn off **Disable AI & online features** in QuickAdd settings. The AI settings
-button is hidden while AI and online features are disabled.
+Turn off **Disable AI & online features** in QuickAdd settings. The **AI
+Assistant** page and its buttons are hidden while AI and online features are
+disabled. With no choices yet,
+the button is **Configure AI Assistant** below **New choice**; otherwise it is
+the sparkles icon in the bar under the choice list.
 
 ### My model is not listed {#my-model-is-not-listed}
 
-Open **AI Assistant settings** > **Edit providers** > your provider > **Edit**,
-then click **Sync now**. Providers with **Auto-sync models** on pick up new
+Open **Settings → QuickAdd → AI Assistant** > your provider, then click
+**Sync now**. Providers with **Auto-sync models** on pick up new
 models automatically once a day. You can also browse and import models, or add
 the model manually - the model name must exactly match what the provider expects.
 

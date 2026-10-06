@@ -3,7 +3,7 @@ import { parseCaptureFileFilterTarget } from "../../../utils/captureFileFilterTa
 import { parsePropertyTarget } from "../../../utils/propertyTarget";
 import { t } from "../../../i18n";
 
-export type CaptureTargetFeedback = {
+type CaptureTargetFeedback = {
 	recognized: true;
 	valid: boolean;
 	variant: "success" | "error";

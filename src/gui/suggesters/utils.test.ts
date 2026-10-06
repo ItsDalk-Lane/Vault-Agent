@@ -3,9 +3,8 @@ import { log } from "../../logger/logManager";
 import { 
 	insertAtCursor, 
 	replaceRange, 
-	getTextBeforeCursor, 
 	renderExactHighlight, 
-	renderFuzzyHighlight,
+	renderHighlightRanges,
 	stripMdExtensionForDisplay,
 	createRenderFallbackWarner,
 } from "./utils";
@@ -69,26 +68,6 @@ describe("Suggester Utils", () => {
 
 			expect(mockInput.value).toBe("Hello Universe");
 			expect(mockInput.selectionStart).toBe(14);
-		});
-	});
-
-	describe("getTextBeforeCursor", () => {
-		it("should return text before cursor", () => {
-			mockInput.value = "Hello Beautiful World";
-			mockInput.selectionStart = 15;
-
-			const result = getTextBeforeCursor(mockInput as any);
-
-			expect(result).toBe("Hello Beautiful");
-		});
-
-		it("should respect lookbehind limit", () => {
-			mockInput.value = "Hello Beautiful World";
-			mockInput.selectionStart = 15;
-
-			const result = getTextBeforeCursor(mockInput as any, 5);
-
-			expect(result).toBe("tiful");
 		});
 	});
 
@@ -197,36 +176,29 @@ describe("Suggester Utils", () => {
 		});
 	});
 
-	describe("renderFuzzyHighlight", () => {
-		it("should highlight individual matching characters", () => {
+	describe("renderHighlightRanges", () => {
+		it("wraps each range in a mark", () => {
 			const el = document.createElement("div");
-			renderFuzzyHighlight(el, "Hello World", "HW");
+			renderHighlightRanges(el, "Hello World", [[0, 1], [6, 7]]);
 			expect(el.innerHTML).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
 		});
 
-		it("should be case-insensitive", () => {
+		it("renders plain text without ranges", () => {
 			const el = document.createElement("div");
-			renderFuzzyHighlight(el, "Hello World", "hw");
-			expect(el.innerHTML).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
+			renderHighlightRanges(el, "Hello World", []);
+			expect(el.innerHTML).toBe("Hello World");
 		});
 
-		it("should return original text when no query", () => {
+		it("shifts ranges by the offset and clips the ones outside the text", () => {
+			// Ranges computed over "Ada People/Ada.md"; the path starts at offset 4.
 			const el = document.createElement("div");
-			renderFuzzyHighlight(el, "Hello World", "");
-			expect(el.textContent).toBe("Hello World");
+			renderHighlightRanges(el, "People/Ada.md", [[0, 3], [4, 10], [11, 14]], 4);
+			expect(el.innerHTML).toBe('<mark class="qa-highlight">People</mark>/<mark class="qa-highlight">Ada</mark>.md');
 		});
 
-		it("should handle HTML entities correctly", () => {
+		it("keeps HTML in the text literal", () => {
 			const el = document.createElement("div");
-			renderFuzzyHighlight(el, "R&D", "&");
-			expect(el.textContent).toBe("R&D");
-			expect(el.innerHTML).toBe('R<mark class="qa-highlight">&amp;</mark>D');
-		});
-
-		it("should handle XSS attempts safely", () => {
-			const el = document.createElement("div");
-			renderFuzzyHighlight(el, "<img src=x>", "i");
-			expect(el.textContent).toContain("<img");
+			renderHighlightRanges(el, "<img src=x>", [[1, 2]]);
 			expect(el.innerHTML).toBe('&lt;<mark class="qa-highlight">i</mark>mg src=x&gt;');
 		});
 	});
