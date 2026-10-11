@@ -1,4 +1,5 @@
 import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
+import { unescapePipesInTokens } from "src/formatters/helpers/pipeEscapes";
 import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {
@@ -38,6 +39,19 @@ import { getFileTokenFiles } from "src/utils/vaultQueries";
 
 export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
+
+const OPTION_LIST_LABEL_MAX = 30;
+
+/** "happy / sad"; whole options only, then "…" once past the limit. */
+function optionListLabel(options: string[]): string {
+	let label = options[0];
+	for (const option of options.slice(1)) {
+		const next = `${label} / ${option}`;
+		if (next.length > OPTION_LIST_LABEL_MAX) return `${label}…`;
+		label = next;
+	}
+	return label;
+}
 
 /**
  * RequirementCollector walks through strings that may contain QuickAdd format
@@ -130,7 +144,9 @@ export class RequirementCollector extends Formatter {
 		this.scanPositions = new Map();
 		try {
 			// Expand global variables first so we can detect inner requirements
-			const expanded = await this.replaceGlobalVarInString(input);
+			const expanded = unescapePipesInTokens(
+				await this.replaceGlobalVarInString(input),
+			);
 			// Run a safe formatting pass that collects variables but avoids side-effects.
 			// Dates first, as the run replaces VDATEs before named VALUEs: a
 			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.
@@ -270,7 +286,13 @@ export class RequirementCollector extends Formatter {
 
 			if (!variableName) continue;
 
-			const displayLabel = label ?? variableName;
+			// An option list's spec ("happy,sad") is its id, not a readable label.
+			const displayLabel =
+				label ??
+				(hasOptions
+					? (parsed.aliasName ??
+						optionListLabel(displayValues ?? parsed.suggestedValues))
+					: variableName);
 			const requirementId = variableKey;
 
 			// A VDATE with this name asks first at run time, which matches names

@@ -31,7 +31,7 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 The project uses tab indentation and LF endings (see `.editorconfig`); align editor settings. Use camelCase for variables and functions, PascalCase for classes and Svelte components, and kebab-case for directories and utilities. Preserve the hand-ordered imports in `src/main.ts`; disable auto-sorting there. Prefer type-only imports and route logging through the `logger` utilities for consistent output.
 
 ## Testing Guidelines
-Vitest (configured in `vitest.config.mts`) runs under jsdom and cannot load real Obsidian modules. Structure production code so Obsidian dependencies are injected behind interfaces; unit tests target pure logic and swap in adapters or `tests/obsidian-stub.ts`. Co-locate specs with their source or group them under `tests/feature-name`. Add regression coverage for bug fixes, and ensure `pnpm run test` passes before pushing.
+Vitest (configured in `vitest.config.mts`) runs in Node and cannot load real Obsidian modules. A test file that needs a DOM or loads Svelte code starts with `// @vitest-environment jsdom`; leave it off otherwise, because jsdom setup is the suite's largest cost. A Node test that loads Svelte code or reads `document` fails with that hint. Structure production code so Obsidian dependencies are injected behind interfaces; unit tests target pure logic and swap in adapters or `tests/obsidian-stub.ts`. Co-locate specs with their source or group them under `tests/feature-name`. Add regression coverage for bug fixes, and ensure `pnpm run test` passes before pushing.
 
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (`feat:`, `fix:`, `test:`, ...) so the shared release pipeline can determine versions from history. Keep generated files in the same commit as the changes that produced them. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
@@ -44,16 +44,16 @@ Automation or scripted work should surface disruptive operations in the PR descr
 
 ## Obsidian Runtime Workflow
 Agents with the `verify-in-obsidian` skill get the generic workflow there:
-vault-mode choice, the runner script quartet, the `--print-env` HOME remap,
-instance teardown, and the dev-tools loop. This section is the QuickAdd-specific
+vault-mode choice, the runner script quartet, `--print-env`, instance
+teardown, and the dev-tools loop. This section is the QuickAdd-specific
 brief that a skill-less agent still needs.
 
-- Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
-  id=quickadd`; the runner's ready probe is `quickadd:list`. Run a choice with
-  `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that `ok:true`
-  means the run finished, not that it did what you wanted. Drive anything else
-  through `pnpm run obsidian:e2e -- eval code=<javascript>`; top-level `await`
-  is not allowed there, so wrap async work in an IIFE the eval can await.
+- Plugin id `quickadd`; the runner's ready probe is `quickadd:list`. Run a
+  choice with `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that
+  `ok:true` means the run finished, not that it did what you wanted. Drive
+  anything else through `pnpm run obsidian:e2e -- eval code=<javascript>`;
+  top-level `await` is not allowed there, so wrap async work in an IIFE the
+  eval can await.
 - The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
   `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
@@ -91,7 +91,6 @@ pnpm run obsidian:e2e -- dev:errors
 
 # point the Vitest tests/e2e suite at the isolated instance:
 eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
-export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"   # re-point the CLI socket
 pnpm run test:e2e
 
 pnpm run stop:e2e-obsidian                  # stop this worktree's instance on wrap-up

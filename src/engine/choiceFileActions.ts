@@ -1,9 +1,10 @@
 import type { App, TFile, WorkspaceLeaf } from "obsidian";
 import { t } from "../i18n";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { currentFile, namedCurrentNote, namesCurrentNote } from "../utils/currentFile";
 import { log } from "../logger/logManager";
 import { type normalizeAppendLinkOptions, type AppendLinkOptions, placementSupportsFrontmatter } from "../types/linkPlacement";
-import { insertFileLinkToActiveView } from "../utils/editorInsertion";
+import { insertFileLinkToCurrentNote } from "../utils/editorInsertion";
 import { openExistingFileTab, openFile } from "../utils/fileOpening";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { appendFileLinkToDestinationFile, copyFileLinkToClipboard, getAppendLinkDestinationFile } from "../utils/fileLinks";
@@ -20,17 +21,21 @@ export function appendLinkDestinationError(app: App, options: LinkOptions): stri
 
 export async function insertChoiceFileLink(
 	app: App, file: TFile, options: AppendLinkOptions,
-	focusedProperty: IChoiceExecutor["focusedProperty"],
+	executor: IChoiceExecutor,
 	onEditorTextMutation?: EditorTextMutationObserver,
 ): Promise<void> {
 	if (!options.enabled) return;
+	const current = currentFile(app, executor);
+	const named = namesCurrentNote(executor);
+	// A property focused in some other note is not where a named note's link goes.
+	const focusedProperty = !named || executor.focusedProperty?.file.path === current?.path ? executor.focusedProperty : null;
 	if (options.destination?.type === "specifiedFile") {
 		await appendFileLinkToDestinationFile(app, file, options, onEditorTextMutation);
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		if (onEditorTextMutation) await insertFileLinkToActiveView(app, file, options, onEditorTextMutation);
-		else await insertFileLinkToActiveView(app, file, options);
+		if (namedCurrentNote(executor) === null && options.requireActiveFile) throw new Error(t("errors.currentNoteNone"));
+		await insertFileLinkToCurrentNote(app, file, current, options, onEditorTextMutation, named);
 	}
 }
 

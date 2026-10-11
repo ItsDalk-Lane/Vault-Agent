@@ -2,6 +2,8 @@ import getEndOfSection from "./helpers/getEndOfSection";
 import { insertOrderedCapture } from "./helpers/orderedCaptureInsertion";
 import type { TFile } from "obsidian";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { currentFile } from "../utils/currentFile";
 import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -191,12 +193,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	protected getCurrentFileLink(): string | null {
-		const currentFile = this.app.workspace.getActiveFile();
-		if (!currentFile) return null;
+		const file = currentFile(this.app, this.choiceExecutor);
+		if (!file) return null;
 
 		// Resolve links relative to the capture destination; sourcePath is available before file creation.
 		const sourcePath = this.sourcePath ?? this.file?.path ?? "";
-		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
+		return this.app.fileManager.generateMarkdownLink(file, sourcePath);
 	}
 
 	public async formatContentWithFile(
@@ -679,9 +681,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return surroundCapture(payload, note + blockquoteSeparator(note, payload.content));
 			}
 			case CREATE_IF_NOT_FOUND_CURSOR: {
-				const view = getActiveMarkdownEditorView(this.app);
+				const view = this.file ? getMarkdownEditorViewForFile(this.app, this.file) : getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
-					t("errors.insertLineNoEditor", { line: rawTarget }),
+					this.file
+						? t("errors.insertLineFileNotOpen", { line: rawTarget, path: this.file.path })
+						: t("errors.insertLineNoEditor", { line: rawTarget }),
 				);
 				try {
 					return insertAtCursor(view.editor.getCursor().line);

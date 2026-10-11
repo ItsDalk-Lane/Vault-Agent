@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { insertOnNewLineBelow } from "../utils/editorInsertion";
@@ -93,7 +94,7 @@ vi.mock("../utils/fileLinks", () => ({
 
 vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
 	setMarkdownCursorAtOffset: vi.fn(),
@@ -362,6 +363,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		app.workspace.getActiveFile = vi.fn(() => captureFile);
+		app.workspace.getActiveViewOfType = vi.fn(() => ({ file: captureFile, editor: {} })) as never;
 		formatContentOnlyMock.mockResolvedValue("");
 		insertFormattedContentMock.mockResolvedValue("existing body");
 		const choice = {
@@ -383,6 +385,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		app.workspace.getActiveFile = vi.fn(() => captureFile);
+		app.workspace.getActiveViewOfType = vi.fn(() => ({ file: captureFile, editor: {} })) as never;
 		formatContentOnlyMock.mockResolvedValue("a real line");
 		insertFormattedContentMock.mockResolvedValue("a real line");
 		const choice = {

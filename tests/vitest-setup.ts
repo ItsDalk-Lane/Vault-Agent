@@ -1,6 +1,6 @@
-// Global test setup for component tests.
-// Adds jest-dom matchers (toBeInTheDocument, toHaveAttribute, ...) to expect().
-import "@testing-library/jest-dom/vitest";
+// Global test setup. Under jsdom it adds jest-dom matchers (toBeInTheDocument,
+// toHaveAttribute, ...) to expect() and Obsidian's DOM helpers.
+import { afterEach } from "vitest";
 
 // Pin the i18n module to English for the whole test run. Without this, every
 // test would race on the module-level `currentLocale` variable, and any test
@@ -131,9 +131,31 @@ export function installObsidianDomHelpers(window: Window): void {
 	}
 }
 
-installObsidianDomHelpers(window);
-
-// Obsidian's globals for the document and window that have focus.
-if (!("activeDocument" in globalThis)) {
-	Object.defineProperty(globalThis, "activeDocument", { configurable: true, get: () => window.document });
+// Node 26+ exposes a partial `window`/`navigator` global in the node
+// environment (userAgent "Node.js/x") without a DOM: document and the element
+// constructors are absent there. Gate on window.document, not just window, so
+// those workers take the node branch instead of crashing on HTMLElement.
+if (typeof window !== "undefined" && typeof window.document !== "undefined") {
+	await import("@testing-library/jest-dom/vitest");
+	installObsidianDomHelpers(window);
+	// Obsidian's globals for the document and window that have focus.
+	if (!("activeDocument" in globalThis)) {
+		Object.defineProperty(globalThis, "activeDocument", { configurable: true, get: () => window.document });
+	}
+} else {
+	// Engines catch and report errors, so a Node test that reaches the DOM can
+	// still pass without running the path it names. Fail it instead.
+	let firstRead: string | undefined;
+	Object.defineProperty(globalThis, "document", {
+		configurable: true,
+		get() {
+			firstRead ??= new Error().stack;
+			return undefined;
+		},
+	});
+	afterEach(() => {
+		const stack = firstRead;
+		firstRead = undefined;
+		if (stack) throw new Error(`This test reads \`document\`; add \`// @vitest-environment jsdom\` to its file.\n${stack}`);
+	});
 }

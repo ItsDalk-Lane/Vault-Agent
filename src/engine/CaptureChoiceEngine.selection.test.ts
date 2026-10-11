@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notice, prepareFuzzySearch, TFile, TFolder, View, type App, type SearchMatches } from "obsidian";
@@ -6,7 +7,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
-import { insertOnNewLineBelow, insertFileLinkToActiveView, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
+import { insertOnNewLineBelow, insertFileLinkToCurrentNote, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 import { jumpToNextTemplaterCursorIfPossible, overwriteTemplaterOnce } from "../utils/templaterIntegration";
 import { openFile } from "../utils/fileOpening";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
@@ -98,7 +99,7 @@ vi.mock("../utils/editorInsertion", () => ({
 	// Editor-insertion helpers return true when the insertion lands; default the mocks
 	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
 	appendToCurrentLine: vi.fn(() => true),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
 	setMarkdownCursorAtOffset: vi.fn(() => true),
@@ -255,7 +256,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
 		vi.mocked(getMarkdownFilesWithProperty).mockReset();
 		vi.mocked(getMarkdownFilesWithProperty).mockReturnValue([]);
-		vi.mocked(insertFileLinkToActiveView).mockReset();
+		vi.mocked(insertFileLinkToCurrentNote).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 		vi.mocked(overwriteTemplaterOnce).mockClear();
 		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockReset();
@@ -539,7 +540,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		vi.mocked(isFolder).mockReset();
 		vi.mocked(getMarkdownFilesInFolder).mockReset();
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([]);
-		vi.mocked(insertFileLinkToActiveView).mockReset();
+		vi.mocked(insertFileLinkToCurrentNote).mockReset();
 		delete (InputSuggester as any).Suggest;
 		setTitleMock.mockClear();
 		singleTemplateRunMock.mockReset();
@@ -1558,7 +1559,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 	});
 
 	it("skips required append-link insertion for canvas file-card capture without markdown context", async () => {
-		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+		vi.mocked(insertFileLinkToCurrentNote).mockImplementation(() => {
 			throw new Error("link insertion should be skipped");
 		});
 
@@ -1609,11 +1610,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(app.vault.modify).toHaveBeenCalledWith(linkedFile, "updated");
-		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
 	});
 
 	it("does not skip configured frontmatter link insertion for canvas file-card capture", async () => {
-		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+		vi.mocked(insertFileLinkToCurrentNote).mockImplementation(() => {
 			throw new Error("frontmatter link insertion failed");
 		});
 
@@ -1693,18 +1694,21 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			file: linkedFile,
 			effect: "changed",
 		});
-		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalledWith(
 			app,
 			linkedFile,
+			canvasFile,
 			expect.objectContaining({
 				...appendLink,
 				destination: { type: "activeFile" },
 			}),
+			undefined,
+			false,
 		);
 	});
 
 	it("skips required append-link insertion for active canvas text-card capture without markdown context", async () => {
-		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+		vi.mocked(insertFileLinkToCurrentNote).mockImplementation(() => {
 			throw new Error("link insertion should be skipped");
 		});
 
@@ -1750,11 +1754,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(setTextMock).toHaveBeenCalled();
-		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+		expect(insertFileLinkToCurrentNote).not.toHaveBeenCalled();
 	});
 
 	it("does not delete a clipboard attachment after a canvas text-card write if later link insertion fails", async () => {
-		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+		vi.mocked(insertFileLinkToCurrentNote).mockImplementation(() => {
 			throw new Error("link insertion failed after canvas write");
 		});
 
@@ -1813,7 +1817,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(setTextMock).toHaveBeenCalledWith("![[Clipboard image.png]]");
-		expect(insertFileLinkToActiveView).toHaveBeenCalled();
+		expect(insertFileLinkToCurrentNote).toHaveBeenCalled();
 		expect(app.fileManager.trashFile).not.toHaveBeenCalledWith(attachmentFile);
 	});
 

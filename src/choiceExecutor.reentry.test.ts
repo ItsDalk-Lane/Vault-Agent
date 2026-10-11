@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type IChoice from "./types/choices/IChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
@@ -198,6 +199,35 @@ describe("ChoiceExecutor re-entry guard", () => {
 
 		await expect(dispatched).rejects.toThrow('Macro "A" calls itself: A -> A');
 		expect(ran).toEqual(["a"]);
+	});
+
+	it("hands the note named with current= to a choice its Obsidian-command step runs", async () => {
+		let seen: string | undefined;
+		const b = macro("B", [script("b", async ({ quickAddApi }) => {
+			seen = await quickAddApi.format("{{FILENAMECURRENT}}");
+		})]);
+		const a = macro("A", [
+			{ id: "cmd", name: "QuickAdd: B", type: CommandType.Obsidian, commandId: "quickadd:choice:B" } as ICommand,
+		]);
+		choices = [a, b];
+		let dispatched: Promise<void> | undefined;
+		const commandApp = {
+			workspace: { getActiveFile: () => ({ path: "Active.md", basename: "Active" }) },
+			commands: {
+				commands: { "quickadd:choice:B": {} },
+				executeCommandById: () => {
+					dispatched = new ChoiceExecutor(commandApp, plugin).execute(b);
+					return true;
+				},
+			},
+		} as never;
+		const executor = new ChoiceExecutor(commandApp, plugin);
+		executor.setCurrentFile({ path: "Daily/Today.md", basename: "Today" } as never);
+
+		await executor.execute(a);
+		await dispatched;
+
+		expect(seen).toBe("Today");
 	});
 
 	it("stops a startup macro that reaches itself before its prefix runs twice", async () => {

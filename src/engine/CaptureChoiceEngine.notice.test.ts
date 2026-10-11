@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -54,7 +55,7 @@ vi.mock("../utils/fileLinks", () => ({
 
 vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
 }));

@@ -13,6 +13,7 @@ import {
 import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
 import { processNoteFrontMatter } from "./noteContent";
+import { appendLinkLineToNote } from "./fileLinks";
 import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
 
@@ -83,13 +84,13 @@ export function getMarkdownEditorViewForFile(
 }
 
 /**
- * @returns true if the text was inserted, false if there was no active Markdown
- * editor to insert into (or insertion threw). Callers that need to know whether
+ * @returns true if the text was inserted, false if the active Markdown editor
+ * does not show `file` (or insertion threw). Callers that need to know whether
  * the capture actually landed (e.g. the URI x-callback handler) must check this.
  */
-export function appendToCurrentLine(toAppend: string, app: App): boolean {
+export function appendToCurrentLine(toAppend: string, app: App, file: TFile): boolean {
 	try {
-		const activeView = getActiveMarkdownEditorView(app);
+		const activeView = getMarkdownEditorViewForFile(app, file);
 
 		if (!activeView) {
 			log.logError(t("errors.appendToCurrentLineFailed", { text: toAppend }));
@@ -104,10 +105,10 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 	}
 }
 
-/** @returns true if inserted, false if no active Markdown editor (or it threw). */
-export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App): boolean {
+/** @returns true if inserted, false if the active Markdown editor does not show `file` (or it threw). */
+export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App, file: TFile): boolean {
 	try {
-		const activeView = getActiveMarkdownEditorView(app);
+		const activeView = getMarkdownEditorViewForFile(app, file);
 
 		if (!activeView) {
 			log.logError(t("errors.insertOnNewLineFailed", { text: toInsert, direction }));
@@ -140,12 +141,12 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 	}
 }
 
-export function insertOnNewLineAbove(toInsert: string, app: App): boolean {
-	return insertOnNewLine(toInsert, "above", app);
+export function insertOnNewLineAbove(toInsert: string, app: App, file: TFile): boolean {
+	return insertOnNewLine(toInsert, "above", app, file);
 }
 
-export function insertOnNewLineBelow(toInsert: string, app: App): boolean {
-	return insertOnNewLine(toInsert, "below", app);
+export function insertOnNewLineBelow(toInsert: string, app: App, file: TFile): boolean {
+	return insertOnNewLine(toInsert, "below", app, file);
 }
 
 /**
@@ -355,19 +356,21 @@ export async function insertLinkWithPlacement(
 }
 
 /**
- * Inserts a link to the specified file into the active view, respecting
- * Obsidian's "New link format" setting.
+ * Inserts a link to `file` into `currentNote`, the run's current note,
+ * respecting Obsidian's "New link format" setting. When the active editor shows
+ * that note the link lands at the configured placement; otherwise it is written
+ * through the vault, into the frontmatter property or as a new last line.
  *
- * @param app - The Obsidian app instance
- * @param file - The file to link to
- * @param linkOptions - Options controlling link insertion behavior
  * @returns True if the link was inserted, false otherwise
  */
-export async function insertFileLinkToActiveView(
+export async function insertFileLinkToCurrentNote(
 	app: App,
 	file: TFile,
+	currentNote: TFile | null,
 	linkOptions: AppendLinkOptions,
 	onEditorTextMutation?: EditorTextMutationObserver,
+	/** Write a text-placement link through the vault when no editor shows the note (a note named with `current=`). */
+	writeThroughVault = false,
 ): Promise<boolean> {
 	if (!linkOptions?.enabled) return false;
 
@@ -376,11 +379,7 @@ export async function insertFileLinkToActiveView(
 	// by raw options from scripts or third-party callers.
 	const normalized = normalizeAppendLinkOptions(linkOptions);
 
-	const view = app.workspace.getActiveViewOfType(MarkdownView);
-	// Only the frontmatter placement works without an editor; for text
-	// placements an editor-less view is the same as no view.
-	const editorRequired = normalized.placement !== "inFrontmatter";
-	if (!view || !view.file || (editorRequired && !view.editor)) {
+	if (!currentNote || currentNote.extension !== "md") {
 		// Read the guard from the RAW options: normalization defaults a missing
 		// requireActiveFile to true, which would turn a raw caller's previous
 		// silent skip into a throw.
@@ -390,12 +389,33 @@ export async function insertFileLinkToActiveView(
 		return false;
 	}
 
-	const sourcePath = view.file.path;
+	const sourcePath = currentNote.path;
 	const linkText = buildFileLinkText(app, file, {
 		sourcePath,
 		linkType: normalized.linkType,
 		placement: normalized.placement,
 	});
+
+	if (!getMarkdownEditorViewForFile(app, currentNote)) {
+		if (normalized.placement === "inFrontmatter") {
+			await processNoteFrontMatter(app, currentNote, (frontmatter) => {
+				appendConfiguredFrontmatterPropertyLinkValue(
+					frontmatter,
+					normalized.frontmatterProperty ?? "",
+					linkText,
+					normalized.frontmatterHandling,
+				);
+			});
+		} else if (writeThroughVault) {
+			await appendLinkLineToNote(app, currentNote, linkText, onEditorTextMutation);
+		} else {
+			if (linkOptions.requireActiveFile) {
+				throw new Error(t("errors.appendLinkNoActiveView"));
+			}
+			return false;
+		}
+		return true;
+	}
 
 	// Normalization guarantees "selection" only for selection-anchored
 	// placements with a plain link into the active note.

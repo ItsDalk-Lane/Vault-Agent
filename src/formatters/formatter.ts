@@ -130,7 +130,7 @@ export abstract class Formatter extends ValueFormatter {
 		const currentFilePathLink = this.getCurrentFileLink();
 		if (!currentFilePathLink) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error(t("errors.currentFilePathUnavailable"));
+				throw new Error(this.missingCurrentNoteMessage(t("errors.currentFilePathUnavailable")));
 			}
 			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
 		}
@@ -147,7 +147,7 @@ export abstract class Formatter extends ValueFormatter {
 
 		if (!sectionLink) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error(t("errors.currentFilePathUnavailable"));
+				throw new Error(this.missingCurrentNoteMessage(t("errors.currentFilePathUnavailable")));
 			}
 			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
 		}
@@ -175,7 +175,12 @@ export abstract class Formatter extends ValueFormatter {
 			FOLDER: () => this.targetFolderPath ?? "",
 			FOLDERCURRENT: () => this.getCurrentFolderPath(),
 			TITLE: () => this.getVariableValue("title"),
-		}, this.linkToCurrentFileBehavior);
+		}, this.linkToCurrentFileBehavior, (inApp) => this.missingCurrentNoteMessage(inApp));
+	}
+
+	/** What a required current-note token says when there is no current note. */
+	protected missingCurrentNoteMessage(inApp: string): string {
+		return inApp;
 	}
 
 	protected async replaceCurrentFileNameInString(

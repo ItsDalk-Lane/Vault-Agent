@@ -23,6 +23,15 @@ export function jsLiteral(value: unknown): string {
 	return JSON.stringify(value).replace(/[<>\b\f\n\r\t\0\u2028\u2029]/g, (char) => UNSAFE_IN_CODE[char]);
 }
 
+/**
+ * Page code that sets vault option `key` in memory only. `app.vault.setConfig`
+ * also writes app.json, and under load Obsidian reads that write back after a
+ * spec restores the option, leaving it changed for every later spec (#2207).
+ */
+export function setVaultConfig(key: string, value: unknown): string {
+	return `void (app.vault.config[${jsLiteral(key)}] = ${jsLiteral(value)})`;
+}
+
 export async function waitForElement(obsidian: ObsidianClient, selector: string) {
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
 		`Boolean(document.querySelector(${JSON.stringify(selector)})?.getClientRects().length)`,
@@ -84,6 +93,16 @@ async function sendInput(obsidian: ObsidianClient, label: string, target: string
 	}
 }
 
+/**
+ * Renders the main window as the window in front, or stops doing so. A window
+ * covered by other windows, as a test instance on macOS usually is, gets no
+ * animation frames and throttled timers. An app reload turns this off.
+ */
+export async function setFocusEmulation(obsidian: ObsidianClient, enabled: boolean) {
+	const reply = await obsidian.execText("dev:cdp", { method: "Emulation.setFocusEmulationEnabled", params: JSON.stringify({ enabled }) });
+	if (!reply.startsWith("{")) throw new Error(`dev:cdp Emulation.setFocusEmulationEnabled failed: ${reply}`);
+}
+
 /** Inserts text at the focused element, the way an IME commits it. */
 export async function insertText(obsidian: ObsidianClient, text: string) {
 	await sendInput(obsidian, `insertText ${JSON.stringify(text)}`, INPUT_TARGET, [["Input.insertText", { text }]]);
@@ -132,25 +151,42 @@ export async function expectNoPrompt(obsidian: ObsidianClient) {
 	), POLL_OPTS).toBe(false);
 }
 
+/** Escapes out of every open modal or prompt, so a failed spec cannot block the next one. */
+export async function closeOpenPrompts(obsidian: ObsidianClient) {
+	for (let remaining = 10; remaining > 0; remaining--) {
+		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container, .prompt"))')) break;
+		await pressKey(obsidian, "Escape");
+	}
+	await expectNoPrompt(obsidian);
+}
+
 /**
  * A real click in the middle of the visible element matching `selector`, once
  * it stops moving: a settings page slides in when it opens or is returned to.
  */
 export async function clickWhenStill(obsidian: ObsidianClient, selector: string) {
+	// The last two samples go into the timeout, so a failure says whether the
+	// element was missing, hidden, or still moving.
+	let previous = "";
 	let last = "";
 	const point = await obsidian.waitFor(async () => {
-		const rect = await obsidian.dev.evalJson<{ x: number; y: number } | null>(`(() => {
-			const el = [...document.querySelectorAll(${jsLiteral(selector)})].find((el) => el.getClientRects().length > 0);
-			if (!el) return null;
+		const sample = await obsidian.dev.evalJson<{ x: number; y: number } | "absent" | "hidden">(`(() => {
+			const all = [...document.querySelectorAll(${jsLiteral(selector)})];
+			const el = all.find((el) => el.getClientRects().length > 0);
+			if (!el) return all.length > 0 ? "hidden" : "absent";
 			el.scrollIntoView({ block: "nearest" });
 			const rect = el.getBoundingClientRect();
 			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 		})()`);
-		const key = JSON.stringify(rect);
-		const settled = rect !== null && key === last;
+		const key = JSON.stringify(sample);
+		const settled = typeof sample === "object" && key === last;
+		previous = last;
 		last = key;
-		return settled ? rect : false;
-	}, { message: `${selector} visible and still`, timeoutMs: 10_000, intervalMs: 100 });
+		return settled ? sample : false;
+	}, { message: `${selector} visible and still`, timeoutMs: 10_000, intervalMs: 100 }).catch((error: Error) => {
+		error.message += ` Last samples: ${previous}, ${last}.`;
+		throw error;
+	});
 	await clickAt(obsidian, point.x, point.y);
 }
 

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { leaveSettingsPage, POLL_OPTS, pressKey, setVaultConfig, typeInto } from "./uiHelpers";
 
 // #941/#942: two `view.js` files in different folders were identical "view" rows
 // in both script pickers, and picking the second one from the inline typeahead
@@ -17,7 +17,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("books"); };');
 	const progress = await seedVaultFile(obsidian, sandbox, "views/qa-progress-panel/view.js",
 		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("progress"); };');
-	const runner = await seedVaultFile(obsidian, sandbox, "views/runner.md",
+	const runner = await seedVaultFile(obsidian, sandbox, "views/202610061432.md",
 		"# Weekly runner\n\n```js\nmodule.exports = () => {};\n```\n");
 	const macro = new MacroChoice("Script picker paths");
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
@@ -28,7 +28,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:
 	// the popout's DOM adoption is nondeterministic under CLI automation.
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
-	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
+	await obsidian.dev.evalJson(`${setVaultConfig("settingsPopoutWindow", false)}, true`);
 	const click = (selector: string, text?: string) => obsidian.dev.evalJson<boolean>(`(() => {
 		const target = Array.from(document.querySelectorAll(${JSON.stringify(selector)}))
 			.filter((el) => ${JSON.stringify(text ?? null)} === null || el.textContent.trim() === ${JSON.stringify(text ?? null)})
@@ -84,7 +84,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 				{ title: "view.js", note: books },
 				{ title: "view.js", note: progress },
 			]));
-		// #1932: a note script's row shows its heading, and typing that heading finds it.
+		// #1932: an ID-named note script's row shows its heading, and typing that heading finds it.
 		await typeInto(obsidian, ".prompt .prompt-input", "weekly runner");
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "Weekly runner", note: runner }]);
 		await typeInto(obsidian, ".prompt .prompt-input", "books");
@@ -105,7 +105,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 			return data.choices[0].macro.commands.map((c) => c.path);
 		})()`), POLL_OPTS).toEqual([progress, books]);
 	} finally {
-		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
+		await obsidian.dev.evalJson(`(() => { app.setting.close(); ${setVaultConfig("settingsPopoutWindow", popout)}; return true; })()`);
 	}
 
 	await obsidian.dev.evalJson("(() => { window.__qaScriptPickerRuns = []; return true; })()");

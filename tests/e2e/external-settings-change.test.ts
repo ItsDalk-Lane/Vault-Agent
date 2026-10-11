@@ -157,20 +157,94 @@ it("merges a choice edited here and a different choice edited elsewhere in the s
 	}
 });
 
+type AfterDisable = { command: boolean; disk: QuickAddData };
+
+/**
+ * Write a new command choice `id` to data.json, run `start`, and disable
+ * QuickAdd while the settings reads it queued are held back. Resolves to
+ * whether the choice's command is registered once that work has finished, and
+ * what it left in data.json. Restores data.json before enabling QuickAdd again.
+ */
+function afterDisableDuring(id: string, start: string): Promise<AfterDisable> {
+	const choice = { ...syncedChoice("Synced during disable"), id };
+	return getContext().obsidian.dev.evalJsonAsync<AfterDisable>(`(async () => {
+		const plugin = app.plugins.plugins.quickadd;
+		if (plugin.settings.choices.some((c) => c.id === ${jsLiteral(id)})) throw new Error("choice is already loaded");
+		const path = plugin.manifest.dir + "/data.json";
+		const original = await app.vault.adapter.read(path);
+		const data = JSON.parse(original);
+		data.choices.push(${JSON.stringify(choice)});
+		await app.vault.adapter.write(path, JSON.stringify(data));
+		let release;
+		const disabled = new Promise((resolve) => { release = resolve; });
+		const read = plugin.loadData.bind(plugin);
+		plugin.loadData = () => disabled.then(read);
+		try {
+			${start};
+			await app.plugins.disablePlugin("quickadd");
+			release();
+			await plugin.persistChain;
+			return {
+				command: Boolean(app.commands.commands[${jsLiteral(`quickadd:choice:${id}`)}]),
+				disk: JSON.parse(await app.vault.adapter.read(path)),
+			};
+		} finally {
+			release();
+			await app.vault.adapter.write(path, original);
+			await app.plugins.enablePlugin("quickadd");
+		}
+	})()`);
+}
+
+it("registers no commands when it is disabled while reading changed settings", async () => {
+	const id = `${CHOICE_ID}-read`;
+	const { command } = await afterDisableDuring(id, "void plugin.onExternalSettingsChange()");
+	expect(command).toBe(false);
+});
+
+it("registers no commands when its save on disable finds changed settings", async () => {
+	// Disabling flushes this pending save, which reads data.json first.
+	const id = `${CHOICE_ID}-save`;
+	const { command, disk } = await afterDisableDuring(id, "plugin.requestSave()");
+	expect(command).toBe(false);
+	expect(disk.choices.some((c) => c.id === id)).toBe(true);
+});
+
+it("saves an unsaved edit and keeps the changed settings when disabled during their read", async () => {
+	const { plugin } = getContext();
+	const id = `${CHOICE_ID}-edit`;
+	const before = await plugin.data<QuickAddData>().read();
+	const { command, disk } = await afterDisableDuring(id, `
+		app.setting.pluginTabs.find((t) => t.id === "quickadd")
+			.setControlValue("showCaptureNotification", ${!before.showCaptureNotification});
+		void plugin.onExternalSettingsChange()`);
+	expect(command).toBe(false);
+	expect({
+		choice: disk.choices.some((c) => c.id === id),
+		showCaptureNotification: disk.showCaptureNotification,
+	}).toEqual({ choice: true, showCaptureNotification: !before.showCaptureNotification });
+});
+
 it("does not treat its own saves as external changes", async () => {
 	const { obsidian, plugin } = getContext();
 	const before = await plugin.data<QuickAddData>().read();
 	await obsidian.dev.evalJson(COUNT_EXTERNAL_CHANGES);
-
-	await obsidian.dev.evalJson(`(() => {
+	const saveShowCaptureNotification = (value: boolean) => obsidian.dev.evalJsonAsync(`(() => {
 		const tab = app.setting.pluginTabs.find((t) => t.id === "quickadd");
-		tab.setControlValue("showCaptureNotification", ${!before.showCaptureNotification});
-		return true;
+		tab.setControlValue("showCaptureNotification", ${value});
+		return app.plugins.plugins.quickadd.saveSettings().then(() => true);
 	})()`);
-	await obsidian.dev.evalJsonAsync("app.plugins.plugins.quickadd.saveSettings().then(() => true)");
-	expect((await plugin.data<QuickAddData>().read()).showCaptureNotification).toBe(!before.showCaptureNotification);
 
-	// Obsidian debounces its file watcher; give it well past that to call in.
-	await new Promise((resolve) => setTimeout(resolve, 2_500));
-	expect((await obsidian.dev.evalJson<LiveState>(LIVE_STATE)).externalChanges).toBe(0);
+	// The harness only restores data.json after a write through plugin.data(),
+	// which would be an external change here, so this test undoes its own save.
+	try {
+		await saveShowCaptureNotification(!before.showCaptureNotification);
+		expect((await plugin.data<QuickAddData>().read()).showCaptureNotification).toBe(!before.showCaptureNotification);
+
+		// Obsidian debounces its file watcher; give it well past that to call in.
+		await new Promise((resolve) => setTimeout(resolve, 2_500));
+		expect((await obsidian.dev.evalJson<LiveState>(LIVE_STATE)).externalChanges).toBe(0);
+	} finally {
+		await saveShowCaptureNotification(before.showCaptureNotification);
+	}
 });

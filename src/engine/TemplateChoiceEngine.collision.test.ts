@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -82,7 +83,7 @@ vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));
 vi.mock("../utils/editorInsertion", () => ({
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 }));
 vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),

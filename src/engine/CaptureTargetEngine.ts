@@ -21,6 +21,7 @@ import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidate
 import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
 import { resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
+import { currentFile, missingCurrentNoteMessage } from "../utils/currentFile";
 
 export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 	public abstract choice: ICaptureChoice;
@@ -41,8 +42,8 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
 		if (shouldCaptureToActiveFile) {
-			const activeFile = this.app.workspace.getActiveFile();
-			invariant(activeFile, "Cannot capture to active file - no active file.");
+			const activeFile = currentFile(this.app, this.choiceExecutor);
+			invariant(activeFile, () => missingCurrentNoteMessage(this.choiceExecutor, t("errors.captureActiveFileNone")));
 
 			return activeFile.path;
 		}

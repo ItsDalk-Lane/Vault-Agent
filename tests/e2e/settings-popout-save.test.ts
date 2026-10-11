@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
+import { setFocusEmulation, setVaultConfig } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("settings-popout-save");
 
@@ -19,13 +20,16 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 		const dataPath = path.join(await obsidian.vaultPath(), ".obsidian/plugins/quickadd/data.json");
 		const onDisk = () =>
 			(JSON.parse(readFileSync(dataPath, "utf8")).choices as IChoice[]).map((choice) => choice.name);
+		// The test setup renders the main window as the window in front, which
+		// would keep its timers running at full speed while hidden.
+		if (mainWindow === "hidden") await setFocusEmulation(obsidian, false);
 		const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
 		try {
 			// Reorder by a native mouse drag in the popout, and close it 300 ms after the drop.
 			const inMemory = await obsidian.dev.evalJsonAsync<string[]>(`(async () => {
 				const remote = require("@electron/remote");
 				const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-				app.vault.setConfig("settingsPopoutWindow", true);
+				${setVaultConfig("settingsPopoutWindow", true)};
 				app.setting.open();
 				app.setting.openTabById("quickadd");
 				let doc;
@@ -76,7 +80,7 @@ for (const mainWindow of ["visible", "hidden"] as const) {
 			await obsidian.dev.evalJson(`(() => {
 				require("@electron/remote").getCurrentWindow().show();
 				app.setting.close();
-				app.vault.setConfig("settingsPopoutWindow", ${JSON.stringify(popout)});
+				${setVaultConfig("settingsPopoutWindow", popout)};
 				return true;
 			})()`);
 		}

@@ -75,7 +75,8 @@ import {
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
-import { getCaptureAction, type CaptureAction } from "./captureAction";
+import { getCaptureAction, isEditorAction, withoutCursorPosition, type CaptureAction } from "./captureAction";
+import { currentEditorView, currentFile, namesCurrentNote } from "../utils/currentFile";
 import {
 	getCanvasTextCaptureContent,
 	resolveActiveCanvasCaptureTarget,
@@ -274,9 +275,14 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	private hasActiveMarkdownCaptureContext(): boolean {
-		const hasActiveFile = !!this.app.workspace.getActiveFile();
-		const hasActiveMarkdownView = !!getActiveMarkdownEditorView(this.app);
-		return hasActiveFile && hasActiveMarkdownView;
+		return !!currentFile(this.app, this.choiceExecutor) && !!getActiveMarkdownEditorView(this.app);
+	}
+
+	/** A note named with `current=` is Markdown but no active editor shows it: a cursor write cannot land, a vault write can. */
+	private namedNoteHasNoEditor(): boolean {
+		return namesCurrentNote(this.choiceExecutor)
+			&& currentFile(this.app, this.choiceExecutor)?.extension === "md"
+			&& !currentEditorView(this.app, this.choiceExecutor);
 	}
 
 	private shouldSkipRequiredCanvasLinkInsertion(
@@ -314,7 +320,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return;
 		}
 
-		await insertChoiceFileLink(this.app, file, linkOptions, this.choiceExecutor.focusedProperty, onEditorTextMutation);
+		await insertChoiceFileLink(this.app, file, linkOptions, this.choiceExecutor, onEditorTextMutation);
 	}
 
 	private async copyCapturedFileLinkToClipboard(file: TFile): Promise<void> {
@@ -362,12 +368,19 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		| { kind: "canvasText"; canvas: CanvasTextCaptureTarget }
 		| { kind: "note"; filePath: string; isCanvasTriggered: boolean }
 	> {
-		// An active canvas target only exists with Capture to active file, and a
-		// configured one only without it.
-		const canvasTarget =
-			(this.choice.captureToActiveFile
-				? resolveActiveCanvasCaptureTarget(this.app, action)
-				: null) ?? (await this.resolveConfiguredCanvasTarget(action));
+		// A Canvas is JSON, so a capture into it lands on a selected card or not at
+		// all: with Capture to active file and a Canvas as the current note, that
+		// Canvas must be the active view. A configured target exists only without it.
+		const current = currentFile(this.app, this.choiceExecutor);
+		const currentCanvas = this.choice.captureToActiveFile && current?.extension === "canvas" ? current : null;
+		const canvasTarget = currentCanvas
+			? resolveActiveCanvasCaptureTarget(this.app, action, currentCanvas)
+			: await this.resolveConfiguredCanvasTarget(action);
+		if (currentCanvas && !canvasTarget) {
+			throw new ChoiceAbortError(
+				t("errors.canvasNotActiveView", { path: currentCanvas.path }),
+			);
+		}
 
 		if (canvasTarget?.kind === "text") {
 			if (isPropertyCapture) {
@@ -486,6 +499,16 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			if (!this.validateAppendLinkDestination(linkOptions)) return;
 
 			const propertyCaptures = parsePropertyCaptures(this.choice.propertyCapture);
+			// A note named with current= may have no open editor: a cursor write
+			// cannot land there, so drop the cursor position and fall back to a
+			// vault write. Property captures never use cursor placement.
+			if (
+				propertyCaptures.length === 0 &&
+				isEditorAction(getCaptureAction(this.choice)) &&
+				this.namedNoteHasNoEditor()
+			) {
+				this.choice = withoutCursorPosition(this.choice);
+			}
 			const action = propertyCaptures.length > 0 ? "append" : getCaptureAction(this.choice);
 			const target = await this.resolveWriteTarget(action, propertyCaptures.length > 0);
 			if (target.kind === "canvasText") {
@@ -529,7 +552,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			await this.prepareNoteWrite(filePath, fileAlreadyExists);
 
 			const write = fileAlreadyExists
-				? await this.onFileExists(filePath, content, action === "currentLine" || action === "newLineAbove" || action === "newLineBelow")
+				? await this.onFileExists(filePath, content, isEditorAction(action))
 				: await this.onCreateFileIfItDoesntExist(filePath, content, linkOptions);
 			if (write === null) {
 				if (this.plugin.settings.showCaptureNotification) {
@@ -625,7 +648,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const rewriteTarget = linkOptions.destination.type === "specifiedFile"
 				? getAppendLinkDestinationFile(this.app, linkOptions.destination)
 				: placementSupportsFrontmatter(linkOptions.placement)
-					? this.app.workspace.getActiveFile()
+					? currentFile(this.app, this.choiceExecutor)
 					: this.choiceExecutor.focusedProperty?.file;
 			if (rewriteTarget?.path === file.path) cursor = null;
 		}
@@ -665,7 +688,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const { file, captureContent, newFileContent, priorContent, cursor: placement } = write;
 		let captureIsNoOp = isCaptureContentEmpty(captureContent);
 		const { action } = options;
-		if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
+		if (isEditorAction(action)) {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
 			const payload = restoreUserTextInCapture(prepareCapture(parsed));
 			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
@@ -682,7 +705,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				const insert = action === "currentLine" ? appendToCurrentLine
 					: action === "newLineAbove" ? insertOnNewLineAbove : insertOnNewLineBelow;
 				const inserted = marked ? (cursor = insertCaptureInEditor(payload, this.app, file, action)) !== null
-					: insert(payload.content, this.app);
+					: insert(payload.content, this.app, file);
 				if (!inserted) {
 					await this.cleanupCreatedClipboardAttachments();
 					this.failRun(t("errors.noActiveMarkdownEditor", { name: this.choice.name }));
@@ -936,11 +959,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		linkOptions: NormalizedAppendLinkOptions,
 		markContentCommitted: () => void,
 	): Promise<void> {
-		if (
-			action === "currentLine" ||
-			action === "newLineAbove" ||
-			action === "newLineBelow"
-		) {
+		if (isEditorAction(action)) {
 			throw new ChoiceAbortError(
 				t("errors.canvasTextPositionsLimited"),
 			);
