@@ -194,6 +194,40 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).toContain("Task");
 	});
 
+	it("clicking the property-name input focuses it instead of collapsing the row", async () => {
+		// Regression: the field body moved inside the clickable .setting-item in
+		// #2141, so a click on the property-name input bubbled into the row-wide
+		// collapse handler and the row folded before any text could be typed.
+		const { container, getByLabelText, queryByLabelText, getAllByLabelText, queryAllByLabelText } = mountForm();
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		flushSync();
+
+		const nameInput = getByLabelText("Property");
+		await fireEvent.click(nameInput);
+		flushSync();
+
+		// Still expanded: the input stays in the DOM and the chevron still offers
+		// "Collapse" (not "Expand"), and the field accepts typing. (Real-browser
+		// focus lands on the input too — the body no longer runs the row handler,
+		// whose preventDefault used to swallow it — but jsdom cannot move focus
+		// synthetically, so that part is covered by the DOM-state checks.)
+		expect(queryByLabelText("Property")).not.toBeNull();
+		expect(getAllByLabelText("Collapse property")).toHaveLength(1);
+		// Single-row mode may not render an "Expand" button; use queryAll to avoid throw.
+		expect(queryAllByLabelText("Expand property")).toHaveLength(0);
+		await fireEvent.input(nameInput, { target: { value: "status" } });
+		flushSync();
+		expect(getByLabelText("status")).toHaveValue("status");
+
+		// The name/dead-space toggle still works: clicking the row title folds it.
+		const title = Array.from(container.querySelectorAll(".setting-item-name"))
+			.find((el) => el.textContent === "status") as HTMLElement;
+		await fireEvent.click(title);
+		flushSync();
+		expect(queryByLabelText("status")).toBeNull();
+		expect(getAllByLabelText("Expand property")).toHaveLength(1);
+	});
+
 	// #1748: for a list destination each line of the Capture format is one item.
 	// There is no control for it, so the form copy has to say it where the author
 	// is already looking: the Action description and the format textarea.

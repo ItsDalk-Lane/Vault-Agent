@@ -2759,13 +2759,21 @@ textarea.is-valid {
 	display: none !important;
 }
 
-/* Clickable setting rows (collapsible property capture rows): the whole row
-   toggles on click; a real button in the control area stays the keyboard path.
-   Controls (select/button) keep their own cursors, so only dead space shows
-   the pointer. */
+/* Clickable setting rows (collapsible property capture rows): the name and
+   dead space toggle on click; a real button in the control area stays the
+   keyboard path. Controls (select/button) keep their own cursors, so only
+   dead space shows the pointer. The field body holds the actual input and
+   is not a toggle target, so it opts out of both affordances — otherwise the
+   input shows a pointer, its text can't be selected, and clicking it bubbles
+   into the row's collapse handler. */
 .qa-setting-info-clickable {
 	cursor: pointer;
 	user-select: none;
+}
+
+.qa-setting-info-clickable > .qa-field-body {
+	cursor: auto;
+	user-select: auto;
 }
 
 /* Property capture card: center the row that carries the collapse chevron,

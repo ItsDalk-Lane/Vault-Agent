@@ -42,13 +42,13 @@ let {
 	 */
 	body?: Snippet | undefined;
 	/**
-	 * Mouse-only affordance: clicking anywhere on the row — name, description,
-	 * or dead space between name and controls — fires this (used for collapsible
-	 * rows). Opt-in, so plain rows keep inert rows. The control area stops
-	 * propagation, so its dropdowns/buttons never fire the row handler. Keyboard
-	 * users toggle through a real button in the control area; the click handler
-	 * should preventDefault so a name rendered as `<label for>` does not ALSO
-	 * focus its input.
+	 * Mouse-only affordance: clicking the name, description, or dead space
+	 * between name and controls fires this (used for collapsible rows). The
+	 * control area AND the field body stop propagation, so clicking a real
+	 * control or the body's input never toggles the row. Keyboard users toggle
+	 * through a real button in the control area; the click handler should
+	 * preventDefault so a name rendered as `<label for>` does not ALSO focus
+	 * its input.
 	 */
 	onInfoClick?: ((event: MouseEvent) => void) | undefined;
 } = $props();
@@ -57,10 +57,12 @@ let {
 <!-- tabindex -1, as Obsidian's own rows: a settings page focuses rows on Tab
      and the arrow keys. Never 0 or more, so not a stop for the browser's Tab. -->
 <!-- Mouse-only affordance, on the WHOLE row: clicking any dead space between
-	the name and the controls toggles (see onInfoClick). The control area
-	stops propagation so its real controls (dropdowns, buttons) never fire
-	the row handler. Keyboard users toggle through a real button in the
-	control area — same pattern as the choice list rows. -->
+	the name and the controls toggles (see onInfoClick). Both the control area
+	and the field body stop propagation, so real controls and the field's own
+	input (e.g. the property-name box in a collapsible property row) can never
+	toggle the row — a click into the input must focus it, not collapse it.
+	Keyboard users toggle through a real button in the control area — same
+	pattern as the choice list rows. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -88,5 +90,8 @@ let {
 	>
 		{@render (control ?? children)?.()}
 	</div>
-	{#if body}<div class="qa-field-body">{@render body()}</div>{/if}
+	{#if body}<div
+		class="qa-field-body"
+		onclick={(event) => { if (onInfoClick) event.stopPropagation(); }}
+	>{@render body()}</div>{/if}
 </div>
