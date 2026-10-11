@@ -23,6 +23,7 @@ import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDisc
 import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import { getTemplateFile } from "src/utils/templateFolderUtils";
 import { isFolder } from "src/utils/vaultQueries";
+import { collectTemplateFolderRequirement } from "./templateFolderRequirement";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
@@ -196,6 +197,13 @@ async function collectForTemplateChoice(
 				folder,
 				"folder",
 			);
+		}
+		// The run picks the folder before it formats the file name, so the form
+		// lists the folder pick here - after the template-path tokens, before the
+		// title tokens (mirrors TemplateChoiceEngine.resolveNewNotePath's order).
+		const folderRequirement = collectTemplateFolderRequirement(app, choiceExecutor, choice);
+		if (folderRequirement) {
+			collector.requirements.set(folderRequirement.id, folderRequirement);
 		}
 	}
 

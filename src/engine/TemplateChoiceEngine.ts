@@ -21,6 +21,7 @@ import { t } from "../i18n";
 import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
+import { readPreselectedTemplateFolder } from "src/preflight/templateFolderPathKey";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import { routePrompt } from "../interactive/routePrompt";
@@ -720,6 +721,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 		return this.getOrCreateFolder(destinations, {
 			allowCreate: true, allowedRoots, topItems, executor: this.choiceExecutor,
+			// The one-page form's folder pick (or a CLI `value-__qa.templateFolderPath`).
+			// Honoured only when the chooser would open; getOrCreateFolder confines
+			// and validates it like a typed answer.
+			preselected: readPreselectedTemplateFolder(
+				this.choiceExecutor?.variables,
+				this.choice.id,
+			),
 		});
 	}
 

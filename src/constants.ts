@@ -237,6 +237,7 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const RESERVED_VARIABLE_PREFIX = "__qa.";
 export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH = `${RESERVED_VARIABLE_PREFIX}captureTargetFilePath`;
 export const QA_INTERNAL_DATE_ORIGIN = `${RESERVED_VARIABLE_PREFIX}dateOrigin`;
+export const QA_INTERNAL_TEMPLATE_FOLDER_PATH = `${RESERVED_VARIABLE_PREFIX}templateFolderPath`;
 
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

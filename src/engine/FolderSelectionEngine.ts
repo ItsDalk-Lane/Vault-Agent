@@ -36,6 +36,14 @@ type FolderChoiceOptions = {
 	allowedRoots?: string[];
 	topItems?: Array<{ path: string; label: string }>;
 	/**
+	 * A folder supplied out of band for this run: the trusted one-page preflight
+	 * pick, or a non-interactive CLI `value-__qa.templateFolderPath`. Honoured
+	 * ONLY when the chooser would actually open (same rule as the capture-target
+	 * preselect), so a definite configured destination stays authoritative, and
+	 * confined by allowedRoots + folder-name validation like a typed answer.
+	 */
+	preselected?: string;
+	/**
 	 * Where the folder chooser goes: to a connected interactive client, to an abort
 	 * (a non-interactive CLI run has no one to answer it), or to the Obsidian modal.
 	 *
@@ -95,8 +103,43 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		}
 
 		const context = this.buildFolderSelectionContext(folders, options);
+		if (options.preselected !== undefined) {
+			const honoured = await this.honourPreselectedFolder(
+				options.preselected,
+				context,
+			);
+			if (honoured !== null) return honoured;
+			// A refused preselect falls through to the chooser, exactly like an
+			// out-of-scope capture-target preselect does.
+		}
 		const selection = await this.promptUntilAllowed(context, options.executor);
 		return selection.isEmpty ? "" : selection.normalized;
+	}
+
+	/**
+	 * Validates and applies a preselected folder exactly as promptUntilAllowed
+	 * would a typed one: resolve against the offered destinations, confine to the
+	 * allowed roots, validate the folder name, create the folder when new.
+	 * Returns the normalized path, or null when the value is refused (blank,
+	 * outside the allowed roots, or a name Obsidian cannot use) so the caller
+	 * falls back to opening the chooser.
+	 */
+	private async honourPreselectedFolder(
+		raw: string,
+		context: FolderSelectionContext,
+	): Promise<string | null> {
+		const selection = await this.resolveSelection(raw, context);
+		if (selection.isEmpty || !selection.isAllowed) return null;
+
+		try {
+			this.validateFolderPath(selection.normalized);
+		} catch (error) {
+			if (error instanceof InvalidFolderPathError) return null;
+			throw error;
+		}
+
+		await this.ensureFolderExists(selection);
+		return selection.normalized;
 	}
 
 	private buildFolderSelectionContext(
