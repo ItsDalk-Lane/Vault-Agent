@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Platform, type App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
+import { SUGGEST_ON_FOCUS_ATTR } from "./OnePageFieldRenderer";
 import { UserCancelError } from "../errors/UserCancelError";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 import { TemplateChoice } from "src/types/choices/TemplateChoice";
@@ -146,6 +147,39 @@ function discoveryModal(create: FieldRequirement, existing: FieldRequirement) {
 		fieldUsages: new Map([[create.id, [{ kind: "note", noteId: "note", create, existing }]]]),
 	});
 }
+
+describe("OnePageInputModal opening focus", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+	});
+
+	it("starts on a field whose suggester does not pop when the form opens", () => {
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "folder", label: "Folder", type: "suggester", options: ["A", "A/B"], suggesterConfig: { allowCustomInput: true } },
+			{ id: "title", label: "Title", type: "text" },
+		]);
+		document.body.appendChild(modal.containerEl);
+		const inputs = modal.contentEl.querySelectorAll<HTMLInputElement>("input");
+		expect(inputs[0].hasAttribute(SUGGEST_ON_FOCUS_ATTR)).toBe(true);
+		expect(inputs[1].hasAttribute(SUGGEST_ON_FOCUS_ATTR)).toBe(false);
+
+		// What Obsidian's autofocus does before open(): land on the first input.
+		inputs[0].focus();
+		modal.open();
+		expect(document.activeElement).toBe(inputs[1]);
+	});
+
+	it("leaves the opening focus alone when no field pops a list", () => {
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "title", label: "Title", type: "text" },
+		]);
+		document.body.appendChild(modal.containerEl);
+		const input = modal.contentEl.querySelector<HTMLInputElement>("input")!;
+		input.focus();
+		modal.open();
+		expect(document.activeElement).toBe(input);
+	});
+});
 
 describe("OnePageInputModal", () => {
 	beforeEach(() => {

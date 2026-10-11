@@ -1,4 +1,8 @@
-import { OnePageFieldRenderer, type FieldControl } from "./OnePageFieldRenderer";
+import {
+	OnePageFieldRenderer,
+	SUGGEST_ON_FOCUS_ATTR,
+	type FieldControl,
+} from "./OnePageFieldRenderer";
 import {
 	ButtonComponent,
 	Modal,
@@ -241,17 +245,31 @@ export class OnePageInputModal extends Modal {
 
 	// Obsidian focuses the modal's first focusable element after onOpen. When the
 	// first field is a file picker holding a provided note, that is the note's
-	// remove button: typing goes nowhere and Enter drops the note. Start at the
-	// first field without a picked note instead, usually the capture text. An
-	// empty picker is that field itself.
+	// remove button: typing goes nowhere and Enter drops the note. And when it is
+	// a suggester-backed input (a mapped list or the folder field), the list pops
+	// the moment that input takes focus, covering the form before any click.
+	// Start at the first field that stays quiet instead; a picker without a
+	// picked note is that field itself.
 	open() {
 		super.open();
-		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove")) return;
-		const controls = Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
-			.filter((control) => !control.closest("[hidden]") && !control.matches(":disabled"));
-		const unpicked = controls.find((control) =>
+		const active = this.modalEl.ownerDocument.activeElement;
+		if (!active?.instanceOf(HTMLElement)) return;
+		if (active.hasAttribute(SUGGEST_ON_FOCUS_ATTR)) {
+			const quiet = this.focusableControls().find(
+				(control) => !control.hasAttribute(SUGGEST_ON_FOCUS_ATTR),
+			);
+			(quiet ?? active).focus();
+			return;
+		}
+		if (!active.matches(".qa-onepage-file-picker__remove")) return;
+		const unpicked = this.focusableControls().find((control) =>
 			!control.closest(".qa-onepage-file-picker")?.querySelector(".qa-onepage-file-picker__chip"));
-		(unpicked ?? controls[0])?.focus();
+		(unpicked ?? this.focusableControls()[0])?.focus();
+	}
+
+	private focusableControls(): HTMLElement[] {
+		return Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
+			.filter((control) => !control.closest("[hidden]") && !control.matches(":disabled"));
 	}
 
 	onOpen() {

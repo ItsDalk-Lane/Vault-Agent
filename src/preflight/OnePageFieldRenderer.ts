@@ -41,6 +41,14 @@ function labelId(req: FieldRequirement): string {
 	return `qa-onepage-label-${encodeURIComponent(req.id)}`;
 }
 
+/**
+ * Marks an input whose suggester pops its list the moment the input takes
+ * focus (mapped suggesters, FIELD suggesters). The one-page modal's opening
+ * autofocus must not land on one: the list would cover the form before any
+ * click. Typing or clicking the field later still opens the list normally.
+ */
+export const SUGGEST_ON_FOCUS_ATTR = "data-qa-suggest-on-focus";
+
 export class OnePageFieldRenderer {
 	constructor(
 		private readonly app: App,
@@ -351,6 +359,7 @@ export class OnePageFieldRenderer {
 					: req.id;
 				try {
 					control.suggesters.push(new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier));
+					input.inputEl.setAttribute(SUGGEST_ON_FOCUS_ATTR, "true");
 				} catch {
 					// Non-fatal; leave as plain input if suggester fails
 				}
@@ -409,6 +418,7 @@ export class OnePageFieldRenderer {
 									}
 								: undefined,
 						));
+						input.inputEl.setAttribute(SUGGEST_ON_FOCUS_ATTR, "true");
 					} catch {
 						// Non-fatal; falls back to plain text input
 					}
