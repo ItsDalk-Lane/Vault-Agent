@@ -130,6 +130,8 @@ const zhCN = {
 		noteSearchUnavailable: "笔记搜索不可用。请输入新笔记标题。",
 		enterNoteTitle: "请输入笔记标题或选择已有笔记。",
 		provideInputs: "填写输入",
+		selectFolder: "选择新笔记的文件夹",
+		selectFolderPlaceholder: "选择文件夹，或输入以新建",
 	},
 	macro: {
 		deleteCommandBody: "该命令将从此 Macro 中移除。",

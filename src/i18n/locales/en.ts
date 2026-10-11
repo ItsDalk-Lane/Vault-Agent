@@ -136,6 +136,8 @@ const en = {
 		noteSearchUnavailable: "Note search is unavailable. Type a new note title.",
 		enterNoteTitle: "Enter a note title or choose an existing note.",
 		provideInputs: "Provide inputs",
+		selectFolder: "Select folder for the new note",
+		selectFolderPlaceholder: "Choose a folder or type to create one",
 	},
 	macro: {
 		deleteCommandBody: "The command will be removed from this macro.",
