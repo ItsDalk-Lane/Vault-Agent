@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import {
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
@@ -138,342 +139,336 @@ function token(
  * Every runtime regex carries /i, so this is a display convention, not a
  * behaviour change; previously the list mixed "{{date}}" with "{{DATE:}}" and
  * left users guessing whether the difference meant anything (#1542).
+ *
+ * Built as a FUNCTION, not a module-level constant: descriptions resolve
+ * through t(), and a top-level call would freeze the pre-setLocale (English)
+ * strings into the rows forever. The suggester rebuilds the list on every
+ * popup, so the per-call cost is irrelevant.
  */
-const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
-	// == Ask for input ==
-	{
-		regex: VALUE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{VALUE}}", "Asks you for text when the choice runs"),
-	},
-	{
-		regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token(
-			"{{VALUE:}}",
-			"Asks once and reuses the answer by name, or lists options to pick from",
-		),
-		expansions: () => [
-			token("{{VALUE:title}}", 'Asks once, then reuses the answer as "title"'),
-			token("{{VALUE:option1,option2,option3}}", "Asks you to pick one of these options"),
-			token(
-				"{{VALUE:option1,option2,option3|custom}}",
-				"Same, but you can also type your own",
-			),
-			token("{{VALUE:title|label:Note title}}", "Words the prompt yourself"),
-			token("{{VALUE:option1,option2|label:Pick one}}", "A list with your own prompt text"),
-			token(
-				"{{VALUE:title|label:Note title|default:Untitled}}",
-				"Opens the prompt with an answer already filled in",
-			),
-			token(
-				"{{VALUE:<items>|text:<display items>}}",
-				"Shows one label in the list and inserts another",
-			),
-			token(
-				"{{VALUE:option1,option2|name:category}}",
-				'Names the pick, so {{VALUE:category}} reuses it',
-			),
-			// A ready-made, valid |case: token. Without it the only way to reach
-			// |case: is to hand-type it inside an already-closed token, and the
-			// live preview warns on every keystroke of a half-typed style name.
-			token(
-				"{{VALUE:title|case:kebab}}",
-				"Reshapes the answer; type |case: for every style",
-			),
-			token("{{VALUE:title|trim}}", "Trims whitespace off the answer"),
-			token("{{VALUE:title|optional}}", "Lets the prompt be skipped, leaving it empty"),
-		],
-	},
-	{
-		regex: NAME_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{NAME}}", "Another name for {{VALUE}}; they do the same thing"),
-	},
-	{
-		regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{VDATE:}}", 'Asks you for a date; "tomorrow" works'),
-		expansions: () => [
-			token("{{VDATE:date,YYYY-MM-DD}}", 'Asks for a date, reused by name as "date"'),
-			token("{{VDATE:date,YYYY-MM-DD|today}}", "Same, with today filled in"),
-			token("{{VDATE:dueDate,YYYY-MM-DD|next monday}}", "Same, starting at next Monday"),
-			token("{{VDATE:dueDate,YYYY-MM-DD|optional}}", "Same, but skippable"),
-			token(
-				"{{VDATE:date,dddd, MMMM Do, YYYY|case:lower}}",
-				"Lowercases the picked date after formatting",
-			),
-		],
-	},
-	{
-		regex: FIELD_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token(
-			"{{FIELD:}}",
-			"Suggests values a property already has in your vault, like {{FIELD:project}}",
-		),
-	},
-	{
-		regex: PROPERTY_SYNTAX_SUGGEST_REGEX,
-		// Resolves only in property Capture formats (hard error elsewhere).
-		contexts: ["noteContent", "propertyValue"],
-		suggestion: token(
-			"{{PROPERTY}}",
-			"Inserts the property's current value (property Captures only)",
-		),
-	},
-	{
-		regex: CURSOR_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent"],
-		suggestion: token("{{CURSOR}}", "Places the cursor here (Capture and Template bodies)"),
-	},
-	{
-		regex: FILE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{FILE:}}", "Picks a note from a folder"),
-		expansions: ({ context }) => {
-			const rows = [
-				token("{{FILE:<folder>}}", "Picks a note from that folder and inserts its name"),
-			];
-			// |link and |path insert characters that are invalid in a file name,
-			// and |optional permits an all-optional name resolving to nothing,
-			// which is rejected at creation time.
-			if (!PATH_CONTEXTS.includes(context)) {
-				rows.push(
-					token("{{FILE:<folder>|link}}", "Same, but inserts a link to the note"),
-					token("{{FILE:<folder>|path}}", "Same, but inserts its full path"),
-					token("{{FILE:<folder>|type:image|link}}", "Same, but links an image instead of a note"),
-					token("{{FILE:<folder>|optional}}", "Same, but skippable"),
-				);
-			}
-			rows.push(
-				token("{{FILE:<folder>|custom}}", "Same, but you can also type a name that is not there yet"),
-			);
-			return rows;
+function buildFormatTokenEntries(): readonly FormatTokenEntry[] {
+	return [
+		// == Ask for input ==
+		{
+			regex: VALUE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{VALUE}}", t("formatTokens.value")),
 		},
-	},
-	{
-		regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{MVALUE}}", "Asks you for a math formula (LaTeX), with a live preview"),
-	},
+		{
+			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{VALUE:}}", t("formatTokens.valueNamed")),
+			expansions: () => [
+				token("{{VALUE:title}}", t("formatTokens.valueExampleTitle")),
+				token("{{VALUE:option1,option2,option3}}", t("formatTokens.valueExampleOptions")),
+				token(
+					"{{VALUE:option1,option2,option3|custom}}",
+					t("formatTokens.valueExampleOptionsCustom"),
+				),
+				token("{{VALUE:title|label:Note title}}", t("formatTokens.valueExampleLabel")),
+				token("{{VALUE:option1,option2|label:Pick one}}", t("formatTokens.valueExampleOptionsLabel")),
+				token(
+					"{{VALUE:title|label:Note title|default:Untitled}}",
+					t("formatTokens.valueExampleDefault"),
+				),
+				token(
+					"{{VALUE:<items>|text:<display items>}}",
+					t("formatTokens.valueExampleText"),
+				),
+				token(
+					"{{VALUE:option1,option2|name:category}}",
+					t("formatTokens.valueExampleName"),
+				),
+				// A ready-made, valid |case: token. Without it the only way to reach
+				// |case: is to hand-type it inside an already-closed token, and the
+				// live preview warns on every keystroke of a half-typed style name.
+				token(
+					"{{VALUE:title|case:kebab}}",
+					t("formatTokens.valueExampleCase"),
+				),
+				token("{{VALUE:title|trim}}", t("formatTokens.valueExampleTrim")),
+				token("{{VALUE:title|optional}}", t("formatTokens.valueExampleOptional")),
+			],
+		},
+		{
+			regex: NAME_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{NAME}}", t("formatTokens.name")),
+		},
+		{
+			regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{VDATE:}}", t("formatTokens.vdate")),
+			expansions: () => [
+				token("{{VDATE:date,YYYY-MM-DD}}", t("formatTokens.vdateExampleNamed")),
+				token("{{VDATE:date,YYYY-MM-DD|today}}", t("formatTokens.vdateExampleToday")),
+				token("{{VDATE:dueDate,YYYY-MM-DD|next monday}}", t("formatTokens.vdateExampleMonday")),
+				token("{{VDATE:dueDate,YYYY-MM-DD|optional}}", t("formatTokens.vdateExampleOptional")),
+				token(
+					"{{VDATE:date,dddd, MMMM Do, YYYY|case:lower}}",
+					t("formatTokens.vdateExampleCase"),
+				),
+			],
+		},
+		{
+			regex: FIELD_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{FIELD:}}", t("formatTokens.field")),
+		},
+		{
+			regex: PROPERTY_SYNTAX_SUGGEST_REGEX,
+			// Resolves only in property Capture formats (hard error elsewhere).
+			contexts: ["noteContent", "propertyValue"],
+			suggestion: token("{{PROPERTY}}", t("formatTokens.property")),
+		},
+		{
+			regex: CURSOR_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent"],
+			suggestion: token("{{CURSOR}}", t("formatTokens.cursor")),
+		},
+		{
+			regex: FILE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{FILE:}}", t("formatTokens.file")),
+			expansions: ({ context }) => {
+				const rows = [
+					token("{{FILE:<folder>}}", t("formatTokens.fileExampleFolder")),
+				];
+				// |link and |path insert characters that are invalid in a file name,
+				// and |optional permits an all-optional name resolving to nothing,
+				// which is rejected at creation time.
+				if (!PATH_CONTEXTS.includes(context)) {
+					rows.push(
+						token("{{FILE:<folder>|link}}", t("formatTokens.fileExampleLink")),
+						token("{{FILE:<folder>|path}}", t("formatTokens.fileExamplePath")),
+						token("{{FILE:<folder>|type:image|link}}", t("formatTokens.fileExampleImage")),
+						token("{{FILE:<folder>|optional}}", t("formatTokens.fileExampleOptional")),
+					);
+				}
+				rows.push(
+					token("{{FILE:<folder>|custom}}", t("formatTokens.fileExampleCustom")),
+				);
+				return rows;
+			},
+		},
+		{
+			regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{MVALUE}}", t("formatTokens.mvalue")),
+		},
 
-	// == Dates ==
-	{
-		regex: DATE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{DATE}}", "Today's date, as YYYY-MM-DD"),
-	},
-	{
-		regex: DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token(
-			"{{DATE:}}",
-			"Today's date in a format you choose, like {{DATE:MMMM Do}}",
-		),
-		// Moment format strings are the one part of the syntax nobody guesses,
-		// so these show what they render to right now rather than a sample that
-		// would go stale in the source.
-		expansions: ({ formatDate }) => [
-			...["YYYY-MM-DD", "MMMM Do, YYYY", "ddd D MMM", "gggg-[W]ww"].map((fmt) =>
-				token(`{{DATE:${fmt}}}`, formatDate(fmt)),
-			),
-			token("{{DATE+7}}", "Seven days from today"),
-			token(
-				"{{DATE:YYYY-MM-DD|startof:week}}",
-				"Snapped to the start of the week, month, quarter or year",
-			),
-			token(
-				"{{DATE:dddd, MMMM Do, YYYY|case:lower}}",
-				"Lowercases the formatted date",
-			),
-		],
-	},
-	{
-		regex: TIME_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{TIME}}", "The current time, as HH:mm"),
-	},
-	{
-		regex: TIME_FORMAT_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token(
-			"{{TIME:}}",
-			"The current time in a format you choose, like {{TIME:HH.mm}}",
-		),
-		expansions: () => [
-			token("{{TIME:A|case:lower}}", "Lowercases formatted text, such as AM to am"),
-		],
-	},
-	{
-		regex: DAILY_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{DAILY}}", "The daily note's path, from your Daily notes settings"),
-	},
-	{
-		regex: DAILY_SYNTAX_SUGGEST_REGEX,
-		// A link is content; in a path it would name a file "[[...]]".
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{DAILY|link}}", "A link to the daily note"),
-	},
-	{
-		regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{WEEKLY}}", "This week's note, from your Periodic Notes settings"),
-	},
-	{
-		regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{WEEKLY|link}}", "A link to this week's note"),
-	},
-	{
-		regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{MONTHLY}}", "This month's note, from your Periodic Notes settings"),
-	},
-	{
-		regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{MONTHLY|link}}", "A link to this month's note"),
-	},
-	{
-		regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{QUARTERLY}}", "This quarter's note, from your Periodic Notes settings"),
-	},
-	{
-		regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{QUARTERLY|link}}", "A link to this quarter's note"),
-	},
-	{
-		regex: YEARLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{YEARLY}}", "This year's note, from your Periodic Notes settings"),
-	},
-	{
-		regex: YEARLY_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{YEARLY|link}}", "A link to this year's note"),
-	},
+		// == Dates ==
+		{
+			regex: DATE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{DATE}}", t("formatTokens.date")),
+		},
+		{
+			regex: DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{DATE:}}", t("formatTokens.dateFormat")),
+			// Moment format strings are the one part of the syntax nobody guesses,
+			// so these show what they render to right now rather than a sample that
+			// would go stale in the source.
+			expansions: ({ formatDate }) => [
+				...["YYYY-MM-DD", "MMMM Do, YYYY", "ddd D MMM", "gggg-[W]ww"].map((fmt) =>
+					token(`{{DATE:${fmt}}}`, formatDate(fmt)),
+				),
+				token("{{DATE+7}}", t("formatTokens.datePlusDays")),
+				token(
+					"{{DATE:YYYY-MM-DD|startof:week}}",
+					t("formatTokens.dateStartOf"),
+				),
+				token(
+					"{{DATE:dddd, MMMM Do, YYYY|case:lower}}",
+					t("formatTokens.dateCaseLower"),
+				),
+			],
+		},
+		{
+			regex: TIME_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{TIME}}", t("formatTokens.time")),
+		},
+		{
+			regex: TIME_FORMAT_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{TIME:}}", t("formatTokens.timeFormat")),
+			expansions: () => [
+				token("{{TIME:A|case:lower}}", t("formatTokens.timeCaseLower")),
+			],
+		},
+		{
+			regex: DAILY_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{DAILY}}", t("formatTokens.daily")),
+		},
+		{
+			regex: DAILY_SYNTAX_SUGGEST_REGEX,
+			// A link is content; in a path it would name a file "[[...]]".
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{DAILY|link}}", t("formatTokens.dailyLink")),
+		},
+		{
+			regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{WEEKLY}}", t("formatTokens.weekly")),
+		},
+		{
+			regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{WEEKLY|link}}", t("formatTokens.weeklyLink")),
+		},
+		{
+			regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{MONTHLY}}", t("formatTokens.monthly")),
+		},
+		{
+			regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{MONTHLY|link}}", t("formatTokens.monthlyLink")),
+		},
+		{
+			regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{QUARTERLY}}", t("formatTokens.quarterly")),
+		},
+		{
+			regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{QUARTERLY|link}}", t("formatTokens.quarterlyLink")),
+		},
+		{
+			regex: YEARLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{YEARLY}}", t("formatTokens.yearly")),
+		},
+		{
+			regex: YEARLY_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{YEARLY|link}}", t("formatTokens.yearlyLink")),
+		},
 
-	// == The note you ran QuickAdd from ==
-	{
-		regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
-		// Left literal by formatFileName, so a capture target would be named
-		// "[[...]]", so it is offered only where a link is content.
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{LINKCURRENT}}", "A link to that note: [[That note]]"),
-	},
-	{
-		regex: LINKSECTION_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{LINKSECTION}}", "A link to the section your cursor is in"),
-	},
-	{
-		regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "captureTarget", "fileName", "lineTarget"],
-		suggestion: token("{{FILENAMECURRENT}}", "That note's file name"),
-	},
-	{
-		// formatLocationString deliberately leaves this literal, and an empty
-		// selector would match the first line, so it is withheld there.
-		regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "captureTarget"],
-		suggestion: token("{{FOLDERCURRENT}}", "That note's folder"),
-	},
-	{
-		// In a template file name the full path would nest under the configured
-		// target folder ("Notes/Projects/Alpha/Note.md"), so only the leaf form
-		// is offered there.
-		regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-		contexts: ["fileName"],
-		suggestion: token("{{FOLDERCURRENT|name}}", "That note's folder name, without the path"),
-	},
-	{
-		regex: SELECTED_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{SELECTED}}", "The text you had selected in the editor"),
-	},
+		// == The note you ran QuickAdd from ==
+		{
+			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
+			// Left literal by formatFileName, so a capture target would be named
+			// "[[...]]", so it is offered only where a link is content.
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{LINKCURRENT}}", t("formatTokens.linkCurrent")),
+		},
+		{
+			regex: LINKSECTION_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{LINKSECTION}}", t("formatTokens.linkSection")),
+		},
+		{
+			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "captureTarget", "fileName", "lineTarget"],
+			suggestion: token("{{FILENAMECURRENT}}", t("formatTokens.fileNameCurrent")),
+		},
+		{
+			// formatLocationString deliberately leaves this literal, and an empty
+			// selector would match the first line, so it is withheld there.
+			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "captureTarget"],
+			suggestion: token("{{FOLDERCURRENT}}", t("formatTokens.folderCurrent")),
+		},
+		{
+			// In a template file name the full path would nest under the configured
+			// target folder ("Notes/Projects/Alpha/Note.md"), so only the leaf form
+			// is offered there.
+			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
+			contexts: ["fileName"],
+			suggestion: token("{{FOLDERCURRENT|name}}", t("formatTokens.folderCurrentName")),
+		},
+		{
+			regex: SELECTED_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{SELECTED}}", t("formatTokens.selected")),
+		},
 
-	// == The note being created ==
-	{
-		// Throws in every path context: the title is derived from the path.
-		regex: TITLE_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "propertyValue", "lineTarget"],
-		suggestion: token("{{TITLE}}", "The new note's file name"),
-	},
-	{
-		// The bare {{FOLDER}} expands to the full target path, so "{{FOLDER}} -
-		// Note" under Projects/Acme would yield "Projects/Acme/Projects/Acme -
-		// Note.md". The leaf form avoids that duplicated segment.
-		regex: FOLDER_SYNTAX_SUGGEST_REGEX,
-		contexts: ["fileName"],
-		suggestion: token("{{FOLDER|name}}", "The name of the folder the new note lands in"),
-	},
+		// == The note being created ==
+		{
+			// Throws in every path context: the title is derived from the path.
+			regex: TITLE_SYNTAX_SUGGEST_REGEX,
+			contexts: ["noteContent", "propertyValue", "lineTarget"],
+			suggestion: token("{{TITLE}}", t("formatTokens.title")),
+		},
+		{
+			// The bare {{FOLDER}} expands to the full target path, so "{{FOLDER}} -
+			// Note" under Projects/Acme would yield "Projects/Acme/Projects/Acme -
+			// Note.md". The leaf form avoids that duplicated segment.
+			regex: FOLDER_SYNTAX_SUGGEST_REGEX,
+			contexts: ["fileName"],
+			suggestion: token("{{FOLDER|name}}", t("formatTokens.folderName")),
+		},
 
-	// == Other content ==
-	{
-		regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{CLIPBOARD}}", "Whatever you copied last"),
-	},
-	{
-		regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{TEMPLATE:}}", "The contents of a template file"),
-		expansions: ({ templatePaths }) =>
-			templatePaths.map((path) =>
-				token(`{{TEMPLATE:${path}}}`, "Inserts this template's contents"),
-			),
-	},
-	{
-		regex: MACRO_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{MACRO:}}", "Whatever a macro returns"),
-		expansions: ({ macroNames }) => [
-			...macroNames.map((name) => token(`{{MACRO:${name}}}`, `Runs your "${name}" macro`)),
-			token("{{MACRO:MyMacro|label:Label}}", "Word the macro's own prompt yourself"),
-		],
-	},
-	{
-		regex: GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token("{{GLOBAL_VAR:}}", "A snippet you defined in QuickAdd's settings"),
-		expansions: ({ globalVariableNames }) =>
-			globalVariableNames.map((name) =>
-				token(`{{GLOBAL_VAR:${name}}}`, `Inserts your "${name}" snippet`),
-			),
-	},
-	{
-		regex: RANDOM_SYNTAX_SUGGEST_REGEX,
-		contexts: ALL,
-		suggestion: token(
-			"{{RANDOM:}}",
-			"A random ID of the length you give, like {{RANDOM:6}}",
-		),
-	},
-];
+		// == Other content ==
+		{
+			regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{CLIPBOARD}}", t("formatTokens.clipboard")),
+		},
+		{
+			regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{TEMPLATE:}}", t("formatTokens.template")),
+			expansions: ({ templatePaths }) =>
+				templatePaths.map((path) =>
+					token(`{{TEMPLATE:${path}}}`, t("formatTokens.templatePath")),
+				),
+		},
+		{
+			regex: MACRO_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{MACRO:}}", t("formatTokens.macro")),
+			expansions: ({ macroNames }) => [
+				...macroNames.map((name) => token(`{{MACRO:${name}}}`, t("formatTokens.macroNamed", { name }))),
+				token("{{MACRO:MyMacro|label:Label}}", t("formatTokens.macroLabel")),
+			],
+		},
+		{
+			regex: GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{GLOBAL_VAR:}}", t("formatTokens.globalVar")),
+			expansions: ({ globalVariableNames }) =>
+				globalVariableNames.map((name) =>
+					token(`{{GLOBAL_VAR:${name}}}`, t("formatTokens.globalVarNamed", { name })),
+				),
+		},
+		{
+			regex: RANDOM_SYNTAX_SUGGEST_REGEX,
+			contexts: ALL,
+			suggestion: token("{{RANDOM:}}", t("formatTokens.random")),
+		},
+	];
+}
 
 /**
  * Casing styles completed after `|case:` inside a supported token. These are
  * bare fragments, not tokens, so each one shows what it does to a title rather
  * than pretending to be insertable syntax on its own.
+ *
+ * A FUNCTION for the same reason the token list is: the slug row's trailing
+ * note is localized, and a module-level constant would freeze English in.
  */
-export const CASE_STYLE_SUGGESTIONS: readonly FormatTokenSuggestion[] = [
-	{ insert: "kebab", description: "my-note-title", caretOffset: 0, isFragment: true },
-	{ insert: "snake", description: "my_note_title", caretOffset: 0, isFragment: true },
-	{ insert: "camel", description: "myNoteTitle", caretOffset: 0, isFragment: true },
-	{ insert: "pascal", description: "MyNoteTitle", caretOffset: 0, isFragment: true },
-	{ insert: "title", description: "My Note Title", caretOffset: 0, isFragment: true },
-	{ insert: "lower", description: "my note title", caretOffset: 0, isFragment: true },
-	{ insert: "upper", description: "MY NOTE TITLE", caretOffset: 0, isFragment: true },
-	{ insert: "slug", description: "my-note-title, guarded against reserved file names", caretOffset: 0, isFragment: true },
-];
+export function caseStyleSuggestions(): readonly FormatTokenSuggestion[] {
+	return [
+		{ insert: "kebab", description: "my-note-title", caretOffset: 0, isFragment: true },
+		{ insert: "snake", description: "my_note_title", caretOffset: 0, isFragment: true },
+		{ insert: "camel", description: "myNoteTitle", caretOffset: 0, isFragment: true },
+		{ insert: "pascal", description: "MyNoteTitle", caretOffset: 0, isFragment: true },
+		{ insert: "title", description: "My Note Title", caretOffset: 0, isFragment: true },
+		{ insert: "lower", description: "my note title", caretOffset: 0, isFragment: true },
+		{ insert: "upper", description: "MY NOTE TITLE", caretOffset: 0, isFragment: true },
+		{ insert: "slug", description: `my-note-title, ${t("formatTokens.caseSlug")}`, caretOffset: 0, isFragment: true },
+	];
+}
 
 /** Entries offered in a given field, in display order. */
 export function entriesForContext(
 	context: FormatSuggestContext,
 ): readonly FormatTokenEntry[] {
-	return FORMAT_TOKEN_ENTRIES.filter((entry) => entry.contexts.includes(context));
+	return buildFormatTokenEntries().filter((entry) => entry.contexts.includes(context));
 }

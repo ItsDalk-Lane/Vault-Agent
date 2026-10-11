@@ -8,8 +8,8 @@ import type {
 	FormatTokenSuggestion,
 } from "./formatTokenRegistry";
 import {
-	CASE_STYLE_SUGGESTIONS,
 	EXPANSION_MIN_PREFIX,
+	caseStyleSuggestions,
 	entriesForContext,
 } from "./formatTokenRegistry";
 
@@ -82,7 +82,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			this.replaceFrom = cursorPosition - fragment.length;
 
 			const normalizedFragment = fragment.toLowerCase();
-			return CASE_STYLE_SUGGESTIONS.filter((style) =>
+			return caseStyleSuggestions().filter((style) =>
 				style.insert.startsWith(normalizedFragment),
 			).map((style) => ({ ...style }));
 		}
