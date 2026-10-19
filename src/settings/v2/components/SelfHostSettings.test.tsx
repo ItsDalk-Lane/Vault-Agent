@@ -11,10 +11,6 @@ jest.mock("@/settings/model", () => ({
 }));
 
 let mockEligible: boolean | undefined = true;
-jest.mock("@/plusUtils", () => ({
-  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook
-  useIsSelfHostEligible: () => mockEligible,
-}));
 
 jest.mock("@/contexts/TabContext", () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook
@@ -44,7 +40,6 @@ describe("SelfHostSettings", () => {
 
       expect(screen.getByText("Firecrawl API Key")).toBeTruthy();
       expect(screen.queryByText("Perplexity API Key")).toBeNull();
-      expect(screen.getByText("Supadata API Key")).toBeTruthy();
     });
 
     it("shows the Perplexity key (not Firecrawl) when the provider is perplexity", () => {
@@ -139,27 +134,14 @@ describe("SelfHostSettings", () => {
       expect(providerSelect().disabled).toBe(false);
     });
 
-    it("persists the toggle directly when the entitlement grants self-host", () => {
+    it("persists the toggle directly", () => {
       render(<SelfHostSettings />);
       fireEvent.click(enableToggle());
 
       expect(updateSetting).toHaveBeenCalledWith("enableSelfHostMode", true);
     });
 
-    it.each([
-      ["the entitlement does not grant self-host", false],
-      ["the entitlement check has not settled yet", undefined],
-    ])("ignores clicks on the enable toggle while %s", (_case, eligible) => {
-      mockEligible = eligible;
-      render(<SelfHostSettings />);
-
-      expect(enableToggle().getAttribute("aria-disabled")).toBe("true");
-      fireEvent.click(enableToggle());
-      expect(updateSetting).not.toHaveBeenCalledWith("enableSelfHostMode", true);
-    });
-
-    it("lets an ineligible user turn self-host mode back off", () => {
-      mockEligible = false;
+    it("lets the user turn self-host mode back off", () => {
       setSettings({ enableSelfHostMode: true });
       render(<SelfHostSettings />);
 

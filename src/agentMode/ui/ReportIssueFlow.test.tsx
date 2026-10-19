@@ -3,7 +3,6 @@ import {
   type PreparedReport,
   type ReportIssueFlowProps,
   type ReportSourceId,
-  type UploadOutcome,
 } from "@/agentMode/ui/ReportIssueFlow";
 import type { AttachmentResult } from "@/utils/issueReport";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -29,14 +28,6 @@ const prepared: PreparedReport = {
   attachments: [included("report", "report.md"), included("screenshot", "screenshot.png")],
 };
 
-const uploaded: UploadOutcome = {
-  ok: true,
-  reportId: "9f3c1a7b2e4d5f60819a2b3c4d5e6f70",
-  issueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new?title=linked",
-};
-
-const failed: UploadOutcome = { ok: false, error: "Network request failed" };
-
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
   let reject: (err: Error) => void = () => {};
@@ -61,10 +52,8 @@ function renderFlow(overrides: Partial<ReportIssueFlowProps> = {}) {
       { id: "opencodeLog", label: "OpenCode backend log", defaultChecked: false },
     ],
     prepare: jest.fn().mockResolvedValue(prepared),
-    upload: jest.fn().mockResolvedValue(uploaded),
     discardReport: jest.fn().mockResolvedValue(undefined),
     onCancel: jest.fn(),
-    onUploaded: jest.fn(),
     openIssuePage: jest.fn(),
     revealFile: jest.fn(),
     ...overrides,
@@ -76,22 +65,11 @@ const submit = () => fireEvent.click(screen.getByRole("button", { name: "Prepare
 
 const noteField = () => screen.getByPlaceholderText(/Describe what you were doing/);
 
-const uploadButton = () => screen.getByRole("button", { name: /Upload & open issue|Retry upload/ });
-
 const checkedStates = () =>
   screen.getAllByRole("checkbox").map((box) => box.getAttribute("data-state"));
 
 async function awaitPrepared() {
   await waitFor(() => expect(screen.getByText(prepared.zipName)).toBeTruthy());
-}
-
-async function reachFailedUpload(overrides: Partial<ReportIssueFlowProps> = {}) {
-  const rendered = renderFlow({ upload: jest.fn().mockResolvedValue(failed), ...overrides });
-  submit();
-  await awaitPrepared();
-  fireEvent.click(uploadButton());
-  await waitFor(() => expect(screen.getByText("Could not upload the report")).toBeTruthy());
-  return rendered;
 }
 
 describe("ReportIssueFlow", () => {
@@ -103,7 +81,7 @@ describe("ReportIssueFlow", () => {
         expect(checkedStates()).toEqual(["checked", "checked", "unchecked", "unchecked"]);
         expect(screen.getByText("Newest 2 MB of the log")).toBeTruthy();
         expect(screen.getByText(/screenshots are not automatically redacted/)).toBeTruthy();
-        expect(screen.getByText(/Reports are private and deleted after 60 days/)).toBeTruthy();
+        expect(screen.getByText(/never leaves it/)).toBeTruthy();
       });
 
       it("starts with a feedback card's draft in the note field, still editable before it is sent", async () => {
@@ -160,24 +138,11 @@ describe("ReportIssueFlow", () => {
 
         submit();
         expect(screen.getByText("Report contents")).toBeTruthy();
-        expect(screen.getByRole("status").textContent).toBe("Preparing report…");
+        expect(screen.getByText("Preparing report…")).toBeTruthy();
 
         await awaitPrepared();
-        expect(screen.queryByRole("status")).toBeNull();
+        expect(screen.queryByText("Preparing report…")).toBeNull();
         expect(screen.getByText("4.0 KB")).toBeTruthy();
-      });
-
-      it("holds Upload until the report exists and does not upload until clicked", async () => {
-        const pending = deferred<PreparedReport>();
-        const { props } = renderFlow({ prepare: jest.fn(() => pending.promise) });
-        submit();
-
-        expect(uploadButton().getAttribute("disabled")).not.toBeNull();
-
-        await act(async () => pending.resolve(prepared));
-
-        expect(uploadButton().getAttribute("disabled")).toBeNull();
-        expect(props.upload).not.toHaveBeenCalled();
       });
 
       it("discards a report that finishes preparing after the dialog closed (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
@@ -235,7 +200,7 @@ describe("ReportIssueFlow", () => {
         expect(screen.queryByText("screenshot.png")).toBeNull();
       });
 
-      it("reveals the zip that is about to be uploaded", async () => {
+      it("reveals the zip the user attaches to the issue", async () => {
         const { props } = renderFlow();
         submit();
         await awaitPrepared();
@@ -245,120 +210,15 @@ describe("ReportIssueFlow", () => {
         expect(props.revealFile).toHaveBeenCalledWith(prepared.zipPath);
       });
 
-      it("discards the prepared report and cancels when Cancel is pressed", async () => {
+      it("opens the prefilled issue page without uploading anything", async () => {
         const { props } = renderFlow();
         submit();
         await awaitPrepared();
 
-        fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-        expect(props.discardReport).toHaveBeenCalledWith(prepared);
-        expect(props.onCancel).toHaveBeenCalled();
-        expect(props.upload).not.toHaveBeenCalled();
-      });
-
-      it("uploads on click and hands the result to the host once, with no page of its own (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const { props } = renderFlow();
-        submit();
-        await awaitPrepared();
-
-        fireEvent.click(uploadButton());
-
-        await waitFor(() => expect(props.onUploaded).toHaveBeenCalledTimes(1));
-        expect(props.upload).toHaveBeenCalledWith(prepared);
-        expect(props.onUploaded).toHaveBeenCalledWith({
-          reportId: uploaded.reportId,
-          issueUrl: uploaded.issueUrl,
-        });
-        expect(props.openIssuePage).not.toHaveBeenCalled();
-        expect(screen.queryByText(/Report uploaded/)).toBeNull();
-        expect(screen.getByText(prepared.zipName)).toBeTruthy();
-      });
-
-      it("shows a spinner in place of the actions while uploading, with nothing left to cancel", async () => {
-        const pending = deferred<UploadOutcome>();
-        const { container } = renderFlow({ upload: jest.fn(() => pending.promise) });
-        submit();
-        await awaitPrepared();
-
-        fireEvent.click(uploadButton());
-        await waitFor(() => expect(screen.getByText(/Uploading — this can/)).toBeTruthy());
-        expect(container.querySelector(".tw-animate-spin")).not.toBeNull();
-        expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
-        expect(screen.queryByRole("button", { name: /Upload & open issue/ })).toBeNull();
-        expect(screen.getByText("report.md")).toBeTruthy();
-
-        await act(async () => pending.resolve(uploaded));
-      });
-
-      it("ignores an upload result that arrives after the dialog closed (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const pending = deferred<UploadOutcome>();
-        const { props, unmount } = renderFlow({ upload: jest.fn(() => pending.promise) });
-        submit();
-        await awaitPrepared();
-
-        fireEvent.click(uploadButton());
-        await waitFor(() => expect(props.upload).toHaveBeenCalled());
-
-        unmount();
-        await act(async () => pending.resolve(uploaded));
-
-        expect(props.onUploaded).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("upload failure", () => {
-      it("offers Retry, Show zip and Open issue anyway for every failure, and keeps the zip (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const { props } = await reachFailedUpload();
-
-        expect(screen.getByText(/Network request failed/)).toBeTruthy();
-        expect(screen.getByText(/attach the zip to it yourself/)).toBeTruthy();
-        expect(
-          screen.getByRole("button", { name: "Retry upload" }).getAttribute("disabled")
-        ).toBeNull();
-        expect(screen.getByRole("button", { name: "Show zip" })).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Open issue anyway" })).toBeTruthy();
-        expect(props.onUploaded).not.toHaveBeenCalled();
-        expect(screen.getByText(prepared.zipName)).toBeTruthy();
-      });
-
-      it("re-sends the very same upload attempt on Retry rather than repacking", async () => {
-        const upload = jest.fn().mockResolvedValueOnce(failed).mockResolvedValueOnce(uploaded);
-        const { props } = await reachFailedUpload({ upload });
-
-        fireEvent.click(screen.getByRole("button", { name: "Retry upload" }));
-
-        await waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
-        expect(upload.mock.calls[1][0].uploadAttempt).toBe(prepared.uploadAttempt);
-        expect(props.prepare).toHaveBeenCalledTimes(1);
-        expect(props.onUploaded).toHaveBeenCalledWith({
-          reportId: uploaded.reportId,
-          issueUrl: uploaded.issueUrl,
-        });
-      });
-
-      it("opens the no-ID issue on Open issue anyway and stays on the failed state", async () => {
-        const { props } = await reachFailedUpload();
-
-        fireEvent.click(screen.getByRole("button", { name: "Open issue anyway" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open GitHub issue" }));
 
         expect(props.openIssuePage).toHaveBeenCalledWith(prepared.manualIssueUrl);
         expect(props.onCancel).not.toHaveBeenCalled();
-        expect(screen.getByText("Could not upload the report")).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Retry upload" })).toBeTruthy();
-      });
-
-      it("clears the failure while a retry is in flight", async () => {
-        const second = deferred<UploadOutcome>();
-        const upload = jest.fn().mockResolvedValueOnce(failed).mockReturnValueOnce(second.promise);
-        await reachFailedUpload({ upload });
-
-        fireEvent.click(screen.getByRole("button", { name: "Retry upload" }));
-
-        await waitFor(() => expect(screen.getByText(/Uploading — this can/)).toBeTruthy());
-        expect(screen.queryByText("Could not upload the report")).toBeNull();
-
-        await act(async () => second.resolve(uploaded));
       });
     });
   });

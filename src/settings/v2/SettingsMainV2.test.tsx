@@ -4,9 +4,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 jest.mock("@/settings/v2/components/BasicSettings", () => ({ BasicSettings: () => null }));
-jest.mock("@/settings/v2/components/MiyoSettings", () => ({
-  MiyoSettings: () => <div>Miyo settings content</div>,
-}));
 jest.mock("@/settings/v2/components/SelfHostSettings", () => ({ SelfHostSettings: () => null }));
 jest.mock("@/settings/v2/components/CommandSettings", () => ({ CommandSettings: () => null }));
 jest.mock("@/settings/v2/components/AdvancedSettings", () => ({ AdvancedSettings: () => null }));
@@ -29,10 +26,6 @@ jest.mock("@/settings/skillLoadErrorState", () => ({
 }));
 let mockLatestVersion: string | null = null;
 let mockHasUpdate = false;
-jest.mock("@/hooks/useLatestVersion", () => ({
-  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook; the name must match the export
-  useLatestVersion: () => ({ latestVersion: mockLatestVersion, hasUpdate: mockHasUpdate }),
-}));
 jest.mock("@/utils/desktopRuntime", () => ({ isDesktopRuntime: () => true }));
 
 const plugin = {
@@ -50,27 +43,12 @@ describe("SettingsMainV2", () => {
       mockSkillManagerRefresh.mockClear();
     });
 
-    it("shows the installed version and latest version from the shared update hook", () => {
-      mockLatestVersion = "4.1.0";
-      mockHasUpdate = true;
-      render(<SettingsMainV2 plugin={plugin} />);
-      expect(screen.getByText("v1.2.3")).toBeTruthy();
-      expect(screen.getByRole("link", { name: "(Update to v4.1.0)" })).toBeTruthy();
-    });
-
-    it("shows up to date when the shared check finds no newer release", () => {
-      mockLatestVersion = "1.2.3";
-      render(<SettingsMainV2 plugin={plugin} />);
-      expect(screen.getByText("(up to date)")).toBeTruthy();
-    });
-
     it("lists the tabs in the agreed order", () => {
       render(<SettingsMainV2 plugin={plugin} />);
 
       expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
         "Basic",
         "BYOK",
-        "Miyo",
         "Skills",
         "Command",
         "Self-Host",
@@ -93,13 +71,6 @@ describe("SettingsMainV2", () => {
       render(<SettingsMainV2 plugin={plugin} />);
 
       await waitFor(() => expect(mockSkillManagerRefresh).toHaveBeenCalledTimes(1));
-    });
-
-    it("opens on a requested tab (https://github.com/Brevilabs/obsidian-copilot-private/issues/280)", () => {
-      render(<SettingsMainV2 plugin={plugin} initialTab="miyo" />);
-
-      expect(screen.getByRole("tab", { name: "Miyo" }).getAttribute("aria-selected")).toBe("true");
-      expect(screen.getByText("Miyo settings content")).toBeTruthy();
     });
   });
 });

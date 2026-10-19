@@ -4,18 +4,11 @@ import {
   openIssuePageWith,
   openReportIssueModal,
   ReportIssueModal,
-  uploadReport,
 } from "@/agentMode/ui/ReportIssueModal";
-import type {
-  PreparedReport,
-  ReportSourceId,
-  ReportSourceOption,
-  UploadOutcome,
-} from "@/agentMode/ui/ReportIssueFlow";
+import type { PreparedReport, ReportSourceId, ReportSourceOption } from "@/agentMode/ui/ReportIssueFlow";
 import { logWarn } from "@/logger";
 import { getSettings, setSettings } from "@/settings/model";
 import type { ReportInput } from "@/utils/issueReport";
-import { ReportUploadError, type ReportUploader } from "@/utils/reportUpload";
 import { unzipSync } from "fflate";
 import { Modal, Notice, type App, type PluginManifest } from "obsidian";
 import nodeOs from "node:os";
@@ -178,45 +171,6 @@ describe("ReportIssueModal", () => {
     });
   });
 
-  describe("uploadReport()", () => {
-    it("sends the packed attempt and builds the linked issue URL from the report id", async () => {
-      const uploader: ReportUploader = jest.fn().mockResolvedValue({
-        reportId,
-        expiresAt: "2026-10-18T00:00:00.000Z",
-      });
-
-      const outcome = await uploadReport(uploader, prepared);
-
-      expect(uploader).toHaveBeenCalledWith(prepared.uploadAttempt);
-      if (!outcome.ok) throw new Error("expected success");
-      expect(outcome.reportId).toBe(reportId);
-      const body = new URLSearchParams(outcome.issueUrl.split("?")[1]).get("body") ?? "";
-      expect(body.indexOf(reportId)).toBeLessThan(60);
-      expect(body).not.toContain("http");
-    });
-
-    it("hands an upload error's own message back as the failure", async () => {
-      const uploader: ReportUploader = jest
-        .fn()
-        .mockRejectedValue(new ReportUploadError("Upload failed (HTTP 413): too large"));
-
-      await expect(uploadReport(uploader, prepared)).resolves.toEqual({
-        ok: false,
-        error: "Upload failed (HTTP 413): too large",
-      });
-    });
-
-    it("turns any other rejection into a failure the user can read", async () => {
-      const uploader: ReportUploader = jest.fn().mockRejectedValue(new TypeError("x is null"));
-
-      const outcome = await uploadReport(uploader, prepared);
-
-      expect(outcome.ok).toBe(false);
-      if (outcome.ok) throw new Error("expected failure");
-      expect(outcome.error).not.toContain("x is null");
-    });
-  });
-
   describe("openIssuePageWith()", () => {
     it("resolves true once the browser has taken the page", async () => {
       await expect(openIssuePageWith({ openExternal }, issueUrl)).resolves.toBe(true);
@@ -279,9 +233,7 @@ describe("ReportIssueModal", () => {
       onClose(): void;
       buildSources(): ReportSourceOption[];
       prepare(note: string, selected: ReadonlySet<ReportSourceId>): Promise<PreparedReport>;
-      upload(report: PreparedReport): Promise<UploadOutcome>;
       discard(report: PreparedReport): Promise<void>;
-      onUploaded(outcome: { reportId: string; issueUrl: string }): Promise<void>;
       openIssuePage(url: string): Promise<void>;
     }
 
@@ -292,7 +244,7 @@ describe("ReportIssueModal", () => {
         close: jest.fn(),
         root: { unmount: jest.fn() },
         prepared: null,
-        uploading: false,
+        params: {},
         ...fields,
       }) as ModalUnderTest;
     }
@@ -524,103 +476,6 @@ describe("ReportIssueModal", () => {
       });
     });
 
-    describe("upload()", () => {
-      const uploaderResolving = () => jest.fn().mockResolvedValue({ reportId, expiresAt: "" });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 tells the feedback card a report landed, with its id and issue link, even after the dialog closed", async () => {
-        const onReported = jest.fn();
-        const open = modalWith({ params: { uploader: uploaderResolving(), onReported } });
-        const closed = modalWith({
-          params: { uploader: uploaderResolving(), onReported },
-          root: null,
-        });
-
-        await open.upload(prepared);
-        await closed.upload(prepared);
-
-        expect(onReported).toHaveBeenCalledTimes(2);
-        expect(onReported).toHaveBeenCalledWith({
-          reportId,
-          issueUrl: realIssueReport.buildLinkedReportIssueUrl(prepared.issueDraft, reportId),
-        });
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 leaves the feedback card untouched when the upload fails", async () => {
-        const onReported = jest.fn();
-        const uploader = jest.fn().mockRejectedValue(new ReportUploadError("Upload failed"));
-        const modal = modalWith({ params: { uploader, onReported } });
-
-        await modal.upload(prepared);
-
-        expect(onReported).not.toHaveBeenCalled();
-      });
-
-      it("hands the outcome back while the dialog is up, with nothing announced", async () => {
-        const modal = modalWith({ params: { uploader: uploaderResolving() } });
-
-        const outcome = await modal.upload(prepared);
-
-        expect(outcome).toMatchObject({ ok: true, reportId });
-        expect(noticeMock).not.toHaveBeenCalled();
-      });
-
-      it("announces the report id with a link to the issue when the upload lands after the dialog closed (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const modal = modalWith({ params: { uploader: uploaderResolving() }, root: null });
-
-        await modal.upload(prepared);
-
-        expect(openExternal).not.toHaveBeenCalled();
-        expect(noticeText()).toContain(reportId);
-        expect(noticeLink()).toBe(
-          realIssueReport.buildLinkedReportIssueUrl(prepared.issueDraft, reportId)
-        );
-        expect(rm).not.toHaveBeenCalled();
-      });
-
-      it("only logs an upload that fails after the dialog closed, and keeps the zip (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const uploader = jest.fn().mockRejectedValue(new ReportUploadError("Upload failed"));
-        const modal = modalWith({ params: { uploader }, root: null });
-
-        await modal.upload(prepared);
-
-        expect(noticeMock).not.toHaveBeenCalled();
-        expect(logWarn).toHaveBeenCalledTimes(1);
-        expect(rm).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("onUploaded()", () => {
-      it("opens the linked issue, closes the dialog and confirms the upload", async () => {
-        const modal = modalWith({});
-
-        await modal.onUploaded({ reportId, issueUrl });
-
-        expect(openExternal).toHaveBeenCalledWith(issueUrl);
-        expect(modal.close).toHaveBeenCalledTimes(1);
-        expect(noticeText()).toBe("Report uploaded. Finish the issue in your browser.");
-      });
-
-      it("still closes, and hands over the id and the issue link, when the browser cannot be opened (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        openExternal.mockRejectedValue(new Error("no handler"));
-        const modal = modalWith({});
-
-        await modal.onUploaded({ reportId, issueUrl });
-
-        expect(modal.close).toHaveBeenCalledTimes(1);
-        expect(noticeText()).toContain(reportId);
-        expect(noticeLink()).toBe(issueUrl);
-      });
-
-      it("leaves the zip on disk after a successful upload", async () => {
-        const modal = modalWith({ prepared });
-
-        await modal.onUploaded({ reportId, issueUrl });
-        modal.onClose();
-
-        expect(rm).not.toHaveBeenCalled();
-      });
-    });
-
     describe("openIssuePage()", () => {
       it.each(["resolved", "rejected", "pending"])(
         "preserves the manually handed-off zip through Cancel and close with a %s browser call (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)",
@@ -635,7 +490,7 @@ describe("ReportIssueModal", () => {
                 })
             );
           }
-          const modal = modalWith({ prepared });
+          const modal = modalWith({ params: {}, prepared });
           const opening = modal.openIssuePage(prepared.manualIssueUrl);
 
           await modal.discard(prepared);
@@ -647,17 +502,25 @@ describe("ReportIssueModal", () => {
         }
       );
 
-      it("says nothing when the browser takes the manual issue page", async () => {
-        await modalWith({}).openIssuePage(prepared.manualIssueUrl);
+      it("reminds the user to attach the zip once the browser takes the manual issue page", async () => {
+        const onReported = jest.fn();
+        const modal = modalWith({ params: { onReported } });
+
+        await modal.openIssuePage(prepared.manualIssueUrl);
 
         expect(openExternal).toHaveBeenCalledWith(prepared.manualIssueUrl);
-        expect(noticeMock).not.toHaveBeenCalled();
+        expect(onReported).toHaveBeenCalledWith({
+          reportId: "",
+          issueUrl: prepared.manualIssueUrl,
+        });
+        expect(noticeText()).toContain("attach the report zip");
+        expect(modal.close).toHaveBeenCalledTimes(1);
       });
 
       it("hands over the link when the browser cannot be opened", async () => {
         openExternal.mockRejectedValue(new Error("no handler"));
 
-        await modalWith({}).openIssuePage(prepared.manualIssueUrl);
+        await modalWith({ params: {} }).openIssuePage(prepared.manualIssueUrl);
 
         expect(noticeLink()).toBe(prepared.manualIssueUrl);
       });
@@ -687,22 +550,6 @@ describe("ReportIssueModal", () => {
         await Promise.resolve();
 
         expect(rm).toHaveBeenCalledTimes(1);
-      });
-
-      it("leaves an upload in flight alone so it can still land (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        let finish: (result: { reportId: string; expiresAt: string }) => void = () => {};
-        const uploader = jest.fn(
-          () => new Promise<{ reportId: string; expiresAt: string }>((res) => (finish = res))
-        );
-        const modal = modalWith({ params: { uploader }, prepared });
-
-        const outcome = modal.upload(prepared);
-        modal.onClose();
-        finish({ reportId, expiresAt: "" });
-        await outcome;
-
-        expect(rm).not.toHaveBeenCalled();
-        expect(noticeText()).toContain(reportId);
       });
     });
   });

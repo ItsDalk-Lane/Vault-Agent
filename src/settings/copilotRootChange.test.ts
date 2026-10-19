@@ -124,19 +124,6 @@ describe("copilotRootChange", () => {
   });
 
   describe("applyCopilotRootChange()", () => {
-    it("commits the new root and appends it to the root history", async () => {
-      seedSettings({
-        enableMiyo: true,
-        copilotFolder: "ai",
-        copilotRootHistory: ["copilot", "ai"],
-      });
-
-      await applyCopilotRootChange(app, "team-ai");
-
-      const after = getSettings();
-      expect(after.copilotFolder).toBe("team-ai");
-      expect(new Set(after.copilotRootHistory)).toEqual(new Set(["copilot", "ai", "team-ai"]));
-    });
 
     it("durably persists the new root before activating it in memory", async () => {
       seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });

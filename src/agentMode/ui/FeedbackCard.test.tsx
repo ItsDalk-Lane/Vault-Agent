@@ -90,15 +90,15 @@ describe("FeedbackCard", () => {
       expect(screen.queryByText(/You said/)).toBeNull();
     });
 
-    it("confirms a sent report with its ID and a link to the GitHub issue, without the draft actions", () => {
+    it("confirms the opened issue with a link to it and the zip reminder, without the draft actions", () => {
       renderCard({
         ...OPEN_OFFER,
         status: "reported",
-        report: { reportId: "da3b3782", issueUrl: "https://github.com/x/y/issues/new" },
+        report: { reportId: "", issueUrl: "https://github.com/x/y/issues/new" },
       });
 
-      expect(screen.getByText("Report sent to the Copilot team")).toBeTruthy();
-      expect(screen.getByText("da3b3782")).toBeTruthy();
+      expect(screen.getByText("Issue page opened")).toBeTruthy();
+      expect(screen.getByText("Attach the report zip to the issue to send it.")).toBeTruthy();
       expect(screen.getByRole("link", { name: "Open the GitHub issue" }).getAttribute("href")).toBe(
         "https://github.com/x/y/issues/new"
       );

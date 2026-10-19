@@ -118,22 +118,6 @@ describe("chatModelSelection", () => {
       );
     });
 
-    it("maps a legacy Copilot Plus key to the Plus configured model", () => {
-      const plus = provider("plus", {
-        origin: { kind: "copilot-plus" },
-        requiresApiKey: false,
-      });
-      const byok = entry("byok", "gpt-4o", provider("p1"));
-      const plusEntry = entry("plus-model", "copilot-plus-flash", plus);
-
-      expect(
-        resolveChatModelSelectionId(
-          [byok, plusEntry],
-          `copilot-plus-flash|${ChatModelProviders.COPILOT_PLUS}`
-        )
-      ).toBe("plus-model");
-    });
-
     it("maps a legacy local-provider key to the migrated openai-compatible model", () => {
       const ollama = provider("ollama", {
         displayName: "Ollama",

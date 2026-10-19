@@ -36,17 +36,17 @@ describe("builtinSkillPreferences", () => {
     it("merges concurrent updater saves instead of losing the first opt-out https://github.com/logancyang/obsidian-copilot/issues/3022", async () => {
       await Promise.all([
         saveBuiltinPreferences(
-          (current) => ({ ...current, "copilot-web-search": { disabled: true } }),
+          (current) => ({ ...current, "obsidian-markdown": { disabled: true } }),
           jest.fn()
         ),
         saveBuiltinPreferences(
-          (current) => ({ ...current, "copilot-web-fetch": { disabledAgents: ["opencode"] } }),
+          (current) => ({ ...current, "obsidian-cli": { disabledAgents: ["opencode"] } }),
           jest.fn()
         ),
       ]);
       expect(getSettings().agentMode.skills.builtinPreferences).toEqual({
-        "copilot-web-search": { disabled: true },
-        "copilot-web-fetch": { disabledAgents: ["opencode"] },
+        "obsidian-markdown": { disabled: true },
+        "obsidian-cli": { disabledAgents: ["opencode"] },
       });
       expect(persist.mock.calls[1][0].agentMode.skills.builtinPreferences).toEqual(
         getSettings().agentMode.skills.builtinPreferences
@@ -54,23 +54,23 @@ describe("builtinSkillPreferences", () => {
     });
     it("preserves untouched preference objects when saving another skill https://github.com/logancyang/obsidian-copilot/issues/3022", async () => {
       await saveBuiltinPreferences(
-        () => ({ "copilot-web-search": { disabledAgents: ["codex"] } }),
+        () => ({ "obsidian-markdown": { disabledAgents: ["codex"] } }),
         jest.fn()
       );
-      const previous = getSettings().agentMode.skills.builtinPreferences!["copilot-web-search"];
+      const previous = getSettings().agentMode.skills.builtinPreferences!["obsidian-markdown"];
       await saveBuiltinPreferences(
-        (current) => ({ ...current, "copilot-web-fetch": { disabled: true } }),
+        (current) => ({ ...current, "obsidian-cli": { disabled: true } }),
         jest.fn()
       );
-      expect(getSettings().agentMode.skills.builtinPreferences!["copilot-web-search"]).toBe(
+      expect(getSettings().agentMode.skills.builtinPreferences!["obsidian-markdown"]).toBe(
         previous
       );
-      expect(getSettings().agentMode.skills.builtinPreferences!["copilot-web-fetch"]).toEqual({
+      expect(getSettings().agentMode.skills.builtinPreferences!["obsidian-cli"]).toEqual({
         disabled: true,
       });
     });
     it("activates opt-outs only after the durable transaction exits (https://github.com/logancyang/obsidian-copilot/issues/3022)", async () => {
-      const preferences = { "copilot-web-search": { disabled: true } };
+      const preferences = { "obsidian-markdown": { disabled: true } };
       persist.mockImplementation(async (settings) => {
         expect(inTransaction).toBe(true);
         expect(settings.agentMode.skills.builtinPreferences).toEqual(preferences);
@@ -98,23 +98,23 @@ describe("builtinSkillPreferences", () => {
         }));
       });
       await saveBuiltinPreferences(
-        () => ({ "copilot-web-search": { disabledAgents: ["opencode"] } }),
+        () => ({ "obsidian-markdown": { disabledAgents: ["opencode"] } }),
         jest.fn()
       );
       expect(getSettings().debug).toBe(true);
       expect(getSettings().agentMode.skills.suppressMigrationConfirm).toBe(true);
       expect(getSettings().agentMode.skills.builtinPreferences).toEqual({
-        "copilot-web-search": { disabledAgents: ["opencode"] },
+        "obsidian-markdown": { disabledAgents: ["opencode"] },
       });
     });
 
     it("persists, activates, and returns empty preferences when restoring defaults https://github.com/logancyang/obsidian-copilot/issues/3022", async () => {
       await saveBuiltinPreferences(
-        () => ({ "copilot-web-search": { disabled: true, disabledAgents: ["opencode"] } }),
+        () => ({ "obsidian-markdown": { disabled: true, disabledAgents: ["opencode"] } }),
         jest.fn()
       );
       const preferences = await saveBuiltinPreferences(
-        () => ({ "copilot-web-search": { disabled: false, disabledAgents: [] } }),
+        () => ({ "obsidian-markdown": { disabled: false, disabledAgents: [] } }),
         jest.fn()
       );
       expect(preferences).toEqual({});
@@ -126,17 +126,17 @@ describe("builtinSkillPreferences", () => {
       persist.mockRejectedValueOnce(new Error("disk full"));
       const results = await Promise.allSettled([
         saveBuiltinPreferences(
-          (current) => ({ ...current, "copilot-web-search": { disabled: true } }),
+          (current) => ({ ...current, "obsidian-markdown": { disabled: true } }),
           jest.fn()
         ),
         saveBuiltinPreferences(
-          (current) => ({ ...current, "copilot-web-fetch": { disabledAgents: ["codex"] } }),
+          (current) => ({ ...current, "obsidian-cli": { disabledAgents: ["codex"] } }),
           jest.fn()
         ),
       ]);
       expect(results.map((result) => result.status)).toEqual(["rejected", "fulfilled"]);
       expect(getSettings().agentMode.skills.builtinPreferences).toEqual({
-        "copilot-web-fetch": { disabledAgents: ["codex"] },
+        "obsidian-cli": { disabledAgents: ["codex"] },
       });
       expect(persist.mock.calls[1][0].agentMode.skills.builtinPreferences).toEqual(
         getSettings().agentMode.skills.builtinPreferences
@@ -146,7 +146,7 @@ describe("builtinSkillPreferences", () => {
     it("leaves preferences unchanged when persistence fails (https://github.com/logancyang/obsidian-copilot/issues/3022)", async () => {
       persist.mockRejectedValue(new Error("disk full"));
       await expect(
-        saveBuiltinPreferences(() => ({ "copilot-web-search": { disabled: true } }), jest.fn())
+        saveBuiltinPreferences(() => ({ "obsidian-markdown": { disabled: true } }), jest.fn())
       ).rejects.toThrow("disk full");
       expect(getSettings().agentMode.skills.builtinPreferences).toBeUndefined();
     });

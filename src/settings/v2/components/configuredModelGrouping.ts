@@ -2,18 +2,11 @@ import type { ModelEnableGroup, ModelEnableRow } from "@/components/ui/ModelEnab
 import type { Destination } from "@/types/destination";
 import { isOpencodeZenWireId, OPENCODE_ZEN_PROVIDER_ID } from "@/utils/opencodeModelId";
 import {
-  COPILOT_PLUS_DESTINATION,
   providerDestination,
   capabilitiesFromConfiguredInfo,
   type ConfiguredModel,
-  type PersistedCopilotPlusCatalog,
   type Provider,
 } from "@/modelManagement";
-
-const EMPTY_PLUS_CATALOG: PersistedCopilotPlusCatalog = Object.freeze({
-  models: Object.freeze([]),
-  defaultEnabledIds: Object.freeze([]),
-}) as unknown as PersistedCopilotPlusCatalog;
 
 export interface Candidate {
   configuredModel: ConfiguredModel;
@@ -140,9 +133,7 @@ interface OriginGroup {
 export function buildModelEnableGroups(
   partition: CandidatePartition,
   isOpencode: boolean,
-  query: string,
-  copilotProviderMissing: boolean,
-  copilotPlusCatalog: PersistedCopilotPlusCatalog = EMPTY_PLUS_CATALOG
+  query: string
 ): ModelEnableGroup[] {
   const q = query.trim().toLowerCase();
   const out: OriginGroup[] = [];

@@ -141,7 +141,6 @@ describe("settingsSecretTransforms", () => {
       expect(result.githubCopilotAccessToken).toBeUndefined();
       expect(result.githubCopilotToken).toBeUndefined();
       expect(result.githubCopilotTokenExpiresAt).toBeUndefined();
-      expect(result.miyoSyncedExclusions).toBeUndefined();
       expect((result.agentMode as Record<string, unknown>).mcpServers).toBeUndefined();
       expect(settings as unknown as Record<string, unknown>).toHaveProperty("_keychainOnly", true);
       expect((settings.agentMode as unknown as Record<string, unknown>).mcpServers).toHaveLength(1);

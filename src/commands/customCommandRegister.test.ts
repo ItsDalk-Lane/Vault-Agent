@@ -14,10 +14,6 @@ jest.mock("@/logger", () => ({
   logError: jest.fn(),
 }));
 
-jest.mock("@/commands/CustomCommandChatModal", () => ({
-  CustomCommandChatModal: jest.fn().mockImplementation(() => ({ open: jest.fn() })),
-}));
-
 jest.mock("@/commands/customCommandManager", () => ({
   CustomCommandManager: {
     getInstance: jest.fn(() => ({ recordUsage: jest.fn().mockResolvedValue(undefined) })),

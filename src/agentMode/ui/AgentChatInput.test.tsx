@@ -18,10 +18,6 @@ import React from "react";
 /* eslint-disable @eslint-react/hooks-extra/no-unnecessary-use-prefix */
 
 const mockUseCanUseMultiAgent = jest.fn<boolean, []>();
-jest.mock("@/plusUtils", () => ({
-  useCanUseMultiAgent: () => mockUseCanUseMultiAgent(),
-  navigateToPlusPage: jest.fn(),
-}));
 
 const FAKE_BRANDS = Object.freeze([{ id: "claude", displayName: "Claude", Icon: () => null }]);
 jest.mock("@/agentMode/ui/mentionedAgents", () => ({
@@ -760,15 +756,6 @@ describe("AgentChatInput", () => {
       expect(clearSelectedTextContexts).not.toHaveBeenCalled();
       view.rerender(inputNode(backend, draft, { chatInputId: "input-2" }));
       expect(clearSelectedTextContexts).toHaveBeenCalledTimes(1);
-    });
-
-    it("passes the frozen empty list (not a fresh []) when not entitled", () => {
-      mockUseCanUseMultiAgent.mockReturnValue(false);
-      renderInput(
-        { sendMessage: jest.fn(), cancel: jest.fn() } as unknown as AgentChatBackend,
-        makeDraft()
-      );
-      expect(capturedAgentBrands).toBe(EMPTY_AGENT_MENTION_BRANDS);
     });
 
     it("shows the running state while a plan-approved turn continues after the composer send settles (https://github.com/Brevilabs/obsidian-copilot-private/issues/41)", () => {

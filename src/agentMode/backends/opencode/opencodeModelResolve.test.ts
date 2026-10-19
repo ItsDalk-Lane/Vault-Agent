@@ -309,9 +309,6 @@ describe("opencodeModelResolve", () => {
   });
 
   describe("COPILOT_PLUS_OPENCODE_PROVIDER_ID", () => {
-    it("equals the Copilot provider id host code builds wire ids from", () => {
-      expect(COPILOT_PLUS_OPENCODE_PROVIDER_ID).toBe(ChatModelProviders.COPILOT_PLUS);
-    });
   });
 
   describe("copilotPlusModelId()", () => {

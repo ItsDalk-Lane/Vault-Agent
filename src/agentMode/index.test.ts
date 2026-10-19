@@ -63,7 +63,7 @@ jest.mock("./skills/builtin/reconcileBuiltinSkills", () => ({
   ...jest.requireActual("./skills/builtin/reconcileBuiltinSkills"),
   reconcileBuiltinSkills: jest.fn(),
 }));
-jest.mock("./skills/builtin/miyoSearchSeed", () => ({ buildBuiltinSeedFs: jest.fn() }));
+jest.mock("./skills/builtin/vaultSeedFs", () => ({ buildBuiltinSeedFs: jest.fn() }));
 jest.mock("./ui/permissionPrompter", () => ({
   createDefaultPermissionPrompter: jest.fn(),
   createDefaultAskUserQuestionPrompter: jest.fn(),

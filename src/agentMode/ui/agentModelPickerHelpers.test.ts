@@ -222,31 +222,6 @@ describe("agentModelPickerHelpers", () => {
   });
 
   describe("buildPickerEntries()", () => {
-    it("previews the locked Copilot lineup above a routing agent's own models when unlicensed", () => {
-      const entry = makeModelEntry("catalog-model");
-      const descriptor = {
-        ...makeDescriptor("opencode"),
-        routesCopilotModels: true,
-        getEnabledModelEntries: () => [
-          { baseModelId: entry.baseModelId, name: entry.name, credentialState: "ok" as const },
-        ],
-      } as unknown as BackendDescriptor;
-      const manager = {
-        getCachedModelCatalog: () => ({ availableModels: [entry] }),
-        getPreloadStatus: () => "ready",
-        getDefaultSelection: () => null,
-      } as unknown as AgentSessionManager;
-
-      const { entries } = buildPickerEntries(manager, [descriptor], {} as ModelActiveContext, {
-        ...emptySettings,
-      });
-
-      const locked = entries.filter((model) => model._needsLicense);
-      expect(locked.length).toBeGreaterThan(0);
-      expect(entries.slice(0, locked.length).every((model) => model._needsLicense)).toBe(true);
-      expect(entries[entries.length - 1].name).toBe("catalog-model");
-      expect(locked.every((model) => model._group === descriptor.displayName)).toBe(true);
-    });
 
     it("previews nothing for an agent that cannot route Copilot models", () => {
       const claude = {

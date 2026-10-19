@@ -12,11 +12,7 @@ export type { EnabledBackendEntry } from "./types/runtime";
 
 export { ProviderRegistry } from "./providers/ProviderRegistry";
 export { isSelfHostedProvider } from "./providers/isSelfHostedProvider";
-export {
-  COPILOT_PLUS_DESTINATION,
-  providerDestination,
-  urlDestination,
-} from "./providers/providerDestination";
+export { providerDestination, urlDestination } from "./providers/providerDestination";
 export { providerNeedsSelfHostWarning } from "./providers/selfHostPolicy";
 export {
   providerNeedsResolvedApiKey,

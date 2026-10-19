@@ -35,30 +35,6 @@ describe("openSettings", () => {
 
       expect(openTabById).not.toHaveBeenCalled();
     });
-
-    it("hands off after another settings tab opens and schedules from the initiating window (https://github.com/Brevilabs/obsidian-copilot-private/issues/280)", () => {
-      const consumedTabs: string[] = [];
-      const openTabById = jest.fn(() => consumedTabs.push(consumeRequestedCopilotSettingsTab()));
-      const open = jest.fn();
-      let deferredHandoff: FrameRequestCallback | undefined;
-      const ownerWindow = {
-        requestAnimationFrame: jest.fn((callback: FrameRequestCallback) => {
-          deferredHandoff = callback;
-          return 1;
-        }),
-      } as unknown as Window;
-      const app = { setting: { open, openTabById } } as unknown as App;
-
-      openCopilotSettings(app, ownerWindow, "miyo");
-
-      expect(open).toHaveBeenCalledTimes(1);
-      expect(openTabById).not.toHaveBeenCalled();
-
-      deferredHandoff?.(0);
-
-      expect(openTabById).toHaveBeenCalledWith("copilot");
-      expect(consumedTabs).toEqual(["miyo"]);
-    });
   });
 
   describe("openCorePluginSettings()", () => {

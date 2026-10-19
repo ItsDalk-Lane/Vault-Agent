@@ -72,14 +72,6 @@ describe("configuredModelToCustomModel", () => {
       ).toBe(ChatModelProviders.OPENAI_FORMAT);
     });
 
-    it("maps Copilot Plus providers to the dedicated Plus constructor", () => {
-      expect(
-        mapProviderTypeToChatModelProvider(
-          provider({ origin: { kind: "copilot-plus" }, requiresApiKey: false })
-        )
-      ).toBe(ChatModelProviders.COPILOT_PLUS);
-    });
-
     it("maps an xAI catalog provider with a custom base URL to OPENAI_FORMAT", () => {
       expect(
         mapProviderTypeToChatModelProvider(

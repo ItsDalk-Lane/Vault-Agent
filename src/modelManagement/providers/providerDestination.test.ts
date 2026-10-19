@@ -26,12 +26,6 @@ describe("providerDestination", () => {
   });
 
   describe("providerDestination()", () => {
-    it("gives Copilot Plus the lock with Brevilabs servers for https://github.com/logancyang/obsidian-copilot/issues/2889", () => {
-      expect(providerDestination(provider({ kind: "copilot-plus" }))).toEqual({
-        kind: "lock",
-        label: "Brevilabs servers (US)",
-      });
-    });
 
     it("names a BYOK provider by its own name, or the local server it points at", () => {
       expect(providerDestination(provider({ kind: "byok" }))).toEqual({

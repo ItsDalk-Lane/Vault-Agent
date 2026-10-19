@@ -33,7 +33,7 @@ export const ChatModelEnableList: React.FC = () => {
   );
 
   const groups = React.useMemo<ModelEnableGroup[]>(
-    () => buildModelEnableGroups(partition, false, query, false),
+    () => buildModelEnableGroups(partition, false, query),
     [partition, query]
   );
 

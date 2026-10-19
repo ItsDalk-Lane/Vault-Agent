@@ -60,7 +60,7 @@ export const ConfiguredModelEnableList: React.FC<ConfiguredModelEnableListProps>
   );
 
   const groups = React.useMemo<ModelEnableGroup[]>(
-    () => buildModelEnableGroups(partition, isOpencode, query, false, undefined),
+    () => buildModelEnableGroups(partition, isOpencode, query),
     [partition, isOpencode, query]
   );
 
