@@ -6,9 +6,7 @@ jest.mock("./claudeAuth", () => ({ signOutFromClaude: jest.fn() }));
 
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { BackendState } from "@/agentMode/session/types";
-import { resetSettings, setSettings, type CopilotSettings } from "@/settings/model";
-import { __resetVaultBaseCache } from "@/utils/vaultPath";
-import { FileSystemAdapter, type App } from "obsidian";
+import { resetSettings, type CopilotSettings } from "@/settings/model";
 import { resolveClaudeBinary } from "./claudeBinaryResolver";
 import { probeClaudeVersion } from "./claudeVersion";
 import {

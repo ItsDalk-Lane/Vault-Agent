@@ -48,7 +48,12 @@ import { CopilotSettingTab } from "@/settings/SettingsPage";
 import { SystemPromptRegister } from "@/system-prompts/systemPromptRegister";
 import type { NoteSelectedTextContext, SelectedTextContext } from "@/types/message";
 import { withTimeout } from "@/utils";
-import { extractChatLastAccessedAtMs, extractChatTitle, fileToHistoryItem, filterChatHistoryFiles } from "@/utils/chatHistoryUtils";
+import {
+  extractChatLastAccessedAtMs,
+  extractChatTitle,
+  fileToHistoryItem,
+  filterChatHistoryFiles,
+} from "@/utils/chatHistoryUtils";
 import {
   buildChatDeepLink,
   buildChatMarkdownLink,
@@ -221,14 +226,19 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       registerTurnDiffCommands(this);
 
       const adapter = this.app.vault.adapter;
-      setFrameSinkVaultBasePath(adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null);
+      setFrameSinkVaultBasePath(
+        adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null
+      );
       // A log left permissive by an older build is only reachable here when
       // frame logging is off. https://github.com/logancyang/obsidian-copilot-preview/issues/250
       void acpFrameSink.narrowLegacyLogs();
 
       this.agentSessionManager = createAgentSessionManager(this.app, this);
       this.skills = SkillManager.getInstance();
-      this.agentModelDiscoveryUnsubscriber = wireAgentModelDiscovery(this, this.agentSessionManager);
+      this.agentModelDiscoveryUnsubscriber = wireAgentModelDiscovery(
+        this,
+        this.agentSessionManager
+      );
     }
 
     addIcon(COPILOT_AGENT_ICON_ID, COPILOT_AGENT_ICON_SVG);

@@ -24,8 +24,6 @@ jest.mock("@/settings/skillLoadErrorState", () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook; the name must match the export
   useSkillLoadErrorCount: () => mockSkillLoadErrorCount,
 }));
-let mockLatestVersion: string | null = null;
-let mockHasUpdate = false;
 jest.mock("@/utils/desktopRuntime", () => ({ isDesktopRuntime: () => true }));
 
 const plugin = {
@@ -38,8 +36,6 @@ describe("SettingsMainV2", () => {
   describe("SettingsMainV2()", () => {
     beforeEach(() => {
       mockSkillLoadErrorCount = 0;
-      mockLatestVersion = null;
-      mockHasUpdate = false;
       mockSkillManagerRefresh.mockClear();
     });
 

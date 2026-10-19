@@ -5,7 +5,11 @@ import {
   openReportIssueModal,
   ReportIssueModal,
 } from "@/agentMode/ui/ReportIssueModal";
-import type { PreparedReport, ReportSourceId, ReportSourceOption } from "@/agentMode/ui/ReportIssueFlow";
+import type {
+  PreparedReport,
+  ReportSourceId,
+  ReportSourceOption,
+} from "@/agentMode/ui/ReportIssueFlow";
 import { logWarn } from "@/logger";
 import { getSettings, setSettings } from "@/settings/model";
 import type { ReportInput } from "@/utils/issueReport";
@@ -94,8 +98,6 @@ const prepared: PreparedReport = {
   manualIssueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new?title=manual",
   attachments: [],
 };
-
-const reportId = "9f3c1a7b2e4d5f60819a2b3c4d5e6f70";
 const issueUrl = "https://github.com/logancyang/obsidian-copilot/issues/new?title=linked";
 
 beforeEach(() => {

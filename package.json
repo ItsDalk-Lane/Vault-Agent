@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-copilot",
-  "version": "4.0.15",
-  "description": "Run AI agents such as Claude Code, Codex, and OpenCode inside your vault. Turn your second brain into a smart assistant that gets knowledge work done.",
+  "name": "vault-agent",
+  "version": "1.0.0",
+  "description": "Run AI coding agents such as Claude Code, Codex, and OpenCode inside your vault, with your own API keys.",
   "main": "main.js",
   "scripts": {
     "dev": "run-p dev:*",

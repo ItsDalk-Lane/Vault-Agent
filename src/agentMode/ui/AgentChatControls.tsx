@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { useSettingsValue } from "@/settings/model";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 import {
@@ -25,7 +24,6 @@ import {
   Link,
   MessageCirclePlus,
   MoreHorizontal,
-  Sparkles,
 } from "lucide-react";
 import React, { useCallback, useState } from "react";
 

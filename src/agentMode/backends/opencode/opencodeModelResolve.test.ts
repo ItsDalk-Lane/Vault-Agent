@@ -1,8 +1,6 @@
 import type { CopilotSettings } from "@/settings/model";
 import type { ConfiguredModel, Provider, ProviderOrigin, ProviderType } from "@/modelManagement";
-import { ChatModelProviders } from "@/constants";
 import {
-  COPILOT_PLUS_OPENCODE_PROVIDER_ID,
   copilotPlusModelId,
   mapProviderToOpencodeId,
   opencodeEnabledModelEntries,
@@ -308,8 +306,7 @@ describe("opencodeModelResolve", () => {
     });
   });
 
-  describe("COPILOT_PLUS_OPENCODE_PROVIDER_ID", () => {
-  });
+  describe("COPILOT_PLUS_OPENCODE_PROVIDER_ID", () => {});
 
   describe("copilotPlusModelId()", () => {
     it("strips opencode's Copilot Plus prefix down to the bare model id", () => {

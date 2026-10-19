@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { ModelSelector } from "./ModelSelector";
 import type { ModelSelectorEntry } from "./ModelSelector";
@@ -34,45 +34,6 @@ describe("ModelSelector", () => {
       expect(window.open).not.toHaveBeenCalled();
     });
 
-    it.each(["row", "icon", "Enter", " "])(
-      "opens picker pricing from a locked %s without selecting it (https://github.com/Brevilabs/obsidian-copilot-private/issues/476)",
-      async (action) => {
-        const onChange = jest.fn();
-        render(
-          <ModelSelector
-            value="gpt-5|openai"
-            onChange={onChange}
-            models={[
-              model({}),
-              model({
-                name: "locked",
-                _needsLicense: true,
-                _disabledReason: "Copilot license required",
-              }),
-            ]}
-          />
-        );
-        fireEvent.keyDown(screen.getByRole("button"), { key: "Enter" });
-        const row = await screen.findByRole("menuitem", { name: /locked/ });
-        if (action === "row") fireEvent.click(row);
-        else if (action === "icon")
-          fireEvent.click(
-            within(row).getByText("Copilot license required").parentElement!.querySelector("svg")!
-          );
-        else {
-          act(() => row.focus());
-          fireEvent.keyDown(row, { key: action });
-        }
-        expect(window.open).toHaveBeenCalledTimes(1);
-        expect(window.open).toHaveBeenCalledWith(
-          "https://www.obsidiancopilot.com/pricing?utm_source=obsidian_copilot&utm_medium=model_picker_lock",
-          "_blank",
-          "noopener,noreferrer"
-        );
-        expect(onChange).not.toHaveBeenCalled();
-      }
-    );
-
     it("shows the cloud-egress warning on the collapsed trigger when the current model needs it", () => {
       const cloud = model({ _needsSelfHostWarning: true });
       render(<ModelSelector value="gpt-5|openai" onChange={jest.fn()} models={[cloud]} />);
@@ -86,21 +47,6 @@ describe("ModelSelector", () => {
       render(<ModelSelector value="gpt-5|openai" onChange={jest.fn()} models={[local]} />);
 
       expect(screen.queryByTestId("cloud-warning")).toBeNull();
-    });
-
-    it("marks a licence-locked row with the lock and drops its right-side reason", async () => {
-      const locked = model({
-        name: "copilot-plus-flash",
-        provider: "copilot-plus",
-        displayName: "Copilot Plus Flash",
-        _needsLicense: true,
-        _disabledReason: "Copilot license required",
-      });
-      render(<ModelSelector value="gpt-5|openai" onChange={jest.fn()} models={[locked]} />);
-      fireEvent.keyDown(screen.getByRole("button"), { key: "Enter" });
-
-      expect(await screen.findByText("Copilot license required")).toBeTruthy();
-      expect(screen.getAllByText("Copilot license required")).toHaveLength(1);
     });
 
     it("renders a row's subtitle under its name and keeps it off the collapsed trigger", async () => {

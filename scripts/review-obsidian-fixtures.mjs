@@ -146,8 +146,11 @@ async function main() {
 
   const invalidSourceResult = await lintSourceFixture(invalidSourceFixture, "src/utils.ts");
   assert(invalidSourceResult.errorCount > 0, "ESLint accepted its invalid source fixture");
+  // The upstream no-nodejs-modules rule is turned off for a desktop-only manifest
+  // (eslint-plugin-obsidianmd reads isDesktopOnly), so this fixture asserts the rules that
+  // still apply here: the repo's own desktop-runtime import fence and the comment/global bans.
+  // The desktop-only contract itself is asserted by review-obsidian-package.mjs.
   expectEslintRules(invalidSourceResult, [
-    "obsidianmd/no-nodejs-modules",
     "copilot/no-direct-node-imports",
     "no-restricted-globals",
     "eslint-comments/require-description",
@@ -330,7 +333,7 @@ export function savePreference(app: App): unknown {
   assert(copyWarningAccepted, "manifest copy guidance unexpectedly blocked the review gate");
 
   const packageFindings = collectPackageFindings({
-    manifest: { name: "Invalid", version: "2.0.0", isDesktopOnly: true },
+    manifest: { name: "Invalid", version: "2.0.0", isDesktopOnly: false },
     packageJson: { version: "1.0.0", license: "" },
     licenseText: "",
   });

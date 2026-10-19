@@ -1,9 +1,7 @@
-import { ChainType } from "@/chainType";
 import {
   COPILOT_FOLDER_ROOT,
   DEFAULT_QA_EXCLUSIONS_SETTING,
   DEFAULT_SETTINGS,
-  SEND_SHORTCUT,
   BUILTIN_CHAT_MODELS,
 } from "@/constants";
 import {
@@ -12,27 +10,13 @@ import {
   sanitizeEnvOverrides,
   sanitizeBuiltinPreferences,
   sanitizeQaExclusions,
-  sanitizeSettings,
   settingsAtom,
   settingsStore,
   toVisibleCopilotFolder,
   validateCopilotFolder,
-  CopilotSettings,
   getModelKeyFromModel,
 } from "@/settings/model";
 import { CustomModel } from "@/aiParams";
-
-function sanitizeClaudeSlice(autoModePermission: unknown): CopilotSettings {
-  return sanitizeSettings({
-    ...DEFAULT_SETTINGS,
-    agentMode: {
-      enabled: true,
-      byok: {},
-      activeBackend: "claude",
-      backends: { claude: { autoModePermission } },
-    },
-  } as unknown as CopilotSettings);
-}
 
 describe("model", () => {
   describe("sanitizeQaExclusions()", () => {

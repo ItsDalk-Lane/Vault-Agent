@@ -178,9 +178,9 @@ function DetailsPage({
       </div>
 
       <Callout tone="warning" title="Before you open the issue">
-        The report is built and redacted on your device and never leaves it: the button below opens a
-        prefilled GitHub issue, and you attach the zip to that issue yourself. Review the zip first;
-        screenshots are not automatically redacted.
+        The report is built and redacted on your device and never leaves it: the button below opens
+        a prefilled GitHub issue, and you attach the zip to that issue yourself. Review the zip
+        first; screenshots are not automatically redacted.
       </Callout>
 
       <div className="tw-flex tw-justify-end tw-gap-2">
@@ -267,8 +267,8 @@ function ReviewPage({ report, openIssuePage, revealFile, onCancel }: ReviewPageP
       </div>
 
       <Callout tone="warning" title="The zip stays on your machine">
-        Opening the issue does not send anything: attach the zip from {report ? report.zipPath : "the temp folder"} to
-        the issue yourself. Cancelling deletes it.
+        Opening the issue does not send anything: attach the zip from{" "}
+        {report ? report.zipPath : "the temp folder"} to the issue yourself. Cancelling deletes it.
       </Callout>
 
       <div className="tw-flex tw-flex-wrap tw-justify-end tw-gap-2">

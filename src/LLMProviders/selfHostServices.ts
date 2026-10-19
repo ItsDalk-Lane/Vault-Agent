@@ -1,4 +1,4 @@
-import { logError, logInfo } from "@/logger";
+import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import { safeFetchNoThrow } from "@/utils";
 import { requireNodeModule } from "@/utils/desktopRuntime";

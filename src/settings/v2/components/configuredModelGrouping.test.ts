@@ -1,5 +1,4 @@
 import {
-  buildModelEnableGroups,
   opencodeOnlySubGroupLabel,
   partitionCandidates,
   partitionChatCandidates,
@@ -7,16 +6,8 @@ import {
   toRow,
   type Candidate,
 } from "./configuredModelGrouping";
-import type { ConfiguredModel, PersistedCopilotPlusCatalog, Provider } from "@/modelManagement";
+import type { ConfiguredModel, Provider } from "@/modelManagement";
 import { ModelCapability } from "@/constants";
-
-const PLUS_CATALOG: PersistedCopilotPlusCatalog = {
-  models: [
-    { id: "copilot-plus-flash", displayName: "Copilot Plus Flash", description: "The default." },
-    { id: "glm-5.2", displayName: "GLM-5.2", description: "Frontier open weights." },
-  ],
-  defaultEnabledIds: ["copilot-plus-flash"],
-};
 
 function byokProvider(id: string, displayName: string): Provider {
   return {
@@ -173,8 +164,8 @@ describe("configuredModelGrouping", () => {
   });
 
   describe("partitionChatCandidates()", () => {
-    const byok = byokProvider("byok-1", "Anthropic");
     const agent = agentProvider("codex-agent", "codex", "Codex");
+    const byok = byokProvider("byok-1", "Anthropic");
     const providers = { [byok.providerId]: byok, [agent.providerId]: agent };
 
     it("lists non-agent chat models with their enabled state and no agent-origin rows", () => {
@@ -341,14 +332,8 @@ describe("configuredModelGrouping", () => {
         provider,
         enabled: false,
       });
-      const byok = toRow({
-        configuredModel: model("b", "p", "claude-sonnet-4-5"),
-        provider: byokProvider("p", "Anthropic"),
-        enabled: false,
-      });
       expect(zen.isFree).toBe(true);
       expect(lms.isFree).toBe(false);
-      expect(byok.isFree).toBe(false);
     });
   });
 
@@ -368,10 +353,5 @@ describe("configuredModelGrouping", () => {
       expect(rowMatches(row, "sonnet")).toBe(true);
       expect(rowMatches(row, "gpt")).toBe(false);
     });
-  });
-
-  describe("buildModelEnableGroups()", () => {
-    const byok = byokProvider("byok-1", "Anthropic");
-    const ocAgent = agentProvider("oc-agent", "opencode", "opencode");
   });
 });

@@ -1,7 +1,5 @@
-import modelEnableStories, { LockedCopilotCatalog } from "@/components/ui/ModelEnableList.stories";
-import type { Meta } from "@/lib/story";
 import { ModelEnableList, type ModelEnableGroup } from "@/components/ui/ModelEnableList";
-import { createEvent, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 
 const GROUPS: ModelEnableGroup[] = [
@@ -43,66 +41,6 @@ describe("ModelEnableList", () => {
       renderList({ onToggle });
       fireEvent.click(screen.getAllByRole("switch")[0]);
       expect(onToggle).toHaveBeenCalledWith("a-1", true);
-    });
-
-    it.each(["row", "icon", "toggle area", "keyboard"])(
-      "links the locked %s to settings pricing without enabling the model (https://github.com/Brevilabs/obsidian-copilot-private/issues/476)",
-      (action) => {
-        const onToggle = jest.fn();
-        renderList({
-          groups: [
-            {
-              key: "copilot",
-              label: "Copilot",
-              rows: [{ id: "locked", label: "Locked model", enabled: false, locked: true }],
-            },
-          ],
-          onToggle,
-        });
-        const link = screen.getByRole("link", { name: /Locked model/ });
-        expect(link.getAttribute("href")).toBe(
-          "https://www.obsidiancopilot.com/pricing?utm_source=obsidian_copilot&utm_medium=model_settings_lock"
-        );
-        expect(link.getAttribute("target")).toBe("_blank");
-        expect(within(link).queryByRole("switch")).toBeNull();
-        expect(link.querySelector("button, input, [tabindex]")).toBeNull();
-        if (action === "keyboard") {
-          link.focus();
-          const enter = createEvent.keyDown(link, { key: "Enter" });
-          fireEvent(link, enter);
-          expect(enter.defaultPrevented).toBe(false);
-          expect(document.activeElement).toBe(link);
-        }
-        const target =
-          action === "icon"
-            ? link.querySelector("svg")!
-            : action === "toggle area"
-              ? link.querySelector('[data-state="unchecked"]')!
-              : link;
-        const clicked = jest.fn();
-        link.addEventListener("click", clicked);
-        const click = createEvent.click(target, { detail: action === "keyboard" ? 0 : 1 });
-        fireEvent(target, click);
-        expect(click.defaultPrevented).toBe(false);
-        expect(clicked).toHaveBeenCalledTimes(1);
-        expect(onToggle).not.toHaveBeenCalled();
-      }
-    );
-    it("renders the locked gallery catalog with all required controlled props (https://github.com/Brevilabs/obsidian-copilot-private/issues/427)", () => {
-      type Props = React.ComponentProps<typeof ModelEnableList>;
-      const args = {
-        ...(modelEnableStories as Meta<Props>).args,
-        ...LockedCopilotCatalog.args,
-      } as Props;
-      render(<ModelEnableList {...args} />);
-      expect(screen.getByText("Copilot Plus Flash")).not.toBeNull();
-      expect(screen.getByText("OpenRouter")).not.toBeNull();
-      const toggles = screen.getAllByRole("switch");
-      expect(toggles.map((toggle) => toggle.getAttribute("aria-disabled"))).toEqual([
-        "false",
-        "false",
-      ]);
-      expect(screen.getAllByRole("link")).toHaveLength(3);
     });
 
     it("shows a collapsed group's selected-model count beside its provider name", () => {

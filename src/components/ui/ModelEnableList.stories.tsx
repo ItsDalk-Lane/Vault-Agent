@@ -101,41 +101,9 @@ export const Empty: StoryObj<ModelEnableListProps> = {
   render: () => <Controlled groups={[]} />,
 };
 
-export const LockedCopilotCatalog: StoryObj<ModelEnableListProps> = {
+export const Grouped: StoryObj<ModelEnableListProps> = {
   args: {
     groups: [
-      {
-        key: "locked:copilot-plus",
-        label: "Copilot",
-        badge: "privacy",
-        destination: { kind: "lock", label: "Brevilabs servers (US)" },
-        destinationNote: "Copilot license required",
-        highlight: true,
-        rows: [
-          {
-            id: "__locked_copilot__copilot-plus-flash",
-            label: "Copilot Plus Flash",
-            description: "The default model: fastest responses and the most quota.",
-            enabled: false,
-            locked: true,
-          },
-          {
-            id: "__locked_copilot__deepseek-v4-pro",
-            label: "DeepSeek V4 Pro",
-            description: "A top-tier model for the hardest reasoning and agentic tasks.",
-            enabled: false,
-            locked: true,
-          },
-          {
-            id: "__locked_copilot__glm-5.2",
-            label: "GLM-5.2",
-            description:
-              "A long-horizon frontier open model that beats some of the best closed models.",
-            enabled: false,
-            locked: true,
-          },
-        ],
-      },
       {
         key: "byok:openrouter",
         label: "OpenRouter",

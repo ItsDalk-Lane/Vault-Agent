@@ -4,18 +4,6 @@ import type { ComponentProps } from "react";
 
 type ModelSelectorProps = ComponentProps<typeof ModelSelector>;
 
-const LOCKED_COPILOT_ROW: ModelSelectorEntry = {
-  name: "copilot-plus-flash",
-  provider: "copilot-plus",
-  displayName: "Copilot Plus Flash",
-  enabled: true,
-  _group: "OpenCode",
-  _backendId: "opencode",
-  _needsLicense: true,
-  _disabledReason: "Copilot license required",
-  _subtitle: "The default model: fastest responses and the most quota.",
-};
-
 const OWN_MODELS: ModelSelectorEntry[] = [
   {
     name: "grok-code",
@@ -48,16 +36,16 @@ export default meta;
 
 export const Licensed: StoryObj<ModelSelectorProps> = {};
 
-export const Unlicensed: StoryObj<ModelSelectorProps> = {
+export const MixedDestinations: StoryObj<ModelSelectorProps> = {
   args: {
-    models: [LOCKED_COPILOT_ROW, ...OWN_MODELS],
+    models: OWN_MODELS,
   },
 };
 
-export const UnlicensedWithNoModelsOfTheirOwn: StoryObj<ModelSelectorProps> = {
+export const EmptySelection: StoryObj<ModelSelectorProps> = {
   args: {
     value: "",
-    models: [LOCKED_COPILOT_ROW],
+    models: OWN_MODELS,
   },
 };
 

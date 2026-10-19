@@ -56,9 +56,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
           </div>
         ) : null}
         {report ? (
-          <div className="tw-text-muted">
-            Attach the report zip to the issue to send it.
-          </div>
+          <div className="tw-text-muted">Attach the report zip to the issue to send it.</div>
         ) : null}
       </div>
 

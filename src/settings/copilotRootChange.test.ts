@@ -124,7 +124,6 @@ describe("copilotRootChange", () => {
   });
 
   describe("applyCopilotRootChange()", () => {
-
     it("durably persists the new root before activating it in memory", async () => {
       seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
       let rootWhenPersisted: string | undefined;

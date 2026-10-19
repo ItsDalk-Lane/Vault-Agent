@@ -1,8 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { FreeModelWarningIcon } from "@/components/ui/FreeModelWarningIcon";
-import { LicenseRequiredIcon } from "@/components/ui/LicenseRequiredIcon";
-import { createProductUrl, PRODUCT_URLS } from "@/lib/productLinks";
 import { DestinationIcon } from "@/components/ui/DestinationIcon";
 import { ModelCapabilityIcons, hasCapabilityIcons } from "@/components/ui/model-display";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -13,8 +11,6 @@ import type { Destination } from "@/types/destination";
 import { ChevronRight } from "lucide-react";
 import React from "react";
 
-const SETTINGS_PRICING_URL = createProductUrl(PRODUCT_URLS.COPILOT_PRICING, "model_settings_lock");
-
 export interface ModelEnableRow {
   id: string;
   label: string;
@@ -23,7 +19,6 @@ export interface ModelEnableRow {
   enabled: boolean;
   capabilities?: ModelCapability[];
   isFree?: boolean;
-  locked?: boolean;
 }
 
 export interface ModelEnableGroup {
@@ -88,56 +83,31 @@ export const ModelEnableList: React.FC<ModelEnableListProps> = ({
 
   const renderRows = (rows: ModelEnableRow[]): React.ReactNode => (
     <div className="tw-space-y-1">
-      {rows.map((row) => {
-        // A locked row is a link, so it must not contain an enable control.
-        // https://github.com/Brevilabs/obsidian-copilot-private/issues/476
-        const Row = row.locked ? "a" : "div";
-        return (
-          <Row
-            key={row.id}
-            href={row.locked ? SETTINGS_PRICING_URL : undefined}
-            target={row.locked ? "_blank" : undefined}
-            rel={row.locked ? "noopener noreferrer" : undefined}
-            className={cn(
-              "tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded tw-px-2 tw-py-1",
-              "hover:tw-bg-modifier-hover",
-              row.locked &&
-                "tw-text-normal tw-no-underline hover:tw-text-normal hover:tw-no-underline focus-visible:tw-outline-none focus-visible:tw-ring-2 focus-visible:tw-ring-ring"
-            )}
-          >
-            <div className="tw-min-w-0">
-              <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
-                <span className="tw-truncate">{row.label}</span>
-                {row.locked && <LicenseRequiredIcon />}
-                {row.isFree && <FreeModelWarningIcon />}
-                {hasCapabilityIcons(row.capabilities) && (
-                  <span className="tw-flex tw-shrink-0 tw-items-center tw-gap-0.5">
-                    <ModelCapabilityIcons capabilities={row.capabilities} iconSize={14} />
-                  </span>
-                )}
-              </div>
-              {row.description && (
-                <div className="tw-truncate tw-text-xs tw-text-muted">{row.description}</div>
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className={cn(
+            "tw-flex tw-items-center tw-justify-between tw-gap-2 tw-rounded tw-px-2 tw-py-1",
+            "hover:tw-bg-modifier-hover"
+          )}
+        >
+          <div className="tw-min-w-0">
+            <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
+              <span className="tw-truncate">{row.label}</span>
+              {row.isFree && <FreeModelWarningIcon />}
+              {hasCapabilityIcons(row.capabilities) && (
+                <span className="tw-flex tw-shrink-0 tw-items-center tw-gap-0.5">
+                  <ModelCapabilityIcons capabilities={row.capabilities} iconSize={14} />
+                </span>
               )}
             </div>
-            {row.locked ? (
-              <SettingSwitch
-                checked={false}
-                disabled
-                role="presentation"
-                aria-hidden
-                tabIndex={undefined}
-                className="tw-pointer-events-none"
-              />
-            ) : (
-              <SettingSwitch
-                checked={row.enabled}
-                onCheckedChange={(next) => onToggle(row.id, next)}
-              />
+            {row.description && (
+              <div className="tw-truncate tw-text-xs tw-text-muted">{row.description}</div>
             )}
-          </Row>
-        );
-      })}
+          </div>
+          <SettingSwitch checked={row.enabled} onCheckedChange={(next) => onToggle(row.id, next)} />
+        </div>
+      ))}
     </div>
   );
 

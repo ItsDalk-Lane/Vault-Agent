@@ -424,7 +424,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       handleCloseSession,
       runningChatIds,
       attentionChatIds,
-      plugin,
       settings.chatHistorySortStrategy,
     ]
   );

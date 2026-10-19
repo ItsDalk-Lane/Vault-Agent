@@ -10,8 +10,6 @@ jest.mock("@/settings/model", () => ({
   useSettingsValue: () => currentSettings,
 }));
 
-let mockEligible: boolean | undefined = true;
-
 jest.mock("@/contexts/TabContext", () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook
   useTab: () => ({ setSelectedTab: jest.fn() }),
@@ -30,7 +28,6 @@ describe("SelfHostSettings", () => {
   describe("SelfHostSettings()", () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      mockEligible = true;
       currentSettings = { ...DEFAULT_SETTINGS };
     });
 

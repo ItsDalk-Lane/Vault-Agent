@@ -26,7 +26,6 @@ describe("providerDestination", () => {
   });
 
   describe("providerDestination()", () => {
-
     it("names a BYOK provider by its own name, or the local server it points at", () => {
       expect(providerDestination(provider({ kind: "byok" }))).toEqual({
         kind: "cloud",

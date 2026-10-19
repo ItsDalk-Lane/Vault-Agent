@@ -5,7 +5,7 @@ import {
   extractSubAgentReturnText,
 } from "@/agentMode/ui/toolSummaries";
 import type { ToolCallPart } from "@/agentMode/ui/agentTrail";
-import type { AgentMessagePart } from "@/agentMode/session/types";
+import type {} from "@/agentMode/session/types";
 
 const CTX = { vaultBase: "/Users/me/vault" };
 

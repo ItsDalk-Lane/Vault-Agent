@@ -51,27 +51,6 @@ export const NoEffortControl: StoryObj<Props> = {
   },
 };
 
-export const Unlicensed: StoryObj<Props> = {
-  args: {
-    override: {
-      ...ConcreteEffort.args.override,
-      models: [
-        {
-          name: "copilot-plus-flash",
-          displayName: "Copilot Plus Flash",
-          provider: "copilot-plus",
-          enabled: true,
-          _needsLicense: true,
-          _disabledReason: "Copilot license required",
-          _subtitle: "The default model: fastest responses and the most quota.",
-        },
-        ...ConcreteEffort.args.override.models,
-        { name: "local", displayName: "Local model", provider: "ollama", enabled: true },
-      ],
-    },
-  },
-};
-
 export const CustomEndpointLabels: StoryObj<Props> = {
   args: {
     override: {

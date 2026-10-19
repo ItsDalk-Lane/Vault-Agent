@@ -222,7 +222,6 @@ describe("agentModelPickerHelpers", () => {
   });
 
   describe("buildPickerEntries()", () => {
-
     it("previews nothing for an agent that cannot route Copilot models", () => {
       const claude = {
         ...makeDescriptor("claude"),
@@ -240,7 +239,7 @@ describe("agentModelPickerHelpers", () => {
         ...emptySettings,
       });
 
-      expect(entries.some((entry) => entry._needsLicense)).toBe(false);
+      expect(entries.every((entry) => entry.enabled !== undefined)).toBe(true);
     });
 
     it("previews nothing once the Copilot provider is registered, since the real models are there", () => {
