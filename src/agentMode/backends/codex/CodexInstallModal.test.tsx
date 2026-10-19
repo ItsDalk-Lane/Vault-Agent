@@ -127,7 +127,7 @@ describe("CodexInstallModal", () => {
       setCodexSettings({ binaryPath: "/my/codex-acp", binarySource: "custom" });
       const fixture = makeManager();
       await fixture.render();
-      fireEvent.click(screen.getByRole("radio", { name: "Managed by Copilot" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Managed by Vault Agent" }));
       await waitFor(() => expect(screen.getByRole("button", { name: "Uninstall" })).toBeTruthy());
       await act(async () => fireEvent.click(screen.getByRole("button", { name: "Uninstall" })));
       fixture.manager.downloadsSize.mockResolvedValue(0);
@@ -171,7 +171,7 @@ describe("CodexInstallModal", () => {
       const fixture = makeManager();
       await fixture.render();
       expect(screen.getByRole<HTMLInputElement>("textbox").value).toBe("/my/codex-acp");
-      fireEvent.click(screen.getByRole("radio", { name: "Managed by Copilot" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Managed by Vault Agent" }));
       expect(screen.queryByRole("textbox")).toBeNull();
       fireEvent.click(screen.getByRole("radio", { name: "My own binary" }));
       expect(screen.getByRole<HTMLInputElement>("textbox").value).toBe("/my/codex-acp");
@@ -243,7 +243,7 @@ describe("CodexInstallModal", () => {
         expect(
           screen
             .getByRole("radio", {
-              name: operation === "install" ? "Managed by Copilot" : "My own binary",
+              name: operation === "install" ? "Managed by Vault Agent" : "My own binary",
             })
             .getAttribute("aria-checked")
         ).toBe("true");

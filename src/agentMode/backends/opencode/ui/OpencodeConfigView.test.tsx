@@ -20,7 +20,7 @@ const OUTDATED: InstallState = {
   source: "managed",
   currentVersion: "1.18.31",
   minVersion: "2.0.3",
-  message: "opencode v1.18.31 is not supported. Copilot requires opencode v2.0.3 or newer.",
+  message: "opencode v1.18.31 is not supported. Vault Agent requires opencode v2.0.3 or newer.",
 };
 
 const makeActions = (): jest.Mocked<OpencodeConfigActions> => ({

@@ -26,7 +26,7 @@ describe("binaryCompatibility", () => {
         source: "managed",
         currentVersion: "1.9.0",
         minVersion: "2.0.0",
-        message: "Codex v1.9.0 is not supported. Copilot requires Codex v2.0.0 or newer.",
+        message: "Codex v1.9.0 is not supported. Vault Agent requires Codex v2.0.0 or newer.",
       });
     });
 

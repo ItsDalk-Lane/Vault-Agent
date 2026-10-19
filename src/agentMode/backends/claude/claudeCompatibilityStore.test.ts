@@ -38,7 +38,7 @@ describe("claudeCompatibilityStore", () => {
           currentVersion: "2.1.205",
           minVersion: "2.1.206",
           message:
-            "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer.",
+            "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer.",
         });
         expect(listener).toHaveBeenCalledTimes(2);
       });

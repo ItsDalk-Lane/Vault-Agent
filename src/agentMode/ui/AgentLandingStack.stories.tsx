@@ -147,7 +147,7 @@ const meta = {
     ),
     composer: (
       <div className="tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-4 tw-text-ui-small tw-text-normal">
-        Ask Copilot...
+        Ask Vault Agent...
       </div>
     ),
     shelf: <AgentHomeShelf sections={sections} />,

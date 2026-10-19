@@ -311,7 +311,7 @@ describe("opencodeVaultAgentPlugin", () => {
   });
 
   describe("opencodeVaultAgentPluginDir()", () => {
-    it("places the plugin in Copilot's managed OpenCode folder outside the vault", () => {
+    it("places the plugin in Vault Agent's managed OpenCode folder outside the vault", () => {
       expect(opencodeVaultAgentPluginDir()).toBe(
         path.join(os.homedir(), ".vault-agent", "opencode", "plugins", "vault-agent")
       );
@@ -371,7 +371,7 @@ describe("opencodeVaultAgentPlugin", () => {
       ).resolves.toBe(undefined);
 
       expect(logWarn).toHaveBeenCalledWith(
-        expect.stringContaining("could not write Copilot's OpenCode plugin"),
+        expect.stringContaining("could not write Vault Agent's OpenCode plugin"),
         expect.anything()
       );
     });

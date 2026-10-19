@@ -24,14 +24,14 @@ export function AgentModeBanner({ onOpenAgent }: AgentModeBannerProps) {
         "hover:tw-bg-interactive-hover hover:tw-text-normal",
         "tw-whitespace-normal"
       )}
-      title="Open Copilot Agent Chat"
+      title="Open Vault Agent Chat"
       onClick={onOpenAgent}
     >
       <span className="tw-flex tw-w-full tw-flex-col tw-gap-2">
         <span className="tw-flex tw-items-center tw-gap-2">
           <VaultAgentBrandIcon className="tw-size-6 tw-shrink-0 tw-text-accent" />
           <span className="tw-text-ui-larger tw-font-semibold tw-leading-tight">
-            Open Copilot Agent Chat
+            Open Vault Agent Chat
           </span>
         </span>
         <span className="tw-text-ui-smaller tw-leading-normal tw-text-muted">

@@ -5,7 +5,7 @@ import {
 } from "./VaultAgentFolderChangeNotice";
 
 const meta = {
-  title: "Settings/Copilot Folder Change Notice",
+  title: "Settings/Vault Agent Folder Change Notice",
   component: VaultAgentFolderChangeNotice,
   args: {
     oldRoot: "vault-agent",

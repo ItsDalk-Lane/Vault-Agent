@@ -182,7 +182,7 @@ describe("BasicSettings", () => {
       expect(applyVaultAgentRootChange).toHaveBeenCalledWith(expect.anything(), "existing");
     });
 
-    it("still warns when the non-empty folder is a previously used Copilot root", () => {
+    it("still warns when the non-empty folder is a previously used Vault Agent root", () => {
       settingsStore.set(settingsAtom, {
         ...DEFAULT_SETTINGS,
         vaultAgentFolder: "vault-agent",

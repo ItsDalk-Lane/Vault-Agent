@@ -49,7 +49,7 @@ describe("claudeVersion", () => {
         currentVersion: "2.1.205",
         minVersion: CLAUDE_MIN_VERSION,
         message:
-          "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer.",
+          "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer.",
       });
     });
   });
@@ -73,7 +73,7 @@ describe("claudeVersion", () => {
       await expect(
         assertClaudeVersionSupported("/usr/local/bin/claude", process.env, run)
       ).rejects.toThrow(
-        "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer."
+        "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer."
       );
       await expect(
         assertClaudeVersionSupported("/usr/local/bin/claude", process.env, run)

@@ -24,7 +24,7 @@ const INCOMPATIBLE: InstallState = {
   source: "custom",
   currentVersion: "1.15.0",
   minVersion: "1.16.0",
-  message: "opencode v1.15.0 is not supported. Copilot requires opencode v1.16.0 or newer.",
+  message: "opencode v1.15.0 is not supported. Vault Agent requires opencode v1.16.0 or newer.",
 };
 const ERRORED: InstallState = { kind: "error", message: "opencode binary is not executable." };
 

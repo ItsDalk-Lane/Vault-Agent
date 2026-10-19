@@ -35,7 +35,7 @@ const OUTDATED: InstallState = {
   source: "managed",
   currentVersion: "1.18.31",
   minVersion: OPENCODE_MIN_VERSION,
-  message: `opencode v1.18.31 is not supported. Copilot requires opencode v${OPENCODE_MIN_VERSION} or newer.`,
+  message: `opencode v1.18.31 is not supported. Vault Agent requires opencode v${OPENCODE_MIN_VERSION} or newer.`,
 };
 
 const InteractiveConfigView: React.FC<Partial<OpencodeConfigViewProps>> = (props) => {

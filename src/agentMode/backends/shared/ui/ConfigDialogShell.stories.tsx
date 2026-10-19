@@ -16,7 +16,7 @@ const OUTDATED: InstallState = {
   source: "managed",
   currentVersion: "0.14.2",
   minVersion: "0.15.6",
-  message: "opencode v0.14.2 is not supported. Copilot requires opencode v0.15.6 or newer.",
+  message: "opencode v0.14.2 is not supported. Vault Agent requires opencode v0.15.6 or newer.",
 };
 
 const CLAUDE_OUTDATED: InstallState = {
@@ -24,7 +24,7 @@ const CLAUDE_OUTDATED: InstallState = {
   source: "custom",
   currentVersion: "2.1.205",
   minVersion: "2.1.206",
-  message: "Claude 2.1.205 is not supported. Copilot requires 2.1.206 or newer.",
+  message: "Claude 2.1.205 is not supported. Vault Agent requires 2.1.206 or newer.",
 };
 
 const CODEX_ERROR: InstallState = {

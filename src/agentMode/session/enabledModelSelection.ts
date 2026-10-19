@@ -29,6 +29,6 @@ export function pickEnabledModel(
 
 export function noEnabledModelError(displayName: string): Error {
   return new Error(
-    `None of the models enabled for ${displayName} are available. Check them in Copilot's model settings.`
+    `None of the models enabled for ${displayName} are available. Check them in Vault Agent's model settings.`
   );
 }

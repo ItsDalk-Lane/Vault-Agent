@@ -197,7 +197,7 @@ function mapNullable<T, R>(value: T | null | undefined, fn: (value: T) => R): R 
   return fn(value);
 }
 
-// Copilot's OpenCode plugin writes each file's text from just before the tool changed it here.
+// Vault Agent's OpenCode plugin writes each file's text from just before the tool changed it here.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/687
 function copilotOriginalFiles(rawOutput: unknown): Record<string, string | null> | undefined {
   const files = (rawOutput as { metadata?: { copilot?: { originalFiles?: unknown } } } | null)

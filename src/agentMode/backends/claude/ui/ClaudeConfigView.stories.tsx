@@ -11,7 +11,7 @@ const OUTDATED: InstallState = {
   source: "custom",
   currentVersion: "2.1.205",
   minVersion: "2.1.206",
-  message: "Claude 2.1.205 is not supported. Copilot requires 2.1.206 or newer.",
+  message: "Claude 2.1.205 is not supported. Vault Agent requires 2.1.206 or newer.",
 };
 
 const meta = {

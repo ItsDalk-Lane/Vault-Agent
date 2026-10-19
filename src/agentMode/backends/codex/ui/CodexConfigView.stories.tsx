@@ -33,7 +33,7 @@ const OUTDATED: InstallState = {
   source: "managed",
   currentVersion: "1.9.0-r1",
   minVersion: CODEX_PINNED_VERSION,
-  message: `Codex adapter v1.9.0-r1 requires an upgrade. Copilot requires Codex adapter v${CODEX_PINNED_VERSION} or newer.`,
+  message: `Codex adapter v1.9.0-r1 requires an upgrade. Vault Agent requires Codex adapter v${CODEX_PINNED_VERSION} or newer.`,
 };
 
 const InteractiveConfigView: React.FC<Partial<CodexConfigViewProps>> = (props) => {

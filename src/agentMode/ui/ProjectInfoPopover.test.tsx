@@ -111,7 +111,7 @@ describe("ProjectInfoPopover", () => {
     expect(screen.getByText("step C")).toBeTruthy();
   });
 
-  it("hides a CLAUDE.md that is only Copilot's @AGENTS.md wiring", async () => {
+  it("hides a CLAUDE.md that is only Vault Agent's @AGENTS.md wiring", async () => {
     renderPopover(null, ["CLAUDE.md", "draft.md"], { "CLAUDE.md": "@AGENTS.md\n" });
     expect(await screen.findByText("draft.md")).toBeTruthy();
     expect(screen.queryByText("CLAUDE.md")).toBeNull();

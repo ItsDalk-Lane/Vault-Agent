@@ -149,7 +149,7 @@ describe("agentsFile", () => {
       expect(await agentsFileIsUninitialized(app, "Projects/Research")).toBe(true);
     });
 
-    it("is true for a generated mirror, which is Copilot's own output to replace", async () => {
+    it("is true for a generated mirror, which is Vault Agent's own output to replace", async () => {
       const marker =
         "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app } = makeApp({

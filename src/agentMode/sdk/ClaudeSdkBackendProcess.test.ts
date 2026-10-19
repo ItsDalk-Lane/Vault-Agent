@@ -555,7 +555,7 @@ describe("ClaudeSdkBackendProcess", () => {
         ]);
       });
 
-      it("attaches Copilot's MCP servers over HTTP and pre-approves their tools on every turn", async () => {
+      it("attaches Vault Agent's MCP servers over HTTP and pre-approves their tools on every turn", async () => {
         queryMock.mockImplementation(() => makeQuery([resultMessage()]));
         const proc = makeProc();
         const { sessionId } = await proc.newSession({

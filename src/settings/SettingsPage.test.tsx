@@ -52,7 +52,7 @@ describe("SettingsPage", () => {
     });
 
     describe("display()", () => {
-      it("renders the settings right away once Copilot has started", () => {
+      it("renders the settings right away once Vault Agent has started", () => {
         const { tab } = createTab(true);
 
         tab.display();

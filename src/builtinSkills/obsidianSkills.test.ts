@@ -149,7 +149,7 @@ describe("obsidianSkills", () => {
       expect(md).toContain("commands filter=");
       expect(md).toContain("plugin:reload");
       expect(md).toContain("For another plugin");
-      expect(md).toContain("Never reload the\n   Copilot plugin");
+      expect(md).toContain("Never reload the\n   Vault Agent plugin");
       expect(md).toContain("dev:errors");
       expect(md).toContain("dev:screenshot");
       expect(md).toContain("dev:dom");
@@ -157,7 +157,9 @@ describe("obsidianSkills", () => {
       expect(md).toContain("dev:mobile");
       expect(md).toContain("Preserve the host session");
       expect(md).toContain("any CLI command that reloads or restarts the app");
-      expect(md).toContain("any plugin reload, disable, or uninstall operation targeting Copilot");
+      expect(md).toContain(
+        "any plugin reload, disable, or uninstall operation targeting Vault Agent"
+      );
       expect(md).toContain("any restricted-mode change");
       expect(md).toContain("command ID, JavaScript expression, or CDP call");
       expect(md).toContain("hard prohibition, not a confirmation-gated operation");

@@ -750,7 +750,7 @@ or test command has produced artifacts:
 
 1. For another plugin, reload with
    <code>plugin:reload id=&lt;plugin-id&gt;</code> when needed. Never reload the
-   Copilot plugin from a Copilot-hosted agent session.
+   Vault Agent plugin from a Vault Agent-hosted agent session.
 2. Inspect <code>dev:errors</code> and <code>dev:console level=error</code>.
 3. Verify UI state with <code>dev:screenshot path=...</code>,
    <code>dev:dom selector=...</code>, and <code>dev:css selector=...</code>.
@@ -765,14 +765,14 @@ mutates application state as a risky operation requiring explicit user intent.
 ## Preserve the host session
 
 Never reload or restart the Obsidian app or window from an agent session. Never
-reload, disable, or uninstall the Copilot plugin that is hosting the agent. In
+reload, disable, or uninstall the Vault Agent plugin that is hosting the agent. In
 particular, do not use:
 
 - any CLI command that reloads or restarts the app, window, or renderer
-- any plugin reload, disable, or uninstall operation targeting Copilot
+- any plugin reload, disable, or uninstall operation targeting Vault Agent
 - any restricted-mode change
 - a command ID, JavaScript expression, or CDP call that performs an equivalent
-  app, window, renderer, or Copilot-plugin teardown
+  app, window, renderer, or Vault Agent plugin teardown
 
 These actions terminate the in-flight agent and can discard its work. This is a
 hard prohibition, not a confirmation-gated operation. If verification requires

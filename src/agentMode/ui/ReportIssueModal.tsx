@@ -276,7 +276,7 @@ export class ReportIssueModal extends Modal {
     const opened = await openIssuePageWith(getElectronShell(), url);
     this.close();
     if (!opened) {
-      this.issueLinkNotice("Copilot could not open your browser.", url);
+      this.issueLinkNotice("Vault Agent could not open your browser.", url);
     } else {
       new Notice("Finish the issue in your browser and attach the report zip to it.");
     }
@@ -292,14 +292,14 @@ export class ReportIssueModal extends Modal {
   private revealFile(path: string): void {
     const shell = getElectronShell();
     if (!shell?.showItemInFolder) {
-      new Notice(`Copilot could not open the folder. The report is at ${path}`);
+      new Notice(`Vault Agent could not open the folder. The report is at ${path}`);
       return;
     }
     try {
       shell.showItemInFolder(path);
     } catch (err) {
       logError("[ReportIssue] could not reveal the report:", err);
-      new Notice(`Copilot could not open the folder. The report is at ${path}`);
+      new Notice(`Vault Agent could not open the folder. The report is at ${path}`);
     }
   }
 }

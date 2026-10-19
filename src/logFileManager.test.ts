@@ -170,7 +170,7 @@ describe("logFileManager", () => {
     });
 
     describe("getLogPath()", () => {
-      it("resolves the note under the effective Copilot root folder", () => {
+      it("resolves the note under the effective Vault Agent root folder", () => {
         expect(logFileManager.getLogPath()).toBe("vault-agent/vault-agent-log.md");
       });
     });

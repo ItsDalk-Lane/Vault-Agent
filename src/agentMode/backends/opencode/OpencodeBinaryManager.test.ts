@@ -209,7 +209,7 @@ describe("OpencodeBinaryManager", () => {
         source: "custom",
         currentVersion: "1.15.12",
         minVersion: OPENCODE_MIN_VERSION,
-        message: `opencode v1.15.12 is not supported. Copilot requires opencode v${OPENCODE_MIN_VERSION} or newer.`,
+        message: `opencode v1.15.12 is not supported. Vault Agent requires opencode v${OPENCODE_MIN_VERSION} or newer.`,
       });
     });
   });

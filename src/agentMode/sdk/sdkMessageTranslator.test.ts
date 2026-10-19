@@ -630,7 +630,7 @@ describe("sdkMessageTranslator", () => {
             type: "tool_use",
             id: "tu-mcp-exit",
             name: "mcp__srv__ExitPlanMode",
-            input: { plan: "not Copilot's plan flow" },
+            input: { plan: "not Vault Agent's plan flow" },
           },
         }),
         SESSION_ID,

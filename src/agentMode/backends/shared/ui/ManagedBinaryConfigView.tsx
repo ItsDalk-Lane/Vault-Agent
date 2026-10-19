@@ -64,7 +64,7 @@ export interface ManagedBinaryConfigViewProps extends ManagedBinaryConfigProps {
 }
 
 const SOURCE_OPTIONS: SegmentedControlOption<ManagedBinarySource>[] = [
-  { label: "Managed by Copilot", value: "managed" },
+  { label: "Managed by Vault Agent", value: "managed" },
   { label: "My own binary", value: "custom" },
 ];
 
@@ -203,8 +203,8 @@ export const ManagedBinaryConfigView: React.FC<ManagedBinaryConfigViewProps> = (
           <p className="tw-my-0 tw-text-normal">
             {activeSource === "custom"
               ? managed.hasDownloads
-                ? "Your own binary is currently in use. Copilot's managed downloads are still on this computer. Reinstall to switch to Managed by Copilot, or uninstall to free up space."
-                : "Your own binary is currently in use. Download and install the managed copy to switch to Managed by Copilot."
+                ? "Your own binary is currently in use. Vault Agent's managed downloads are still on this computer. Reinstall to switch to Managed by Vault Agent, or uninstall to free up space."
+                : "Your own binary is currently in use. Download and install the managed copy to switch to Managed by Vault Agent."
               : "The Copilot-managed binary is currently in use. Apply your own binary path below to switch to it."}
           </p>
         </div>
@@ -221,7 +221,7 @@ export const ManagedBinaryConfigView: React.FC<ManagedBinaryConfigViewProps> = (
           <AlertTriangle aria-hidden className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-warning" />
           <p className="tw-my-0 tw-text-normal">
             Copilot is tested with the version managed by Copilot. Other versions may not work
-            correctly. We recommend Managed by Copilot.
+            correctly. We recommend Managed by Vault Agent.
           </p>
         </div>
       )}

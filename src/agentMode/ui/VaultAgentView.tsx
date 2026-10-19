@@ -34,11 +34,11 @@ export default class VaultAgentView extends ItemView {
   }
 
   getTitle(): string {
-    return "Copilot Agent Chat";
+    return "Vault Agent Chat";
   }
 
   getDisplayText(): string {
-    return "Copilot Agent";
+    return "Vault Agent";
   }
 
   async onOpen(): Promise<void> {

@@ -20,13 +20,13 @@ const OUTDATED: InstallState = {
   source: "managed",
   currentVersion: "0.14.2",
   minVersion: "0.15.6",
-  message: "opencode v0.14.2 is not supported. Copilot requires opencode v0.15.6 or newer.",
+  message: "opencode v0.14.2 is not supported. Vault Agent requires opencode v0.15.6 or newer.",
 };
 
 const IN_USE_MANAGED =
   "The Copilot-managed binary is currently in use. Apply your own binary path below to switch to it.";
 const IN_USE_CUSTOM =
-  "Your own binary is currently in use. Download and install the managed copy to switch to Managed by Copilot.";
+  "Your own binary is currently in use. Download and install the managed copy to switch to Managed by Vault Agent.";
 
 const makeActions = (): jest.Mocked<ManagedBinaryConfigActions> => ({
   install: jest.fn(),
@@ -105,7 +105,10 @@ describe("ManagedBinaryConfigView", () => {
       const group = screen.getByRole("radiogroup", { name: "opencode binary source" });
       const options = screen.getAllByRole("radio");
       expect(group.contains(options[0])).toBe(true);
-      expect(options.map((o) => o.textContent)).toEqual(["Managed by Copilot", "My own binary"]);
+      expect(options.map((o) => o.textContent)).toEqual([
+        "Managed by Vault Agent",
+        "My own binary",
+      ]);
       expect(options.map((o) => o.getAttribute("aria-checked"))).toEqual(["true", "false"]);
     });
 
@@ -116,7 +119,7 @@ describe("ManagedBinaryConfigView", () => {
         customPath: "/opt/homebrew/bin/opencode",
       });
 
-      fireEvent.click(screen.getByRole("radio", { name: "Managed by Copilot" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Managed by Vault Agent" }));
 
       expect(onSourceChange).toHaveBeenCalledWith("managed");
       expect(actions.saveCustomPath).not.toHaveBeenCalled();
@@ -165,7 +168,7 @@ describe("ManagedBinaryConfigView", () => {
       expect(actions.uninstall).toHaveBeenCalledTimes(1);
       expect(actions.install).not.toHaveBeenCalled();
       expect(screen.getByRole("status").textContent).toContain(
-        "Copilot's managed downloads are still on this computer."
+        "Vault Agent's managed downloads are still on this computer."
       );
       fireEvent.click(screen.getByRole("button", { name: "Reinstall & use managed" }));
       expect(actions.install).toHaveBeenCalledTimes(1);
@@ -287,7 +290,7 @@ describe("ManagedBinaryConfigView", () => {
       expect(screen.getByRole("note").textContent).toContain(
         "Copilot is tested with the version managed by Copilot"
       );
-      expect(screen.getByRole("note").textContent).toContain("Managed by Copilot");
+      expect(screen.getByRole("note").textContent).toContain("Managed by Vault Agent");
       expect(screen.getByPlaceholderText("/absolute/path/to/opencode")).toBeTruthy();
     });
 

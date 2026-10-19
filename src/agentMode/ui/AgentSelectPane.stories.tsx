@@ -8,7 +8,7 @@ const ROWS: readonly AgentSelectRow[] = [
   {
     id: "opencode",
     name: "opencode",
-    description: "Copilot Plus models, or any model on your own provider key.",
+    description: "Any model on your own provider key.",
     status: "absent",
     recommended: true,
     statusMessage: null,

@@ -1041,10 +1041,10 @@ describe("AgentSessionManager", () => {
         });
 
         await expect(mgr.createSession()).rejects.toThrow(
-          "Enable a model for opencode in Copilot's model settings to start a chat."
+          "Enable a model for opencode in Vault Agent's model settings to start a chat."
         );
         expect(mgr.getLastError()).toBe(
-          "Enable a model for opencode in Copilot's model settings to start a chat."
+          "Enable a model for opencode in Vault Agent's model settings to start a chat."
         );
         expect(mockBackendStart).not.toHaveBeenCalled();
         expect(mgr.getIsStarting()).toBe(false);

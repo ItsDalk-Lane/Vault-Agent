@@ -206,7 +206,7 @@ const testAcpNotificationToEvents = () => {
     expect(cleared[1].update).toEqual({ sessionUpdate: "plan", entries: [] });
   });
 
-  it("attaches the file texts Copilot's OpenCode plugin recorded before a tool wrote them https://github.com/Brevilabs/obsidian-copilot-private/issues/687", () => {
+  it("attaches the file texts Vault Agent's OpenCode plugin recorded before a tool wrote them https://github.com/Brevilabs/obsidian-copilot-private/issues/687", () => {
     const originalFiles = { "/vault/a.md": "before\n", "/vault/new.md": null };
 
     const [event] = acpNotificationToEvents(

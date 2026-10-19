@@ -184,7 +184,7 @@ describe("OpencodeInstallModal", () => {
       const { manager, setCustomBinaryPath } = makeManager();
       renderContainer(manager);
 
-      fireEvent.click(screen.getByRole("radio", { name: "Managed by Copilot" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Managed by Vault Agent" }));
       expect(screen.getByRole("button", { name: "Download & install" })).toBeTruthy();
 
       fireEvent.click(screen.getByRole("radio", { name: "My own binary" }));

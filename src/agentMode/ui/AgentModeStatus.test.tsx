@@ -82,7 +82,7 @@ describe("AgentModeStatus", () => {
 
     it("renders the actionable backend boot error instead of a generic retry label (https://github.com/Brevilabs/obsidian-copilot-private/issues/410)", () => {
       const error =
-        "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer. Update Claude Code with: npm install -g @anthropic-ai/claude-code";
+        "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer. Update Claude Code with: npm install -g @anthropic-ai/claude-code";
       const manager = {
         subscribe: jest.fn(() => () => {}),
         getLastError: jest.fn(() => error),
@@ -104,7 +104,7 @@ describe("AgentModeStatus", () => {
 
     it("opens Claude configuration instead of retrying an incompatible version (https://github.com/Brevilabs/obsidian-copilot-private/issues/410)", () => {
       const message =
-        "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer.";
+        "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer.";
       installState = {
         kind: "incompatible",
         source: "custom",

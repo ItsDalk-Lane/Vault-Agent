@@ -54,7 +54,7 @@ export const ManagedUpgradeRequired: StoryObj<AgentStatusCardProps> = {
   args: {
     summary: "opencode update required",
     tone: "warning",
-    message: "opencode v1.18.31 is not supported. Copilot requires opencode v2.0.3 or newer.",
+    message: "opencode v1.18.31 is not supported. Vault Agent requires opencode v2.0.3 or newer.",
     action: { label: "Upgrade", onClick: () => undefined },
   },
 };

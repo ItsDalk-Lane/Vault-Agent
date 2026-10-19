@@ -33,11 +33,11 @@ const AlignedWithResponseDemo: React.FC = () => {
     <TooltipProvider>
       <div className="tw-group tw-flex tw-flex-col tw-gap-1">
         <AgentMarkdownText
-          text="I excluded generated Copilot conversation logs and notes where AI was only mentioned incidentally."
+          text="I excluded generated Vault Agent conversation logs and notes where AI was only mentioned incidentally."
           app={app}
         />
         <AgentMessageActions
-          text="I excluded generated Copilot conversation logs and notes where AI was only mentioned incidentally."
+          text="I excluded generated Vault Agent conversation logs and notes where AI was only mentioned incidentally."
           app={app}
           durationMs={24_000}
         />

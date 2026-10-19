@@ -27,7 +27,7 @@ export function classifyBinaryInstall(
       source: inspection.source,
       currentVersion: inspection.version,
       minVersion: minimumVersion,
-      message: `${displayName} v${inspection.version} is not supported. Copilot requires ${displayName} v${minimumVersion} or newer.`,
+      message: `${displayName} v${inspection.version} is not supported. Vault Agent requires ${displayName} v${minimumVersion} or newer.`,
     };
   }
   return { kind: "ready", source: inspection.source };

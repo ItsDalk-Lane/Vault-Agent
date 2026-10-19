@@ -77,7 +77,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
   selfHostable: true,
   routesVaultAgentModels: true,
   setupDescription:
-    "Copilot Plus models, or any model on your own provider key. Copilot can download and manage the binary for you.",
+    "Any model on your own provider key. Vault Agent can download and manage the binary for you.",
   skillsProjectDir: ".opencode/skills",
   crossDiscoveredAgents: ["claude", "codex"],
   restartOnManagedSkillsChange: true,

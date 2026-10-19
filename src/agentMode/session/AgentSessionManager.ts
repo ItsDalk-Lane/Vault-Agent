@@ -787,7 +787,7 @@ export class AgentSessionManager {
     const descriptor = this.resolveDescriptor(resolvedId);
     const resolvedSeed = seedSelection ?? this.getSeedSelection(resolvedId) ?? undefined;
     if (!resolvedSeed && descriptor.routesVaultAgentModels) {
-      const message = `Enable a model for ${descriptor.displayName} in Copilot's model settings to start a chat.`;
+      const message = `Enable a model for ${descriptor.displayName} in Vault Agent's model settings to start a chat.`;
       this.setLastError(message);
       this.notify();
       throw new Error(message);

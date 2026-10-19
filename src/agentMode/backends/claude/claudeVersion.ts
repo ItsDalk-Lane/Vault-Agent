@@ -62,14 +62,14 @@ export async function probeClaudeVersion(
     }));
   } catch {
     throw new Error(
-      `Could not verify the installed Claude Code version. Copilot requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
+      `Could not verify the installed Claude Code version. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
     );
   }
 
   const version = parseClaudeVersionOutput(stdout);
   if (!version) {
     throw new Error(
-      `Could not read the installed Claude Code version. Copilot requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
+      `Could not read the installed Claude Code version. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
     );
   }
   if (compareSemver(version, CLAUDE_MIN_VERSION) < 0) {
@@ -77,7 +77,7 @@ export async function probeClaudeVersion(
       kind: "incompatible",
       currentVersion: version,
       minVersion: CLAUDE_MIN_VERSION,
-      message: `Claude Code ${version} is not supported. Copilot requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`,
+      message: `Claude Code ${version} is not supported. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`,
     };
   }
   return { kind: "supported", version };

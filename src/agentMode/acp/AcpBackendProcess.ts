@@ -456,7 +456,7 @@ export class AcpBackendProcess implements BackendProcess {
     return this.capabilities.get(cap) === true;
   }
 
-  // An agent that never advertised HTTP MCP may reject the whole session, so its chat runs without Copilot's tools.
+  // An agent that never advertised HTTP MCP may reject the whole session, so its chat runs without Vault Agent's tools.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
   private mcpServersField(servers: ReadonlyArray<AgentMcpServer> | undefined): McpServer[] {
     if (!servers?.length || !this.hasCapability("mcp/http")) return [];

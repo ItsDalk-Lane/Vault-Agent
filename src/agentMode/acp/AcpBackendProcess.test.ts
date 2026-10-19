@@ -1135,7 +1135,7 @@ describe("AcpBackendProcess", () => {
         headers: { Authorization: "Bearer t0k3n" },
       };
 
-      it("passes Copilot's MCP servers to session/new as HTTP servers when the agent advertises HTTP MCP", async () => {
+      it("passes Vault Agent's MCP servers to session/new as HTTP servers when the agent advertises HTTP MCP", async () => {
         mockInitializeResult = {
           protocolVersion: 1,
           agentCapabilities: { mcpCapabilities: { http: true } },
@@ -1153,7 +1153,7 @@ describe("AcpBackendProcess", () => {
         ]);
       });
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 starts the chat without Copilot's MCP servers when the agent never advertised HTTP MCP", async () => {
+      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 starts the chat without Vault Agent's MCP servers when the agent never advertised HTTP MCP", async () => {
         mockInitializeResult = { protocolVersion: 1 };
         const backend = await startBackend();
         await backend.newSession({ cwd: "/vault", mcpServers: [FEEDBACK_SERVER] });
@@ -1221,7 +1221,7 @@ describe("AcpBackendProcess", () => {
     });
 
     describe("resumeSession()", () => {
-      it("passes Copilot's MCP servers to session/resume when the agent advertises HTTP MCP", async () => {
+      it("passes Vault Agent's MCP servers to session/resume when the agent advertises HTTP MCP", async () => {
         mockInitializeResult = {
           protocolVersion: 1,
           agentCapabilities: {
@@ -1276,7 +1276,7 @@ describe("AcpBackendProcess", () => {
         return backend;
       }
 
-      it("passes Copilot's MCP servers to session/load when the agent advertises HTTP MCP", async () => {
+      it("passes Vault Agent's MCP servers to session/load when the agent advertises HTTP MCP", async () => {
         mockInitializeResult = {
           protocolVersion: 1,
           agentCapabilities: { loadSession: true, mcpCapabilities: { http: true } },

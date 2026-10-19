@@ -139,7 +139,7 @@ export async function installOpencodeVaultAgentPlugin(
     return pluginDir;
   } catch (error) {
     logWarn(
-      `[AgentMode] could not write Copilot's OpenCode plugin to ${pluginDir}; OpenCode keeps its full prompt and turn diffs lose write-time originals.`,
+      `[AgentMode] could not write Vault Agent's OpenCode plugin to ${pluginDir}; OpenCode keeps its full prompt and turn diffs lose write-time originals.`,
       error
     );
     return undefined;

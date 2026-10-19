@@ -233,7 +233,7 @@ describe("useAgentHistoryControls", () => {
       }
     );
 
-    it("shows the failure notice, reloads the history, and rejects when Copilot's own delete fails", async () => {
+    it("shows the failure notice, reloads the history, and rejects when Vault Agent's own delete fails", async () => {
       const manager = makeManager() as AgentSessionManager & {
         getChatHistoryItems: jest.Mock;
         deleteChatHistory: jest.Mock;

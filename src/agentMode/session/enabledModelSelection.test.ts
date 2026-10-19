@@ -69,9 +69,9 @@ describe("enabledModelSelection", () => {
   });
 
   describe("noEnabledModelError()", () => {
-    it("names the agent and points the user to Copilot's model settings", () => {
+    it("names the agent and points the user to Vault Agent's model settings", () => {
       expect(noEnabledModelError("opencode").message).toBe(
-        "None of the models enabled for opencode are available. Check them in Copilot's model settings."
+        "None of the models enabled for opencode are available. Check them in Vault Agent's model settings."
       );
     });
   });

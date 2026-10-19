@@ -34,7 +34,7 @@ export const CodexConfigView: React.FC<CodexConfigViewProps> = (props) => (
       </>
     }
     customPathPlaceholder={codexBinaryPathPlaceholder(process.platform)}
-    customPathNotFoundHint={`A supported ${CODEX_BINARY_NAME} adapter was not found. Install your own adapter or choose Managed by Copilot.`}
+    customPathNotFoundHint={`A supported ${CODEX_BINARY_NAME} adapter was not found. Install your own adapter or choose Managed by Vault Agent.`}
     upgradeLabel="Upgrade"
   >
     <AuthenticationSection

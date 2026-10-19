@@ -46,7 +46,7 @@ const meta = {
     managedDescription: "Let Copilot download and manage the agent tested for this release.",
     customDescription: "Point Agent Mode at a binary you already have on disk.",
     customPathPlaceholder: "/absolute/path/to/agent",
-    customPathNotFoundHint: "No agent found. Apply a custom path or choose Managed by Copilot.",
+    customPathNotFoundHint: "No agent found. Apply a custom path or choose Managed by Vault Agent.",
     upgradeLabel: "Upgrade to latest",
     state: { kind: "absent" },
     source: "managed",

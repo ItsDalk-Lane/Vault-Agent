@@ -262,7 +262,7 @@ describe("AgentSettings", () => {
 
     it("shows an incompatible-version message and hides ready-only model controls", () => {
       const message =
-        "Claude Code 2.1.205 is not supported. Copilot requires Claude Code 2.1.206 or newer.";
+        "Claude Code 2.1.205 is not supported. Vault Agent requires Claude Code 2.1.206 or newer.";
       installStates.claude = {
         kind: "incompatible",
         source: "custom",
@@ -323,7 +323,7 @@ describe("AgentSettings", () => {
         source: "managed",
         currentVersion: "1.9.0",
         minVersion: "1.10.0",
-        message: "Codex adapter 1.9.0 does not match this Copilot release (1.10.0).",
+        message: "Codex adapter 1.9.0 does not match this Vault Agent release (1.10.0).",
       };
       const view = render(<AgentSettings />);
       fireEvent.click(screen.getByRole("tab", { name: "Codex" }));

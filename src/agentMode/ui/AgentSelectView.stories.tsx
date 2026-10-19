@@ -9,7 +9,7 @@ const OPENCODE: AgentSelectRow = {
   id: "opencode",
   name: "opencode",
   description:
-    "Copilot Plus models, or any model on your own provider key. Copilot can download and manage the binary for you.",
+    "Any model on your own provider key. Vault Agent can download and manage the binary for you.",
   status: "absent",
   recommended: true,
   statusMessage: null,
@@ -96,7 +96,7 @@ export const ClaudeUpdateRequired: StoryObj<AgentSelectViewProps> = {
       {
         ...CLAUDE,
         status: "outdated",
-        statusMessage: "Claude 2.1.205 is not supported. Copilot requires 2.1.206 or newer.",
+        statusMessage: "Claude 2.1.205 is not supported. Vault Agent requires 2.1.206 or newer.",
       },
       CODEX,
     ],
@@ -129,7 +129,7 @@ export const LongAgentName: StoryObj<AgentSelectViewProps> = {
         ...OPENCODE,
         name: "Very Long Local Agent Backend Name",
         description:
-          "Runs every Copilot Plus model plus anything reachable on your own provider key, and Copilot will download, verify, and keep the managed binary up to date for you without leaving the vault.",
+          "Runs every model reachable on your own provider key key, and Copilot will download, verify, and keep the managed binary up to date for you without leaving the vault.",
         status: "installed",
       },
       CLAUDE,
