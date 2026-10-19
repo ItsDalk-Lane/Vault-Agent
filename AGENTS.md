@@ -4,7 +4,9 @@ This file provides guidance to any coding agent when working with code in this r
 
 ## Overview
 
-Copilot for Obsidian is an AI-powered assistant plugin that integrates various LLM providers (OpenAI, Anthropic, Google, etc.) and coding agents (claude code, codex, opencode) with Obsidian. It provides chat interfaces, semantic search, and various AI-powered commands for note-taking and knowledge management.
+Vault Agent is a desktop-only Obsidian plugin that runs AI coding agents (claude code, codex, opencode) against the user's vault. It provides the Agent Mode feature set only: an agent chat view with plan preview and turn diffs, projects, skills, multi-agent fan-out, and a BYOK model picker. There is no hosted service, no account system, and no telemetry — see `README.md`.
+
+The Agent Mode module lives in `src/agentMode/` and talks to the host through a single barrel (`src/agentMode/index.ts`). Read [`src/agentMode/AGENTS.md`](./src/agentMode/AGENTS.md) before changing it: its layer rules are enforced by `eslint-plugin-boundaries`.
 
 ## Commands
 
@@ -50,12 +52,10 @@ Read the matching guide when your task touches that area — they aren't loaded 
 
 ## Important notes
 
-- The plugin supports multiple LLM providers with custom endpoints.
-- Vector store requires rebuilding when switching embedding providers.
-- Settings are versioned — migrations may be needed.
-- Local model support via Ollama / LM Studio.
-- Rate limiting is implemented for all API calls.
-- Message & chat architecture (Repository → Manager → UIState → UI; single `MessageRepository`; per-project isolation) → [`designdocs/MESSAGE_ARCHITECTURE.md`](./designdocs/MESSAGE_ARCHITECTURE.md).
+- The plugin declares `isDesktopOnly: true`: Agent Mode drives external processes, so the bundle is never loaded on mobile.
+- Multiple BYOK providers with custom endpoints are supported; keys live in the OS keychain, not in `data.json`.
+- Agent sessions persist to `agent-chat-index.json` per vault, plus optional vault notes with `mode: agent` frontmatter.
+- Skills are discovered from a vault folder; built-in skills ship with the plugin and are reconciled on start.
 - Tech debt and known issues → [`designdocs/todo/TECHDEBT.md`](./designdocs/todo/TECHDEBT.md). Current session plan → [`TODO.md`](./TODO.md).
 - Available Tailwind tokens/classes → [`tailwind.config.js`](./tailwind.config.js).
 

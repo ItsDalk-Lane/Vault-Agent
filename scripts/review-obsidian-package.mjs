@@ -22,10 +22,12 @@ export function collectPackageFindings({ manifest, packageJson, licenseText }) {
   if (manifest.version !== packageJson.version) {
     findings.push("the selected manifest and package.json versions must match");
   }
-  // Agent Mode drives Node child processes, so this plugin declares itself desktop-only;
-  // a manifest that claims mobile compatibility would load a bundle its runtime cannot serve.
   if (manifest.isDesktopOnly !== true) {
-    findings.push("the selected manifest must declare isDesktopOnly=true for the desktop-only runtime");
+    findings.push(
+      "the selected manifest must declare isDesktopOnly=true: Agent Mode drives external " +
+        "processes, so a manifest that claims mobile compatibility would load a bundle its " +
+        "runtime cannot serve"
+    );
   }
   if (typeof packageJson.license !== "string" || packageJson.license.trim() === "") {
     findings.push("package.json must declare a license");

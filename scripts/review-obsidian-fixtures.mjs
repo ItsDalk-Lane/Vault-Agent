@@ -146,16 +146,19 @@ async function main() {
 
   const invalidSourceResult = await lintSourceFixture(invalidSourceFixture, "src/utils.ts");
   assert(invalidSourceResult.errorCount > 0, "ESLint accepted its invalid source fixture");
-  // The upstream no-nodejs-modules rule is turned off for a desktop-only manifest
-  // (eslint-plugin-obsidianmd reads isDesktopOnly), so this fixture asserts the rules that
-  // still apply here: the repo's own desktop-runtime import fence and the comment/global bans.
-  // The desktop-only contract itself is asserted by review-obsidian-package.mjs.
-  expectEslintRules(invalidSourceResult, [
+  const desktopOnlyRuleExpectations = [
     "copilot/no-direct-node-imports",
     "no-restricted-globals",
     "eslint-comments/require-description",
     "eslint-comments/no-restricted-disable",
-  ]);
+  ];
+  assert(
+    !desktopOnlyRuleExpectations.includes("obsidianmd/no-nodejs-modules"),
+    "upstream no-nodejs-modules is off for a desktop-only manifest, so asserting it here would " +
+      "fail the fixture instead of the plugin; the desktop-only contract is asserted by " +
+      "review-obsidian-package.mjs"
+  );
+  expectEslintRules(invalidSourceResult, desktopOnlyRuleExpectations);
   assert(
     ["node:fs", "node:util", "path", "node:os"].every((moduleName) =>
       invalidSourceResult.messages.some(
