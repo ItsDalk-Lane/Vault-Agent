@@ -49,7 +49,6 @@ import {
   MessageContext,
 } from "@/types/message";
 import { err2String, formatDateTime, type FormattedDateTime } from "@/utils";
-import { ensureMultiAgentEntitlement, showMultiAgentUpgradePrompt } from "@/plusUtils";
 import type { App, DataAdapter } from "obsidian";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
 import {
@@ -777,15 +776,6 @@ export class AgentSession {
         isFanout(this.lastMentionedAgents, this.backendId) &&
         placeholderId
       ) {
-        if (!(await this.ensureMultiAgentEntitlement())) {
-          showMultiAgentUpgradePrompt();
-          return this.refuseTurn(
-            placeholderId,
-            turnStartedAtMs,
-            "Multi-agent QA is a Copilot Plus feature. Upgrade to mention more than one agent in a turn."
-          );
-        }
-
         const historyBlock = buildConversationHistoryBlock(
           this.priorDisplayMessages(userMessageId, placeholderId),
           CONVERSATION_HISTORY_MAX_CHARS
@@ -928,10 +918,6 @@ export class AgentSession {
       this.abortController = null;
       this.recomputeStatusIfChanged();
     }
-  }
-
-  private ensureMultiAgentEntitlement(): Promise<boolean> {
-    return ensureMultiAgentEntitlement(this.getApp?.());
   }
 
   private refuseTurn(placeholderId: string, turnStartedAtMs: number, message: string): StopReason {

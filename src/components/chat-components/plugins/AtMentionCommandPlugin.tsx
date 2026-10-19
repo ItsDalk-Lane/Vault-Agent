@@ -19,13 +19,11 @@ import {
 import { useAtMentionSearch } from "@/components/chat-components/hooks/useAtMentionSearch";
 
 interface AtMentionCommandPluginProps {
-  showTools?: boolean;
   currentActiveFile?: TFile | null;
   agentBrands?: ReadonlyArray<AgentMentionBrand>;
 }
 
 export function AtMentionCommandPlugin({
-  showTools = false,
   currentActiveFile = null,
   agentBrands = EMPTY_AGENT_MENTION_BRANDS,
 }: AtMentionCommandPluginProps): JSX.Element {
@@ -40,7 +38,7 @@ export function AtMentionCommandPlugin({
 
   const [currentPreviewContent, setCurrentPreviewContent] = useState<string>("");
 
-  const allCategoryOptions = useAtMentionCategories(showTools, agentBrands.length > 0);
+  const allCategoryOptions = useAtMentionCategories(agentBrands.length > 0);
   const availableCategoryOptions = useMemo(
     () => allCategoryOptions.filter((c) => !c.isAction),
     [allCategoryOptions]
@@ -81,7 +79,6 @@ export function AtMentionCommandPlugin({
     currentQuery,
     extendedState.mode,
     extendedState.selectedCategory,
-    showTools,
     availableCategoryOptions,
     currentActiveFile,
     agentBrands

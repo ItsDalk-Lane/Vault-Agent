@@ -1,6 +1,4 @@
-import { type Youtube4llmResponse } from "@/LLMProviders/brevilabsClient";
 import { logError, logInfo } from "@/logger";
-import { isSelfHostModeValid } from "@/plusUtils";
 import { getSettings } from "@/settings/model";
 import { safeFetchNoThrow } from "@/utils";
 import { requireNodeModule } from "@/utils/desktopRuntime";
@@ -18,15 +16,11 @@ const PARALLEL_SEARCH_URL = "https://api.parallel.ai/v1/search";
 const PARALLEL_SEARCH_QUERY_MAX_LENGTH = 200;
 const PARALLEL_OBJECTIVE_MAX_LENGTH = 5000;
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
-const SUPADATA_TRANSCRIPT_URL = "https://api.supadata.ai/v1/transcript";
 /** Bounds agent-controlled input. https://github.com/Brevilabs/obsidian-copilot-private/issues/165 */
 const AGENT_SEARCH_REQUEST_MAX_BYTES = 64 * 1024;
 
 type IncomingMessage = import("node:http").IncomingMessage;
 type ServerResponse = import("node:http").ServerResponse;
-
-const SUPADATA_POLL_INTERVAL = 2000;
-const SUPADATA_POLL_TIMEOUT = 60000;
 
 export interface SelfHostWebSearchResult {
   content: string;
@@ -44,7 +38,7 @@ export interface SelfHostWebSearchAgentBridge {
 }
 
 export function createSelfHostWebSearchAgentBridge(
-  isModeValid: () => boolean = isSelfHostModeValid,
+  isModeValid: () => boolean = () => getSettings().enableSelfHostMode === true,
   hasSearchKey: () => boolean = hasSelfHostSearchKey,
   search: (query: string) => Promise<SelfHostWebSearchResult> = selfHostWebSearch
 ): Readonly<SelfHostWebSearchAgentBridge> {
@@ -320,82 +314,4 @@ export async function selfHostWebSearch(query: string): Promise<SelfHostWebSearc
     default:
       return firecrawlSearch(query, settings.firecrawlApiKey);
   }
-}
-
-export async function selfHostYoutube4llm(url: string): Promise<Youtube4llmResponse> {
-  const startTime = Date.now();
-  const apiKey = getSettings().supadataApiKey;
-
-  const transcriptUrl = `${SUPADATA_TRANSCRIPT_URL}?url=${encodeURIComponent(url)}&mode=auto&text=true`;
-
-  const response = await safeFetchNoThrow(transcriptUrl, {
-    method: "GET",
-    headers: {
-      "x-api-key": apiKey,
-      Accept: "application/json",
-    },
-  });
-
-  if (response.status === 200) {
-    const json = (await response.json()) as { content?: string };
-    const elapsed = Date.now() - startTime;
-    logInfo(`[selfHostYoutube4llm] transcript received in ${elapsed}ms`);
-    return {
-      response: { transcript: json.content || "" },
-      elapsed_time_ms: elapsed,
-    };
-  }
-
-  if (response.status === 201 || response.status === 202) {
-    const json = (await response.json()) as { job_id?: string };
-    const jobId = json.job_id;
-    if (!jobId) {
-      throw new Error("Supadata returned async status but no job_id");
-    }
-    return await pollSupadataJob(jobId, apiKey, startTime);
-  }
-
-  const text = await response.text();
-  throw new Error(`Supadata transcript request failed (${response.status}): ${text}`);
-}
-
-async function pollSupadataJob(
-  jobId: string,
-  apiKey: string,
-  startTime: number
-): Promise<Youtube4llmResponse> {
-  const deadline = Date.now() + SUPADATA_POLL_TIMEOUT;
-  const pollUrl = `${SUPADATA_TRANSCRIPT_URL}/${jobId}`;
-
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => window.setTimeout(resolve, SUPADATA_POLL_INTERVAL));
-
-    const pollResponse = await safeFetchNoThrow(pollUrl, {
-      method: "GET",
-      headers: {
-        "x-api-key": apiKey,
-        Accept: "application/json",
-      },
-    });
-
-    if (pollResponse.status === 200) {
-      const json = (await pollResponse.json()) as { content?: string };
-      const elapsed = Date.now() - startTime;
-      logInfo(`[selfHostYoutube4llm] async transcript completed in ${elapsed}ms`);
-      return {
-        response: { transcript: json.content || "" },
-        elapsed_time_ms: elapsed,
-      };
-    }
-
-    if (pollResponse.status === 202) {
-      continue;
-    }
-
-    const text = await pollResponse.text();
-    logError(`[selfHostYoutube4llm] poll failed (${pollResponse.status}): ${text}`);
-    throw new Error(`Supadata poll failed (${pollResponse.status}): ${text}`);
-  }
-
-  throw new Error(`Supadata transcript timed out after ${SUPADATA_POLL_TIMEOUT}ms`);
 }

@@ -196,7 +196,6 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
       new OpencodeBackend({
         providerRegistry,
         backendConfigRegistry,
-        clientVersion: args.clientVersion,
         getCopilotPluginDir: opencodeCopilotPluginDir,
         getSelfHostWebSearchChannel: () => {
           const bridge = args.plugin.selfHostWebSearchAgentBridge;

@@ -25,10 +25,8 @@ import {
   buildBuiltinSkillEnv,
   sanitizeBuiltinSkillEnvOverrides,
 } from "@/agentMode/backends/shared/builtinSkillEnv";
-import { getVaultBase } from "@/utils/vaultPath";
 import { urlDestination } from "@/modelManagement";
 import type { Destination } from "@/types/destination";
-import { getMiyoFolderName } from "@/miyo/miyoUtils";
 import type {
   BackendAuth,
   BackendConfigOption,
@@ -343,12 +341,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
       getEnableThinking: () => Boolean(getSettings().agentMode?.backends?.claude?.enableThinking),
       getEnvOverrides: () =>
         sanitizeBuiltinSkillEnvOverrides(getSettings().agentMode?.backends?.claude?.envOverrides),
-      getManagedEnv: () =>
-        buildBuiltinSkillEnv(
-          args.clientVersion,
-          getVaultBase(args.app) ?? "",
-          getMiyoFolderName(args.app)
-        ),
+      getManagedEnv: () => buildBuiltinSkillEnv(),
       checkAuth: async () =>
         (await getClaudeAuthStatus(claudePath, claudeChildEnv(getSettings()))).loggedIn,
       checkCompatibility: () =>

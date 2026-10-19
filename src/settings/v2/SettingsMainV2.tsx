@@ -1,10 +1,8 @@
 import { ResetSettingsConfirmModal } from "@/components/modals/ResetSettingsConfirmModal";
 import { Button } from "@/components/ui/button";
-import { MiyoLogo } from "@/components/ui/MiyoLogo";
 import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
 import { PluginProvider } from "@/contexts/PluginContext";
 import { TabProvider, useTab } from "@/contexts/TabContext";
-import { useLatestVersion } from "@/hooks/useLatestVersion";
 import CopilotPlugin from "@/main";
 import { ByokPanel, ModelManagementProvider } from "@/modelManagement";
 import { resetSettings } from "@/settings/model";
@@ -17,7 +15,6 @@ import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { AdvancedSettings } from "./components/AdvancedSettings";
 import { BasicSettings } from "./components/BasicSettings";
 import { DesktopOnlySettingsPanel } from "./components/DesktopOnlySettingsPanel";
-import { MiyoSettings } from "./components/MiyoSettings";
 import { SelfHostSettings } from "./components/SelfHostSettings";
 
 const LazySkillsSettings = React.lazy(() =>
@@ -38,7 +35,6 @@ const SkillsSettingsPanel: React.FC = () => {
 const icons: Record<CopilotSettingsTabId, JSX.Element> = {
   basic: <Cog className="tw-size-5" />,
   byok: <Cpu className="tw-size-5" />,
-  miyo: <MiyoLogo className="tw-size-5" />,
   selfhost: <ShieldCheck className="tw-size-5" />,
   command: <Command className="tw-size-5" />,
   skills: <Sparkle className="tw-size-5" />,
@@ -48,7 +44,6 @@ const icons: Record<CopilotSettingsTabId, JSX.Element> = {
 const components: Record<CopilotSettingsTabId, React.FC> = {
   basic: () => <BasicSettings />,
   byok: () => <ByokPanel />,
-  miyo: () => <MiyoSettings />,
   selfhost: () => <SelfHostSettings />,
   command: () => <CommandSettings />,
   skills: SkillsSettingsPanel,
@@ -58,7 +53,6 @@ const components: Record<CopilotSettingsTabId, React.FC> = {
 const TAB_LABELS: Record<CopilotSettingsTabId, string> = {
   basic: "Basic",
   byok: "BYOK",
-  miyo: "Miyo",
   selfhost: "Self-Host",
   command: "Command",
   skills: "Skills",
@@ -119,7 +113,6 @@ interface SettingsMainV2Props {
 
 const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "basic" }) => {
   const [resetKey, setResetKey] = React.useState(0);
-  const { latestVersion, hasUpdate } = useLatestVersion(plugin.manifest.version);
 
   React.useEffect(() => {
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/166
@@ -154,25 +147,6 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "b
                     <span className="tw-text-xs tw-font-normal tw-text-muted">
                       v{plugin.manifest.version}
                     </span>
-                    {latestVersion && (
-                      <>
-                        {hasUpdate ? (
-                          <a
-                            href="obsidian://show-plugin?id=copilot"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="tw-text-xs tw-font-normal tw-text-accent hover:tw-underline"
-                          >
-                            (Update to v{latestVersion})
-                          </a>
-                        ) : (
-                          <span className="tw-text-xs tw-font-normal tw-text-normal">
-                            {" "}
-                            (up to date)
-                          </span>
-                        )}
-                      </>
-                    )}
                   </div>
                 </div>
                 <div className="tw-self-end sm:tw-self-auto">

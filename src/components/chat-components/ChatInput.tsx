@@ -34,7 +34,6 @@ import {
 import { ContextControl } from "./ContextControl";
 import { AddContextButton } from "./AddContextButton";
 import { openImagePicker } from "./openImagePicker";
-import { shouldShowAtMentionTools } from "./hooks/useAtMentionCategories";
 import { ModelEffortPicker } from "@/components/ui/ModelEffortPicker";
 import { ModePicker } from "@/components/ui/ModePicker";
 import { $removePillsByPath } from "./pills/NotePillNode";
@@ -214,7 +213,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
   const [foldersFromPills, setFoldersFromPills] = useState<string[]>([]);
   const [webTabsFromPills, setWebTabsFromPills] = useState<WebTabContext[]>([]);
   const isCopilotPlus = isPlusChain(currentChain);
-  const showAtMentionTools = shouldShowAtMentionTools({ isCopilotPlus, isAgentMode });
 
   const mergedContextWebTabs = useMemo(() => {
     return mergeWebTabContexts([...contextWebTabs, ...webTabsFromPills]);
@@ -715,7 +713,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
               onImagePaste={onAddImage}
               onTagSelected={onTagSelected}
               placeholder={placeholder}
-              showTools={showAtMentionTools}
               currentActiveFile={currentActiveNote}
               currentChain={currentChain}
               onEscape={onEscape}
@@ -731,7 +728,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
           {!editMode && (
             <AddContextButton
               onSelect={handleAddToContext}
-              showTools={showAtMentionTools}
               currentActiveFile={currentActiveNote}
               lexicalEditorRef={lexicalEditorRef}
             />

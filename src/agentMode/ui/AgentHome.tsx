@@ -1,4 +1,3 @@
-import { useChatRelevantNotesContext } from "@/agentMode/ui/hooks/useChatRelevantNotesContext";
 import AgentChatMessages from "@/agentMode/ui/AgentChatMessages";
 import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
 import { AgentChatInput } from "@/agentMode/ui/AgentChatInput";
@@ -13,8 +12,6 @@ import { AgentProjectHeader } from "@/agentMode/ui/AgentProjectHeader";
 import { ProjectInfoPopover } from "@/agentMode/ui/ProjectInfoPopover";
 import { AgentTabStrip } from "@/agentMode/ui/AgentTabStrip";
 import { AgentWelcomeCard } from "@/agentMode/ui/AgentWelcomeCard";
-import { AgentHomeReleaseUpdate } from "@/components/release-update/AgentHomeReleaseUpdate";
-import { RelevantNotes } from "@/components/chat-components/RelevantNotes";
 import { CopilotBrandIcon } from "@/components/ui/CopilotBrandIcon";
 import { AgentHomeShelf, type AgentHomeShelfSection } from "@/agentMode/ui/AgentHomeShelf";
 import { GlobalRecentChatsSection } from "@/agentMode/ui/GlobalRecentChatsSection";
@@ -24,8 +21,6 @@ import {
   HOME_SHELF_TAB_STORAGE_KEY,
 } from "@/agentMode/ui/homeShelfPrefs";
 import { ProjectPickerList } from "@/agentMode/ui/ProjectPickerList";
-import { RelevantNotesShelfPanel } from "@/agentMode/ui/RelevantNotesShelfPanel";
-import { useRelevantNotesPaneOpen } from "@/agentMode/ui/useRelevantNotesPaneOpen";
 import { useAgentChatRuntimeState } from "@/agentMode/ui/hooks/useAgentChatRuntimeState";
 import { useManagerSetSnapshot } from "@/agentMode/ui/hooks/useManagerSetSnapshot";
 import { useAgentHistoryControls } from "@/agentMode/ui/hooks/useAgentHistoryControls";
@@ -54,7 +49,7 @@ import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import { getProjectLandingCaptureSignature } from "@/projects/projectContextSignature";
 import { getCachedProjectRecordById, useProjects } from "@/projects/state";
 import { getSettings, updateSetting, useSettingsValue } from "@/settings/model";
-import { FileSearch, Files, Folder, MessageSquare } from "lucide-react";
+import { Files, Folder, MessageSquare } from "lucide-react";
 import { Notice } from "obsidian";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
@@ -83,7 +78,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   const appContext = useContext(AppContext);
   const app = plugin.app || appContext;
   const settings = useSettingsValue();
-  const isRelevantNotesPaneOpen = useRelevantNotesPaneOpen(app);
   const draft = useAgentInputDrafts({ store: manager.drafts, chatInputId });
 
   useChatInputAutoFocus();
@@ -276,8 +270,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     if (next.value !== value) onChange(next.value);
   }, [modePickerOverride]);
 
-  useChatRelevantNotesContext(app, rootEl, chatInputId, draft, messages, activeProject);
-
   const { isDragActive } = useChatFileDrop({
     app,
     contextNotes: draft.contextNotes,
@@ -393,23 +385,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
           />
         ),
       },
-      ...(isRelevantNotesPaneOpen
-        ? []
-        : [
-            {
-              id: "relevant-notes",
-              icon: <FileSearch className="tw-size-4" />,
-              title: "Relevant Notes",
-              renderBody: () => (
-                <RelevantNotesShelfPanel onPopOut={() => void plugin.activateRelevantNotesView()}>
-                  <RelevantNotes
-                    className={cn("[&>[data-relevant-notes-empty-state]]:tw-py-6")}
-                    onAddToChat={(note) => void plugin.addNoteToActiveChat(note)}
-                  />
-                </RelevantNotesShelfPanel>
-              ),
-            },
-          ]),
       {
         id: "projects",
         icon: <Folder className="tw-size-4" />,
@@ -449,7 +424,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       handleCloseSession,
       runningChatIds,
       attentionChatIds,
-      isRelevantNotesPaneOpen,
       plugin,
       settings.chatHistorySortStrategy,
     ]
@@ -611,10 +585,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
         <div ref={chatContainerRef} className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
           <div className="tw-h-full">
             <div className="tw-relative tw-flex tw-h-full tw-flex-col">
-              <AgentHomeReleaseUpdate
-                currentVersion={plugin.manifest.version}
-                visible={isLanding && !isProjectLanding}
-              />
               {isDragActive && (
                 <div className="tw-pointer-events-none tw-absolute tw-inset-0 tw-z-modal tw-flex tw-items-center tw-justify-center tw-rounded-md tw-border tw-border-dashed tw-bg-primary tw-opacity-80">
                   <span>Drop files here...</span>
@@ -707,7 +677,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                       runningChatIds={runningChatIds}
                       onOpenSourceFile={handleOpenSourceFile}
                       usageMeter={<AgentContextMeter backend={backend} />}
-                      showMultiAgentUpsell
                     />
                     {composerNode}
                   </>

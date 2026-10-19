@@ -1,10 +1,8 @@
 import React, { useMemo } from "react";
 import { TFolder, TFile } from "obsidian";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
-import { FileText, Wrench, Folder, FileClock, Globe, CircleDashed } from "lucide-react";
+import { FileText, Folder, FileClock, Globe, CircleDashed } from "lucide-react";
 import fuzzysort from "fuzzysort";
-import { getToolDescription } from "@/tools/toolManager";
-import { AVAILABLE_TOOLS } from "@/components/chat-components/constants/tools";
 import { useAllNotes } from "./useAllNotes";
 import { useAllFolders } from "./useAllFolders";
 import { useOpenWebTabs } from "./useOpenWebTabs";
@@ -25,7 +23,6 @@ export function useAtMentionSearch(
   query: string,
   mode: "category" | "search",
   selectedCategory: AtMentionCategory | undefined,
-  showTools: boolean,
   availableCategoryOptions: CategoryOption[],
   currentActiveFile: TFile | null = null,
   agentBrands: ReadonlyArray<AgentMentionBrand> = EMPTY_AGENT_MENTION_BRANDS
@@ -54,22 +51,6 @@ export function useAtMentionSearch(
         searchKeyword: file.path,
       })),
     [allNotes]
-  );
-
-  const toolItems: AtMentionOption[] = useMemo(
-    () =>
-      showTools
-        ? AVAILABLE_TOOLS.map((tool) => ({
-            key: `tool-${tool}`,
-            title: tool,
-            subtitle: getToolDescription(tool),
-            category: "tools",
-            data: tool,
-            content: getToolDescription(tool),
-            icon: React.createElement(Wrench, { className: "tw-size-4" }),
-          }))
-        : [],
-    [showTools]
   );
 
   const folderItems: AtMentionOption[] = useMemo(
@@ -167,10 +148,6 @@ export function useAtMentionSearch(
       }
 
       const queryLower = query.toLowerCase();
-      const matchingTools = toolItems.filter((tool) => {
-        return tool.title.toLowerCase().includes(queryLower);
-      });
-
       const matchingAgents = agentItems.filter(
         (agent) =>
           agent.title.toLowerCase().includes(queryLower) ||
@@ -218,7 +195,6 @@ export function useAtMentionSearch(
 
       return [
         ...matchingAgents,
-        ...matchingTools,
         ...(activeWebTabOption ? [activeWebTabOption] : []),
         ...(activeNoteOption ? [activeNoteOption] : []),
         ...rankedNonToolItems,
@@ -232,9 +208,6 @@ export function useAtMentionSearch(
           break;
         case "notes":
           items = noteItems;
-          break;
-        case "tools":
-          items = toolItems;
           break;
         case "folders":
           items = folderItems;
@@ -281,7 +254,6 @@ export function useAtMentionSearch(
     query,
     selectedCategory,
     noteItems,
-    toolItems,
     folderItems,
     webTabItems,
     agentItems,

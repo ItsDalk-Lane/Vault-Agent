@@ -3,7 +3,6 @@ import { Notice } from "obsidian";
 import { logError } from "@/logger";
 import type { ModelCapability } from "@/constants";
 import type { ModelSelectorEntry } from "@/components/ui/ModelSelector";
-import { lockedCopilotEntries, shouldPreviewCopilotModels } from "@/lib/lockedCopilotEntries";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
@@ -238,16 +237,6 @@ export function buildPickerEntries(
       for (let i = sectionStart; i < entries.length; i++) {
         entries[i]._needsSelfHostWarning = true;
       }
-    }
-    if (descriptor.routesCopilotModels && shouldPreviewCopilotModels(settings.providers)) {
-      entries.splice(
-        sectionStart,
-        0,
-        ...lockedCopilotEntries(settings.copilotPlusCatalog, {
-          group: descriptor.displayName,
-          backendId: descriptor.id,
-        })
-      );
     }
   }
 

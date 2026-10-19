@@ -33,8 +33,6 @@ export { capabilitiesFromConfiguredInfo } from "./chatModel/modelCapabilityFlags
 
 export type { SetupProviderInput } from "./setup/ByokSetupApi";
 
-export { plusSyncNeeded, syncCopilotPlusProvider } from "./setup/copilotPlusSync";
-
 export { createModelManagement } from "./createModelManagement";
 export type { ModelManagementApi } from "./createModelManagement";
 
@@ -42,7 +40,6 @@ export {
   chatBackendPickerAtom,
   backendsAtom,
   configuredModelsAtom,
-  copilotPlusCatalogAtom,
   providersAtom,
 } from "./state/atoms";
 

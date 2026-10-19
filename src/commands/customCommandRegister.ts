@@ -8,8 +8,7 @@ import {
   ensureCommandFrontmatter,
   hasOrderFrontmatter,
 } from "@/commands/customCommandUtils";
-import { App, Editor, Plugin, TFile, Vault } from "obsidian";
-import { CustomCommandChatModal } from "@/commands/CustomCommandChatModal";
+import { App, Plugin, TFile, Vault } from "obsidian";
 import { debounce } from "@/utils/debounce";
 import { CustomCommand } from "@/commands/type";
 import {
@@ -20,6 +19,7 @@ import {
   updateCachedCommands,
 } from "@/commands/state";
 import { CustomCommandManager } from "@/commands/customCommandManager";
+import type CopilotPlugin from "@/main";
 import { getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { deriveCustomPromptsFolder } from "@/settings/copilotFolder";
 import { logError } from "@/logger";
@@ -176,14 +176,14 @@ export class CustomCommandRegister {
   private registerCommand(customCommand: CustomCommand) {
     const commandId = getCommandId(customCommand.title);
     (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(commandId);
+    const agentPlugin = this.plugin as CopilotPlugin;
     this.plugin.addCommand({
       id: commandId,
       name: customCommand.title,
-      editorCallback: (editor: Editor) => {
-        new CustomCommandChatModal(this.plugin.app, {
-          selectedText: editor.getSelection(),
-          command: customCommand,
-        }).open();
+      callback: () => {
+        // The agent input expands a `/<title>` prefix with the command's stored prompt.
+        // https://github.com/Brevilabs/obsidian-copilot-private/issues/166
+        void agentPlugin.newAgentChatWithDraft(`/${customCommand.title}`);
         void CustomCommandManager.getInstance()
           .recordUsage(customCommand)
           .catch((err) => logError("recordUsage failed", err));

@@ -17,9 +17,7 @@ import {
   sanitizeBuiltinSkillEnvOverrides,
 } from "@/agentMode/backends/shared/builtinSkillEnv";
 import { OpencodeBackendDescriptor } from "./descriptor";
-import { copilotPlusModelId, mapProviderToOpencodeId } from "./opencodeModelResolve";
-import type { PlanUsageReading } from "@/agentMode/session/planUsage";
-import { CopilotPlusUsageReader } from "@/agentMode/backends/shared/copilotPlusUsage";
+import { mapProviderToOpencodeId } from "./opencodeModelResolve";
 import type { SelfHostWebSearchAgentChannel } from "@/LLMProviders/selfHostServices";
 import type { Config } from "@opencode/schema/config";
 import { installOpencodeCopilotPlugin } from "./opencodeCopilotPlugin";
@@ -33,7 +31,6 @@ export const OPENCODE_PROVIDER_MAP: Partial<Record<ChatModelProviders, string>> 
   [ChatModelProviders.DEEPSEEK]: "deepseek",
   [ChatModelProviders.OPENROUTERAI]: "openrouter",
   [ChatModelProviders.XAI]: "xai",
-  [ChatModelProviders.COPILOT_PLUS]: "copilot-plus",
 };
 
 const OPENCODE_COPILOT_BUILD_AGENT_ID = "copilot-build";
@@ -48,7 +45,6 @@ export const OPENCODE_CANONICAL_MODE_AGENT_IDS: Partial<Record<CopilotMode, stri
 export interface OpencodeModelDeps {
   providerRegistry: ProviderRegistry;
   backendConfigRegistry: BackendConfigRegistry;
-  clientVersion?: string;
   getCopilotPluginDir?: () => string;
   getSelfHostWebSearchChannel?: () => Promise<Readonly<SelfHostWebSearchAgentChannel>>;
 }
@@ -59,24 +55,8 @@ export class OpencodeBackend implements AcpBackend {
 
   readonly #deps: OpencodeModelDeps;
 
-  readonly #copilotPlus = new CopilotPlusUsageReader();
-
   constructor(deps: OpencodeModelDeps) {
     this.#deps = deps;
-  }
-
-  async readPlanUsage(): Promise<PlanUsageReading> {
-    return this.#copilotPlus.readPlanUsage();
-  }
-
-  // A user on their own key reaches this backend too and must see no cap meters.
-  // https://github.com/logancyang/obsidian-copilot-preview/issues/193
-  planUsageAppliesTo(wireModelId: string | null | undefined): boolean {
-    return copilotPlusModelId(wireModelId) !== null;
-  }
-
-  async readContextWindow(wireModelId: string | null | undefined): Promise<number | null> {
-    return this.#copilotPlus.readContextWindow(copilotPlusModelId(wireModelId));
   }
 
   async buildSpawnDescriptor(ctx: {
@@ -151,12 +131,7 @@ export class OpencodeBackend implements AcpBackend {
       throw new Error("Copilot self-host web search channel is unavailable.");
     }
 
-    const builtinSkillEnv = await buildBuiltinSkillEnv(
-      this.#deps.clientVersion,
-      ctx.vaultBasePath,
-      ctx.vaultName,
-      selfHostSearchChannel
-    );
+    const builtinSkillEnv = await buildBuiltinSkillEnv(selfHostSearchChannel);
 
     return {
       command: binaryPath,
@@ -266,10 +241,6 @@ export async function buildOpencodeConfig(
           ...(apiKey ? { apiKey } : {}),
           ...(baseURL ? { baseURL } : {}),
         },
-        headers:
-          origin.kind === "copilot-plus" && deps.clientVersion
-            ? { "X-Client-Version": deps.clientVersion }
-            : undefined,
         models,
       };
     }
@@ -288,12 +259,6 @@ export async function buildOpencodeConfig(
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/557
     const levels = info.reasoning ? (info.reasoningEfforts ?? []) : [];
     models[info.id] = {
-      // An injected Plus model falls back to OpenCode's 200k default without its published context.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/644
-      limit:
-        origin.kind === "copilot-plus" && info.limits?.context
-          ? { context: info.limits.context }
-          : undefined,
       capabilities: declaresCapabilities
         ? {
             tools: info.toolCall ?? true,

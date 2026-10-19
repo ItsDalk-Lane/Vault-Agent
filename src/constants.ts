@@ -23,6 +23,11 @@ export const DESKTOP_VIEW_TYPES = [
   PLAN_PREVIEW_VIEW_TYPE,
   TURN_DIFF_VIEW_TYPE,
 ] as const;
+export const AGENT_VIEW_TYPES = [
+  CHAT_AGENT_VIEWTYPE,
+  PLAN_PREVIEW_VIEW_TYPE,
+  TURN_DIFF_VIEW_TYPE,
+] as const;
 
 export const COPILOT_AGENT_ICON_ID = "copilot-agent";
 

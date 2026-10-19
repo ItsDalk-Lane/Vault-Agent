@@ -17,7 +17,6 @@ interface AtMentionTypeaheadProps {
     category: AtMentionCategory,
     data: TFile | string | TFolder | WebTabContext | null
   ) => void;
-  showTools?: boolean;
   currentActiveFile?: TFile | null;
 }
 
@@ -33,7 +32,6 @@ export function AtMentionTypeahead({
   isOpen,
   onClose,
   onSelect,
-  showTools = false,
   currentActiveFile = null,
 }: AtMentionTypeaheadProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,13 +45,12 @@ export function AtMentionTypeahead({
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [prevResultsLength, setPrevResultsLength] = useState(0);
 
-  const availableCategoryOptions = useAtMentionCategories(showTools);
+  const availableCategoryOptions = useAtMentionCategories();
 
   const searchResults = useAtMentionSearch(
     searchQuery,
     extendedState.mode,
     extendedState.selectedCategory,
-    showTools,
     availableCategoryOptions,
     currentActiveFile
   );

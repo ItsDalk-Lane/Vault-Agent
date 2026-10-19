@@ -64,7 +64,6 @@ interface LexicalEditorProps {
   onEditorReady?: (editor: LexicalEditorType) => void;
   onImagePaste?: (files: File[]) => void;
   onTagSelected?: () => void;
-  showTools?: boolean;
   currentActiveFile?: TFile | null;
   currentChain?: ChainType;
   onEscape?: () => void;
@@ -95,7 +94,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   onEditorReady,
   onImagePaste,
   onTagSelected,
-  showTools = false,
   currentActiveFile = null,
   currentChain,
   onEscape,
@@ -229,7 +227,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
               <TagCommandPlugin onTagSelected={onTagSelected} />
             )}
             <AtMentionCommandPlugin
-              showTools={showTools}
               currentActiveFile={currentActiveFile}
               agentBrands={agentBrands}
             />

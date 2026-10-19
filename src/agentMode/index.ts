@@ -26,7 +26,7 @@ import {
   saveBuiltinPreferences,
   type BuiltinPreferencesUpdate,
 } from "@/settings/builtinSkillPreferences";
-import { buildBuiltinSeedFs } from "./skills/builtin/miyoSearchSeed";
+import { buildBuiltinSeedFs } from "./skills/builtin/vaultSeedFs";
 import {
   createDefaultAskUserQuestionPrompter,
   createDefaultPermissionPrompter,
@@ -275,34 +275,12 @@ export function createAgentSessionManager(app: App, plugin: CopilotPlugin): Agen
     }
     const prevFolder = deriveSkillsFolder(prev);
     const nextFolder = deriveSkillsFolder(next);
-    const miyoAvailabilityChanged =
-      prev.enableMiyoSearchSkill !== next.enableMiyoSearchSkill ||
-      prev.enableMiyoDocumentProcessing !== next.enableMiyoDocumentProcessing ||
-      prev.enableMiyo !== next.enableMiyo ||
-      prev.miyoConnectionMode !== next.miyoConnectionMode ||
-      prev.miyoServerUrl !== next.miyoServerUrl ||
-      prev.isPaidUser !== next.isPaidUser;
     if (
       prevFolder !== nextFolder ||
-      miyoAvailabilityChanged ||
       prev.agentMode.skills.builtinPreferences !== next.agentMode.skills.builtinPreferences
     ) {
       void seedManagedBuiltins()
-        .then(() => {
-          refreshSystemPromptAffected();
-          if (prev.enableMiyoDocumentProcessing === next.enableMiyoDocumentProcessing) return;
-          for (const descriptor of listBackendDescriptors()) {
-            if (descriptor.restartOnSystemPromptChange) continue;
-            void manager
-              .noteSpawnConfigChanged(descriptor.id, "Miyo document processing changed")
-              .catch((e) =>
-                logError(
-                  `[AgentMode] restart after Miyo document processing change failed: ${descriptor.id}`,
-                  e
-                )
-              );
-          }
-        })
+        .then(() => refreshSystemPromptAffected())
         .catch((e) => logError("[Skills] builtin skill re-seeding failed", e));
     }
   });

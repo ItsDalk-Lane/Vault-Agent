@@ -8,12 +8,10 @@ import { logError } from "@/logger";
 import {
   backendsAtom,
   configuredModelsAtom,
-  copilotPlusCatalogAtom,
   providersAtom,
   useModelManagement,
   type AgentType,
 } from "@/modelManagement";
-import { shouldPreviewCopilotModels } from "@/lib/lockedCopilotEntries";
 import { settingsStore } from "@/settings/model";
 import { useAtomValue } from "jotai";
 import React from "react";
@@ -61,19 +59,9 @@ export const ConfiguredModelEnableList: React.FC<ConfiguredModelEnableListProps>
     [configuredModels, providers, enabledIds, agentType, isOpencode]
   );
 
-  const copilotProviderMissing = shouldPreviewCopilotModels(providers);
-  const copilotPlusCatalog = useAtomValue(copilotPlusCatalogAtom, { store: settingsStore });
-
   const groups = React.useMemo<ModelEnableGroup[]>(
-    () =>
-      buildModelEnableGroups(
-        partition,
-        isOpencode,
-        query,
-        copilotProviderMissing,
-        copilotPlusCatalog
-      ),
-    [partition, isOpencode, query, copilotProviderMissing, copilotPlusCatalog]
+    () => buildModelEnableGroups(partition, isOpencode, query, false, undefined),
+    [partition, isOpencode, query]
   );
 
   const handleToggle = React.useCallback(

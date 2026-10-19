@@ -16,10 +16,8 @@ import ChatInput, {
   type ChatInputHandle,
   type ChatInputProps,
 } from "@/components/chat-components/ChatInput";
-import { EMPTY_AGENT_MENTION_BRANDS } from "@/components/chat-components/hooks/useAtMentionCategories";
 import { useActiveWebTabState } from "@/components/chat-components/hooks/useActiveWebTabState";
 import { ACTIVE_WEB_TAB_MARKER, EVENT_NAMES } from "@/constants";
-import { useCanUseMultiAgent } from "@/plusUtils";
 import { EventTargetContext } from "@/context";
 import { logError, logWarn } from "@/logger";
 import {
@@ -169,10 +167,8 @@ export const AgentChatInput = memo(function AgentChatInput({
 
   const previousChatInputIdRef = useRef(chatInputId);
 
-  const canUseMultiAgent = useCanUseMultiAgent();
-
   const installedAgentBrands = useInstalledAgentBrands(plugin);
-  const agentBrands = canUseMultiAgent ? installedAgentBrands : EMPTY_AGENT_MENTION_BRANDS;
+  const agentBrands = installedAgentBrands;
   const installedAgentIds = useMemo(
     () => new Set(installedAgentBrands.map((b) => b.id)),
     [installedAgentBrands]

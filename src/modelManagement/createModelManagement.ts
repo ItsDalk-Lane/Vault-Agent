@@ -10,7 +10,6 @@ import {
 import { ProviderRegistry } from "@/modelManagement/providers/ProviderRegistry";
 import { AgentSetupApi } from "@/modelManagement/setup/AgentSetupApi";
 import { ByokSetupApi } from "@/modelManagement/setup/ByokSetupApi";
-import { CopilotPlusSetupApi } from "@/modelManagement/setup/CopilotPlusSetupApi";
 
 export interface CreateModelManagementInput {
   app: App;
@@ -25,7 +24,6 @@ export interface ModelManagementApi {
   setup: {
     byok: ByokSetupApi;
     agent: AgentSetupApi;
-    copilotPlus: CopilotPlusSetupApi;
   };
   coordinator: ModelManagementCoordinator;
   dispose(): void;
@@ -85,12 +83,6 @@ export function createModelManagement(input: CreateModelManagementInput): ModelM
       configuredModelRegistry,
       backendConfigRegistry,
       catalogService,
-      coordinator
-    ),
-    copilotPlus: new CopilotPlusSetupApi(
-      providerRegistry,
-      configuredModelRegistry,
-      backendConfigRegistry,
       coordinator
     ),
   };

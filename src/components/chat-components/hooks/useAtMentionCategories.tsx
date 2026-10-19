@@ -1,14 +1,13 @@
 import React, { useMemo } from "react";
 import { TFile, TFolder } from "obsidian";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
-import { FileText, Wrench, Folder, Globe, Image, Bot } from "lucide-react";
+import { FileText, Folder, Globe, Image, Bot } from "lucide-react";
 import { TypeaheadOption } from "@/components/chat-components/TypeaheadMenuContent";
 import type { WebTabContext } from "@/types/message";
 
 export type AtMentionCategory =
   | "agents"
   | "notes"
-  | "tools"
   | "folders"
   | "activeNote"
   | "webTabs"
@@ -60,13 +59,6 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
     icon: <Globe className="tw-size-4" />,
   },
   {
-    key: "tools",
-    title: "Tools",
-    subtitle: "AI tools and commands",
-    category: "tools",
-    icon: <Wrench className="tw-size-4" />,
-  },
-  {
     key: "folders",
     title: "Folders",
     subtitle: "Reference vault folders",
@@ -83,27 +75,14 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   },
 ];
 
-export function shouldShowAtMentionTools(args: {
-  isCopilotPlus: boolean;
-  isAgentMode: boolean;
-}): boolean {
-  return args.isCopilotPlus && !args.isAgentMode;
-}
-
-export function useAtMentionCategories(
-  showTools: boolean = false,
-  showAgents: boolean = false
-): CategoryOption[] {
+export function useAtMentionCategories(showAgents: boolean = false): CategoryOption[] {
   return useMemo(() => {
     const base = CATEGORY_OPTIONS.filter((cat) => {
-      if (cat.category === "tools") {
-        return showTools;
-      }
       if (cat.category === "webTabs") {
         return isDesktopRuntime();
       }
       return true;
     });
     return showAgents ? [AGENTS_CATEGORY, ...base] : base;
-  }, [showTools, showAgents]);
+  }, [showAgents]);
 }

@@ -16,12 +16,7 @@ import { SubAgentCard } from "@/agentMode/ui/SubAgentCard";
 import { ReasoningBlock } from "@/agentMode/ui/ReasoningBlock";
 import { AgentMarkdownText } from "@/agentMode/ui/AgentMarkdownText";
 import { planEntryClass, planEntryIcon } from "@/agentMode/ui/planEntryStyles";
-import {
-  miyoResultPaths,
-  miyoSearchRun,
-  type ToolSummaryContext,
-} from "@/agentMode/ui/toolSummaries";
-import { MiyoSearchCard } from "@/agentMode/ui/MiyoSearchCard";
+import { type ToolSummaryContext } from "@/agentMode/ui/toolSummaries";
 import { useThinkingClock } from "@/agentMode/ui/useThinkingClock";
 import { useTrailExpansion, type TrailExpansion } from "@/agentMode/ui/useTrailExpansion";
 import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndicator";
@@ -107,7 +102,6 @@ interface TrailContext {
   lastPart: AgentMessagePart | undefined;
   expansion: TrailExpansion;
   summaryCtx: ToolSummaryContext;
-  miyoPaths: readonly string[];
 }
 
 const LinearTrail: React.FC<{
@@ -123,7 +117,6 @@ const LinearTrail: React.FC<{
     lastPart: parts.length > 0 ? parts[parts.length - 1] : undefined,
     expansion,
     summaryCtx,
-    miyoPaths: miyoResultPaths(parts),
   };
   return (
     <div className="tw-flex tw-flex-col tw-gap-1">
@@ -143,10 +136,6 @@ function renderNode(
 ): React.ReactNode {
   switch (node.type) {
     case "action": {
-      const miyoSearch = miyoSearchRun(node.part);
-      if (miyoSearch) {
-        return <MiyoSearchCard key={key} status={node.part.status} {...miyoSearch} />;
-      }
       const expansionId = actionExpansionId(trailId, node.part.id);
       return (
         <ActionCard
@@ -191,14 +180,7 @@ function renderNode(
       return <ReasoningBlock key={key} part={node.part} isStreaming={isActive} />;
     }
     case "text":
-      return (
-        <AgentMarkdownText
-          key={key}
-          text={node.part.text}
-          app={ctx.app}
-          miyoPaths={ctx.miyoPaths}
-        />
-      );
+      return <AgentMarkdownText key={key} text={node.part.text} app={ctx.app} />;
     case "plan":
       return <PlanPill key={key} entries={node.part.entries} />;
     case "compaction":

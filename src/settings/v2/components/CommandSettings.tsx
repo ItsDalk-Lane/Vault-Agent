@@ -1,5 +1,3 @@
-import { useChatBackendModelOptions } from "@/hooks/useChatBackendModelOptions";
-import { QuickCommandModelSetting } from "@/settings/v2/components/ui/QuickCommandModelSetting";
 import React, { useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useCustomCommands } from "@/commands/state";
@@ -41,7 +39,6 @@ import { EMPTY_COMMAND } from "@/commands/constants";
 import { CustomCommandManager } from "@/commands/customCommandManager";
 import { CustomCommandSettingsModal } from "@/commands/CustomCommandSettingsModal";
 import { generateCopyCommandName, sortCommandsByOrder } from "@/commands/customCommandUtils";
-import { generateDefaultCommands } from "@/commands/migrator";
 import { CustomCommand } from "@/commands/type";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { deriveCustomPromptsFolder } from "@/settings/copilotFolder";
@@ -296,7 +293,6 @@ export const CommandSettings: React.FC = () => {
   }, [rawCommands]);
 
   const settings = useSettingsValue();
-  const { options, resolveSelectionId } = useChatBackendModelOptions(false);
   const customPromptsFolder = deriveCustomPromptsFolder(settings);
   const containerRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
@@ -423,11 +419,6 @@ export const CommandSettings: React.FC = () => {
         </div>
 
         <SettingSection>
-          <QuickCommandModelSetting
-            value={resolveSelectionId(settings.quickCommandModelKey)}
-            options={options}
-            onChange={(value) => updateSetting("quickCommandModelKey", value || undefined)}
-          />
           <SettingItem
             type="switch"
             title="Custom Prompt Templating"
@@ -453,21 +444,6 @@ export const CommandSettings: React.FC = () => {
 
         <div className="tw-flex tw-flex-col tw-gap-4">
           <div className="tw-flex tw-w-full tw-justify-between tw-gap-2 md:tw-justify-end">
-            <div>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  new ConfirmModal(
-                    app,
-                    generateDefaultCommands,
-                    "This will add default commands to your custom prompts folder. Do you want to continue?",
-                    "Generate Default Commands"
-                  ).open()
-                }
-              >
-                Generate Default
-              </Button>
-            </div>
             <Button
               variant="default"
               className="tw-gap-2"
