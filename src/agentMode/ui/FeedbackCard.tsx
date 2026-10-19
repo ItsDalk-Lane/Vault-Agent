@@ -44,7 +44,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
           <MessageSquareWarning className="tw-size-4 tw-shrink-0 tw-text-accent" />
         )}
         <div className="tw-truncate tw-text-sm tw-font-medium">
-          {report ? "Report sent to the Copilot team" : "Report this to the Copilot team?"}
+          {report ? "Issue page opened" : "Report this to the Copilot team?"}
         </div>
       </div>
 
@@ -57,8 +57,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
         ) : null}
         {report ? (
           <div className="tw-text-muted">
-            Report ID{" "}
-            <span className="tw-break-all tw-font-mono tw-text-normal">{report.reportId}</span>
+            Attach the report zip to the issue to send it.
           </div>
         ) : null}
       </div>

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatBytes } from "@/utils/formatBytes";
 import { type AttachmentResult, type ReportIssueDraft } from "@/utils/issueReport";
 import { type ReportUploadAttempt } from "@/utils/reportUpload";
-import { AlertTriangle, Check, FileArchive, Loader2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Check, FileArchive, X, type LucideIcon } from "lucide-react";
 import React from "react";
 
 export type ReportSourceId = "screenshot" | "activityLog" | "chatLog" | "opencodeLog";
@@ -29,18 +29,12 @@ export interface PreparedReport {
   attachments: AttachmentResult[];
 }
 
-export type UploadOutcome =
-  | { ok: true; reportId: string; issueUrl: string }
-  | { ok: false; error: string };
-
 export interface ReportIssueFlowProps {
   initialNote?: string;
   sources: ReportSourceOption[];
   prepare: (note: string, selected: ReadonlySet<ReportSourceId>) => Promise<PreparedReport>;
-  upload: (report: PreparedReport) => Promise<UploadOutcome>;
   discardReport: (report: PreparedReport) => Promise<void>;
   onCancel: () => void;
-  onUploaded: (outcome: { reportId: string; issueUrl: string }) => void;
   openIssuePage: (url: string) => void;
   revealFile: (path: string) => void;
 }
@@ -115,8 +109,6 @@ export function ReportIssueFlow(props: ReportIssueFlowProps) {
       ) : (
         <ReviewPage
           report={report}
-          upload={props.upload}
-          onUploaded={props.onUploaded}
           openIssuePage={props.openIssuePage}
           revealFile={props.revealFile}
           onCancel={handleCancelReview}
@@ -185,10 +177,10 @@ function DetailsPage({
         ))}
       </div>
 
-      <Callout tone="warning" title="Before you upload">
-        Copilot redacts common sensitive data from diagnostic text on your device before upload.
-        Review it before sending; screenshots are not automatically redacted. Reports are private
-        and deleted after 60 days.
+      <Callout tone="warning" title="Before you open the issue">
+        The report is built and redacted on your device and never leaves it: the button below opens a
+        prefilled GitHub issue, and you attach the zip to that issue yourself. Review the zip first;
+        screenshots are not automatically redacted.
       </Callout>
 
       <div className="tw-flex tw-justify-end tw-gap-2">
@@ -238,43 +230,12 @@ function ManifestRow({ tone, icon: Icon, name, size, note, ...liProps }: Manifes
 
 interface ReviewPageProps {
   report: PreparedReport | null;
-  upload: (report: PreparedReport) => Promise<UploadOutcome>;
-  onUploaded: (outcome: { reportId: string; issueUrl: string }) => void;
   openIssuePage: (url: string) => void;
   revealFile: (path: string) => void;
   onCancel: () => void;
 }
 
-type UploadState = "idle" | "uploading" | { failed: string };
-
-function ReviewPage({
-  report,
-  upload,
-  onUploaded,
-  openIssuePage,
-  revealFile,
-  onCancel,
-}: ReviewPageProps) {
-  const [uploadState, setUploadState] = React.useState<UploadState>("idle");
-  const mountedRef = useMountedRef();
-  const uploading = uploadState === "uploading";
-  const failure = typeof uploadState === "object" ? uploadState.failed : null;
-
-  const runUpload = async (packed: PreparedReport) => {
-    setUploadState("uploading");
-    const outcome = await upload(packed);
-    // The upload cannot be aborted, so its result can land after the user
-    // dismissed the dialog. A browser tab opening then would be a surprise,
-    // and there is no tree left to write a failure into
-    // (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
-    if (!mountedRef.current) return;
-    if (outcome.ok) {
-      onUploaded({ reportId: outcome.reportId, issueUrl: outcome.issueUrl });
-    } else {
-      setUploadState({ failed: outcome.error });
-    }
-  };
-
+function ReviewPage({ report, openIssuePage, revealFile, onCancel }: ReviewPageProps) {
   return (
     <>
       <div className="tw-flex tw-flex-col tw-gap-2">
@@ -305,51 +266,30 @@ function ReviewPage({
         )}
       </div>
 
-      {failure !== null && (
-        <Callout tone="error" title="Could not upload the report">
-          {failure} The zip is still on your machine; retrying sends the same report and stores it
-          at most once. Or use <span className="tw-font-medium">Open issue anyway</span> — that
-          issue carries no report ID, so you would have to attach the zip to it yourself.
-        </Callout>
-      )}
+      <Callout tone="warning" title="The zip stays on your machine">
+        Opening the issue does not send anything: attach the zip from {report ? report.zipPath : "the temp folder"} to
+        the issue yourself. Cancelling deletes it.
+      </Callout>
 
-      {uploading ? (
-        <span
-          className="tw-flex tw-items-center tw-justify-end tw-gap-2 tw-text-xs tw-text-muted"
-          role="status"
+      <div className="tw-flex tw-flex-wrap tw-justify-end tw-gap-2">
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={report === null}
+          onClick={() => report && revealFile(report.zipPath)}
         >
-          <Loader2 className="tw-size-4 tw-animate-spin" aria-hidden="true" />
-          Uploading — this can&apos;t be canceled…
-        </span>
-      ) : (
-        <div className="tw-flex tw-flex-wrap tw-justify-end tw-gap-2">
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={report === null}
-            onClick={() => report && revealFile(report.zipPath)}
-          >
-            Show zip
-          </Button>
-          {failure !== null && (
-            <Button
-              variant="secondary"
-              onClick={() => report && openIssuePage(report.manualIssueUrl)}
-            >
-              Open issue anyway
-            </Button>
-          )}
-          <Button
-            variant="default"
-            disabled={report === null}
-            onClick={() => report && void runUpload(report)}
-          >
-            {failure !== null ? "Retry upload" : "Upload & open issue"}
-          </Button>
-        </div>
-      )}
+          Show zip
+        </Button>
+        <Button
+          variant="default"
+          disabled={report === null}
+          onClick={() => report && openIssuePage(report.manualIssueUrl)}
+        >
+          Open GitHub issue
+        </Button>
+      </div>
     </>
   );
 }

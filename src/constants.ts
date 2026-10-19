@@ -5,10 +5,6 @@ import { v4 as uuidv4 } from "uuid";
 import { ChainType } from "./chainType";
 import { PromptSortStrategy } from "./types";
 
-export const USAGE_DASHBOARD_URL = "https://www.obsidiancopilot.com/en/dashboard/token-usage";
-
-export const BREVILABS_API_BASE_URL = "https://api.brevilabs.com/v1";
-export const BREVILABS_MODELS_BASE_URL = "https://models.brevilabs.com/v1";
 export const CHAT_VIEWTYPE = "copilot-chat-view";
 export const CHAT_AGENT_VIEWTYPE = "copilot-agent-chat-view";
 export const AGENT_CHAT_MODE = "agent";
@@ -191,10 +187,6 @@ export const DEFAULT_MODEL_SETTING = {
 export const DEFAULT_OLLAMA_NUM_CTX = 131072;
 
 export enum ChatModels {
-  // Only the default Plus model keeps a constant: a fresh install has to name one before any
-  // catalog has been read.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/319
-  COPILOT_PLUS_FLASH = "copilot-plus-flash",
   GPT_5_5 = "gpt-5.5",
   GPT_5_4_mini = "gpt-5.4-mini",
   GPT_41 = "gpt-4.1",
@@ -234,7 +226,6 @@ export enum ChatModelProviders {
   GROQ = "groq",
   OLLAMA = "ollama",
   LM_STUDIO = "lm-studio",
-  COPILOT_PLUS = "copilot-plus",
   MISTRAL = "mistralai",
   DEEPSEEK = "deepseek",
   COHEREAI = "cohereai",
@@ -248,15 +239,6 @@ export enum ModelCapability {
 }
 
 export const BUILTIN_CHAT_MODELS: CustomModel[] = [
-  {
-    name: ChatModels.COPILOT_PLUS_FLASH,
-    provider: ChatModelProviders.COPILOT_PLUS,
-    enabled: true,
-    isBuiltIn: true,
-    core: true,
-    plusExclusive: true,
-    capabilities: [ModelCapability.VISION],
-  },
   {
     name: ChatModels.OPENROUTER_GEMINI_2_5_FLASH,
     provider: ChatModelProviders.OPENROUTERAI,
@@ -541,12 +523,6 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
     keyManagementURL: "https://platform.deepseek.com/api-keys",
     testModel: ChatModels.DEEPSEEK_CHAT,
   },
-  [ChatModelProviders.COPILOT_PLUS]: {
-    label: "Copilot",
-    host: BREVILABS_MODELS_BASE_URL,
-    curlBaseURL: BREVILABS_MODELS_BASE_URL,
-    keyManagementURL: "",
-  },
 };
 
 export const ProviderSettingsKeyMap: Record<SettingKeyProviders, keyof CopilotSettings> = {
@@ -557,7 +533,6 @@ export const ProviderSettingsKeyMap: Record<SettingKeyProviders, keyof CopilotSe
   openrouterai: "openRouterAiApiKey",
   cohereai: "cohereApiKey",
   xai: "xaiApiKey",
-  "copilot-plus": "plusLicenseKey",
   mistralai: "mistralApiKey",
   deepseek: "deepseekApiKey",
   siliconflow: "siliconflowApiKey",
@@ -574,59 +549,23 @@ export enum SEND_SHORTCUT {
 }
 
 export const COMMAND_IDS = {
-  TRIGGER_QUICK_COMMAND: "trigger-quick-command",
-  CLEAR_COPILOT_CACHE: "clear-copilot-cache",
-  COUNT_WORD_AND_TOKENS_SELECTION: "count-word-and-tokens-selection",
-  COUNT_TOTAL_VAULT_TOKENS: "count-total-vault-tokens",
-  DEBUG_WORD_COMPLETION: "debug-word-completion",
-  // Keeps the legacy refresh id so hotkey bindings survive the upgrade.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/282
-  REFRESH_MIYO_INDEX: "index-vault-to-copilot-index",
-  LOAD_COPILOT_CHAT_CONVERSATION: "load-copilot-chat-conversation",
-  NEW_CHAT: "new-chat",
   NEW_AGENT_CHAT: "new-agent-chat",
-  OPEN_COPILOT_CHAT_WINDOW: "chat-open-window",
   OPEN_AGENT_CHAT_WINDOW: "agent-chat-open-window",
-  OPEN_RELEVANT_NOTES_VIEW: "open-relevant-notes-view",
-  TOGGLE_COPILOT_CHAT_WINDOW: "chat-toggle-window",
   TOGGLE_AGENT_CHAT_WINDOW: "agent-chat-toggle-window",
-  ADD_SELECTION_TO_CHAT_CONTEXT: "add-selection-to-chat-context",
-  ADD_WEB_SELECTION_TO_CHAT_CONTEXT: "add-web-selection-to-chat-context",
   ADD_CUSTOM_COMMAND: "add-custom-command",
-  APPLY_CUSTOM_COMMAND: "apply-custom-command",
   OPEN_LOG_FILE: "open-log-file",
   CLEAR_LOG_FILE: "clear-log-file",
-  DOWNLOAD_YOUTUBE_SCRIPT: "download-youtube-script",
-  PUBLISH_FILE_TO_OPENARTIFACTS: "publish-file-to-symposium",
-  TRIGGER_QUICK_ASK: "trigger-quick-ask",
   NEXT_DIFF_CHANGE: "turn-diff-next-change",
   PREVIOUS_DIFF_CHANGE: "turn-diff-previous-change",
 } as const;
 
 export const COMMAND_NAMES: Record<CommandId, string> = {
-  [COMMAND_IDS.TRIGGER_QUICK_COMMAND]: "Trigger quick command",
-  [COMMAND_IDS.CLEAR_COPILOT_CACHE]: "Clear Copilot cache",
-  [COMMAND_IDS.COUNT_TOTAL_VAULT_TOKENS]: "Count total tokens in your vault",
-  [COMMAND_IDS.COUNT_WORD_AND_TOKENS_SELECTION]: "Count words and tokens in selection",
-  [COMMAND_IDS.DEBUG_WORD_COMPLETION]: "Word completion: Debug",
-  [COMMAND_IDS.REFRESH_MIYO_INDEX]: "Refresh Miyo index",
-  [COMMAND_IDS.LOAD_COPILOT_CHAT_CONVERSATION]: "Load Copilot chat conversation",
-  [COMMAND_IDS.NEW_CHAT]: "New Copilot Quick Chat",
-  [COMMAND_IDS.NEW_AGENT_CHAT]: "New Copilot Agent Chat",
-  [COMMAND_IDS.OPEN_COPILOT_CHAT_WINDOW]: "Open Copilot Chat Window",
-  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: "Open Copilot Agent Chat Window",
-  [COMMAND_IDS.OPEN_RELEVANT_NOTES_VIEW]: "Open Relevant Notes",
-  [COMMAND_IDS.TOGGLE_COPILOT_CHAT_WINDOW]: "Toggle Copilot Chat Window",
-  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: "Toggle Copilot Agent Chat Window",
-  [COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT]: "Add selection to chat context",
-  [COMMAND_IDS.ADD_WEB_SELECTION_TO_CHAT_CONTEXT]: "Add web selection to chat context",
+  [COMMAND_IDS.NEW_AGENT_CHAT]: "New Agent Chat",
+  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: "Open Agent Chat Window",
+  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: "Toggle Agent Chat Window",
   [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "Add new custom command",
-  [COMMAND_IDS.APPLY_CUSTOM_COMMAND]: "Apply custom command",
   [COMMAND_IDS.OPEN_LOG_FILE]: "Create log file",
   [COMMAND_IDS.CLEAR_LOG_FILE]: "Clear log file",
-  [COMMAND_IDS.DOWNLOAD_YOUTUBE_SCRIPT]: "Download YouTube Script (plus)",
-  [COMMAND_IDS.PUBLISH_FILE_TO_OPENARTIFACTS]: "Publish file to OpenArtifacts",
-  [COMMAND_IDS.TRIGGER_QUICK_ASK]: "Quick Ask",
   [COMMAND_IDS.NEXT_DIFF_CHANGE]: "Go to next change in file diff",
   [COMMAND_IDS.PREVIOUS_DIFF_CHANGE]: "Go to previous change in file diff",
 };
@@ -634,28 +573,12 @@ export const COMMAND_NAMES: Record<CommandId, string> = {
 export type CommandId = (typeof COMMAND_IDS)[keyof typeof COMMAND_IDS];
 
 export const COMMAND_ICONS: Partial<Record<CommandId, string>> = {
-  [COMMAND_IDS.NEW_CHAT]: "message-square-plus",
   [COMMAND_IDS.NEW_AGENT_CHAT]: COPILOT_AGENT_ICON_ID,
-  [COMMAND_IDS.OPEN_COPILOT_CHAT_WINDOW]: "message-square",
   [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: COPILOT_AGENT_ICON_ID,
-  [COMMAND_IDS.OPEN_RELEVANT_NOTES_VIEW]: "files",
-  [COMMAND_IDS.TOGGLE_COPILOT_CHAT_WINDOW]: "message-square",
   [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: COPILOT_AGENT_ICON_ID,
-  [COMMAND_IDS.LOAD_COPILOT_CHAT_CONVERSATION]: "history",
-  [COMMAND_IDS.TRIGGER_QUICK_COMMAND]: "terminal-square",
-  [COMMAND_IDS.TRIGGER_QUICK_ASK]: "sparkles",
-  [COMMAND_IDS.ADD_SELECTION_TO_CHAT_CONTEXT]: "text-cursor-input",
-  [COMMAND_IDS.ADD_WEB_SELECTION_TO_CHAT_CONTEXT]: "globe",
   [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "plus-circle",
-  [COMMAND_IDS.APPLY_CUSTOM_COMMAND]: "play-circle",
-  [COMMAND_IDS.REFRESH_MIYO_INDEX]: "refresh-cw",
-  [COMMAND_IDS.CLEAR_COPILOT_CACHE]: "eraser",
-  [COMMAND_IDS.COUNT_TOTAL_VAULT_TOKENS]: "calculator",
-  [COMMAND_IDS.COUNT_WORD_AND_TOKENS_SELECTION]: "hash",
   [COMMAND_IDS.OPEN_LOG_FILE]: "file-text",
   [COMMAND_IDS.CLEAR_LOG_FILE]: "file-x",
-  [COMMAND_IDS.DOWNLOAD_YOUTUBE_SCRIPT]: "youtube",
-  [COMMAND_IDS.PUBLISH_FILE_TO_OPENARTIFACTS]: "share-2",
 };
 
 export const TEXT_READABLE_EXTENSIONS = ["md", "canvas", "base"];
@@ -664,20 +587,12 @@ export const ALLOWED_NOTE_CONTEXT_EXTENSIONS = [...TEXT_READABLE_EXTENSIONS, "pd
 
 export const RESTRICTION_MESSAGES = {
   NON_MARKDOWN_FILES_RESTRICTED:
-    "Non-markdown files are only available in Copilot Plus mode. Please upgrade to access this file type.",
-  URL_PROCESSING_RESTRICTED:
-    "URL processing is only available in Copilot Plus mode. URLs will not be processed for context.",
+    "Only markdown, canvas, and base files can be added as note context.",
   UNSUPPORTED_FILE_TYPE: (extension: string) =>
     `${extension.toUpperCase()} files are not supported in the current mode.`,
 } as const;
 
 export const DEFAULT_SETTINGS: CopilotSettings = {
-  userId: uuidv4(),
-  isPaidUser: false,
-  isPlusUser: false,
-  entitlementToken: "",
-  entitlementExpiresAt: 0,
-  plusLicenseKey: "",
   openAIApiKey: "",
   openAIOrgId: "",
   huggingfaceApiKey: "",
@@ -697,7 +612,6 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   stream: true,
   copilotFolder: DEFAULT_COPILOT_FOLDER,
   copilotRootHistory: [],
-  upgradedToV8FromLegacy: false,
   defaultSaveFolder: DEFAULT_CHAT_HISTORY_FOLDER,
   defaultConversationTag: "copilot-conversation",
   autosaveChat: true,
@@ -727,19 +641,11 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   enableAutonomousAgent: true,
   enableCustomPromptTemplating: true,
   enableSelfHostMode: false,
-  enableMiyo: false,
-  enableMiyoSearchSkill: true,
-  miyoSearchAll: false,
-  miyoExtraSearchFolders: [],
-  relevantNotesLiveUpdate: true,
-  miyoServerUrl: "",
   selfHostSearchProvider: "firecrawl",
   firecrawlApiKey: "",
   perplexityApiKey: "",
   parallelApiKey: "",
   exaApiKey: "",
-  supadataApiKey: "",
-  enableMiyoDocumentProcessing: true,
   enableLexicalBoosts: true,
   suggestedDefaultCommands: false,
   autonomousAgentEnabledToolIds: [
@@ -783,7 +689,6 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   providers: {},
   configuredModels: [],
   backends: {},
-  copilotPlusCatalog: { models: [], defaultEnabledIds: [] },
 };
 
 export const EVENT_NAMES = {

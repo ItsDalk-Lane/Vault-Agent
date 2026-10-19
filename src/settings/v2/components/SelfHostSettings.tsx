@@ -6,24 +6,17 @@ import { useTab } from "@/contexts/TabContext";
 import { cn } from "@/lib/utils";
 import { updateSetting, useSettingsValue, type SelfHostSearchProvider } from "@/settings/model";
 import { SelfHostWebSearchSettings } from "@/settings/v2/components/ui/SelfHostWebSearchSettings";
-import { ArrowUpRight, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import React from "react";
 
 const BYOK_TAB_ID = "byok";
 
-const SUPADATA_SIGNUP_URL = "https://supadata.ai/?ref=obcopilot";
 const SEARCH_PROVIDER_KEY_FIELDS = {
   firecrawl: "firecrawlApiKey",
   perplexity: "perplexityApiKey",
   parallel: "parallelApiKey",
   exa: "exaApiKey",
 } as const satisfies Record<SelfHostSearchProvider, keyof ReturnType<typeof useSettingsValue>>;
-
-const SignUpLink: React.FC<{ href: string }> = ({ href }) => (
-  <a href={href} target="_blank" rel="noopener noreferrer" className="tw-text-accent">
-    Sign up <ArrowUpRight className="tw-inline tw-size-3 tw-align-text-bottom" />
-  </a>
-);
 
 export const SelfHostSettings: React.FC = () => {
   const settings = useSettingsValue();
@@ -82,20 +75,6 @@ export const SelfHostSettings: React.FC = () => {
             onApiKeyChange={(provider, value) =>
               updateSetting(SEARCH_PROVIDER_KEY_FIELDS[provider], value)
             }
-          />
-
-          <SettingItem
-            type="password"
-            title="Supadata API Key"
-            description={
-              <span>
-                YouTube transcripts via Supadata. <SignUpLink href={SUPADATA_SIGNUP_URL} />
-              </span>
-            }
-            value={settings.supadataApiKey}
-            onChange={(value) => updateSetting("supadataApiKey", value)}
-            placeholder="sd-…"
-            disabled={!selfHostOn}
           />
         </SettingSection>
 

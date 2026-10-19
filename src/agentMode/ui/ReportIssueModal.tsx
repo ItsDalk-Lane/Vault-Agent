@@ -5,19 +5,15 @@ import { logFileManager } from "@/logFileManager";
 import { isDesktopRuntime, requireNodeModule } from "@/utils/desktopRuntime";
 import { formatBytes } from "@/utils/formatBytes";
 import {
-  buildLinkedReportIssueUrl,
   buildManualIssueUrl,
   buildReportBundle,
   getNodeReportRuntime,
   type ReportLogRequest,
 } from "@/utils/issueReport";
-import { ReportUploadError, type ReportUploader } from "@/utils/reportUpload";
 import { findLatestOpencodeLog } from "@/utils/opencodeLog";
 import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { captureWindowBehindDialogs } from "./reportScreenshot";
 import { getSettings } from "@/settings/model";
-import { getPersistedDeviceId } from "@/utils/deviceId";
-import { createReportUploader } from "@/utils/reportUpload.brevilabs";
 import { App, ItemView, Modal, Notice, Plugin, apiVersion } from "obsidian";
 import React from "react";
 import { Root } from "react-dom/client";
@@ -26,7 +22,6 @@ import {
   type PreparedReport,
   type ReportSourceId,
   type ReportSourceOption,
-  type UploadOutcome,
 } from "./ReportIssueFlow";
 
 const OPENCODE_BACKEND_ID = "opencode";
@@ -39,7 +34,6 @@ export interface ReportIssueModalParams {
   app: App;
   activeBackend: string;
   pluginVersion: string;
-  uploader: ReportUploader;
   initialNote?: string;
   preselectAllSources?: boolean;
   onReported?: (report: { reportId: string; issueUrl: string }) => void;
@@ -59,10 +53,6 @@ export function openReportIssueModal(
     ...options,
     app,
     pluginVersion: manifest.version,
-    uploader: createReportUploader({
-      installId: () => getPersistedDeviceId(app),
-      clientVersion: manifest.version,
-    }),
   });
   modal.open();
   return modal;
@@ -108,20 +98,6 @@ function formatBundleId(date: Date): string {
   return `${stamp}-${date.getTime().toString(36).slice(-4)}`;
 }
 
-export async function uploadReport(
-  uploader: ReportUploader,
-  report: PreparedReport
-): Promise<UploadOutcome> {
-  try {
-    const { reportId } = await uploader(report.uploadAttempt);
-    return { ok: true, reportId, issueUrl: buildLinkedReportIssueUrl(report.issueDraft, reportId) };
-  } catch (err) {
-    logError("[ReportIssue] could not upload the report:", err);
-    const generic = "Something went wrong while uploading the report.";
-    return { ok: false, error: err instanceof ReportUploadError ? err.message : generic };
-  }
-}
-
 export async function openIssuePageWith(
   shell: Pick<ElectronShell, "openExternal"> | null,
   url: string
@@ -139,7 +115,6 @@ export async function openIssuePageWith(
 export class ReportIssueModal extends Modal {
   private root: Root | null = null;
   private prepared: PreparedReport | null = null;
-  private uploading = false;
 
   constructor(private readonly params: ReportIssueModalParams) {
     super(params.app);
@@ -159,10 +134,8 @@ export class ReportIssueModal extends Modal {
         initialNote={this.params.initialNote}
         sources={this.buildSources()}
         prepare={(note, selected) => this.prepare(note, selected)}
-        upload={(report) => this.upload(report)}
         discardReport={(report) => this.discard(report)}
         onCancel={() => this.close()}
-        onUploaded={(outcome) => void this.onUploaded(outcome)}
         openIssuePage={(url) => void this.openIssuePage(url)}
         revealFile={(path) => this.revealFile(path)}
       />
@@ -174,11 +147,9 @@ export class ReportIssueModal extends Modal {
     this.root = null;
     this.contentEl.empty();
     // A zip nobody will send is plaintext prompts and note contents in the OS
-    // temp folder, so ESC on the review page must take it with it. An upload
-    // in flight is the exception: its bytes are already on their way, and if
-    // they never arrive the zip is the copy the user is told about
-    // (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
-    if (this.prepared && !this.uploading) void this.discard(this.prepared);
+    // temp folder, so ESC on the review page must take it with it.
+    // https://github.com/Brevilabs/obsidian-copilot-private/issues/202
+    if (this.prepared) void this.discard(this.prepared);
   }
 
   private discard(report: PreparedReport): Promise<void> {
@@ -296,55 +267,18 @@ export class ReportIssueModal extends Modal {
     return this.prepared;
   }
 
-  private async upload(report: PreparedReport): Promise<UploadOutcome> {
-    this.uploading = true;
-    const outcome = await uploadReport(this.params.uploader, report);
-    this.uploading = false;
-    // Only a report the server accepted turns the feedback card into its sent state.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-    if (outcome.ok) {
-      this.params.onReported?.({ reportId: outcome.reportId, issueUrl: outcome.issueUrl });
-    }
-    if (this.root) return outcome;
-    // The dialog closed while the bytes were in flight. No browser tab — the
-    // user has moved on — but the id is the one thing they cannot reconstruct,
-    // so a success hands it over with a way to the issue; a failure asks nothing
-    // of them and the zip stays put (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
-    if (outcome.ok) {
-      this.issueLinkNotice(`Report uploaded (ID ${outcome.reportId}).`, outcome.issueUrl);
-    } else {
-      logWarn(
-        `[ReportIssue] the upload failed after the dialog closed; the zip is still at ${report.zipPath}:`,
-        outcome.error
-      );
-    }
-    return outcome;
-  }
-
-  private async onUploaded({ reportId, issueUrl }: { reportId: string; issueUrl: string }) {
-    this.prepared = null;
-    const opened = openIssuePageWith(getElectronShell(), issueUrl);
-    this.close();
-    if (await opened) {
-      new Notice("Report uploaded. Finish the issue in your browser.");
-    } else {
-      // The report is stored either way; what is missing is the way to the
-      // issue page, so the notice carries it in place of the browser
-      // (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
-      this.issueLinkNotice(
-        `Report uploaded (ID ${reportId}), but Copilot could not open your browser.`,
-        issueUrl
-      );
-    }
-  }
-
   private async openIssuePage(url: string): Promise<void> {
     // The browser or fallback link hands the zip to the user. Release it before
     // waiting so closing the dialog cannot remove their manual attachment
     // (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
     this.prepared = null;
-    if (!(await openIssuePageWith(getElectronShell(), url))) {
+    this.params.onReported?.({ reportId: "", issueUrl: url });
+    const opened = await openIssuePageWith(getElectronShell(), url);
+    this.close();
+    if (!opened) {
       this.issueLinkNotice("Copilot could not open your browser.", url);
+    } else {
+      new Notice("Finish the issue in your browser and attach the report zip to it.");
     }
   }
 

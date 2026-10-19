@@ -7,7 +7,6 @@ import {
   TEXT_READABLE_EXTENSIONS,
 } from "@/constants";
 import { logInfo, logWarn } from "@/logger";
-import { formatUsageCapError } from "@/utils/usageCapError";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { MemoryVariables } from "@langchain/core/memory";
 import { DateTime } from "luxon";
@@ -66,10 +65,6 @@ function isLicenseKeyError(error: unknown): boolean {
 export function getApiErrorMessage(error: unknown): string {
   if (isLicenseKeyError(error)) {
     return ERROR_MESSAGES.INVALID_LICENSE_KEY_USER;
-  }
-  const capMessage = formatUsageCapError(error);
-  if (capMessage) {
-    return capMessage;
   }
   const errorDetail = extractErrorDetail(error);
   return (

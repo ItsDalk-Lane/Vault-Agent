@@ -2,17 +2,10 @@ import { CustomModel, ProjectConfig } from "@/aiParams";
 import { ALL_MANAGED_SKILLS } from "@/builtinSkills/builtinSkills";
 import { getModelKeyFromModel } from "@/lib/model-key";
 import { atom, createStore, useAtomValue } from "jotai";
-import { v4 as uuidv4 } from "uuid";
 
 import type { CopilotMode, ModelSelection } from "@/agentMode";
 import { ChainType } from "@/chainType";
-import type {
-  BackendConfig,
-  BackendType,
-  ConfiguredModel,
-  PersistedCopilotPlusCatalog,
-  Provider,
-} from "@/modelManagement";
+import type { BackendConfig, BackendType, ConfiguredModel, Provider } from "@/modelManagement";
 import { MODEL_SECRET_FIELDS, TOP_LEVEL_SECRET_FIELDS } from "@/services/settingsSecretTransforms";
 import { isNotificationSoundId, type NotificationSoundId } from "@/utils/notificationSoundCatalog";
 import { type SortStrategy, isSortStrategy } from "@/utils/recentUsageManager";
@@ -38,8 +31,6 @@ export interface LegacyCommandSettings {
 }
 
 export interface CopilotSettings {
-  userId: string;
-  plusLicenseKey: string;
   openAIApiKey: string;
   openAIOrgId: string;
   huggingfaceApiKey: string;
@@ -61,7 +52,6 @@ export interface CopilotSettings {
   stream: boolean;
   copilotFolder: string;
   copilotRootHistory: string[];
-  upgradedToV8FromLegacy: boolean;
   defaultSaveFolder: string;
   defaultConversationTag: string;
   autosaveChat: boolean;
@@ -82,30 +72,17 @@ export interface CopilotSettings {
   defaultOpenArea: DEFAULT_OPEN_AREA;
   defaultSendShortcut: SEND_SHORTCUT;
   defaultConversationNoteName: string;
-  isPaidUser: boolean | undefined;
-  isPlusUser: boolean | undefined;
-  entitlementToken: string;
-  entitlementExpiresAt: number;
   inlineEditCommands: LegacyCommandSettings[] | undefined;
   projectList: Array<ProjectConfig>;
   passMarkdownImages: boolean;
   enableAutonomousAgent: boolean;
   enableCustomPromptTemplating: boolean;
   enableSelfHostMode: boolean;
-  enableMiyo: boolean;
-  enableMiyoSearchSkill: boolean;
-  miyoSearchAll: boolean;
-  miyoExtraSearchFolders: string[];
-  relevantNotesLiveUpdate: boolean;
-  miyoServerUrl: string;
-  miyoConnectionMode?: "local" | "remote";
   selfHostSearchProvider: SelfHostSearchProvider;
   firecrawlApiKey: string;
   perplexityApiKey: string;
   parallelApiKey: string;
   exaApiKey: string;
-  supadataApiKey: string;
-  enableMiyoDocumentProcessing: boolean;
   enableLexicalBoosts: boolean;
   lexicalSearchRamLimit: number;
   suggestedDefaultCommands: boolean;
@@ -153,9 +130,6 @@ export interface CopilotSettings {
   providers: Record<string, Provider>;
   configuredModels: ConfiguredModel[];
   backends: Partial<Record<BackendType, BackendConfig>>;
-  // One value because the lineup and which of it a license switches on must not disagree:
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/319
-  copilotPlusCatalog: PersistedCopilotPlusCatalog;
 }
 
 export type SelfHostSearchProvider = "firecrawl" | "perplexity" | "parallel" | "exa";
@@ -215,10 +189,6 @@ export const settingsAtom = atom<CopilotSettings>(DEFAULT_SETTINGS);
 const EMPTY_PROVIDERS = Object.freeze({}) as unknown as Record<string, Provider>;
 const EMPTY_CONFIGURED_MODELS = Object.freeze([]) as unknown as ConfiguredModel[];
 const EMPTY_BACKENDS = Object.freeze({}) as unknown as Partial<Record<BackendType, BackendConfig>>;
-const EMPTY_COPILOT_PLUS_CATALOG = Object.freeze({
-  models: Object.freeze([]),
-  defaultEnabledIds: Object.freeze([]),
-}) as unknown as PersistedCopilotPlusCatalog;
 
 const EMPTY_COPILOT_ROOT_HISTORY = Object.freeze([]) as unknown as string[];
 
@@ -246,22 +216,6 @@ export function normalizeRootFolders(input: readonly (string | undefined)[]): st
     result.push(normalized);
   }
   return result.length > 0 ? result : EMPTY_COPILOT_ROOT_HISTORY;
-}
-
-const EMPTY_MIYO_FOLDER_NAMES = Object.freeze([]) as unknown as string[];
-
-export function normalizeMiyoFolderNames(input: unknown): string[] {
-  if (!Array.isArray(input)) return EMPTY_MIYO_FOLDER_NAMES;
-  const names = new Set<string>();
-  for (const raw of input) {
-    if (typeof raw !== "string") continue;
-    const name = raw.trim();
-    // Folder names reach Miyo requests and agent search wrappers verbatim, so names a
-    // path, a quoted argument, or a terminal could reinterpret are never stored.
-    // https://github.com/logancyang/obsidian-copilot/issues/3508
-    if (name && !/[/\\"\p{Cc}]/u.test(name)) names.add(name);
-  }
-  return names.size > 0 ? [...names] : EMPTY_MIYO_FOLDER_NAMES;
 }
 
 export function setSettings(
@@ -432,21 +386,6 @@ export function resetSettings(): void {
   const defaultSettingsWithBuiltIns = {
     ...DEFAULT_SETTINGS,
     ...preservedTopLevelSecrets,
-    // Reason: reset is not a sign-out event. Flipping `isPaidUser` to the
-    // default `false` reads as sign-out to the settings subscriber, whose
-    // Plus reconcile tears down the preserved Plus provider, its models, and
-    // its keychain entry (`plusSyncNeeded` → `unregisterPlusProvider`). Keep
-    // the last server-confirmed paid state AND its original expiry bound until
-    // the preserved license is revalidated — the expiry is tighten-only data
-    // (`isEntitlementExpired`), so keeping it can only close the license UI
-    // earlier, never hold it open; zeroing it would leave a tokenless
-    // paid-Active display with no time bound while offline. The strict
-    // `isPlusUser` flag is NOT kept: reset drops the signed entitlement
-    // token, and the strict gate must never trust a bare boolean without
-    // that proof — the next validation re-derives it.
-    // https://github.com/logancyang/obsidian-copilot-preview/issues/259
-    isPaidUser: current.isPaidUser,
-    entitlementExpiresAt: current.entitlementExpiresAt,
     activeModels: preserveModelCredentials(
       BUILTIN_CHAT_MODELS.map((model) => ({ ...model, enabled: true })),
       current.activeModels ?? []
@@ -456,11 +395,6 @@ export function resetSettings(): void {
       current.configuredModels,
       preservedProviderIds
     ),
-    // Reset keeps the Plus provider and its models without re-syncing
-    // (`plusSyncNeeded` stays false), so clearing this cache would leave those
-    // models with no context window for the rest of the session.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/319
-    copilotPlusCatalog: current.copilotPlusCatalog ?? EMPTY_COPILOT_PLUS_CATALOG,
     copilotRootHistory: preservedRootHistory,
   };
   setSettings(defaultSettingsWithBuiltIns);
@@ -487,21 +421,11 @@ export function useSettingsValue(): Readonly<CopilotSettings> {
 export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   const settingsToSanitize = settings || DEFAULT_SETTINGS;
   const rawSettings = settingsToSanitize as unknown as Record<string, unknown>;
-  const {
-    enableSelfHostedSearch: legacyEnableSelfHostedSearch,
-    enableMiyoSearch: legacyEnableMiyoSearch,
-  } = rawSettings;
-
-  if (!settingsToSanitize.userId) {
-    settingsToSanitize.userId = uuidv4();
-  }
+  const { enableSelfHostedSearch: legacyEnableSelfHostedSearch } = rawSettings;
 
   const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
   sanitizedSettings.lastShownStartupVersion ??= null;
   const sanitizedSettingsRecord = sanitizedSettings as unknown as Record<string, unknown>;
-  delete sanitizedSettingsRecord.miyoRemoteVaultPath;
-  delete sanitizedSettingsRecord.miyoVaultName;
-  delete sanitizedSettingsRecord.enableMiyoSearch;
   // Amazon Bedrock is no longer a chat provider, so a stored key and region
   // would only be credentials for a service Copilot can no longer reach.
   // https://github.com/logancyang/obsidian-copilot/issues/2928
@@ -526,17 +450,6 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.enableSelfHostMode = legacyEnableSelfHostedSearch as boolean;
   }
 
-  if (legacyEnableMiyoSearch !== undefined && sanitizedSettings.enableMiyo === undefined) {
-    sanitizedSettings.enableMiyo = legacyEnableMiyoSearch as boolean;
-  }
-
-  if (
-    typeof sanitizedSettings.isPaidUser !== "boolean" &&
-    typeof rawSettings.isPlusUser === "boolean"
-  ) {
-    sanitizedSettings.isPaidUser = rawSettings.isPlusUser;
-  }
-
   const contextTurns = Number(settingsToSanitize.contextTurns);
   sanitizedSettings.contextTurns = isNaN(contextTurns)
     ? DEFAULT_SETTINGS.contextTurns
@@ -549,44 +462,11 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.lexicalSearchRamLimit = Math.min(1000, Math.max(20, lexicalSearchRamLimit));
   }
 
-  if (typeof sanitizedSettings.enableMiyo !== "boolean") {
-    sanitizedSettings.enableMiyo = DEFAULT_SETTINGS.enableMiyo;
-  }
-
-  if (typeof sanitizedSettings.enableMiyoSearchSkill !== "boolean") {
-    sanitizedSettings.enableMiyoSearchSkill = DEFAULT_SETTINGS.enableMiyoSearchSkill;
-  }
-
-  if (typeof sanitizedSettings.miyoSearchAll !== "boolean") {
-    sanitizedSettings.miyoSearchAll = DEFAULT_SETTINGS.miyoSearchAll;
-  }
-
-  sanitizedSettings.miyoExtraSearchFolders = normalizeMiyoFolderNames(
-    settingsToSanitize.miyoExtraSearchFolders
-  );
-
-  if (typeof sanitizedSettings.relevantNotesLiveUpdate !== "boolean") {
-    sanitizedSettings.relevantNotesLiveUpdate = DEFAULT_SETTINGS.relevantNotesLiveUpdate;
-  }
-
-  if (typeof sanitizedSettings.miyoServerUrl !== "string") {
-    sanitizedSettings.miyoServerUrl = DEFAULT_SETTINGS.miyoServerUrl;
-  }
-  if (!["local", "remote"].includes(sanitizedSettings.miyoConnectionMode || "")) {
-    sanitizedSettings.miyoConnectionMode = sanitizedSettings.miyoServerUrl.trim()
-      ? "remote"
-      : "local";
-  }
-
   // Persisted Parallel and Exa choices must survive reload instead of silently
   // reverting to Firecrawl. https://github.com/Brevilabs/obsidian-copilot-private/issues/285
   const validSearchProviders = ["firecrawl", "perplexity", "parallel", "exa"] as const;
   if (!validSearchProviders.includes(sanitizedSettings.selfHostSearchProvider)) {
     sanitizedSettings.selfHostSearchProvider = DEFAULT_SETTINGS.selfHostSearchProvider;
-  }
-
-  if (typeof sanitizedSettings.enableMiyoDocumentProcessing !== "boolean") {
-    sanitizedSettings.enableMiyoDocumentProcessing = DEFAULT_SETTINGS.enableMiyoDocumentProcessing;
   }
 
   if (typeof sanitizedSettings.passMarkdownImages !== "boolean") {
@@ -686,10 +566,6 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.copilotFolder,
   ]);
 
-  if (typeof sanitizedSettings.upgradedToV8FromLegacy !== "boolean") {
-    sanitizedSettings.upgradedToV8FromLegacy = DEFAULT_SETTINGS.upgradedToV8FromLegacy;
-  }
-
   const saveFolder = (settingsToSanitize.defaultSaveFolder || "").trim();
   sanitizedSettings.defaultSaveFolder =
     saveFolder.length > 0 ? saveFolder : DEFAULT_SETTINGS.defaultSaveFolder;
@@ -741,27 +617,6 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   }
   if (!Array.isArray(sanitizedSettings.configuredModels)) {
     sanitizedSettings.configuredModels = EMPTY_CONFIGURED_MODELS;
-  }
-  // Absent on every data.json written before the lineup was cached, and
-  // arbitrary on a synced or hand-edited one. Consumers dereference `model.id`
-  // straight out of this array, so one malformed entry would crash the pickers.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/319
-  const cachedCatalog = sanitizedSettings.copilotPlusCatalog;
-  const catalogIsUsable =
-    !!cachedCatalog &&
-    typeof cachedCatalog === "object" &&
-    Array.isArray(cachedCatalog.models) &&
-    Array.isArray(cachedCatalog.defaultEnabledIds) &&
-    cachedCatalog.models.every(
-      (model) =>
-        !!model &&
-        typeof model === "object" &&
-        typeof model.id === "string" &&
-        typeof model.displayName === "string"
-    ) &&
-    cachedCatalog.defaultEnabledIds.every((id) => typeof id === "string");
-  if (!catalogIsUsable) {
-    sanitizedSettings.copilotPlusCatalog = EMPTY_COPILOT_PLUS_CATALOG;
   }
   if (
     !sanitizedSettings.backends ||

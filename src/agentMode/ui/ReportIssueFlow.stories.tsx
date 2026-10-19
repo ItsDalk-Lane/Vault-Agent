@@ -3,7 +3,6 @@ import {
   type PreparedReport,
   type ReportIssueFlowProps,
   type ReportSourceOption,
-  type UploadOutcome,
 } from "@/agentMode/ui/ReportIssueFlow";
 import type { Meta, StoryObj } from "@/lib/story";
 import * as React from "react";
@@ -55,21 +54,13 @@ const REPORT: PreparedReport = {
   ],
 };
 
-const UPLOADED: UploadOutcome = {
-  ok: true,
-  reportId: "9f3c1a7b2e4d5f60819a2b3c4d5e6f70",
-  issueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new?body=...",
-};
-
 const pending = <T,>(): Promise<T> => new Promise<T>(() => undefined);
 
 const BASE: ReportIssueFlowProps = {
   sources: SOURCES,
   prepare: async () => REPORT,
-  upload: async () => UPLOADED,
   discardReport: async () => undefined,
   onCancel: () => undefined,
-  onUploaded: () => undefined,
   openIssuePage: () => undefined,
   revealFile: () => undefined,
 };
@@ -100,7 +91,6 @@ const AtStep: React.FC<{ steps: string[]; props?: Partial<ReportIssueFlowProps> 
 };
 
 const PREPARE = "Prepare report";
-const UPLOAD = "Upload & open issue";
 
 const meta = {
   title: "Agent Mode/Report Issue Flow",
@@ -119,23 +109,6 @@ export const Preparing: StoryObj<ReportIssueFlowProps> = {
 
 export const Review: StoryObj<ReportIssueFlowProps> = {
   render: () => <AtStep steps={[PREPARE]} />,
-};
-
-export const Uploading: StoryObj<ReportIssueFlowProps> = {
-  render: () => (
-    <AtStep steps={[PREPARE, UPLOAD]} props={{ upload: () => pending<UploadOutcome>() }} />
-  ),
-};
-
-export const UploadFailed: StoryObj<ReportIssueFlowProps> = {
-  render: () => (
-    <AtStep
-      steps={[PREPARE, UPLOAD]}
-      props={{
-        upload: async () => ({ ok: false, error: "Upload failed (HTTP 502)." }),
-      }}
-    />
-  ),
 };
 
 export const DraftedNote: StoryObj<ReportIssueFlowProps> = {

@@ -188,39 +188,9 @@ export function buildModelEnableGroups(
     out.push({ group: { key: `agent:${label}`, label, destination, rows }, kind: "agent" });
   }
 
-  if (isOpencode && copilotProviderMissing) {
-    const rows = copilotPlusCatalog.models
-      .map(
-        (model): ModelEnableRow => ({
-          id: `__locked_copilot__${model.id}`,
-          label: model.displayName || model.id,
-          description: model.description,
-          wireId: model.id,
-          enabled: false,
-          locked: true,
-        })
-      )
-      .filter((row) => rowMatches(row, q));
-    if (rows.length > 0) {
-      out.push({
-        group: {
-          key: "locked:copilot-plus",
-          label: "Copilot",
-          destinationNote: "Copilot license required",
-          rows,
-        },
-        kind: "copilot-plus",
-      });
-    }
-  }
-
   const mixed = new Set(out.map((o) => o.kind)).size > 1;
   for (const o of out) {
-    if (o.kind === "copilot-plus") {
-      o.group.highlight = true;
-      o.group.badge = "privacy";
-      o.group.destination = COPILOT_PLUS_DESTINATION;
-    } else if (mixed) {
+    if (mixed) {
       o.group.badge = originBadgeLabel(o.kind);
     }
   }

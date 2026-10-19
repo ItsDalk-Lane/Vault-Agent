@@ -88,7 +88,6 @@ export function cleanupLegacyFields(settings: CopilotSettings): CopilotSettings 
   delete out.githubCopilotAccessToken;
   delete out.githubCopilotToken;
   delete out.githubCopilotTokenExpiresAt;
-  delete out.miyoSyncedExclusions;
   if (out.agentMode && typeof out.agentMode === "object" && !Array.isArray(out.agentMode)) {
     const agentMode = { ...(out.agentMode as Record<string, unknown>) };
     delete agentMode.mcpServers;
