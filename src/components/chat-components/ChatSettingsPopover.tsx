@@ -1,0 +1,233 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useApp } from "@/context";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { QuickChatPromptSelect } from "@/components/chat-components/ui/QuickChatPromptSelect";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertTriangle, ArrowUpRight, RotateCcw, Settings } from "lucide-react";
+import { SettingSwitch } from "@/components/ui/setting-switch";
+import {
+  getDisableBuiltinSystemPrompt,
+  getPromptFilePath,
+  setDisableBuiltinSystemPrompt,
+  useSelectedPrompt,
+  useSystemPrompts,
+} from "@/system-prompts";
+
+export function ChatSettingsPopover() {
+  const app = useApp();
+
+  const prompts = useSystemPrompts();
+  const [sessionPrompt, setSessionPrompt] = useSelectedPrompt();
+
+  const promptExists = (title: string | null | undefined): boolean => {
+    if (!title) return false;
+    return prompts.some((p) => p.title === title);
+  };
+
+  // An unselected session uses AGENTS.md, including vaults with a saved legacy default.
+  // https://github.com/logancyang/obsidian-copilot/issues/3210
+  const displayValue = promptExists(sessionPrompt) ? sessionPrompt : "";
+
+  const [disableBuiltin, setDisableBuiltin] = useState(() => getDisableBuiltinSystemPrompt());
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showConfirmation && confirmationRef.current) {
+      confirmationRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [showConfirmation]);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      const currentValue = getDisableBuiltinSystemPrompt();
+      setDisableBuiltin(currentValue);
+      if (!currentValue) {
+        setShowConfirmation(false);
+      }
+    }
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setSessionPrompt("");
+    setDisableBuiltin(false);
+    setShowConfirmation(false);
+    setDisableBuiltinSystemPrompt(false);
+  }, [setSessionPrompt]);
+
+  const handleDisableBuiltinToggle = (checked: boolean) => {
+    if (checked) {
+      setShowConfirmation(true);
+    } else {
+      setDisableBuiltin(false);
+      setShowConfirmation(false);
+      setDisableBuiltinSystemPrompt(false);
+    }
+  };
+
+  const confirmDisableBuiltin = () => {
+    setDisableBuiltin(true);
+    setShowConfirmation(false);
+    setDisableBuiltinSystemPrompt(true);
+  };
+
+  const cancelDisableBuiltin = () => {
+    setShowConfirmation(false);
+  };
+
+  const handleOpenSourceFile = () => {
+    if (!displayValue) return;
+    const filePath = getPromptFilePath(displayValue);
+    void app.workspace.openLinkText(filePath, "", true);
+  };
+
+  return (
+    <Popover onOpenChange={handleOpenChange}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="ghost2" size="icon">
+              <Settings className="tw-size-4" />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Chat Settings</TooltipContent>
+      </Tooltip>
+      <PopoverContent className="tw-w-80 tw-rounded-md tw-p-0" align="end">
+        <div className="tw-flex tw-max-h-[500px] tw-flex-col">
+          <div className="tw-shrink-0 tw-border-b tw-px-4">
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <h3 className="tw-font-semibold">Chat Settings</h3>
+              <Button variant="ghost" size="sm" onClick={handleReset} className="tw-h-8 tw-text-xs">
+                <RotateCcw className="tw-mr-1 tw-size-3" />
+                Reset
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <ScrollArea className="tw-flex-1 tw-overflow-y-auto">
+            <div className="tw-space-y-4 tw-p-4">
+              <div className="tw-space-y-2">
+                <div className="tw-flex tw-flex-col tw-gap-2">
+                  <Label htmlFor="system-prompt" className="tw-text-sm sm:tw-min-w-fit">
+                    System Prompt
+                  </Label>
+                  <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-2 sm:tw-flex-1">
+                    <QuickChatPromptSelect
+                      value={displayValue}
+                      prompts={prompts}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "") {
+                          setSessionPrompt("");
+                        } else if (promptExists(value)) {
+                          setSessionPrompt(value);
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleOpenSourceFile}
+                      className="tw-size-5 tw-shrink-0 tw-p-0"
+                      title="Open the source file"
+                      disabled={!displayValue}
+                    >
+                      <ArrowUpRight className="tw-size-5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="tw-space-y-3">
+                <div className="tw-space-y-1.5">
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <Label htmlFor="disable-builtin" className="tw-text-sm tw-font-medium">
+                      Disable Builtin System Prompt
+                    </Label>
+                    <SettingSwitch
+                      checked={disableBuiltin}
+                      onCheckedChange={handleDisableBuiltinToggle}
+                      disabled={showConfirmation}
+                    />
+                  </div>
+                  <div className="tw-pr-12 tw-text-xs tw-leading-relaxed tw-text-muted">
+                    Disables the builtin system prompt and only uses your custom system prompt.{" "}
+                    <span className="tw-text-xs tw-text-error">
+                      WARNING: This may break expected functionality.
+                    </span>
+                  </div>
+                </div>
+
+                {(disableBuiltin || showConfirmation) && (
+                  <div
+                    ref={confirmationRef}
+                    className="tw-rounded-md tw-border tw-bg-error/10 tw-p-3 tw-border-error/50"
+                  >
+                    <div className="tw-flex tw-gap-2">
+                      <AlertTriangle className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-error" />
+                      <div className="tw-flex-1 tw-space-y-2">
+                        <div className="tw-space-y-1">
+                          <div className="tw-text-xs tw-font-semibold tw-text-error">
+                            Copilot Plus Features Will Become Unavailable
+                          </div>
+                          <div className="tw-flex tw-flex-col  tw-items-center tw-gap-2 tw-text-xs tw-leading-relaxed tw-text-muted">
+                            <div>
+                              When enabled, advanced features such as vault search, web search, and
+                              agent mode will become unavailable.{" "}
+                            </div>
+                            <div className="tw-italic">
+                              Only your custom system prompt (configured in Settings) will be used.
+                            </div>
+                          </div>
+                        </div>
+
+                        {showConfirmation && (
+                          <div className="tw-flex tw-gap-2 tw-pt-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={confirmDisableBuiltin}
+                              className="tw-h-7 tw-text-xs"
+                            >
+                              Disable Builtin
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelDisableBuiltin}
+                              className="tw-h-7 tw-bg-transparent tw-text-xs"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+
+          <Separator />
+
+          <div className="tw-shrink-0 tw-rounded-md tw-bg-primary tw-px-4 tw-py-1">
+            <div className="tw-flex tw-flex-row tw-flex-wrap">
+              <span className="tw-text-xs tw-text-normal">
+                <span className=" tw-italic">System Prompt and Disable Builtin System Prompt</span>{" "}
+                <strong>apply to this chat session only</strong>.
+              </span>
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

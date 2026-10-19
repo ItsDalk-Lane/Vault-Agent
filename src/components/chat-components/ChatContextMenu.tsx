@@ -1,0 +1,189 @@
+import { TFile, TFolder } from "obsidian";
+import React, { useRef, useState } from "react";
+import { isDesktopRuntime } from "@/utils/desktopRuntime";
+import { Button } from "@/components/ui/button";
+import {
+  ContextNoteBadge,
+  ContextActiveNoteBadge,
+  ContextActiveWebTabBadge,
+  ContextWebTabBadge,
+  ContextUrlBadge,
+  ContextFolderBadge,
+  ContextSelectedTextBadge,
+} from "@/components/chat-components/ContextBadges";
+import { SelectedTextContext, WebTabContext } from "@/types/message";
+import { useApp } from "@/context";
+import { openFileInWorkspace } from "@/utils";
+import { mergeWebTabContexts } from "@/utils/urlNormalization";
+import { AtMentionTypeahead } from "./AtMentionTypeahead";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const EMPTY_SELECTED_TEXT_CONTEXTS: SelectedTextContext[] = [];
+
+interface ChatContextMenuProps {
+  includeActiveNote: boolean;
+  currentActiveFile: TFile | null;
+  includeActiveWebTab: boolean;
+  activeWebTab: WebTabContext | null;
+  contextNotes: TFile[];
+  contextUrls: string[];
+  contextFolders: string[];
+  contextWebTabs: WebTabContext[];
+  selectedTextContexts?: SelectedTextContext[];
+  onRemoveContext: (category: string, data: string) => void;
+  onTypeaheadSelect: (
+    category: string,
+    data: TFile | string | TFolder | WebTabContext | null
+  ) => void;
+  lexicalEditorRef?: React.RefObject<{ focus: () => void }>;
+  hideAddContextButton?: boolean;
+  isAgentMode?: boolean;
+}
+
+export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
+  includeActiveNote,
+  currentActiveFile,
+  includeActiveWebTab,
+  activeWebTab,
+  contextNotes,
+  contextUrls,
+  contextFolders,
+  contextWebTabs,
+  selectedTextContexts = EMPTY_SELECTED_TEXT_CONTEXTS,
+  onRemoveContext,
+  onTypeaheadSelect,
+  lexicalEditorRef,
+  hideAddContextButton = false,
+  isAgentMode = false,
+}) => {
+  const app = useApp();
+  const [showTypeahead, setShowTypeahead] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleTypeaheadClose = () => {
+    setShowTypeahead(false);
+  };
+
+  const handleTypeaheadSelect = (
+    category: string,
+    data: TFile | string | TFolder | WebTabContext
+  ) => {
+    onTypeaheadSelect(category, data);
+
+    window.setTimeout(() => {
+      if (lexicalEditorRef?.current) {
+        lexicalEditorRef.current.focus();
+      }
+    }, 100);
+  };
+
+  const handleBadgeClick = (file: TFile) => {
+    void openFileInWorkspace(app, file);
+  };
+
+  const uniqueNotes = React.useMemo(() => {
+    const notesMap = new Map(contextNotes.map((note) => [note.path, note]));
+    return Array.from(notesMap.values());
+  }, [contextNotes]);
+
+  const uniqueUrls = React.useMemo(() => Array.from(new Set(contextUrls)), [contextUrls]);
+
+  const uniqueWebTabs = React.useMemo(() => mergeWebTabContexts(contextWebTabs), [contextWebTabs]);
+
+  // Removing an excerpt must not change whether the full note is attached.
+  // https://github.com/Brevilabs/obsidian-copilot-private/issues/465
+  const activeNoteVisible = includeActiveNote && Boolean(currentActiveFile);
+  const activeWebTabVisible = includeActiveWebTab && Boolean(activeWebTab) && isDesktopRuntime();
+
+  const hasContext =
+    uniqueNotes.length > 0 ||
+    uniqueUrls.length > 0 ||
+    selectedTextContexts.length > 0 ||
+    contextFolders.length > 0 ||
+    uniqueWebTabs.length > 0 ||
+    activeNoteVisible ||
+    activeWebTabVisible;
+
+  if (isAgentMode && !hasContext) {
+    return null;
+  }
+
+  return (
+    <div className="tw-flex tw-w-full tw-items-start tw-gap-1">
+      {!hideAddContextButton && (
+        <div className="tw-flex tw-h-full tw-items-start">
+          <Popover open={showTypeahead} onOpenChange={setShowTypeahead}>
+            <PopoverTrigger asChild>
+              <Button
+                ref={buttonRef}
+                variant="ghost2"
+                size="fit"
+                className="tw-ml-1 tw-rounded-sm tw-border tw-border-solid tw-border-border tw-text-muted"
+              >
+                <span className="tw-text-base tw-font-medium tw-leading-none">@</span>
+                {!hasContext && (
+                  <span className="tw-pr-1 tw-text-sm tw-leading-4">Add context</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="tw-w-[400px] tw-p-0" align="start" side="top" sideOffset={4}>
+              <AtMentionTypeahead
+                isOpen={showTypeahead}
+                onClose={handleTypeaheadClose}
+                onSelect={handleTypeaheadSelect}
+                currentActiveFile={currentActiveFile}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+      <div className="tw-flex tw-flex-1 tw-flex-wrap tw-gap-1">
+        {activeNoteVisible && currentActiveFile && (
+          <ContextActiveNoteBadge
+            currentActiveFile={currentActiveFile}
+            onRemove={() => onRemoveContext("activeNote", "")}
+            onClick={() => handleBadgeClick(currentActiveFile)}
+          />
+        )}
+        {activeWebTabVisible && activeWebTab && (
+          <ContextActiveWebTabBadge
+            activeWebTab={activeWebTab}
+            onRemove={() => onRemoveContext("activeWebTab", "")}
+          />
+        )}
+        {uniqueNotes.map((note) => (
+          <ContextNoteBadge
+            key={note.path}
+            note={note}
+            onRemove={() => onRemoveContext("notes", note.path)}
+            onClick={() => handleBadgeClick(note)}
+          />
+        ))}
+        {uniqueUrls.map((url) => (
+          <ContextUrlBadge key={url} url={url} onRemove={() => onRemoveContext("urls", url)} />
+        ))}
+        {contextFolders.map((folder) => (
+          <ContextFolderBadge
+            key={folder}
+            folder={folder}
+            onRemove={() => onRemoveContext("folders", folder)}
+          />
+        ))}
+        {uniqueWebTabs.map((webTab) => (
+          <ContextWebTabBadge
+            key={webTab.url}
+            webTab={webTab}
+            onRemove={() => onRemoveContext("webTabs", webTab.url)}
+          />
+        ))}
+        {selectedTextContexts.map((selectedText) => (
+          <ContextSelectedTextBadge
+            key={selectedText.id}
+            selectedText={selectedText}
+            onRemove={() => onRemoveContext("selectedText", selectedText.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,194 @@
+import { logError } from "@/logger";
+import { App, Modal, Setting, TFile } from "obsidian";
+
+interface ChatSource {
+  title: string;
+  path: string;
+  score: number;
+  explanation?: unknown;
+  outsideVaultLabel?: string;
+}
+
+export class SourcesModal extends Modal {
+  sources: ChatSource[];
+
+  constructor(app: App, sources: ChatSource[]) {
+    super(app);
+    this.sources = sources;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    new Setting(contentEl).setName("Sources").setHeading();
+
+    this.createSourceList(contentEl, this.sources);
+  }
+
+  private createSourceList(container: HTMLElement, sources: ChatSource[]) {
+    const list = container.createEl("ul");
+    list.addClass("tw-list-none", "tw-p-0");
+
+    sources.forEach((source) => {
+      const item = list.createEl("li");
+      item.addClass("tw-mb-4");
+
+      const itemContainer = item.createDiv();
+      itemContainer.addClass("tw-cursor-pointer");
+
+      const expandIndicator = itemContainer.createSpan();
+      expandIndicator.addClass("tw-mr-2", "tw-inline-block", "tw-w-4", "tw-transition-transform");
+      expandIndicator.textContent = source.explanation ? "▶" : "";
+
+      const displayText =
+        source.path && source.path !== source.title
+          ? `${source.title} (${source.path})`
+          : source.title;
+
+      let link: HTMLElement;
+      if (source.outsideVaultLabel) {
+        // A result from another Miyo folder is not a note in this vault, so it is shown
+        // as text with its folder or Chat label instead of a vault link.
+        // https://github.com/logancyang/obsidian-copilot/issues/3508
+        link = itemContainer.createSpan({ text: displayText });
+        itemContainer.createSpan({
+          text: source.outsideVaultLabel,
+          cls: "tw-ml-2 tw-rounded-md tw-bg-secondary-alt tw-px-1.5 tw-py-0.5 tw-text-ui-smaller",
+        });
+      } else {
+        link = itemContainer.createEl("a", {
+          href: `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(source.path || source.title)}`,
+          text: displayText,
+        });
+        link.title = `${displayText} - drag to insert wikilink`;
+        link.draggable = true;
+        link.addEventListener("dragstart", (e) => {
+          const filePath = source.path || source.title;
+          const file = this.app.vault.getAbstractFileByPath(filePath);
+          if (file instanceof TFile) {
+            const dragManager = (
+              this.app as unknown as {
+                dragManager?: {
+                  dragLink: (e: DragEvent, text: string) => unknown;
+                  onDragStart: (e: DragEvent, data: unknown) => void;
+                };
+              }
+            ).dragManager;
+            if (!dragManager) return;
+            const linkText = this.app.metadataCache.fileToLinktext(file, "");
+            const dragData = dragManager.dragLink(e, linkText);
+            dragManager.onDragStart(e, dragData);
+          }
+        });
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.app.workspace.openLinkText(source.path || source.title, "").catch(logError);
+        });
+      }
+
+      if (typeof source.score === "number") {
+        itemContainer.appendChild(
+          this.contentEl.doc.createTextNode(` - Relevance score: ${source.score.toFixed(4)}`)
+        );
+      }
+
+      let explanationDiv: HTMLElement | null = null;
+      if (source.explanation) {
+        explanationDiv = this.addExplanation(item, source.explanation);
+        explanationDiv.addClass("tw-hidden");
+
+        itemContainer.addEventListener("click", (e) => {
+          if (e.target === link) return;
+
+          if (explanationDiv) {
+            const isExpanded = !explanationDiv.hasClass("tw-hidden");
+            explanationDiv.toggleClass("tw-hidden", isExpanded);
+            expandIndicator.toggleClass("tw-rotate-90", !isExpanded);
+          }
+        });
+      }
+    });
+  }
+
+  private addExplanation(container: HTMLElement, explanation: unknown): HTMLElement {
+    const explanationDiv = container.createDiv({ cls: "search-explanation" });
+    explanationDiv.addClass(
+      "tw-ml-[2.5em]",
+      "tw-mt-2",
+      "tw-pl-2",
+      "tw-text-[0.9em]",
+      "tw-text-muted",
+      "tw-border-l",
+      "tw-border-l-border"
+    );
+
+    const exp = explanation as Record<string, unknown>;
+    const details: string[] = [];
+
+    if (exp.lexicalMatches && (exp.lexicalMatches as unknown[]).length > 0) {
+      const lexicalMatches = exp.lexicalMatches as { field: string; query: string }[];
+      const fields = new Set(lexicalMatches.map((m) => m.field));
+      const queries = new Set(lexicalMatches.map((m) => m.query));
+      details.push(
+        `Lexical: matched "${Array.from(queries).join('", "')}" in ${Array.from(fields).join(", ")}`
+      );
+    }
+
+    if (exp.semanticScore !== undefined && (exp.semanticScore as number) > 0) {
+      details.push(`Semantic: ${((exp.semanticScore as number) * 100).toFixed(1)}% similarity`);
+    }
+
+    if (exp.folderBoost) {
+      const fb = exp.folderBoost as { boostFactor: number; documentCount: number; folder?: string };
+      details.push(
+        `Folder boost: ${fb.boostFactor.toFixed(2)}x (${fb.documentCount} docs in ${fb.folder || "root"})`
+      );
+    }
+
+    if (exp.graphConnections) {
+      const gc = exp.graphConnections as {
+        backlinks: number;
+        coCitations: number;
+        sharedTags: number;
+        score: number;
+      };
+      const connectionParts: string[] = [];
+      if (gc.backlinks > 0) connectionParts.push(`${gc.backlinks} backlinks`);
+      if (gc.coCitations > 0) connectionParts.push(`${gc.coCitations} co-citations`);
+      if (gc.sharedTags > 0) connectionParts.push(`${gc.sharedTags} shared tags`);
+
+      if (connectionParts.length > 0) {
+        details.push(
+          `Graph connections: ${gc.score.toFixed(1)} score (${connectionParts.join(", ")})`
+        );
+      }
+    }
+
+    if (exp.graphBoost && !exp.graphConnections) {
+      const gb = exp.graphBoost as { boostFactor: number; connections: number };
+      details.push(`Graph boost: ${gb.boostFactor.toFixed(2)}x (${gb.connections} connections)`);
+    }
+
+    if (exp.baseScore !== exp.finalScore) {
+      details.push(
+        `Score: ${(exp.baseScore as number).toFixed(4)} → ${(exp.finalScore as number).toFixed(4)}`
+      );
+    }
+
+    if (details.length > 0) {
+      details.forEach((detail) => {
+        const detailDiv = explanationDiv.createDiv();
+        detailDiv.addClass("tw-mb-1");
+        detailDiv.textContent = `• ${detail}`;
+      });
+    }
+
+    return explanationDiv;
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
