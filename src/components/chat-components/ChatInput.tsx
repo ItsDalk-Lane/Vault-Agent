@@ -1,10 +1,9 @@
 import { ChatSendButton } from "@/components/ui/ChatSendButton";
-import { useChainType, useModelKey } from "@/aiParams";
+import { useModelKey } from "@/aiParams";
 import { Button } from "@/components/ui/button";
 import { ModelSelector, type ModelSelectorEntry } from "@/components/ui/ModelSelector";
 import { useSettingsValue } from "@/settings/model";
 import type { CopilotMode } from "@/agentMode";
-import { isPlusChain } from "@/utils";
 import {
   mergeWebTabContexts,
   normalizeUrlString,
@@ -203,16 +202,13 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
   const lexicalEditorRef = useRef<LexicalEditorType | null>(null);
   const [currentModelKey, setCurrentModelKey] = useModelKey();
   const settings = useSettingsValue();
-  const [currentChain] = useChainType();
   const [currentActiveNote, setCurrentActiveNote] = useState<TFile | null>(() => {
     const activeFile = app.workspace.getActiveFile();
     return isAllowedFileForNoteContext(activeFile) ? activeFile : null;
   });
   const [notesFromPills, setNotesFromPills] = useState<{ path: string; basename: string }[]>([]);
-  const [urlsFromPills, setUrlsFromPills] = useState<string[]>([]);
   const [foldersFromPills, setFoldersFromPills] = useState<string[]>([]);
   const [webTabsFromPills, setWebTabsFromPills] = useState<WebTabContext[]>([]);
-  const isCopilotPlus = isPlusChain(currentChain);
 
   const mergedContextWebTabs = useMemo(() => {
     return mergeWebTabContexts([...contextWebTabs, ...webTabsFromPills]);
@@ -247,17 +243,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
     const webTabsFromEditor = getWebTabsFromEditorSnapshot();
     const allWebTabs = mergeWebTabContexts([...contextWebTabs, ...webTabsFromEditor]);
 
-    if (!isCopilotPlus) {
-      handleSendMessage({
-        webTabs: allWebTabs,
-      });
-      return;
-    }
-
     handleSendMessage({
-      contextNotes,
-      urls: contextUrls,
-      contextFolders,
       webTabs: allWebTabs,
     });
   };
@@ -279,19 +265,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
     [onMentionedAgentsChange]
   );
 
-  const handleURLPillsRemoved = (removedUrls: string[]) => {
-    const removedUrlSet = new Set(removedUrls);
-
-    setContextUrls((prev) => {
-      return prev.filter((url) => {
-        if (removedUrlSet.has(url)) {
-          return false;
-        }
-        return true;
-      });
-    });
-  };
-
   const handleContextNoteRemoved = (notePath: string) => {
     if (lexicalEditorRef.current) {
       lexicalEditorRef.current.update(() => {
@@ -308,8 +281,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
         $removePillsByURL(url);
       });
     }
-
-    setUrlsFromPills((prev) => prev.filter((pillUrl) => pillUrl !== url));
   };
 
   const handleFolderContextRemoved = (folderPath: string) => {
@@ -525,23 +496,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
   }, [notesFromPills, app.vault, setContextNotes]);
 
   useEffect(() => {
-    if (isPlusChain(currentChain)) {
-      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- merge pill URLs into user-owned context without removing manual entries
-      setContextUrls((prev) => {
-        const contextUrlSet = new Set(prev);
-        const newUrlsFromPills = urlsFromPills.filter((pillUrl) => !contextUrlSet.has(pillUrl));
-        if (newUrlsFromPills.length > 0) {
-          return Array.from(new Set([...prev, ...newUrlsFromPills]));
-        }
-        return prev;
-      });
-    } else {
-      // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- clear Plus-only URL context when switching chains
-      setContextUrls([]);
-    }
-  }, [urlsFromPills, currentChain]);
-
-  useEffect(() => {
     // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect -- merge pill folders into user-owned context without removing manual entries
     setContextFolders((prev) => {
       const contextFolderPaths = new Set(prev);
@@ -698,9 +652,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
               onNotesRemoved={handleNotePillsRemoved}
               onActiveNoteAdded={handleActiveNoteAdded}
               onActiveNoteRemoved={handleActiveNoteRemoved}
-              onURLsChange={isCopilotPlus ? setUrlsFromPills : undefined}
-              onURLsRemoved={isCopilotPlus ? handleURLPillsRemoved : undefined}
-              onToolsChange={isCopilotPlus ? onToolPillsChange : undefined}
               onFoldersChange={setFoldersFromPills}
               onFoldersRemoved={handleFolderPillsRemoved}
               onWebTabsChange={setWebTabsFromPills}
@@ -714,7 +665,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
               onTagSelected={onTagSelected}
               placeholder={placeholder}
               currentActiveFile={currentActiveNote}
-              currentChain={currentChain}
               onEscape={onEscape}
               onShiftTab={onShiftTab}
               isAgentMode={isAgentMode}

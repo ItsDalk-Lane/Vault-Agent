@@ -1,6 +1,5 @@
 import { compareSemver } from "@/utils/semver";
 
-import { ChainType } from "@/chainType";
 import {
   ALLOWED_NOTE_CONTEXT_EXTENSIONS,
   ModelCapability,
@@ -268,10 +267,6 @@ export function getFileName(file: TFile): string {
 export function isAllowedFileForNoteContext(file: TFile | null): boolean {
   if (!file) return false;
   return ALLOWED_NOTE_CONTEXT_EXTENSIONS.includes(file.extension);
-}
-
-export function isPlusChain(chainType: ChainType): boolean {
-  return chainType === ChainType.COPILOT_PLUS_CHAIN;
 }
 
 export interface ChatHistoryEntry {

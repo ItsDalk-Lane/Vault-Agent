@@ -8,12 +8,12 @@ import {
 import { mockTFile, mockTFolder } from "@/__tests__/mockObsidian";
 
 jest.mock("@/settings/model", () => ({
-  getSettings: jest.fn(() => ({ projectsFolder: "copilot-projects" })),
+  getSettings: jest.fn(() => ({ copilotFolder: "copilot-projects" })),
 }));
 
 jest.mock("@/settings/copilotFolder", () => {
   const { getSettings } = jest.requireMock<typeof import("@/settings/model")>("@/settings/model");
-  return { getEffectiveProjectsFolder: jest.fn(() => getSettings().projectsFolder) };
+  return { getEffectiveProjectsFolder: jest.fn(() => getSettings().copilotFolder) };
 });
 
 jest.mock("@/projects/state", () => ({

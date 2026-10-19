@@ -37,7 +37,6 @@ import { useChatInput } from "@/context/ChatInputContext";
 import { logError } from "@/logger";
 import { ActiveFileProvider } from "./context/ActiveFileContext";
 import { CloudAgentProvider, EMPTY_CLOUD_AGENT_IDS } from "./context/CloudAgentContext";
-import { ChainType } from "@/chainType";
 import { useSettingsValue } from "@/settings/model";
 import { type AgentMentionBrand, EMPTY_AGENT_MENTION_BRANDS } from "./hooks/useAtMentionCategories";
 
@@ -65,7 +64,6 @@ interface LexicalEditorProps {
   onImagePaste?: (files: File[]) => void;
   onTagSelected?: () => void;
   currentActiveFile?: TFile | null;
-  currentChain?: ChainType;
   onEscape?: () => void;
   onShiftTab?: () => void;
   isAgentMode?: boolean;
@@ -95,7 +93,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   onImagePaste,
   onTagSelected,
   currentActiveFile = null,
-  currentChain,
   onEscape,
   onShiftTab,
   isAgentMode = false,
@@ -223,9 +220,7 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
             <PastePlugin enableURLPills={!!onURLsChange} onImagePaste={onImagePaste} />
             <SlashCommandPlugin isAgentMode={isAgentMode} />
             <NoteCommandPlugin currentActiveFile={currentActiveFile} />
-            {currentChain && currentChain !== ChainType.LLM_CHAIN && (
-              <TagCommandPlugin onTagSelected={onTagSelected} />
-            )}
+            <TagCommandPlugin onTagSelected={onTagSelected} />
             <AtMentionCommandPlugin
               currentActiveFile={currentActiveFile}
               agentBrands={agentBrands}

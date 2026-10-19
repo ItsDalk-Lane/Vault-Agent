@@ -42,7 +42,6 @@ describe("copilotFolder", () => {
       expect(deriveConversationsFolder(settingsWithRoot("copilot"))).toBe(
         "copilot/copilot-conversations"
       );
-      expect(deriveConversationsFolder(DEFAULT_SETTINGS)).toBe(DEFAULT_SETTINGS.defaultSaveFolder);
     });
 
     it("re-roots the conversations folder under a custom root", () => {
@@ -77,9 +76,6 @@ describe("copilotFolder", () => {
       expect(deriveCustomPromptsFolder(settingsWithRoot("copilot"))).toBe(
         "copilot/copilot-custom-prompts"
       );
-      expect(deriveCustomPromptsFolder(DEFAULT_SETTINGS)).toBe(
-        DEFAULT_SETTINGS.customPromptsFolder
-      );
     });
 
     it("re-roots the custom-prompts folder under a custom root", () => {
@@ -92,9 +88,6 @@ describe("copilotFolder", () => {
   describe("deriveSystemPromptsFolder()", () => {
     it("derives the historical default system-prompts path for the default root", () => {
       expect(deriveSystemPromptsFolder(settingsWithRoot("copilot"))).toBe("copilot/system-prompts");
-      expect(deriveSystemPromptsFolder(DEFAULT_SETTINGS)).toBe(
-        DEFAULT_SETTINGS.userSystemPromptsFolder
-      );
     });
 
     it("re-roots the system-prompts folder under a custom root", () => {
@@ -116,7 +109,6 @@ describe("copilotFolder", () => {
   describe("deriveMemoryFolder()", () => {
     it("derives the historical default memory path for the default root", () => {
       expect(deriveMemoryFolder(settingsWithRoot("copilot"))).toBe("copilot/memory");
-      expect(deriveMemoryFolder(DEFAULT_SETTINGS)).toBe(DEFAULT_SETTINGS.memoryFolderName);
     });
 
     it("re-roots the memory folder under a custom root", () => {
@@ -127,7 +119,6 @@ describe("copilotFolder", () => {
   describe("deriveProjectsFolder()", () => {
     it("derives the historical default projects path for the default root", () => {
       expect(deriveProjectsFolder(settingsWithRoot("copilot"))).toBe("copilot/projects");
-      expect(deriveProjectsFolder(DEFAULT_SETTINGS)).toBe(DEFAULT_SETTINGS.projectsFolder);
     });
 
     it("re-roots the projects folder under a custom root", () => {

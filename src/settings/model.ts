@@ -4,7 +4,6 @@ import { getModelKeyFromModel } from "@/lib/model-key";
 import { atom, createStore, useAtomValue } from "jotai";
 
 import type { CopilotMode, ModelSelection } from "@/agentMode";
-import { ChainType } from "@/chainType";
 import type { BackendConfig, BackendType, ConfiguredModel, Provider } from "@/modelManagement";
 import { MODEL_SECRET_FIELDS, TOP_LEVEL_SECRET_FIELDS } from "@/services/settingsSecretTransforms";
 import { isNotificationSoundId, type NotificationSoundId } from "@/utils/notificationSoundCatalog";
@@ -33,7 +32,6 @@ export interface LegacyCommandSettings {
 export interface CopilotSettings {
   openAIApiKey: string;
   openAIOrgId: string;
-  huggingfaceApiKey: string;
   cohereApiKey: string;
   anthropicApiKey: string;
   googleApiKey: string;
@@ -42,40 +40,23 @@ export interface CopilotSettings {
   mistralApiKey: string;
   deepseekApiKey: string;
   siliconflowApiKey: string;
-  defaultChainType: ChainType;
   defaultModelKey: string;
-  contextTurns: number;
-  lastDismissedVersion: string | null;
-  lastShownStartupVersion: string | null;
-  userSystemPrompt: string;
-  openAIProxyBaseUrl: string;
   stream: boolean;
   copilotFolder: string;
   copilotRootHistory: string[];
-  defaultSaveFolder: string;
-  defaultConversationTag: string;
   autosaveChat: boolean;
-  customPromptsFolder: string;
-  chatNoteContextPath: string;
-  chatNoteContextTags: string[];
   debug: boolean;
-  maxSourceChunks: number;
   enableInlineCitations: boolean;
   qaExclusions: string;
   qaInclusions: string;
   groqApiKey: string;
   activeModels: Array<CustomModel>;
-  promptUsageTimestamps: Record<string, number>;
   promptSortStrategy: string;
   chatHistorySortStrategy: SortStrategy;
-  projectsFolder: string;
   defaultOpenArea: DEFAULT_OPEN_AREA;
   defaultSendShortcut: SEND_SHORTCUT;
   defaultConversationNoteName: string;
-  inlineEditCommands: LegacyCommandSettings[] | undefined;
   projectList: Array<ProjectConfig>;
-  passMarkdownImages: boolean;
-  enableAutonomousAgent: boolean;
   enableCustomPromptTemplating: boolean;
   enableSelfHostMode: boolean;
   selfHostSearchProvider: SelfHostSearchProvider;
@@ -83,24 +64,8 @@ export interface CopilotSettings {
   perplexityApiKey: string;
   parallelApiKey: string;
   exaApiKey: string;
-  enableLexicalBoosts: boolean;
-  lexicalSearchRamLimit: number;
-  suggestedDefaultCommands: boolean;
-  autonomousAgentEnabledToolIds: string[];
   reasoningEffort: "minimal" | "low" | "medium" | "high";
-  verbosity: "low" | "medium" | "high";
-  memoryFolderName: string;
-  enableRecentConversations: boolean;
-  maxRecentConversations: number;
-  enableSavedMemory: boolean;
-  quickCommandModelKey: string | undefined;
-  quickCommandIncludeNoteContext: boolean;
-  autoAcceptEdits: boolean;
-  diffViewMode: "side-by-side" | "split";
-  userSystemPromptsFolder: string;
   defaultSystemPromptTitle: string;
-  autoCompactThreshold: number;
-  convertedDocOutputFolder: string;
   _keychainVaultId?: string;
   _pendingCredentialRecovery?: { deviceId: string; path: string; encrypted: boolean };
   settingsVersion?: number;
@@ -424,7 +389,6 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   const { enableSelfHostedSearch: legacyEnableSelfHostedSearch } = rawSettings;
 
   const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
-  sanitizedSettings.lastShownStartupVersion ??= null;
   const sanitizedSettingsRecord = sanitizedSettings as unknown as Record<string, unknown>;
   // Amazon Bedrock is no longer a chat provider, so a stored key and region
   // would only be credentials for a service Copilot can no longer reach.
@@ -450,27 +414,11 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.enableSelfHostMode = legacyEnableSelfHostedSearch as boolean;
   }
 
-  const contextTurns = Number(settingsToSanitize.contextTurns);
-  sanitizedSettings.contextTurns = isNaN(contextTurns)
-    ? DEFAULT_SETTINGS.contextTurns
-    : contextTurns;
-
-  const lexicalSearchRamLimit = Number(settingsToSanitize.lexicalSearchRamLimit);
-  if (isNaN(lexicalSearchRamLimit)) {
-    sanitizedSettings.lexicalSearchRamLimit = DEFAULT_SETTINGS.lexicalSearchRamLimit;
-  } else {
-    sanitizedSettings.lexicalSearchRamLimit = Math.min(1000, Math.max(20, lexicalSearchRamLimit));
-  }
-
   // Persisted Parallel and Exa choices must survive reload instead of silently
   // reverting to Firecrawl. https://github.com/Brevilabs/obsidian-copilot-private/issues/285
   const validSearchProviders = ["firecrawl", "perplexity", "parallel", "exa"] as const;
   if (!validSearchProviders.includes(sanitizedSettings.selfHostSearchProvider)) {
     sanitizedSettings.selfHostSearchProvider = DEFAULT_SETTINGS.selfHostSearchProvider;
-  }
-
-  if (typeof sanitizedSettings.passMarkdownImages !== "boolean") {
-    sanitizedSettings.passMarkdownImages = DEFAULT_SETTINGS.passMarkdownImages;
   }
 
   if (typeof sanitizedSettings.enableInlineCitations !== "boolean") {
@@ -481,68 +429,8 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.enableCustomPromptTemplating = DEFAULT_SETTINGS.enableCustomPromptTemplating;
   }
 
-  if (!Array.isArray(sanitizedSettings.autonomousAgentEnabledToolIds)) {
-    sanitizedSettings.autonomousAgentEnabledToolIds =
-      DEFAULT_SETTINGS.autonomousAgentEnabledToolIds;
-  }
-
-  const toolIdRenames: Record<string, string> = {
-    writeToFile: "writeFile",
-    replaceInFile: "editFile",
-  };
-  sanitizedSettings.autonomousAgentEnabledToolIds =
-    sanitizedSettings.autonomousAgentEnabledToolIds.map((id) => toolIdRenames[id] ?? id);
-
-  if (
-    !sanitizedSettings.memoryFolderName ||
-    typeof sanitizedSettings.memoryFolderName !== "string"
-  ) {
-    sanitizedSettings.memoryFolderName = DEFAULT_SETTINGS.memoryFolderName;
-  }
-
-  if (typeof sanitizedSettings.enableRecentConversations !== "boolean") {
-    sanitizedSettings.enableRecentConversations = DEFAULT_SETTINGS.enableRecentConversations;
-  }
-
-  if (typeof sanitizedSettings.enableSavedMemory !== "boolean") {
-    sanitizedSettings.enableSavedMemory = DEFAULT_SETTINGS.enableSavedMemory;
-  }
-
-  const maxRecentConversations = Number(settingsToSanitize.maxRecentConversations);
-  if (isNaN(maxRecentConversations) || maxRecentConversations < 10 || maxRecentConversations > 50) {
-    sanitizedSettings.maxRecentConversations = DEFAULT_SETTINGS.maxRecentConversations;
-  } else {
-    sanitizedSettings.maxRecentConversations = maxRecentConversations;
-  }
-
   if (typeof sanitizedSettings.autosaveChat !== "boolean") {
     sanitizedSettings.autosaveChat = DEFAULT_SETTINGS.autosaveChat;
-  }
-
-  const autoCompactThreshold = Number(settingsToSanitize.autoCompactThreshold);
-  if (isNaN(autoCompactThreshold)) {
-    sanitizedSettings.autoCompactThreshold = DEFAULT_SETTINGS.autoCompactThreshold;
-  } else {
-    sanitizedSettings.autoCompactThreshold = Math.min(
-      1000000,
-      Math.max(64000, autoCompactThreshold)
-    );
-  }
-
-  if (typeof sanitizedSettings.quickCommandIncludeNoteContext !== "boolean") {
-    sanitizedSettings.quickCommandIncludeNoteContext =
-      DEFAULT_SETTINGS.quickCommandIncludeNoteContext;
-  }
-
-  if (
-    settingsToSanitize.quickCommandModelKey !== undefined &&
-    typeof settingsToSanitize.quickCommandModelKey !== "string"
-  ) {
-    sanitizedSettings.quickCommandModelKey = DEFAULT_SETTINGS.quickCommandModelKey;
-  }
-
-  if (typeof sanitizedSettings.autoAcceptEdits !== "boolean") {
-    sanitizedSettings.autoAcceptEdits = DEFAULT_SETTINGS.autoAcceptEdits;
   }
 
   if (!Object.values(SEND_SHORTCUT).includes(sanitizedSettings.defaultSendShortcut)) {
@@ -566,43 +454,12 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.copilotFolder,
   ]);
 
-  const saveFolder = (settingsToSanitize.defaultSaveFolder || "").trim();
-  sanitizedSettings.defaultSaveFolder =
-    saveFolder.length > 0 ? saveFolder : DEFAULT_SETTINGS.defaultSaveFolder;
-
-  const promptsFolder = (settingsToSanitize.customPromptsFolder || "").trim();
-  sanitizedSettings.customPromptsFolder =
-    promptsFolder.length > 0 ? promptsFolder : DEFAULT_SETTINGS.customPromptsFolder;
-
-  const projectsFolder = (settingsToSanitize.projectsFolder || "").trim();
-  const hasTraversal =
-    /(^|[/\\])\.\.[/\\]?/.test(projectsFolder) ||
-    /^[a-zA-Z]:/.test(projectsFolder) ||
-    /^[/\\]/.test(projectsFolder);
-  sanitizedSettings.projectsFolder =
-    projectsFolder.length > 0 && !hasTraversal ? projectsFolder : DEFAULT_SETTINGS.projectsFolder;
-
   if (
     !isSortStrategy(sanitizedSettings.chatHistorySortStrategy) ||
     sanitizedSettings.chatHistorySortStrategy === "manual"
   ) {
     sanitizedSettings.chatHistorySortStrategy = DEFAULT_SETTINGS.chatHistorySortStrategy;
   }
-
-  // Fall back when a vault still holds a retired Quick Chat mode. Both Vault QA
-  // and Projects were persisted here, and chain construction would otherwise
-  // fail before the mode picker could render.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/286
-  // https://github.com/logancyang/obsidian-copilot-preview/issues/310
-  if (!Object.values(ChainType).includes(sanitizedSettings.defaultChainType)) {
-    sanitizedSettings.defaultChainType = DEFAULT_SETTINGS.defaultChainType;
-  }
-
-  const userSystemPromptsFolder = (settingsToSanitize.userSystemPromptsFolder || "").trim();
-  sanitizedSettings.userSystemPromptsFolder =
-    userSystemPromptsFolder.length > 0
-      ? userSystemPromptsFolder
-      : DEFAULT_SETTINGS.userSystemPromptsFolder;
 
   sanitizedSettings.qaExclusions = sanitizeQaExclusions(settingsToSanitize.qaExclusions);
 

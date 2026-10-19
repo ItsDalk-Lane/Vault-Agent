@@ -1,5 +1,3 @@
-import { ChainType } from "@/chainType";
-
 import { ModelCapability, ReasoningEffort, Verbosity } from "@/constants";
 import { settingsAtom, settingsStore } from "@/settings/model";
 import { SelectedTextContext } from "@/types/message";
@@ -16,17 +14,6 @@ const modelKeyAtom = atom(
   },
   (get, set, newValue) => {
     set(userModelKeyAtom, newValue);
-  }
-);
-
-const userChainTypeAtom = atom<ChainType | null>(null);
-const chainTypeAtom = atom(
-  (get) => {
-    const userValue = get(userChainTypeAtom);
-    return userValue !== null ? userValue : get(settingsAtom).defaultChainType;
-  },
-  (get, set, newValue) => {
-    set(userChainTypeAtom, newValue);
   }
 );
 
@@ -113,20 +100,6 @@ export function subscribeToModelKeyChange(callback: () => void): () => void {
 
 export function useModelKey() {
   return useAtom(modelKeyAtom, {
-    store: settingsStore,
-  });
-}
-
-export function getChainType(): ChainType {
-  return settingsStore.get(chainTypeAtom);
-}
-
-export function subscribeToChainTypeChange(callback: () => void): () => void {
-  return settingsStore.sub(chainTypeAtom, callback);
-}
-
-export function useChainType() {
-  return useAtom(chainTypeAtom, {
     store: settingsStore,
   });
 }

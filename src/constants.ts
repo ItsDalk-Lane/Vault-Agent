@@ -1,7 +1,6 @@
 import { CustomModel } from "@/aiParams";
 import { DEFAULT_BUILTIN_PREFERENCES } from "@/builtinSkills/builtinSkills";
 import { type CopilotSettings } from "@/settings/model";
-import { ChainType } from "./chainType";
 import { PromptSortStrategy } from "./types";
 
 export const CHAT_VIEWTYPE = "copilot-chat-view";
@@ -37,13 +36,7 @@ export const AI_SENDER = "ai";
 
 export const COPILOT_FOLDER_ROOT = "copilot";
 export const DEFAULT_COPILOT_FOLDER = COPILOT_FOLDER_ROOT;
-const DEFAULT_CHAT_HISTORY_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-conversations`;
-const DEFAULT_CUSTOM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/copilot-custom-prompts`;
-const DEFAULT_MEMORY_FOLDER = `${COPILOT_FOLDER_ROOT}/memory`;
-const DEFAULT_SYSTEM_PROMPTS_FOLDER = `${COPILOT_FOLDER_ROOT}/system-prompts`;
-const DEFAULT_PROJECTS_FOLDER = `${COPILOT_FOLDER_ROOT}/projects`;
 export const DEFAULT_SKILLS_FOLDER = `${COPILOT_FOLDER_ROOT}/skills`;
-const DEFAULT_CONVERTED_DOC_OUTPUT_FOLDER = "";
 export const COPILOT_CONVERSATION_TAG = "copilot-conversation";
 export const DEFAULT_QA_EXCLUSIONS_SETTING = COPILOT_FOLDER_ROOT;
 export const DEFAULT_SYSTEM_PROMPT = `You are Obsidian Copilot, a helpful assistant that integrates AI to Obsidian note-taking.
@@ -144,7 +137,6 @@ export const CHUNK_SIZE = 6000;
 export const TEXT_WEIGHT = 0.4;
 export const MAX_CHARS_FOR_LOCAL_SEARCH_CONTEXT = 448000;
 export const LLM_TIMEOUT_MS = 30000;
-const DEFAULT_MAX_SOURCE_CHUNKS = 30;
 export const AGENT_LOOP_TIMEOUT_MS = 5 * 60 * 1000;
 export const LOADING_MESSAGES = {
   DEFAULT: "",
@@ -594,7 +586,6 @@ export const RESTRICTION_MESSAGES = {
 export const DEFAULT_SETTINGS: CopilotSettings = {
   openAIApiKey: "",
   openAIOrgId: "",
-  huggingfaceApiKey: "",
   cohereApiKey: "",
   anthropicApiKey: "",
   googleApiKey: "",
@@ -603,41 +594,23 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   mistralApiKey: "",
   deepseekApiKey: "",
   siliconflowApiKey: "",
-  defaultChainType: ChainType.LLM_CHAIN,
   defaultModelKey: ChatModels.OPENROUTER_GEMINI_2_5_FLASH + "|" + ChatModelProviders.OPENROUTERAI,
-  contextTurns: 15,
-  userSystemPrompt: "",
-  openAIProxyBaseUrl: "",
   stream: true,
   copilotFolder: DEFAULT_COPILOT_FOLDER,
   copilotRootHistory: [],
-  defaultSaveFolder: DEFAULT_CHAT_HISTORY_FOLDER,
-  defaultConversationTag: "copilot-conversation",
   autosaveChat: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,
-  customPromptsFolder: DEFAULT_CUSTOM_PROMPTS_FOLDER,
   qaExclusions: DEFAULT_QA_EXCLUSIONS_SETTING,
   qaInclusions: "",
-  chatNoteContextPath: "",
-  chatNoteContextTags: [],
   debug: false,
-  maxSourceChunks: DEFAULT_MAX_SOURCE_CHUNKS,
   enableInlineCitations: true,
   groqApiKey: "",
   activeModels: BUILTIN_CHAT_MODELS,
-  lexicalSearchRamLimit: 100,
-  promptUsageTimestamps: {},
   promptSortStrategy: PromptSortStrategy.TIMESTAMP,
   chatHistorySortStrategy: "recent",
-  projectsFolder: DEFAULT_PROJECTS_FOLDER,
   defaultConversationNoteName: "{$topic}@{$date}_{$time}",
-  inlineEditCommands: [],
   projectList: [],
-  lastDismissedVersion: null,
-  lastShownStartupVersion: null,
-  passMarkdownImages: true,
-  enableAutonomousAgent: true,
   enableCustomPromptTemplating: true,
   enableSelfHostMode: false,
   selfHostSearchProvider: "firecrawl",
@@ -645,32 +618,8 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   perplexityApiKey: "",
   parallelApiKey: "",
   exaApiKey: "",
-  enableLexicalBoosts: true,
-  suggestedDefaultCommands: false,
-  autonomousAgentEnabledToolIds: [
-    "localSearch",
-    "readNote",
-    "webSearch",
-    "pomodoro",
-    "youtubeTranscription",
-    "writeFile",
-    "editFile",
-    "updateMemory",
-  ],
   reasoningEffort: DEFAULT_MODEL_SETTING.REASONING_EFFORT,
-  verbosity: DEFAULT_MODEL_SETTING.VERBOSITY,
-  memoryFolderName: DEFAULT_MEMORY_FOLDER,
-  enableRecentConversations: true,
-  maxRecentConversations: 30,
-  enableSavedMemory: true,
-  quickCommandModelKey: undefined,
-  quickCommandIncludeNoteContext: true,
-  autoAcceptEdits: false,
-  diffViewMode: "split",
-  userSystemPromptsFolder: DEFAULT_SYSTEM_PROMPTS_FOLDER,
   defaultSystemPromptTitle: "",
-  autoCompactThreshold: 128000,
-  convertedDocOutputFolder: DEFAULT_CONVERTED_DOC_OUTPUT_FOLDER,
   agentMode: {
     byok: {},
     activeBackend: "opencode",

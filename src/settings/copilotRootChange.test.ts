@@ -148,14 +148,14 @@ describe("copilotRootChange", () => {
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
             ...getSettings(),
-            userSystemPromptsFolder: "edit-A",
+            defaultConversationNoteName: "edit-A",
           });
           return Promise.resolve();
         })
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
             ...getSettings(),
-            defaultSaveFolder: "edit-B",
+            defaultModelKey: "edit-B",
           });
           return Promise.resolve();
         });
@@ -164,8 +164,8 @@ describe("copilotRootChange", () => {
 
       const after = getSettings();
       expect(after.copilotFolder).toBe("ai");
-      expect(after.userSystemPromptsFolder).toBe("edit-A");
-      expect(after.defaultSaveFolder).toBe("edit-B");
+      expect(after.defaultConversationNoteName).toBe("edit-A");
+      expect(after.defaultModelKey).toBe("edit-B");
     });
 
     it("completes the root change even when the reconcile save fails", async () => {
@@ -174,7 +174,7 @@ describe("copilotRootChange", () => {
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
             ...getSettings(),
-            userSystemPromptsFolder: "edit-A",
+            defaultConversationNoteName: "edit-A",
           });
           return Promise.resolve();
         })
@@ -183,7 +183,7 @@ describe("copilotRootChange", () => {
       await expect(applyCopilotRootChange(app, "ai")).resolves.toBeUndefined();
 
       expect(getSettings().copilotFolder).toBe("ai");
-      expect(getSettings().userSystemPromptsFolder).toBe("edit-A");
+      expect(getSettings().defaultConversationNoteName).toBe("edit-A");
     });
 
     it("keeps the old root when the durable save fails", async () => {
