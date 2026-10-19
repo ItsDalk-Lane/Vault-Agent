@@ -26,7 +26,7 @@ import {
   useInstalledAgentBrands,
 } from "@/agentMode/ui/mentionedAgents";
 import type { BackendId } from "@/agentMode/session/types";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { getCloudAgentIds } from "@/agentMode/backends/registry";
 import { buildWebTabsWithActiveSnapshot } from "@/services/webViewerService/activeWebTabSnapshot";
 import {
@@ -47,7 +47,7 @@ import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 
 interface AgentChatInputProps {
   backend: AgentChatBackend;
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   chatInputId: string;
   draft: AgentInputDraftControls;
   app: App;

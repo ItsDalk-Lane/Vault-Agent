@@ -153,7 +153,7 @@ describe("discoverProjectSkills", () => {
       const fs = mkFs({
         "/vault/.claude/skills/linked": {
           kind: "symlink",
-          target: "/vault/copilot/skills/foo",
+          target: "/vault/vault-agent/skills/foo",
         },
         "/vault/.claude/skills/real/SKILL.md": {
           kind: "file",

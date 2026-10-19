@@ -1,5 +1,5 @@
 import { logError, logInfo } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import type { AgentType, ModelManagementApi, Provider, ProviderType } from "@/modelManagement";
 import {
   listBackendDescriptors,
@@ -19,7 +19,7 @@ const PROVIDER_TYPE_BY_AGENT: Record<AgentType, ProviderType> = {
 const OPENCODE_DEFAULT_ENABLED_COUNT = 3;
 
 export function wireAgentModelDiscovery(
-  plugin: CopilotPlugin,
+  plugin: VaultAgentPlugin,
   manager: AgentSessionManager
 ): () => void {
   const lastEnrolled = new Map<BackendId, string>();
@@ -132,10 +132,7 @@ async function enrollBackend(
 }
 
 function suppressManagedOpencode(api: ModelManagementApi, reported: readonly string[]): string[] {
-  const byokAndPlus = [
-    ...api.providerRegistry.listByOrigin("byok"),
-    ...api.providerRegistry.listByOrigin("copilot-plus"),
-  ];
+  const byokAndPlus = [...api.providerRegistry.listByOrigin("byok")];
   const managed = buildManagedOpencodeProviderIds(byokAndPlus);
   return partitionOpencodeOnlyWireIds(reported, managed);
 }

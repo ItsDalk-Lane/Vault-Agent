@@ -8,7 +8,7 @@ import {
   type FanoutOption,
   type FanoutOptionValue,
 } from "@/agentMode/ui/fanoutDropdown";
-import { CopilotSpinner } from "@/components/chat-components/CopilotSpinner";
+import { VaultAgentSpinner } from "@/components/chat-components/VaultAgentSpinner";
 import { cn } from "@/lib/utils";
 import type { FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import { App } from "obsidian";
@@ -17,7 +17,7 @@ import React, { memo, useCallback, useMemo } from "react";
 
 const ThinkingSpinner: React.FC = () => (
   <span className="tw-flex tw-size-4 tw-shrink-0 tw-items-center tw-justify-center">
-    <CopilotSpinner />
+    <VaultAgentSpinner />
   </span>
 );
 
@@ -236,6 +236,6 @@ const FanoutStatusLine: React.FC<FanoutStatusLineProps> = ({ icon, text, tone, s
     )}
   >
     {icon}
-    <span className={cn(shimmer && "copilot-shimmer-text")}>{text}</span>
+    <span className={cn(shimmer && "vault-agent-shimmer-text")}>{text}</span>
   </div>
 );

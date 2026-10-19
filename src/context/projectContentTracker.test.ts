@@ -10,7 +10,7 @@ jest.mock("@/logger", () => ({
 }));
 
 jest.mock("@/logFileManager", () => ({
-  logFileManager: { getLogPath: () => "copilot/copilot-log.md" },
+  logFileManager: { getLogPath: () => "vault-agent/vault-agent-log.md" },
 }));
 
 jest.mock(
@@ -166,7 +166,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("copilot/copilot-conversations/chat.md"));
+        fire("modify", file("vault-agent/conversations/chat.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(0);
@@ -177,7 +177,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("copilot/copilot-conversations/chat.md"));
+        fire("modify", file("vault-agent/conversations/chat.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(1);
@@ -199,7 +199,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("copilot/copilot-log.md"));
+        fire("modify", file("vault-agent/vault-agent-log.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(0);
@@ -232,7 +232,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("copilot/copilot-log.md"));
+        fire("modify", file("vault-agent/vault-agent-log.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(0);
@@ -311,7 +311,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("changed", file("copilot/copilot-log.md"));
+        fire("changed", file("vault-agent/vault-agent-log.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("p")).toBe(0);
@@ -322,7 +322,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("changed", file("copilot/copilot-conversations/chat.md"));
+        fire("changed", file("vault-agent/conversations/chat.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("p")).toBe(0);

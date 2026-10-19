@@ -5,10 +5,10 @@ import {
   setSettings,
   settingsAtom,
   settingsStore,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 
-const persist = jest.fn<Promise<void>, [CopilotSettings]>();
+const persist = jest.fn<Promise<void>, [VaultAgentSettings]>();
 let inTransaction = false;
 jest.mock("@/services/settingsPersistence", () => ({
   runPersistenceTransaction: async (task: () => Promise<void>) => {
@@ -19,7 +19,7 @@ jest.mock("@/services/settingsPersistence", () => ({
       inTransaction = false;
     }
   },
-  persistSettingsWithinTransaction: (settings: CopilotSettings) => persist(settings),
+  persistSettingsWithinTransaction: (settings: VaultAgentSettings) => persist(settings),
 }));
 
 describe("builtinSkillPreferences", () => {
@@ -27,7 +27,7 @@ describe("builtinSkillPreferences", () => {
     jest.clearAllMocks();
     settingsStore.set(settingsAtom, {
       ...DEFAULT_SETTINGS,
-      agentMode: { ...DEFAULT_SETTINGS.agentMode, skills: { folder: "copilot/skills" } },
+      agentMode: { ...DEFAULT_SETTINGS.agentMode, skills: { folder: "vault-agent/skills" } },
     });
     persist.mockResolvedValue(undefined);
   });

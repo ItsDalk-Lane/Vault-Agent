@@ -12,34 +12,36 @@ import {
   splitUrlsStringToArray,
 } from "@/projects/projectPaths";
 import type { Vault } from "obsidian";
-import { getEffectiveProjectsFolder } from "@/settings/copilotFolder";
+import { getEffectiveProjectsFolder } from "@/settings/vaultAgentFolder";
 import { mockTFile } from "@/__tests__/mockObsidian";
 
-jest.mock("@/settings/copilotFolder", () => ({
-  getEffectiveProjectsFolder: jest.fn(() => "copilot-projects"),
+jest.mock("@/settings/vaultAgentFolder", () => ({
+  getEffectiveProjectsFolder: jest.fn(() => "vault-agent-projects"),
 }));
 describe("projectPaths", () => {
   describe("getProjectsFolder()", () => {
     it("returns the effective projects folder", () => {
-      expect(getProjectsFolder()).toBe("copilot-projects");
+      expect(getProjectsFolder()).toBe("vault-agent-projects");
     });
   });
 
   describe("getProjectsUnsupportedFolder()", () => {
     it("returns the unsupported backup folder under the projects folder", () => {
-      expect(getProjectsUnsupportedFolder()).toBe("copilot-projects/unsupported");
+      expect(getProjectsUnsupportedFolder()).toBe("vault-agent-projects/unsupported");
     });
   });
 
   describe("getProjectFolderPath()", () => {
     it("returns the project's folder under the projects folder", () => {
-      expect(getProjectFolderPath("MyProject")).toBe("copilot-projects/MyProject");
+      expect(getProjectFolderPath("MyProject")).toBe("vault-agent-projects/MyProject");
     });
   });
 
   describe("getProjectConfigFilePath()", () => {
     it("returns the project.md path under the project folder", () => {
-      expect(getProjectConfigFilePath("MyProject")).toBe("copilot-projects/MyProject/project.md");
+      expect(getProjectConfigFilePath("MyProject")).toBe(
+        "vault-agent-projects/MyProject/project.md"
+      );
     });
 
     it("honors a root override", () => {
@@ -71,7 +73,7 @@ describe("projectPaths", () => {
 
         expect(anchor.projectsRoot).toBe("old-root/projects");
       } finally {
-        mockedRoot.mockReturnValue("copilot-projects");
+        mockedRoot.mockReturnValue("vault-agent-projects");
       }
     });
   });
@@ -81,7 +83,7 @@ describe("projectPaths", () => {
       expect(
         isProjectConfigFile(
           mockTFile({
-            path: "copilot-projects/Foo/project.md",
+            path: "vault-agent-projects/Foo/project.md",
             name: "project.md",
             extension: "md",
           })
@@ -92,7 +94,11 @@ describe("projectPaths", () => {
     it("does NOT recognize AGENTS.md as a config file", () => {
       expect(
         isProjectConfigFile(
-          mockTFile({ path: "copilot-projects/Foo/AGENTS.md", name: "AGENTS.md", extension: "md" })
+          mockTFile({
+            path: "vault-agent-projects/Foo/AGENTS.md",
+            name: "AGENTS.md",
+            extension: "md",
+          })
         )
       ).toBe(false);
     });
@@ -101,7 +107,7 @@ describe("projectPaths", () => {
       expect(
         isProjectConfigFile(
           mockTFile({
-            path: "copilot-projects/unsupported/project.md",
+            path: "vault-agent-projects/unsupported/project.md",
             name: "project.md",
             extension: "md",
           })
@@ -112,7 +118,11 @@ describe("projectPaths", () => {
     it("rejects an unrecognized config file name at the right depth", () => {
       expect(
         isProjectConfigFile(
-          mockTFile({ path: "copilot-projects/Foo/notes.md", name: "notes.md", extension: "md" })
+          mockTFile({
+            path: "vault-agent-projects/Foo/notes.md",
+            name: "notes.md",
+            extension: "md",
+          })
         )
       ).toBe(false);
     });
@@ -121,7 +131,7 @@ describe("projectPaths", () => {
       expect(
         isProjectConfigFile(
           mockTFile({
-            path: "copilot-projects/Foo/sub/project.md",
+            path: "vault-agent-projects/Foo/sub/project.md",
             name: "project.md",
             extension: "md",
           })
@@ -132,15 +142,15 @@ describe("projectPaths", () => {
 
   describe("getProjectFolderNameFromConfigPath()", () => {
     it("extracts the folder from a project.md path", () => {
-      expect(getProjectFolderNameFromConfigPath("copilot-projects/Foo/project.md")).toBe("Foo");
+      expect(getProjectFolderNameFromConfigPath("vault-agent-projects/Foo/project.md")).toBe("Foo");
     });
 
     it("returns null for AGENTS.md (not a config path)", () => {
-      expect(getProjectFolderNameFromConfigPath("copilot-projects/Foo/AGENTS.md")).toBeNull();
+      expect(getProjectFolderNameFromConfigPath("vault-agent-projects/Foo/AGENTS.md")).toBeNull();
     });
 
     it("returns null for a non-config path", () => {
-      expect(getProjectFolderNameFromConfigPath("copilot-projects/Foo/other.md")).toBeNull();
+      expect(getProjectFolderNameFromConfigPath("vault-agent-projects/Foo/other.md")).toBeNull();
     });
   });
   describe("sanitizeVaultPathSegment()", () => {
@@ -253,7 +263,7 @@ describe("projectPaths", () => {
 
     it("returns the raw value of a frontmatter key", async () => {
       await expect(
-        readField("---\ncopilot-project-id: my-project\n---\nBody", "copilot-project-id")
+        readField("---\nvault-agent-project-id: my-project\n---\nBody", "vault-agent-project-id")
       ).resolves.toBe("my-project");
     });
 

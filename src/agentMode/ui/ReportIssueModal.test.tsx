@@ -87,8 +87,8 @@ const noticeLink = (call = 0) =>
   (noticeMock.mock.calls[call][0] as DocumentFragment).querySelector("a")?.getAttribute("href");
 
 const prepared: PreparedReport = {
-  zipDir: "/tmp/obsidian-copilot-report-abc123",
-  zipPath: "/tmp/obsidian-copilot-report-abc123/copilot-report-20260615-101500-abcd.zip",
+  zipDir: "/tmp/vault-agent-report-abc123",
+  zipPath: "/tmp/vault-agent-report-abc123/copilot-report-20260615-101500-abcd.zip",
   zipName: "copilot-report-20260615-101500-abcd.zip",
   uploadAttempt: {
     body: new ArrayBuffer(4096),
@@ -316,7 +316,7 @@ describe("ReportIssueModal", () => {
         expect(opencodeLog?.defaultChecked).toBe(false);
       });
 
-      it("offers the Copilot log checked even with debug mode off, since OpenCode 2 server errors only reach that log (https://github.com/Brevilabs/obsidian-copilot-private/issues/649)", () => {
+      it("offers the Vault Agent log checked even with debug mode off, since OpenCode 2 server errors only reach that log (https://github.com/Brevilabs/obsidian-copilot-private/issues/649)", () => {
         setSettings({ debug: false });
         const copilotLog = modalWith({
           params: { activeBackend: "opencode" },
@@ -324,7 +324,7 @@ describe("ReportIssueModal", () => {
           .buildSources()
           .find((source) => source.id === "chatLog");
 
-        expect(copilotLog).toMatchObject({ label: "Copilot log", defaultChecked: true });
+        expect(copilotLog).toMatchObject({ label: "Vault Agent log", defaultChecked: true });
       });
     });
 
@@ -358,7 +358,7 @@ describe("ReportIssueModal", () => {
       it("writes the zip, and nothing else, into a fresh private directory", async () => {
         const report = await prepare(new Set());
 
-        expect(nodePath.basename(report.zipDir)).toMatch(/^obsidian-copilot-report-/);
+        expect(nodePath.basename(report.zipDir)).toMatch(/^vault-agent-report-/);
         expect(await realFs.readdir(report.zipDir)).toEqual([report.zipName]);
         expect(report.zipPath).toBe(nodePath.join(report.zipDir, report.zipName));
         expect((await realFs.stat(report.zipPath)).size).toBe(report.uploadAttempt.body.byteLength);
@@ -379,7 +379,7 @@ describe("ReportIssueModal", () => {
 
         expect(rm).toHaveBeenCalledTimes(1);
         const [dir] = rm.mock.calls[0];
-        expect(nodePath.basename(dir)).toMatch(/^obsidian-copilot-report-/);
+        expect(nodePath.basename(dir)).toMatch(/^vault-agent-report-/);
         await expect(realFs.stat(dir)).rejects.toThrow();
       });
 
@@ -433,7 +433,7 @@ describe("ReportIssueModal", () => {
         expect(bundleInput().screenshotPng).toBeUndefined();
       });
 
-      it("packs the activity log and the Copilot log it was asked for into the zip (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
+      it("packs the activity log and the Vault Agent log it was asked for into the zip (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
         const frameDir = await realFs.mkdtemp(nodePath.join(nodeOs.tmpdir(), "acp-frames-"));
         created.push(frameDir);
         const framePath = nodePath.join(frameDir, "acp-frames.ndjson");
@@ -448,7 +448,7 @@ describe("ReportIssueModal", () => {
         const entries = unzipSync(new Uint8Array(await realFs.readFile(report.zipPath)));
         const entryText = (name: string) => new TextDecoder().decode(entries[name]);
         expect(entryText("acp-frames.ndjson.txt")).toBe(frames);
-        expect(entryText("copilot-log.md")).toBe(chatLog);
+        expect(entryText("vault-agent-log.md")).toBe(chatLog);
       });
 
       it("asks for the logs smallest-growing first, so a heavy session's frames cannot crowd the others out (https://github.com/Brevilabs/obsidian-copilot-private/issues/538)", async () => {

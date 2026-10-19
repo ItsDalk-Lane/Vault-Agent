@@ -447,7 +447,7 @@ describe("selfHostServices", () => {
           headers: {
             Authorization: "Bearer pplx-test-key",
             "Content-Type": "application/json",
-            "X-Pplx-Integration": "obsidian-copilot",
+            "X-Pplx-Integration": "vault-agent",
           },
           body: JSON.stringify({
             model: "sonar",

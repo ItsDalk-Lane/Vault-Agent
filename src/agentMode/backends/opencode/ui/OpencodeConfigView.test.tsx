@@ -11,7 +11,7 @@ import {
 const MANAGED: OpencodeManagedInfo = {
   platform: "darwin-arm64",
   version: "2.0.3",
-  destination: "~/.obsidian-copilot/opencode",
+  destination: "~/.vault-agent/opencode",
   run: { kind: "idle" },
 };
 

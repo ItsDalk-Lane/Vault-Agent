@@ -14,24 +14,19 @@ function provider(origin: ProviderOrigin, baseUrl?: string): Provider {
 
 const CLOUD_BYOK = provider({ kind: "byok" }, "https://api.openai.com/v1");
 const LOCAL_BYOK = provider({ kind: "byok" }, "http://localhost:11434/v1");
-const PLUS = provider({ kind: "copilot-plus" });
 const AGENT = provider({ kind: "agent", agentType: "claude" });
 
 describe("selfHostPolicy", () => {
   describe("providerNeedsSelfHostWarning()", () => {
     it("never warns for any provider origin when Self-Host Mode is off", () => {
       const off = { enableSelfHostMode: false };
-      for (const p of [CLOUD_BYOK, LOCAL_BYOK, PLUS, AGENT]) {
+      for (const p of [CLOUD_BYOK, LOCAL_BYOK, AGENT]) {
         expect(providerNeedsSelfHostWarning(p, off)).toBe(false);
       }
     });
 
     describe("when Self-Host Mode is on", () => {
       const on = { enableSelfHostMode: true };
-
-      it("warns on copilot-plus providers", () => {
-        expect(providerNeedsSelfHostWarning(PLUS, on)).toBe(true);
-      });
 
       it("warns on cloud BYOK but not self-hosted BYOK", () => {
         expect(providerNeedsSelfHostWarning(CLOUD_BYOK, on)).toBe(true);

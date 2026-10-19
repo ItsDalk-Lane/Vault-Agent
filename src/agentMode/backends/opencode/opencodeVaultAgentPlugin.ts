@@ -18,7 +18,7 @@ import { opencodeManagedDataDir } from "./OpencodeBinaryManager";
 // It stamps the calling session on send_feedback, because every chat in a folder shares one MCP
 // connection and the call itself does not say which chat made it.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-export const OPENCODE_COPILOT_PLUGIN_SOURCE = `"use strict";
+export const OPENCODE_VAULT_AGENT_PLUGIN_SOURCE = `"use strict";
 const fs = require("fs");
 const path = require("path");
 const TEMP_DIR_LINE = /^[ \\t]*Prefer .+ over generic system temporary directories[^\\n]*\\n?/gm;
@@ -101,7 +101,7 @@ function stampFeedbackCaller(event) {
 }
 
 module.exports = {
-  id: "copilot",
+  id: "vault-agent",
   setup: async (ctx) => {
     for (const hook of ["context", "compaction", "generate"]) {
       await ctx.session.hook(hook, trimRequest);
@@ -117,22 +117,24 @@ module.exports = {
 };
 `;
 
-export function opencodeCopilotPluginDir(): string {
+export function opencodeVaultAgentPluginDir(): string {
   const os = requireNodeModule<typeof import("node:os")>("os");
   const path = requireNodeModule<typeof import("node:path")>("path");
-  return path.join(opencodeManagedDataDir(os.homedir()), "plugins", "copilot");
+  return path.join(opencodeManagedDataDir(os.homedir()), "plugins", "vault-agent");
 }
 
-export async function installOpencodeCopilotPlugin(pluginDir: string): Promise<string | undefined> {
+export async function installOpencodeVaultAgentPlugin(
+  pluginDir: string
+): Promise<string | undefined> {
   const fs = requireNodeModule<typeof import("node:fs")>("fs").promises;
   const path = requireNodeModule<typeof import("node:path")>("path");
   const entry = path.join(pluginDir, "index.js");
   try {
     const current = await fs.readFile(entry, "utf8").catch(() => undefined);
-    if (current === OPENCODE_COPILOT_PLUGIN_SOURCE) return pluginDir;
+    if (current === OPENCODE_VAULT_AGENT_PLUGIN_SOURCE) return pluginDir;
     await fs.mkdir(pluginDir, { recursive: true });
     const staged = `${entry}.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
-    await fs.writeFile(staged, OPENCODE_COPILOT_PLUGIN_SOURCE);
+    await fs.writeFile(staged, OPENCODE_VAULT_AGENT_PLUGIN_SOURCE);
     await fs.rename(staged, entry);
     return pluginDir;
   } catch (error) {

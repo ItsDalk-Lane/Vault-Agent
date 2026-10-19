@@ -22,7 +22,7 @@ const ACTIONS: ManagedBinaryConfigActions = {
 const MANAGED: ManagedBinaryInfo = {
   platform: "darwin-arm64",
   version: "1.10.0",
-  destination: "~/.obsidian-copilot/agent",
+  destination: "~/.vault-agent/agent",
   run: { kind: "idle" },
 };
 
@@ -171,7 +171,7 @@ export const LongDestination: StoryObj<ManagedBinaryConfigViewProps> = {
   args: {
     managed: {
       ...MANAGED,
-      destination: "/Users/example/Library/Application Support/obsidian-copilot/agent",
+      destination: "/Users/example/Library/Application Support/vault-agent/agent",
     },
   },
 };

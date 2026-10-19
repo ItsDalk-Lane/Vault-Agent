@@ -23,7 +23,7 @@ If your plugin does not need CSS, delete this file.
    https://github.com/Brevilabs/obsidian-copilot-private/issues/400 */
 .is-mobile
   .workspace-tab-container
-  .workspace-leaf-content[data-type="copilot-chat-view"]
+  .workspace-leaf-content[data-type="vault-agent-chat-view"]
   .view-content {
   padding-bottom: max(
     var(--size-4-8),
@@ -38,7 +38,7 @@ If your plugin does not need CSS, delete this file.
    https://github.com/Brevilabs/obsidian-copilot-private/issues/400 */
 .is-phone
   .workspace-drawer.mod-right
-  .workspace-leaf-content[data-type="copilot-chat-view"]
+  .workspace-leaf-content[data-type="vault-agent-chat-view"]
   .view-content {
   max-height: calc(
     100vh - max(var(--size-4-2), var(--safe-area-inset-top)) - var(--keyboard-height)
@@ -86,11 +86,11 @@ If your plugin does not need CSS, delete this file.
 
 /* Single-side dividers. Preflight is off, so `tw-border-b tw-border-solid`
    leaks `border-style: solid` to all sides and renders all four borders. */
-.copilot-divider-b {
+.vault-agent-divider-b {
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.copilot-divider-t {
+.vault-agent-divider-t {
   border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -367,7 +367,7 @@ If your plugin does not need CSS, delete this file.
   }
 }
 
-.copilot-shimmer-text {
+.vault-agent-shimmer-text {
   background: linear-gradient(
     90deg,
     var(--text-muted) 0%,
@@ -764,7 +764,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Collapsible sources styling */
-.copilot-sources {
+.vault-agent-sources {
   margin-top: var(--size-4-1);
   padding: calc(var(--size-4-2) / 2) var(--size-4-2);
   border-radius: var(--radius-s);
@@ -777,7 +777,7 @@ If your plugin does not need CSS, delete this file.
   width: min(100%, 32rem);
 }
 
-.copilot-sources__summary {
+.vault-agent-sources__summary {
   font-size: var(--font-ui-smaller);
   color: color-mix(in srgb, var(--text-muted) 90%, transparent);
   cursor: pointer;
@@ -791,26 +791,26 @@ If your plugin does not need CSS, delete this file.
   margin: 0;
 }
 
-.copilot-sources__summary::-webkit-details-marker {
+.vault-agent-sources__summary::-webkit-details-marker {
   color: color-mix(in srgb, var(--text-muted) 80%, transparent);
 }
 
-.copilot-sources__summary::after {
+.vault-agent-sources__summary::after {
   content: ">";
   font-size: var(--font-ui-smaller);
   color: color-mix(in srgb, var(--text-muted) 70%, transparent);
   transition: transform 0.15s ease;
 }
 
-.copilot-sources[open] .copilot-sources__summary {
+.vault-agent-sources[open] .vault-agent-sources__summary {
   margin-bottom: calc(var(--size-4-2) / 2);
 }
 
-.copilot-sources[open] .copilot-sources__summary::after {
+.vault-agent-sources[open] .vault-agent-sources__summary::after {
   transform: rotate(90deg);
 }
 
-.copilot-sources__list {
+.vault-agent-sources__list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -823,13 +823,13 @@ If your plugin does not need CSS, delete this file.
   color: color-mix(in srgb, var(--text-muted) 85%, transparent);
 }
 
-.copilot-sources__item {
+.vault-agent-sources__item {
   display: flex;
   gap: var(--size-4-2);
   align-items: baseline;
 }
 
-.copilot-sources__index {
+.vault-agent-sources__index {
   color: color-mix(in srgb, var(--text-muted) 65%, transparent);
   font-weight: var(--font-medium);
   min-width: var(--size-4-3);
@@ -837,17 +837,17 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
 }
 
-.copilot-sources__text {
+.vault-agent-sources__text {
   color: color-mix(in srgb, var(--text-muted) 90%, transparent);
   line-height: 1.4;
 }
 
-.copilot-sources__text a {
+.vault-agent-sources__text a {
   color: var(--text-accent);
 }
 
 /* Inline citation links */
-.copilot-citation-ref {
+.vault-agent-citation-ref {
   display: inline-block;
   color: var(--text-muted);
   font-size: 0.7em;
@@ -881,42 +881,42 @@ If your plugin does not need CSS, delete this file.
  * Sequence: center(4) → right(5) → top(1) → left(3) → bottom(7) → dim → dim → repeat
  * 7 total phases (5 dots + 2 dim intervals), 1s cycle
  */
-.copilot-spinner {
+.vault-agent-spinner {
   display: block;
 }
 
-.copilot-spinner-dot {
+.vault-agent-spinner-dot {
   fill: var(--text-faint);
 }
 
 /* Animation for each dot (7 dots, 1.4s cycle for smooth motion)
  * Staggered delays create the snake trail effect
  */
-.copilot-spinner-dot-0 {
+.vault-agent-spinner-dot-0 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 0ms;
 }
-.copilot-spinner-dot-1 {
+.vault-agent-spinner-dot-1 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 155ms;
 }
-.copilot-spinner-dot-2 {
+.vault-agent-spinner-dot-2 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 310ms;
 }
-.copilot-spinner-dot-3 {
+.vault-agent-spinner-dot-3 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 465ms;
 }
-.copilot-spinner-dot-4 {
+.vault-agent-spinner-dot-4 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 620ms;
 }
-.copilot-spinner-dot-5 {
+.vault-agent-spinner-dot-5 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 775ms;
 }
-.copilot-spinner-dot-6 {
+.vault-agent-spinner-dot-6 {
   animation: copilot-dot-chase 1.4s ease-in-out infinite;
   animation-delay: 930ms;
 }

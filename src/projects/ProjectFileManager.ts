@@ -1,7 +1,10 @@
 import { ProjectConfig } from "@/aiParams";
 import { removeGeneratedInstructionFiles } from "@/instructions/agentsFile";
 import { logError, logInfo, logWarn } from "@/logger";
-import { COPILOT_PROJECT_LAST_USED, PROJECTS_UNSUPPORTED_FOLDER_NAME } from "@/projects/constants";
+import {
+  VAULT_AGENT_PROJECT_LAST_USED,
+  PROJECTS_UNSUPPORTED_FOLDER_NAME,
+} from "@/projects/constants";
 import { ProjectFileRecord } from "@/projects/type";
 import {
   getProjectAnchorFromConfigPath,
@@ -400,11 +403,11 @@ export class ProjectFileManager {
         await this.app.fileManager.processFrontMatter(
           file,
           (frontmatter: Record<string, unknown>) => {
-            const existing = Number(frontmatter[COPILOT_PROJECT_LAST_USED]);
+            const existing = Number(frontmatter[VAULT_AGENT_PROJECT_LAST_USED]);
             const existingMs = Number.isFinite(existing) && existing > 0 ? existing : 0;
             actualPersistedValue = Math.max(existingMs, timestampToPersist);
             if (existingMs === actualPersistedValue) return;
-            frontmatter[COPILOT_PROJECT_LAST_USED] = actualPersistedValue;
+            frontmatter[VAULT_AGENT_PROJECT_LAST_USED] = actualPersistedValue;
           }
         );
       } finally {

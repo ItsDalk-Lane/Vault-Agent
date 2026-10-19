@@ -34,7 +34,7 @@ export const ConfigDialogShell: React.FC<ConfigDialogShellProps> = ({
       <div className="tw-px-4 tw-pb-3">{warning}</div>
     )}
     {children}
-    <div className="copilot-divider-t tw-flex tw-justify-end tw-gap-2 tw-bg-secondary tw-px-4 tw-py-3">
+    <div className="vault-agent-divider-t tw-flex tw-justify-end tw-gap-2 tw-bg-secondary tw-px-4 tw-py-3">
       {footer ?? (
         <Button variant="default" size="default" onClick={onClose}>
           Done
@@ -77,7 +77,7 @@ export const ConfigSection: React.FC<{
   badge?: React.ReactNode;
   children: React.ReactNode;
 }> = ({ title, badge, children }) => (
-  <div className="copilot-divider-t tw-flex tw-flex-col tw-gap-2 tw-p-4">
+  <div className="vault-agent-divider-t tw-flex tw-flex-col tw-gap-2 tw-p-4">
     {title && (
       <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-2">
         <h4 className="tw-m-0 tw-text-sm tw-font-semibold">{title}</h4>

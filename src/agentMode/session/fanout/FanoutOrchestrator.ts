@@ -339,7 +339,7 @@ export class FanoutOrchestrator {
     live: SubSessionState
   ): Promise<void> {
     const seed = this.host.getDefaultSelection(backendId);
-    const selection = descriptor.routesCopilotModels
+    const selection = descriptor.routesVaultAgentModels
       ? await this.settleOnEnabledModel(descriptor, seed, live)
       : (seed ?? live.current.model?.current);
     if (!selection) return;

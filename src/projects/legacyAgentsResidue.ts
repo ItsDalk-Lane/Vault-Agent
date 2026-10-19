@@ -1,7 +1,7 @@
 import { AGENTS_FILE_NAME } from "@/instructions/agentsFile";
 import { logError, logInfo } from "@/logger";
 import {
-  COPILOT_PROJECT_ID,
+  VAULT_AGENT_PROJECT_ID,
   PROJECT_CONFIG_FILE_NAME,
   PROJECTS_UNSUPPORTED_FOLDER_NAME,
 } from "@/projects/constants";
@@ -64,7 +64,7 @@ function hasCopilotProjectId(content: string): boolean {
   try {
     const parsed = parseYaml(fmMatch[1]);
     if (!parsed || typeof parsed !== "object") return false;
-    const id = (parsed as Record<string, unknown>)[COPILOT_PROJECT_ID];
+    const id = (parsed as Record<string, unknown>)[VAULT_AGENT_PROJECT_ID];
     return typeof id === "string" ? id.trim().length > 0 : typeof id === "number";
   } catch {
     return false;

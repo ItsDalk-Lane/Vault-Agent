@@ -10,12 +10,12 @@ import {
   useManagedInstallActionState,
   useSessionBackendDescriptor,
 } from "@/agentMode/ui/useBackendDescriptor";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { logError } from "@/logger";
 import React from "react";
 
 interface Props {
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   onSaveChat: (saveAsNote: () => Promise<void>) => void;
   updateUserMessageHistory: (newMessage: string) => void;
 }

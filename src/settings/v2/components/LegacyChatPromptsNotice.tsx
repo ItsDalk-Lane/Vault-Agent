@@ -1,4 +1,4 @@
-import { getEffectiveSystemPromptsFolder } from "@/settings/copilotFolder";
+import { getEffectiveSystemPromptsFolder } from "@/settings/vaultAgentFolder";
 import { useSystemPrompts } from "@/system-prompts/state";
 import React from "react";
 

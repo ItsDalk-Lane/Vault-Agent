@@ -10,7 +10,7 @@ import {
 type IncomingMessage = import("node:http").IncomingMessage;
 type ServerResponse = import("node:http").ServerResponse;
 
-export const FEEDBACK_MCP_SERVER_NAME = "obsidian-copilot";
+export const FEEDBACK_MCP_SERVER_NAME = "vault-agent";
 export const SEND_FEEDBACK_TOOL_NAME = "send_feedback";
 export const CALLER_SESSION_ARGUMENT = "caller_session_id";
 

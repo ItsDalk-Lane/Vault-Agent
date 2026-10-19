@@ -562,7 +562,7 @@ describe("ClaudeSdkBackendProcess", () => {
           cwd: "/vault",
           mcpServers: [
             {
-              name: "obsidian-copilot",
+              name: "vault-agent",
               url: "http://127.0.0.1:4100/mcp",
               headers: { Authorization: "Bearer t0k3n" },
             },
@@ -573,19 +573,13 @@ describe("ClaudeSdkBackendProcess", () => {
 
         const { options } = getPromptQueryCalls()[0][0] as { options: Record<string, unknown> };
         expect(options.mcpServers).toEqual({
-          "obsidian-copilot": {
+          "vault-agent": {
             type: "http",
             url: "http://127.0.0.1:4100/mcp",
             headers: { Authorization: "Bearer t0k3n" },
           },
         });
-        expect(options.allowedTools).toEqual([
-          "Read",
-          "Glob",
-          "Grep",
-          "LS",
-          "mcp__obsidian-copilot",
-        ]);
+        expect(options.allowedTools).toEqual(["Read", "Glob", "Grep", "LS", "mcp__vault-agent"]);
       });
 
       it.each([

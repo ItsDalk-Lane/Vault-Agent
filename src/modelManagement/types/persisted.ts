@@ -9,8 +9,7 @@ export type ProviderOrigin =
       kind: "byok";
       catalogProviderId?: string;
     }
-  | { kind: "agent"; agentType: AgentType }
-  | { kind: "copilot-plus" };
+  | { kind: "agent"; agentType: AgentType };
 
 export interface Provider {
   providerId: string;

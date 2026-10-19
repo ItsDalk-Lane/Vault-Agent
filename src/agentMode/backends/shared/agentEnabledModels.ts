@@ -1,4 +1,4 @@
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { type ConfiguredModel, capabilitiesFromConfiguredInfo } from "@/modelManagement";
 import type { EnabledModelEntry } from "@/agentMode/session/types";
 
@@ -7,7 +7,7 @@ const EMPTY_ENABLED_ENTRIES: readonly EnabledModelEntry[] = Object.freeze([]);
 export type WireDecode = (wireId: string) => { selection: { baseModelId: string } };
 
 export function agentOriginEnabledModelEntries(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   agentType: "claude" | "codex",
   wireDecode: WireDecode
 ): readonly EnabledModelEntry[] {

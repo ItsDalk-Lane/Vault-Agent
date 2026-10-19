@@ -90,13 +90,13 @@ export const normalizeFootnoteRendering = (root: HTMLElement): void => {
 const INLINE_CITATION_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 
 const linkInlineCitations = (root: HTMLElement): void => {
-  const sourceItems = root.querySelectorAll(".copilot-sources__item");
+  const sourceItems = root.querySelectorAll(".vault-agent-sources__item");
   if (sourceItems.length === 0) return;
 
   const citationAnchors = new Map<number, HTMLAnchorElement>();
   sourceItems.forEach((item) => {
-    const indexEl = item.querySelector(".copilot-sources__index");
-    const textEl = item.querySelector(".copilot-sources__text");
+    const indexEl = item.querySelector(".vault-agent-sources__index");
+    const textEl = item.querySelector(".vault-agent-sources__text");
     if (!indexEl || !textEl) return;
 
     const indexMatch = indexEl.textContent?.match(/\[(\d+)\]/);
@@ -113,7 +113,7 @@ const linkInlineCitations = (root: HTMLElement): void => {
 
   const doc = root.doc;
 
-  const sourcesEl = root.querySelector(".copilot-sources");
+  const sourcesEl = root.querySelector(".vault-agent-sources");
   const textNodes: Text[] = [];
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -175,7 +175,7 @@ const linkInlineCitations = (root: HTMLElement): void => {
       fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
     }
 
-    const replaceTarget = node.parentElement?.classList.contains("copilot-citation-ref")
+    const replaceTarget = node.parentElement?.classList.contains("vault-agent-citation-ref")
       ? node.parentElement
       : node;
     replaceTarget.parentNode?.replaceChild(fragment, replaceTarget);
@@ -467,7 +467,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
 
       const citationPlaceholderProcessed = sourcesSectionProcessed.replace(
         /\[\^(\d+)\](?!:)/g,
-        '<span class="copilot-citation-ref">[$1]</span>'
+        '<span class="vault-agent-citation-ref">[$1]</span>'
       );
 
       const processYouTubeEmbed = (content: string): string => {

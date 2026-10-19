@@ -1,5 +1,5 @@
 import type { InstallState } from "@/agentMode/session/types";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { joinPosix } from "@/utils/pathUtils";
 import {
   ALL_MANAGED_SKILLS,
@@ -18,7 +18,7 @@ export type { BuiltinPreferences } from "@/settings/builtinSkillPreferences";
 export interface ReconcileBuiltinOptions {
   folder: string;
   fs: BuiltinSeedFs;
-  settings: CopilotSettings;
+  settings: VaultAgentSettings;
   availableAgents: readonly string[];
   registeredAgents: readonly string[];
 }

@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type React from "react";
-import type CopilotPlugin from "@/main";
-import type { CopilotSettings } from "@/settings/model";
+import type VaultAgentPlugin from "@/main";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { Destination } from "@/types/destination";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type {
@@ -45,9 +45,9 @@ export type ManagedInstallActionState =
   | { kind: "error"; message: string };
 
 export interface ManagedInstallAction {
-  getState(plugin: CopilotPlugin): ManagedInstallActionState;
-  subscribe(plugin: CopilotPlugin, onChange: () => void): () => void;
-  run(plugin: CopilotPlugin): Promise<void>;
+  getState(plugin: VaultAgentPlugin): ManagedInstallActionState;
+  subscribe(plugin: VaultAgentPlugin, onChange: () => void): () => void;
+  run(plugin: VaultAgentPlugin): Promise<void>;
 }
 
 export interface BackendAuthStatus {
@@ -62,11 +62,14 @@ export interface BackendSignInHandlers {
 }
 
 export interface BackendAuth {
-  getProbeKey?(settings: CopilotSettings): string;
-  getStatus(settings: CopilotSettings): Promise<BackendAuthStatus>;
-  signIn(settings: CopilotSettings, handlers?: BackendSignInHandlers): Promise<BackendAuthStatus>;
+  getProbeKey?(settings: VaultAgentSettings): string;
+  getStatus(settings: VaultAgentSettings): Promise<BackendAuthStatus>;
+  signIn(
+    settings: VaultAgentSettings,
+    handlers?: BackendSignInHandlers
+  ): Promise<BackendAuthStatus>;
   signOut?(
-    settings: CopilotSettings,
+    settings: VaultAgentSettings,
     options?: { signal?: AbortSignal }
   ): Promise<BackendAuthStatus>;
 }
@@ -79,7 +82,7 @@ export interface BackendDescriptor {
 
   readonly selfHostable: boolean;
 
-  readonly routesCopilotModels: boolean;
+  readonly routesVaultAgentModels: boolean;
 
   readonly setupDescription: string;
 
@@ -103,28 +106,28 @@ export interface BackendDescriptor {
 
   readonly planFeedbackDelivery?: "permission" | "next_turn";
 
-  getInstallState(settings: CopilotSettings): InstallState;
+  getInstallState(settings: VaultAgentSettings): InstallState;
 
-  getResolvedBinaryPath?(settings: CopilotSettings): string | null;
+  getResolvedBinaryPath?(settings: VaultAgentSettings): string | null;
 
-  subscribeInstallState(plugin: CopilotPlugin, cb: () => void): () => void;
+  subscribeInstallState(plugin: VaultAgentPlugin, cb: () => void): () => void;
 
-  openInstallUI(plugin: CopilotPlugin): void;
+  openInstallUI(plugin: VaultAgentPlugin): void;
 
   managedInstall?: ManagedInstallAction;
 
   auth?: BackendAuth;
 
   createBackendProcess(args: {
-    plugin: CopilotPlugin;
+    plugin: VaultAgentPlugin;
     app: App;
     clientVersion: string;
     descriptor: BackendDescriptor;
   }): BackendProcess;
 
-  SettingsPanel?: React.FC<{ plugin: CopilotPlugin; app: App }>;
+  SettingsPanel?: React.FC<{ plugin: VaultAgentPlugin; app: App }>;
 
-  onPluginLoad?(plugin: CopilotPlugin): Promise<void>;
+  onPluginLoad?(plugin: VaultAgentPlugin): Promise<void>;
 
   readonly wire: ModelWireCodec;
 
@@ -134,7 +137,7 @@ export interface BackendDescriptor {
 
   // Agents whose own CLI picks the server name it in their settings tab.
   // https://github.com/logancyang/obsidian-copilot/issues/2889
-  dataDestination?(settings: CopilotSettings, vaultBase: string | null): Destination;
+  dataDestination?(settings: VaultAgentSettings, vaultBase: string | null): Destination;
 
   readonly showModelDescriptions?: boolean;
 
@@ -152,19 +155,19 @@ export interface BackendDescriptor {
 
   applyInitialSessionConfig?(
     session: AgentSession,
-    settings: CopilotSettings,
+    settings: VaultAgentSettings,
     seededSelection?: ModelSelection
   ): Promise<void>;
 
   isPlanModePlanFilePath?(absolutePath: string, cwd: string | null | undefined): boolean;
 
-  getProbeSessionId?(settings: CopilotSettings): string | undefined;
+  getProbeSessionId?(settings: VaultAgentSettings): string | undefined;
 
-  getEnabledModelEntries?(settings: CopilotSettings): EnabledModelEntry[] | null;
+  getEnabledModelEntries?(settings: VaultAgentSettings): EnabledModelEntry[] | null;
 
-  getWireBaseId?(configuredModelId: string, settings: CopilotSettings): string | null;
+  getWireBaseId?(configuredModelId: string, settings: VaultAgentSettings): string | null;
 
-  persistProbeSessionId?(sessionId: string, plugin: CopilotPlugin): Promise<void>;
+  persistProbeSessionId?(sessionId: string, plugin: VaultAgentPlugin): Promise<void>;
 
   prefetchEffortCatalog?(args: {
     proc: BackendProcess;

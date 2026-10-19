@@ -1,17 +1,17 @@
 import { CURRENT_SETTINGS_VERSION } from "@/settings/migrations/version";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { StartupMigrationItem } from "@/services/startupMigration";
 
 if (typeof window.structuredClone === "undefined") {
   window.structuredClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 }
 
-function makeSettings(overrides: Partial<CopilotSettings> = {}): CopilotSettings {
+function makeSettings(overrides: Partial<VaultAgentSettings> = {}): VaultAgentSettings {
   return {
     activeModels: [],
     openAIApiKey: "",
     ...overrides,
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 const backedUp = jest.fn().mockResolvedValue({ status: "not-needed" });
@@ -25,8 +25,8 @@ async function loadModule(overrides: Record<string, unknown> = {}) {
     isAvailable: jest.fn().mockReturnValue(true),
     getVaultId: jest.fn().mockReturnValue("abcd1234"),
     setVaultId: jest.fn(),
-    migrateProviderNames: jest.fn((settings: CopilotSettings) => settings),
-    hydrateFromKeychain: jest.fn(async (settings: CopilotSettings) => ({
+    migrateProviderNames: jest.fn((settings: VaultAgentSettings) => settings),
+    hydrateFromKeychain: jest.fn(async (settings: VaultAgentSettings) => ({
       settings,
       hadFailures: false,
     })),
@@ -43,7 +43,7 @@ async function loadModule(overrides: Record<string, unknown> = {}) {
   }));
   jest.doMock("@/logger", () => ({ logWarn: jest.fn() }));
   jest.doMock("@/settings/model", () => ({
-    sanitizeSettings: jest.fn((settings: CopilotSettings) => settings),
+    sanitizeSettings: jest.fn((settings: VaultAgentSettings) => settings),
   }));
   jest.doMock("@/utils/deviceId", () => ({ getDeviceId: jest.fn(() => DEVICE_ID) }));
 
@@ -137,7 +137,7 @@ describe("settingsPersistence", () => {
   describe("loadSettingsWithKeychain()", () => {
     it("discards disk credentials and exposes only Keychain-hydrated values", async () => {
       const { module, keychain } = await loadModule();
-      keychain.hydrateFromKeychain.mockImplementation(async (settings: CopilotSettings) => ({
+      keychain.hydrateFromKeychain.mockImplementation(async (settings: VaultAgentSettings) => ({
         settings: { ...settings, openAIApiKey: "keychain-key" },
         hadFailures: false,
       }));
@@ -177,11 +177,11 @@ describe("settingsPersistence", () => {
       };
       const stableName = "copilot-v1234abcd-provider-anthropic-api-key";
       keychain.migrateProviderNames.mockImplementation(
-        (settings: CopilotSettings) =>
+        (settings: VaultAgentSettings) =>
           ({
             ...settings,
             providers: { "row-1": { ...legacyRow, apiKeyKeychainId: stableName } },
-          }) as unknown as CopilotSettings
+          }) as unknown as VaultAgentSettings
       );
       const saveData = jest.fn().mockResolvedValue(undefined);
 
@@ -270,7 +270,7 @@ describe("settingsPersistence", () => {
         saveData,
         jest.fn().mockResolvedValue({
           status: "backed-up",
-          path: "plugins/copilot/backup.json",
+          path: "plugins/vault-agent/backup.json",
           encrypted: false,
         })
       );
@@ -289,7 +289,7 @@ describe("settingsPersistence", () => {
         saveData,
         jest.fn().mockResolvedValue({
           status: "backed-up",
-          path: "config/plugins/copilot/backup.json",
+          path: "config/plugins/vault-agent/backup.json",
           encrypted: false,
         }),
         onMigration
@@ -302,14 +302,14 @@ describe("settingsPersistence", () => {
         expect.objectContaining({
           _pendingCredentialRecovery: {
             deviceId: DEVICE_ID,
-            path: "config/plugins/copilot/backup.json",
+            path: "config/plugins/vault-agent/backup.json",
             encrypted: false,
           },
         })
       );
       expect(result._pendingCredentialRecovery).toEqual({
         deviceId: DEVICE_ID,
-        path: "config/plugins/copilot/backup.json",
+        path: "config/plugins/vault-agent/backup.json",
         encrypted: false,
       });
     });
@@ -324,7 +324,7 @@ describe("settingsPersistence", () => {
           _keychainVaultId: "1234abcd",
           _pendingCredentialRecovery: {
             deviceId: DEVICE_ID,
-            path: "config/plugins/copilot/backup.json",
+            path: "config/plugins/vault-agent/backup.json",
             encrypted: false,
           },
         },
@@ -343,7 +343,7 @@ describe("settingsPersistence", () => {
       const onMigration = jest.fn();
       const recovery = {
         deviceId: "device-b",
-        path: "config/plugins/copilot/device-b-backup.json",
+        path: "config/plugins/vault-agent/device-b-backup.json",
         encrypted: false,
       };
 
@@ -370,7 +370,7 @@ describe("settingsPersistence", () => {
         jest.fn().mockResolvedValue(undefined),
         jest.fn().mockResolvedValue({
           status: "backed-up",
-          path: "config/plugins/copilot/backup.json",
+          path: "config/plugins/vault-agent/backup.json",
           encrypted: false,
         }),
         onMigration

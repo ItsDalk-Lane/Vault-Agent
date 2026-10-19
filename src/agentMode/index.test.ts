@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
-import type CopilotPlugin from "@/main";
-import type { CopilotSettings } from "@/settings/model";
+import type VaultAgentPlugin from "@/main";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { InstallState } from "./session/types";
 import type { BuiltinSkillRuntime } from "./skills/SkillManager";
 import { createAgentSessionManager } from "./index";
@@ -15,7 +15,7 @@ jest.mock("@/modelManagement", () => ({
 }));
 jest.mock("@/settings/model", () => ({
   getSettings: () => mockSettings,
-  setSettings: (update: (settings: CopilotSettings) => Partial<CopilotSettings>) => {
+  setSettings: (update: (settings: VaultAgentSettings) => Partial<VaultAgentSettings>) => {
     emitSettingsChange(mockSettings, { ...mockSettings, ...update(mockSettings) });
   },
   subscribeToSettingsChange: (callback: SettingsSubscriber) => {
@@ -23,11 +23,13 @@ jest.mock("@/settings/model", () => ({
     return () => {};
   },
 }));
-jest.mock("@/settings/copilotFolder", () => ({ deriveSkillsFolder: () => "copilot/skills" }));
+jest.mock("@/settings/vaultAgentFolder", () => ({
+  deriveSkillsFolder: () => "vault-agent/skills",
+}));
 jest.mock("@/settings/builtinSkillPreferences", () => ({ saveBuiltinPreferences: jest.fn() }));
 jest.mock("@/system-prompts/state", () => ({ subscribeToSystemPromptChange: jest.fn() }));
 jest.mock("@/utils/appPaths", () => ({
-  copilotAppDataDir: () => "/tmp/copilot",
+  vaultAgentAppDataDir: () => "/tmp/copilot",
   getVaultId: () => "test-vault",
 }));
 jest.mock("./backends/shared/agentSystemPrompt", () => ({
@@ -50,7 +52,7 @@ jest.mock("./session/nodeFileStorage", () => ({ createNodeFileStorage: jest.fn()
 jest.mock("./session/AgentSessionManager", () => ({
   AgentSessionManager: jest.fn(() => mockManager),
 }));
-jest.mock("./session/copilotDefaultModel", () => ({ seedCopilotDefaultModel: jest.fn() }));
+jest.mock("./session/vaultAgentDefaultModel", () => ({ seedVaultAgentDefaultModel: jest.fn() }));
 jest.mock("./skills", () => ({
   SkillManager: {
     initialize: (_app: App, _dirs: unknown, runtime: BuiltinSkillRuntime) => {
@@ -68,7 +70,7 @@ jest.mock("./ui/permissionPrompter", () => ({
   createDefaultPermissionPrompter: jest.fn(),
   createDefaultAskUserQuestionPrompter: jest.fn(),
 }));
-jest.mock("./ui/CopilotAgentView", () => ({}));
+jest.mock("./ui/VaultAgentView", () => ({}));
 jest.mock("./ui/useBackendDescriptor", () => ({}));
 jest.mock("./backends/opencode/opencodeProbePartition", () => ({}));
 jest.mock("./backends/opencode/opencodeModelResolve", () => ({}));
@@ -83,15 +85,15 @@ jest.mock("./session/useBackendAuthState", () => ({}));
 const ISSUE = "https://github.com/logancyang/obsidian-copilot/issues/3022";
 const LINEUP_ISSUE = "https://github.com/Brevilabs/obsidian-copilot-private/issues/319";
 const RELOAD_ISSUE = "https://github.com/Brevilabs/obsidian-copilot-private/issues/475";
-type SettingsSubscriber = (prev: CopilotSettings, next: CopilotSettings) => void;
+type SettingsSubscriber = (prev: VaultAgentSettings, next: VaultAgentSettings) => void;
 const mockSettingsSubscribers: SettingsSubscriber[] = [];
-let mockSettings: CopilotSettings;
+let mockSettings: VaultAgentSettings;
 let mockRuntime: BuiltinSkillRuntime;
 const mockStates: Record<string, InstallState> = {};
 const mockInstallListeners: Record<string, () => void> = {};
 const mockDescriptors = ["claude", "opencode"].map((id) => ({
   id,
-  onPluginLoad: jest.fn(async (_plugin: CopilotPlugin) => {}),
+  onPluginLoad: jest.fn(async (_plugin: VaultAgentPlugin) => {}),
   skillsProjectDir: `.${id}/skills`,
   restartOnProviderConfigChange: id === "opencode",
   restartOnSystemPromptChange: id === "opencode",
@@ -108,9 +110,9 @@ const mockManager = {
   registerPreload: jest.fn<void, [string, Promise<void>]>(),
   onInstallStateChanged: jest.fn(async (_id: string) => {}),
 };
-let plugin: CopilotPlugin;
+let plugin: VaultAgentPlugin;
 const reconcile = jest.mocked(reconcileBuiltinSkills);
-function settingsWith(overrides: Record<string, unknown>): CopilotSettings {
+function settingsWith(overrides: Record<string, unknown>): VaultAgentSettings {
   return {
     agentMode: { skills: {} },
     providers: {
@@ -131,10 +133,10 @@ function settingsWith(overrides: Record<string, unknown>): CopilotSettings {
         info: { id: "glm-5.2", displayName: "GLM-5.2", ...overrides },
       },
     ],
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
-function emitSettingsChange(prev: CopilotSettings, next: CopilotSettings): void {
+function emitSettingsChange(prev: VaultAgentSettings, next: VaultAgentSettings): void {
   mockSettings = next;
   for (const subscriber of mockSettingsSubscribers) subscriber(prev, next);
 }
@@ -154,7 +156,7 @@ describe("agentMode", () => {
       mockStates.claude = { kind: "ready", source: "custom" };
       mockStates.opencode = { kind: "absent" };
       reconcile.mockResolvedValue(undefined);
-      mockRefresh.mockImplementation(() => mockRuntime.prepare("copilot/skills"));
+      mockRefresh.mockImplementation(() => mockRuntime.prepare("vault-agent/skills"));
       mockSettingsSubscribers.length = 0;
       mockSettings = settingsWith({ reasoning: true });
       plugin = {
@@ -165,7 +167,7 @@ describe("agentMode", () => {
             {} as ConstructorParameters<typeof BackendConfigRegistry>[1]
           ),
         },
-      } as unknown as CopilotPlugin;
+      } as unknown as VaultAgentPlugin;
     });
 
     it("waits for each backend upgrade before preloading while other agents remain usable (https://github.com/Brevilabs/obsidian-copilot-private/issues/530)", async () => {
@@ -264,7 +266,7 @@ describe("agentMode", () => {
             builtinPreferences: { "copilot-web-search": { disabledAgents: ["opencode"] } },
           },
         },
-      } as unknown as CopilotSettings);
+      } as unknown as VaultAgentSettings);
 
       expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
       reconciled.resolve();
@@ -445,7 +447,7 @@ describe("agentMode", () => {
           ...mockSettings.agentMode,
           backends: { claude: { envOverrides: { CLAUDE_CONFIG_DIR: "/test-profile" } } },
         },
-      } as CopilotSettings;
+      } as VaultAgentSettings;
 
       emitSettingsChange(mockSettings, next);
 

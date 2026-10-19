@@ -26,7 +26,7 @@ describe("skillRepairPrompt", () => {
     it(`includes every rejected file and omits unavailable source lines for ${ISSUE_URL}`, () => {
       const prompt = buildSkillRepairPrompt([
         {
-          location: "copilot/skills/one/SKILL.md",
+          location: "vault-agent/skills/one/SKILL.md",
           reason: "Missing name.",
         },
         {
@@ -37,7 +37,7 @@ describe("skillRepairPrompt", () => {
       ]);
 
       expect(prompt).toContain("Repair these Copilot skills so they load successfully.");
-      expect(prompt).toContain('1. File: "copilot/skills/one/SKILL.md"');
+      expect(prompt).toContain('1. File: "vault-agent/skills/one/SKILL.md"');
       expect(prompt).toContain('2. File: ".codex/skills/two/SKILL.md"');
       expect(prompt).toContain("Inspect each complete SKILL.md and its folder before editing.");
       expect(prompt).toContain("Validate each repaired skill after the change.");

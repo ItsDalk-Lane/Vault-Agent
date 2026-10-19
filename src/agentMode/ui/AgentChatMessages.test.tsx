@@ -339,8 +339,8 @@ describe("AgentChatMessages", () => {
       expect(screen.getByTestId("single-message-footer").textContent).toContain(
         "Worked for 2m 18s"
       );
-      expect(container.querySelector(".copilot-spinner")).toBeTruthy();
-      expect(container.querySelector(".copilot-spinner-dot-0")).toBeNull();
+      expect(container.querySelector(".vault-agent-spinner")).toBeTruthy();
+      expect(container.querySelector(".vault-agent-spinner-dot-0")).toBeNull();
     });
 
     it("retires the prior duration when the next turn starts", () => {
@@ -358,7 +358,7 @@ describe("AgentChatMessages", () => {
 
       expect(screen.queryByText("51s")).toBeNull();
       expect(screen.getByText("2s")).toBeTruthy();
-      expect(container.querySelector(".copilot-spinner")).toBeTruthy();
+      expect(container.querySelector(".vault-agent-spinner")).toBeTruthy();
 
       act(() => jest.advanceTimersByTime(1_000));
       expect(screen.getByText("3s")).toBeTruthy();

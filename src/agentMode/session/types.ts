@@ -31,17 +31,17 @@ export interface AgentBrand {
 
 export type SessionId = string;
 
-export type CopilotMode = "default" | "plan" | "auto";
+export type VaultAgentMode = "default" | "plan" | "auto";
 
 export interface ModeMapping {
   kind: "setMode" | "configOption";
   configId?: string;
-  canonical: Partial<Record<CopilotMode, string>>;
+  canonical: Partial<Record<VaultAgentMode, string>>;
   readOnlyModeId?: string | null;
 }
 
 export interface ModeOption {
-  value: CopilotMode;
+  value: VaultAgentMode;
   label: string;
 }
 
@@ -109,9 +109,9 @@ export interface BackendState {
   model: ModelState | null;
 
   mode: {
-    current: CopilotMode | null;
+    current: VaultAgentMode | null;
     options: ModeOption[];
-    apply: Partial<Record<CopilotMode, ModeApplySpec>>;
+    apply: Partial<Record<VaultAgentMode, ModeApplySpec>>;
   } | null;
 }
 

@@ -117,12 +117,6 @@ describe("ProviderRegistry", () => {
       expect(registry.listByOrigin("byok")).toBe(rows);
       expect(rows).toHaveLength(1);
     });
-    it("returns the same empty list for every origin that has no providers", () => {
-      const empty1 = registry.listByOrigin("byok");
-      const empty2 = registry.listByOrigin("copilot-plus");
-      expect(empty1).toBe(empty2);
-      expect(empty1.length).toBe(0);
-    });
   });
 
   describe("update()", () => {

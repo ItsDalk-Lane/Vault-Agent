@@ -6,7 +6,7 @@ jest.mock("./claudeAuth", () => ({ signOutFromClaude: jest.fn() }));
 
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { BackendState } from "@/agentMode/session/types";
-import { resetSettings, type CopilotSettings } from "@/settings/model";
+import { resetSettings, type VaultAgentSettings } from "@/settings/model";
 import { resolveClaudeBinary } from "./claudeBinaryResolver";
 import { probeClaudeVersion } from "./claudeVersion";
 import {
@@ -36,7 +36,7 @@ const mockProbeClaudeVersion = probeClaudeVersion as jest.MockedFunction<typeof 
 function settingsWithClaudeRuntime(options: {
   path?: string;
   envOverrides?: Record<string, string>;
-}): CopilotSettings {
+}): VaultAgentSettings {
   return {
     agentMode: {
       claudeCli: options.path ? { path: options.path } : undefined,
@@ -46,7 +46,7 @@ function settingsWithClaudeRuntime(options: {
         },
       },
     },
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 describe("descriptor", () => {
@@ -409,13 +409,13 @@ describe("descriptor", () => {
 
   describe("resolveClaudeAutoModePermission()", () => {
     it("falls back to Claude's classifier mode when nothing is persisted", () => {
-      expect(resolveClaudeAutoModePermission({ agentMode: {} } as CopilotSettings)).toBe("auto");
+      expect(resolveClaudeAutoModePermission({ agentMode: {} } as VaultAgentSettings)).toBe("auto");
     });
 
     it("returns the persisted permission mode", () => {
       const settings = {
         agentMode: { backends: { claude: { autoModePermission: "acceptEdits" } } },
-      } as unknown as CopilotSettings;
+      } as unknown as VaultAgentSettings;
 
       expect(resolveClaudeAutoModePermission(settings)).toBe("acceptEdits");
     });

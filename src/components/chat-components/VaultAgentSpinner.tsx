@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import React from "react";
 
-interface CopilotSpinnerProps {
+interface VaultAgentSpinnerProps {
   animated?: boolean;
 }
 
@@ -19,13 +19,13 @@ const DOT_SIZE = 2.5;
 const DOT_GAP = 3;
 const GRID_SIZE = DOT_SIZE * 3 + DOT_GAP * 2;
 
-export const CopilotSpinner: React.FC<CopilotSpinnerProps> = ({ animated = true }) => {
+export const VaultAgentSpinner: React.FC<VaultAgentSpinnerProps> = ({ animated = true }) => {
   return (
     <svg
       width={GRID_SIZE}
       height={GRID_SIZE}
       viewBox={`0 0 ${GRID_SIZE} ${GRID_SIZE}`}
-      className="copilot-spinner"
+      className="vault-agent-spinner"
     >
       {SIGMA_DOTS.map((dot) => {
         const cx = dot.col * (DOT_SIZE + DOT_GAP) + DOT_SIZE / 2;
@@ -38,8 +38,8 @@ export const CopilotSpinner: React.FC<CopilotSpinnerProps> = ({ animated = true 
             r={DOT_SIZE / 2}
             // eslint-disable-next-line tailwindcss/no-custom-classname -- spinner-dot is a component animation class defined in source CSS
             className={cn(
-              "copilot-spinner-dot",
-              animated && `copilot-spinner-dot-${dot.animIndex}`
+              "vault-agent-spinner-dot",
+              animated && `vault-agent-spinner-dot-${dot.animIndex}`
             )}
           />
         );

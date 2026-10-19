@@ -42,7 +42,7 @@ export function partitionCandidates(
       if (origin.agentType === agentType) agentOriginCandidates.push(candidate);
       continue;
     }
-    if (isOpencode && (origin.kind === "byok" || origin.kind === "copilot-plus")) {
+    if (isOpencode && origin.kind === "byok") {
       if (isOpencodeRoutable && !isOpencodeRoutable(provider)) continue;
       byokPlusCandidates.push(candidate);
     }
@@ -118,8 +118,6 @@ function originBadgeLabel(kind: OriginKind): string {
   switch (kind) {
     case "byok":
       return "BYOK";
-    case "copilot-plus":
-      return "Copilot";
     case "agent":
       return "Agent Provided";
   }
@@ -173,7 +171,7 @@ export function buildModelEnableGroups(
     else bySubGroup.set(label, { label, rows: [row] });
   }
   for (const [label, { rows }] of bySubGroup) {
-    // opencode's own providers have no Copilot settings row, so their group names the destination.
+    // opencode's own providers have no settings row, so their group names the destination.
     // https://github.com/logancyang/obsidian-copilot/issues/2889
     const destination = isOpencode ? opencodeProviderDestination(label) : undefined;
     out.push({ group: { key: `agent:${label}`, label, destination, rows }, kind: "agent" });
@@ -185,6 +183,5 @@ export function buildModelEnableGroups(
       o.group.badge = originBadgeLabel(o.kind);
     }
   }
-  out.sort((a, b) => Number(b.kind === "copilot-plus") - Number(a.kind === "copilot-plus"));
   return out.map((o) => o.group);
 }

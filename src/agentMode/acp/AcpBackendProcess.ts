@@ -86,7 +86,7 @@ function isMethodNotFoundError(err: unknown): boolean {
   return false;
 }
 
-const COPILOT_CLIENT_NAME = "obsidian-copilot";
+const COPILOT_CLIENT_NAME = "vault-agent";
 const JSONRPC_INTERNAL_ERROR = -32603;
 
 interface SessionWireState {
@@ -658,7 +658,7 @@ export class AcpBackendProcess implements BackendProcess {
     if (serviceAnswers) return err;
     if (!this.hasServedSession) {
       return new Error(
-        `${this.backend.displayName}'s internal service failed to start. Check the Copilot log for its error.`
+        `${this.backend.displayName}'s internal service failed to start. Check the Vault Agent log for its error.`
       );
     }
     this.unhealthyHandler?.();

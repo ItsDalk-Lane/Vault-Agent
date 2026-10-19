@@ -3,14 +3,14 @@ import { getSelectedTextContexts, setSelectedTextContexts } from "@/aiParams";
 import { registerCommands } from "@/commands";
 import { CustomCommandRegister } from "@/commands/customCommandRegister";
 import { CustomCommandManager } from "@/commands/customCommandManager";
-import { StartupLoadingView, type CopilotStartup } from "@/components/StartupLoadingView";
+import { StartupLoadingView, type VaultAgentStartup } from "@/components/StartupLoadingView";
 import { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import {
   AGENT_CHAT_MODE,
   AGENT_VIEW_TYPES,
   CHAT_AGENT_VIEWTYPE,
-  COPILOT_AGENT_ICON_ID,
-  COPILOT_AGENT_ICON_SVG,
+  VAULT_AGENT_ICON_ID,
+  VAULT_AGENT_ICON_SVG,
   DEFAULT_OPEN_AREA,
   EVENT_NAMES,
   PLAN_PREVIEW_VIEW_TYPE,
@@ -36,15 +36,15 @@ import {
   startActiveWebTabTracking,
 } from "@/services/webViewerService/webViewerServiceSingleton";
 import { WebSelectionTracker } from "@/services/webViewerService/webViewerServiceSelection";
-import { getEffectiveConversationsFolder } from "@/settings/copilotFolder";
+import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
 import { dehydrateDeviceProfile, hydrateDeviceProfile } from "@/settings/deviceProfiles";
 import {
-  type CopilotSettings,
+  type VaultAgentSettings,
   getSettings,
   setSettings,
   subscribeToSettingsChange,
 } from "@/settings/model";
-import { CopilotSettingTab } from "@/settings/SettingsPage";
+import { VaultAgentSettingTab } from "@/settings/SettingsPage";
 import { SystemPromptRegister } from "@/system-prompts/systemPromptRegister";
 import type { NoteSelectedTextContext, SelectedTextContext } from "@/types/message";
 import { withTimeout } from "@/utils";
@@ -83,14 +83,14 @@ import {
 } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
 
-const PENDING_TEARDOWN = Symbol.for("obsidian-copilot:pending-teardown");
+const PENDING_TEARDOWN = Symbol.for("vault-agent:pending-teardown");
 const PREVIOUS_TEARDOWN_TIMEOUT_MS = 10_000;
 
 interface TeardownHandoff {
   [PENDING_TEARDOWN]?: Promise<void>;
 }
 
-export default class CopilotPlugin extends Plugin implements CopilotStartup {
+export default class VaultAgentPlugin extends Plugin implements VaultAgentStartup {
   modelManagement!: ModelManagementApi;
   agentSessionManager?: AgentSessionManager;
   skills?: SkillManager;
@@ -100,7 +100,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
   customCommandRegister!: CustomCommandRegister;
   systemPromptRegister!: SystemPromptRegister;
   projectRegister!: ProjectRegister;
-  private CopilotAgentView?: typeof import("@/agentMode").CopilotAgentView;
+  private VaultAgentView?: typeof import("@/agentMode").VaultAgentView;
   private PlanPreviewView?: typeof import("@/agentMode").PlanPreviewView;
   private TurnDiffView?: typeof import("@/agentMode").TurnDiffView;
   private agentModelDiscoveryUnsubscriber?: () => void;
@@ -138,8 +138,8 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       // logError prints only when the debug setting is on, which a failed settings load never
       // reads, and this catch keeps Obsidian from logging the failure itself.
       // https://github.com/logancyang/obsidian-copilot/issues/3518
-      logFatalError("Copilot failed to start.", error);
-      new Notice("Copilot failed to start. Check the console for details.");
+      logFatalError("Vault Agent failed to start.", error);
+      new Notice("Vault Agent failed to start. Check the console for details.");
       // Obsidian keeps a plugin enabled when work after onload fails, so release whatever
       // startup registered before the failure. https://github.com/logancyang/obsidian-copilot/issues/3518
       this.unload();
@@ -153,11 +153,11 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
           this.createStartedView(viewType, leaf) ?? new StartupLoadingView(leaf, viewType, this)
       );
     }
-    this.addSettingTab(new CopilotSettingTab(this.app, this));
+    this.addSettingTab(new VaultAgentSettingTab(this.app, this));
     // Obsidian dispatches the URI that launched it once its layout loads, which can precede
     // initialization, so the handler exists from the start and waits for the chat managers.
     // https://github.com/logancyang/obsidian-copilot/issues/3271
-    this.registerObsidianProtocolHandler("copilot-chat", (params) => {
+    this.registerObsidianProtocolHandler("vault-agent", (params) => {
       void this.initialization.then(() => {
         if (this.pluginLifecycleActive) void this.openChatDeepLink(params);
       });
@@ -181,7 +181,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
           await persistSettings(next, (data) => this.saveData(data), prev);
         } catch (error) {
           logError("Failed to persist settings.", error);
-          new Notice("Copilot failed to save settings. Check logs and try again.");
+          new Notice("Vault Agent failed to save settings. Check logs and try again.");
         }
       })();
     });
@@ -207,7 +207,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     if (agentMode) {
       const [
         {
-          CopilotAgentView,
+          VaultAgentView,
           PlanPreviewView,
           TurnDiffView,
           closeRestoredTurnDiffs,
@@ -219,7 +219,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
         },
         { wireAgentModelDiscovery },
       ] = agentMode;
-      this.CopilotAgentView = CopilotAgentView;
+      this.VaultAgentView = VaultAgentView;
       this.PlanPreviewView = PlanPreviewView;
       this.TurnDiffView = TurnDiffView;
       closeRestoredTurnDiffs(this.app.workspace);
@@ -241,10 +241,10 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       );
     }
 
-    addIcon(COPILOT_AGENT_ICON_ID, COPILOT_AGENT_ICON_SVG);
+    addIcon(VAULT_AGENT_ICON_ID, VAULT_AGENT_ICON_SVG);
 
-    if (this.CopilotAgentView && this.PlanPreviewView && this.TurnDiffView) {
-      const AgentView = this.CopilotAgentView;
+    if (this.VaultAgentView && this.PlanPreviewView && this.TurnDiffView) {
+      const AgentView = this.VaultAgentView;
       const PreviewView = this.PlanPreviewView;
       const DiffView = this.TurnDiffView;
       this.startedViewCreators.set(CHAT_AGENT_VIEWTYPE, (leaf) => new AgentView(leaf, this));
@@ -254,7 +254,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
 
     this.initActiveLeafChangeHandler();
 
-    this.addRibbonIcon(COPILOT_AGENT_ICON_ID, "Open Agent Chat", () => void this.toggleAgentView());
+    this.addRibbonIcon(VAULT_AGENT_ICON_ID, "Open Agent Chat", () => void this.toggleAgentView());
 
     if (isDesktopRuntime()) {
       const { activeLeafRef, layoutRef } = startActiveWebTabTracking(this.app, {
@@ -297,10 +297,10 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       await withTimeout(
         () => previousTeardown,
         PREVIOUS_TEARDOWN_TIMEOUT_MS,
-        "Previous Copilot shutdown"
+        "Previous Vault Agent shutdown"
       );
     } catch (error) {
-      logWarn("Copilot started before its previous copy finished shutting down.", error);
+      logWarn("Vault Agent started before its previous copy finished shutting down.", error);
     }
     if (handoff[PENDING_TEARDOWN] === previousTeardown) delete handoff[PENDING_TEARDOWN];
   }
@@ -309,7 +309,10 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     try {
       this.registerView(type, viewCreator);
     } catch (error) {
-      logWarn(`Copilot: view type "${type}" already registered; skipping re-registration.`, error);
+      logWarn(
+        `Vault Agent: view type "${type}" already registered; skipping re-registration.`,
+        error
+      );
     }
   }
 
@@ -320,7 +323,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     disposeNotificationSound();
     const handoff = window as TeardownHandoff;
     const teardown = this.teardown().catch((error) => {
-      logError("Copilot: plugin teardown failed during unload:", error);
+      logError("Vault Agent: plugin teardown failed during unload:", error);
     });
     // A copy unloaded mid-startup tears down instantly while its own settings load, and its
     // startup still waits on any older copy's shutdown, so the handoff covers both.
@@ -361,7 +364,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     this.modelManagement?.dispose();
 
     await logFileManager.flush();
-    logInfo("Copilot plugin unloaded");
+    logInfo("Vault Agent plugin unloaded");
   }
 
   updateUserMessageHistory(newMessage: string) {
@@ -372,7 +375,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     const view = this.app.workspace
       .getLeavesOfType(CHAT_AGENT_VIEWTYPE)
       .map((leaf) => leaf.view)
-      .find((v) => this.isCopilotAgentView(v));
+      .find((v) => this.isVaultAgentView(v));
 
     if (view) {
       view.eventTarget.dispatchEvent(new CustomEvent(EVENT_NAMES.CHAT_IS_VISIBLE));
@@ -565,7 +568,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     if (!this.requireAgentView()) return null;
     const leaf = await this.openOrRevealView(CHAT_AGENT_VIEWTYPE, openInRightSidebar);
     const view = leaf?.view;
-    if (this.isCopilotAgentView(view)) {
+    if (this.isVaultAgentView(view)) {
       view.eventTarget.queueVisible();
     }
     return leaf;
@@ -578,7 +581,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       await this.agentSessionManager?.addContextNoteToActiveChat(note);
     } catch (error) {
       logError("Failed to add a note to Agent Chat.", error);
-      new Notice("Could not add the note to Agent Chat. Check Copilot logs.");
+      new Notice("Could not add the note to Agent Chat. Check Vault Agent logs.");
     }
   }
 
@@ -597,8 +600,8 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     try {
       await manager.createSession();
     } catch (error) {
-      logWarn("[CopilotPlugin] Failed to create agent session", error);
-      new Notice("Failed to create agent session. Check Copilot logs.");
+      logWarn("[VaultAgentPlugin] Failed to create agent session", error);
+      new Notice("Failed to create agent session. Check Vault Agent logs.");
     }
   }
 
@@ -609,8 +612,8 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
       await manager.createGlobalSessionWithDraft(initialDraft);
       await this.activateAgentView();
     } catch (error) {
-      logWarn("[CopilotPlugin] Failed to create agent session with draft", error);
-      new Notice("Failed to create agent session. Check Copilot logs.");
+      logWarn("[VaultAgentPlugin] Failed to create agent session with draft", error);
+      new Notice("Failed to create agent session. Check Vault Agent logs.");
     }
   }
 
@@ -647,10 +650,10 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     return this.agentSessionManager;
   }
 
-  private isCopilotAgentView(
+  private isVaultAgentView(
     view: unknown
-  ): view is InstanceType<NonNullable<typeof this.CopilotAgentView>> {
-    const AgentView = this.CopilotAgentView;
+  ): view is InstanceType<NonNullable<typeof this.VaultAgentView>> {
+    const AgentView = this.VaultAgentView;
     return !!AgentView && view instanceof AgentView;
   }
 
@@ -681,7 +684,9 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
   // `super.saveData` (see `loadSettings`).
   // https://github.com/logancyang/obsidian-copilot/issues/2539
   async saveData(data: unknown): Promise<void> {
-    return super.saveData(dehydrateDeviceProfile(data as CopilotSettings, getDeviceId(this.app)));
+    return super.saveData(
+      dehydrateDeviceProfile(data as VaultAgentSettings, getDeviceId(this.app))
+    );
   }
 
   async getChatHistoryFiles(): Promise<TFile[]> {
@@ -733,7 +738,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
 
       this.chatHistoryLastAccessedAtManager.markPersisted(file.path, persistedAtMs);
     } catch (error) {
-      logWarn(`[CopilotPlugin] Failed to update chat lastAccessedAt for ${file.path}`, error);
+      logWarn(`[VaultAgentPlugin] Failed to update chat lastAccessedAt for ${file.path}`, error);
     }
   }
 
@@ -808,7 +813,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
 
     await manager.loadNativeSessionFromHistory(ref.backendId, ref.sessionId);
 
-    if (this.isCopilotAgentView(leaf.view)) {
+    if (this.isVaultAgentView(leaf.view)) {
       leaf.view.updateView();
     }
   }
@@ -822,7 +827,7 @@ export default class CopilotPlugin extends Plugin implements CopilotStartup {
     await manager.loadSessionFromHistory(file);
     void this.touchChatHistoryLastAccessedAt(file);
 
-    if (this.isCopilotAgentView(leaf.view)) {
+    if (this.isVaultAgentView(leaf.view)) {
       leaf.view.updateView();
     }
   }

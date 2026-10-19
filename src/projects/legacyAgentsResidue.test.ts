@@ -3,7 +3,7 @@ import { reconcileLegacyAgentsResidue } from "@/projects/legacyAgentsResidue";
 import type { TFile } from "obsidian";
 
 jest.mock("@/projects/projectPaths", () => ({
-  getProjectsFolder: () => "copilot-projects",
+  getProjectsFolder: () => "vault-agent-projects",
 }));
 
 jest.mock("@/logger", () => ({
@@ -13,8 +13,8 @@ jest.mock("@/logger", () => ({
 
 function makeVault(initialFiles: Record<string, string>) {
   const files = new Map(Object.entries(initialFiles));
-  const research = mockTFolder({ path: "copilot-projects/Research", children: [] });
-  const projects = mockTFolder({ path: "copilot-projects", children: [research] });
+  const research = mockTFolder({ path: "vault-agent-projects/Research", children: [] });
+  const projects = mockTFolder({ path: "vault-agent-projects", children: [research] });
   const adapter = {
     exists: jest.fn(async (path: string) => files.has(path)),
     read: jest.fn(async (path: string) => files.get(path) ?? ""),
@@ -45,11 +45,11 @@ function makeVault(initialFiles: Record<string, string>) {
 
 describe("legacyAgentsResidue", () => {
   describe("reconcileLegacyAgentsResidue()", () => {
-    const agentsPath = "copilot-projects/Research/AGENTS.md";
-    const projectPath = "copilot-projects/Research/project.md";
+    const agentsPath = "vault-agent-projects/Research/AGENTS.md";
+    const projectPath = "vault-agent-projects/Research/project.md";
 
     it("creates the missing project record and keeps AGENTS.md as body-only instructions", async () => {
-      const agentsContent = "---\ncopilot-project-id: research\n---\nUse primary sources.";
+      const agentsContent = "---\nvault-agent-project-id: research\n---\nUse primary sources.";
       const { app, files, adapter } = makeVault({ [agentsPath]: agentsContent });
 
       await reconcileLegacyAgentsResidue(app);
@@ -60,7 +60,7 @@ describe("legacyAgentsResidue", () => {
     });
 
     it("leaves a folder untouched when its project.md already exists", async () => {
-      const agentsContent = "---\ncopilot-project-id: research\n---\nUse primary sources.";
+      const agentsContent = "---\nvault-agent-project-id: research\n---\nUse primary sources.";
       const { app, files } = makeVault({
         [agentsPath]: agentsContent,
         [projectPath]: "existing project record",
@@ -72,7 +72,7 @@ describe("legacyAgentsResidue", () => {
       expect(files.get(agentsPath)).toBe(agentsContent);
     });
 
-    it("leaves a user-authored AGENTS.md without a copilot-project-id untouched", async () => {
+    it("leaves a user-authored AGENTS.md without a vault-agent-project-id untouched", async () => {
       const { app, files } = makeVault({ [agentsPath]: "Plain instructions" });
 
       await reconcileLegacyAgentsResidue(app);

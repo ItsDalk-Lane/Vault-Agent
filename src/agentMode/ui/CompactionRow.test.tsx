@@ -29,12 +29,12 @@ describe("CompactionRow", () => {
       const { container } = render(<CompactionRow part={part({ status: "in_progress" })} />);
 
       expect(screen.getByRole("status").textContent).toBe("Compacting conversation…");
-      expect(container.querySelector(".copilot-shimmer-text")?.textContent).toBe(
+      expect(container.querySelector(".vault-agent-shimmer-text")?.textContent).toBe(
         "Compacting conversation…"
       );
       expect(screen.getByText("12s")).toBeTruthy();
       expect(container.querySelector(FOLD_ICON)).toBeTruthy();
-      expect(container.querySelector(".copilot-spinner")).toBeNull();
+      expect(container.querySelector(".vault-agent-spinner")).toBeNull();
 
       act(() => jest.advanceTimersByTime(3_000));
 
@@ -46,7 +46,7 @@ describe("CompactionRow", () => {
         <CompactionRow part={part({ status: "in_progress", trigger: "auto" })} />
       );
 
-      expect(container.querySelector(".copilot-shimmer-text")?.textContent).toBe(
+      expect(container.querySelector(".vault-agent-shimmer-text")?.textContent).toBe(
         "Context is full, compacting…"
       );
       expect(screen.getByRole("status").textContent).toBe("Context is full, compacting…");
@@ -58,7 +58,7 @@ describe("CompactionRow", () => {
       expect(screen.getByText("Context compacted")).toBeTruthy();
       expect(container.querySelector(FOLD_ICON)).toBeTruthy();
       expect(screen.queryByRole("status")).toBeNull();
-      expect(container.querySelector(".copilot-spinner")).toBeNull();
+      expect(container.querySelector(".vault-agent-spinner")).toBeNull();
     });
 
     it("shows how far a completed compaction shrank the context when both token counts are known https://github.com/Brevilabs/obsidian-copilot-private/issues/633", () => {

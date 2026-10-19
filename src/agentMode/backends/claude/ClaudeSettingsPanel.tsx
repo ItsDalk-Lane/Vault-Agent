@@ -1,14 +1,14 @@
 import { EnvOverridesSetting } from "@/agentMode/backends/shared/EnvOverridesSetting";
 import { ClaudeAutoModePermissionSetting } from "@/agentMode/backends/claude/ui/ClaudeAutoModePermissionSetting";
 import { SettingItem } from "@/components/ui/setting-item";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { useSettingsValue } from "@/settings/model";
 import type { App } from "obsidian";
 import React from "react";
 import { resolveClaudeAutoModePermission, updateClaudeFields } from "./descriptor";
 
 interface Props {
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   app: App;
 }
 

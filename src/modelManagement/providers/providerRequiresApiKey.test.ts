@@ -1,5 +1,5 @@
 import type { Provider } from "@/modelManagement/types/persisted";
-import { providerNeedsResolvedApiKey, providerRequiresApiKey } from "./providerRequiresApiKey";
+import { providerRequiresApiKey } from "./providerRequiresApiKey";
 
 function provider(overrides: Partial<Provider> = {}): Provider {
   return {
@@ -33,23 +33,6 @@ describe("providerRequiresApiKey", () => {
 
     it("treats a provider without the flag as requiring a key", () => {
       expect(providerRequiresApiKey(provider({ requiresApiKey: undefined }))).toBe(true);
-    });
-  });
-
-  describe("providerNeedsResolvedApiKey()", () => {
-    it("needs a runtime key for required-key providers, Copilot Plus, and optional-key providers with a stored key, but not for an optional-key provider without one (https://github.com/logancyang/obsidian-copilot/issues/2895)", () => {
-      expect(providerNeedsResolvedApiKey(provider({ requiresApiKey: true }))).toBe(true);
-      expect(
-        providerNeedsResolvedApiKey(
-          provider({ origin: { kind: "copilot-plus" }, requiresApiKey: false })
-        )
-      ).toBe(true);
-      expect(
-        providerNeedsResolvedApiKey(
-          provider({ requiresApiKey: false, apiKeyKeychainId: "keychain-p1" })
-        )
-      ).toBe(true);
-      expect(providerNeedsResolvedApiKey(provider({ requiresApiKey: false }))).toBe(false);
     });
   });
 });

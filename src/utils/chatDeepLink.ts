@@ -1,4 +1,4 @@
-import { getEffectiveConversationsFolder } from "@/settings/copilotFolder";
+import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
 import { listMarkdownFiles, readFrontmatterViaAdapter } from "@/utils/vaultAdapterUtils";
 import { App, TFile } from "obsidian";
 

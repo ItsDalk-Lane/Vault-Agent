@@ -1,4 +1,4 @@
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import {
   backendDisplayOrder,
   backendNeedsSelfHostWarning,
@@ -27,7 +27,7 @@ jest.mock("obsidian", () => ({
 }));
 
 describe("registry", () => {
-  const baseSettings = (activeBackend?: string, enableSelfHostMode = false): CopilotSettings =>
+  const baseSettings = (activeBackend?: string, enableSelfHostMode = false): VaultAgentSettings =>
     ({
       enableSelfHostMode,
       agentMode: {
@@ -36,7 +36,7 @@ describe("registry", () => {
         activeBackend: activeBackend ?? "opencode",
         backends: { opencode: {} },
       },
-    }) as unknown as CopilotSettings;
+    }) as unknown as VaultAgentSettings;
 
   describe("getActiveBackendDescriptor()", () => {
     it("returns the OpenCode descriptor by default", () => {

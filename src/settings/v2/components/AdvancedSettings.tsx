@@ -5,7 +5,7 @@ import { DebuggingSupportSection } from "@/settings/v2/components/DebuggingSuppo
 import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
 import { useApp } from "@/context";
 import { usePlugin } from "@/contexts/PluginContext";
-import { getCopilotSaveData } from "@/settings/copilotSaveData";
+import { getVaultAgentSaveData } from "@/settings/vaultAgentSaveData";
 import { KeychainService } from "@/services/keychainService";
 import {
   refreshLastPersistedSettings,
@@ -16,7 +16,7 @@ import {
 import { hasPersistedSecrets } from "@/services/settingsSecretTransforms";
 import { logError } from "@/logger";
 import {
-  type CopilotSettings,
+  type VaultAgentSettings,
   setSettings,
   updateSetting,
   useSettingsValue,
@@ -121,7 +121,7 @@ export const AdvancedSettings: React.FC = () => {
     setForgetting(true);
     try {
       const keychain = KeychainService.getInstance();
-      const saveData = getCopilotSaveData(app);
+      const saveData = getVaultAgentSaveData(app);
 
       await runPersistenceTransaction(() =>
         keychain.forgetAllSecrets(
@@ -130,7 +130,7 @@ export const AdvancedSettings: React.FC = () => {
             releaseLegacyCredentialHold();
           },
           (nextSettings) => {
-            refreshLastPersistedSettings(nextSettings as CopilotSettings);
+            refreshLastPersistedSettings(nextSettings as VaultAgentSettings);
             suppressNextPersistOnce();
             setSettings(nextSettings);
           }

@@ -1,11 +1,16 @@
 import { DEFAULT_SETTINGS } from "@/constants";
 import {
-  applyCopilotRootChange,
-  copilotRootContainsNotes,
-  findCopilotRootFileConflict,
-} from "@/settings/copilotRootChange";
+  applyVaultAgentRootChange,
+  vaultAgentRootContainsNotes,
+  findVaultAgentRootFileConflict,
+} from "@/settings/vaultAgentRootChange";
 import { mockTFile, mockTFolder } from "@/__tests__/mockObsidian";
-import { getSettings, settingsAtom, settingsStore, type CopilotSettings } from "@/settings/model";
+import {
+  getSettings,
+  settingsAtom,
+  settingsStore,
+  type VaultAgentSettings,
+} from "@/settings/model";
 import type { App } from "obsidian";
 import * as obsidian from "obsidian";
 
@@ -20,8 +25,8 @@ jest.mock("@/services/settingsPersistence", () => ({
 }));
 
 const saveData = jest.fn<Promise<void>, unknown[]>();
-jest.mock("@/settings/copilotSaveData", () => ({
-  getCopilotSaveData: () => saveData,
+jest.mock("@/settings/vaultAgentSaveData", () => ({
+  getVaultAgentSaveData: () => saveData,
 }));
 
 const app = { vault: { configDir: ".vault-config" } } as unknown as App;
@@ -32,7 +37,7 @@ function appWithMarkdown(paths: string[]): App {
   } as unknown as App;
 }
 
-function seedSettings(partial: Partial<CopilotSettings>): void {
+function seedSettings(partial: Partial<VaultAgentSettings>): void {
   settingsStore.set(settingsAtom, { ...DEFAULT_SETTINGS, ...partial });
 }
 
@@ -44,25 +49,25 @@ describe("copilotRootChange", () => {
     settingsStore.set(settingsAtom, { ...DEFAULT_SETTINGS });
   });
 
-  describe("copilotRootContainsNotes()", () => {
+  describe("vaultAgentRootContainsNotes()", () => {
     it("returns true when a Markdown file lives directly under the target root", () => {
       const app = appWithMarkdown(["ai/note.md", "other/x.md"]);
-      expect(copilotRootContainsNotes(app, "ai")).toBe(true);
+      expect(vaultAgentRootContainsNotes(app, "ai")).toBe(true);
     });
 
     it("returns true for a nested Markdown file under the target root", () => {
       const app = appWithMarkdown(["ai/sub/deep.md"]);
-      expect(copilotRootContainsNotes(app, "ai")).toBe(true);
+      expect(vaultAgentRootContainsNotes(app, "ai")).toBe(true);
     });
 
     it("returns false when no Markdown file is at or under the target root", () => {
       const app = appWithMarkdown(["notes/a.md", "ai-adjacent/b.md"]);
-      expect(copilotRootContainsNotes(app, "ai")).toBe(false);
+      expect(vaultAgentRootContainsNotes(app, "ai")).toBe(false);
     });
 
     it("returns false for an empty candidate root", () => {
       const app = appWithMarkdown(["a.md"]);
-      expect(copilotRootContainsNotes(app, "")).toBe(false);
+      expect(vaultAgentRootContainsNotes(app, "")).toBe(false);
     });
 
     it("catches a differently-cased folder where the filesystem is case-insensitive", () => {
@@ -71,7 +76,7 @@ describe("copilotRootChange", () => {
       platform.isMacOS = true;
       try {
         const app = appWithMarkdown(["notes/private.md"]);
-        expect(copilotRootContainsNotes(app, "Notes")).toBe(true);
+        expect(vaultAgentRootContainsNotes(app, "Notes")).toBe(true);
       } finally {
         platform.isMacOS = previous;
       }
@@ -79,11 +84,11 @@ describe("copilotRootChange", () => {
 
     it("treats a differently-cased folder as distinct where the filesystem is case-sensitive", () => {
       const app = appWithMarkdown(["notes/private.md"]);
-      expect(copilotRootContainsNotes(app, "Notes")).toBe(false);
+      expect(vaultAgentRootContainsNotes(app, "Notes")).toBe(false);
     });
   });
 
-  describe("findCopilotRootFileConflict()", () => {
+  describe("findVaultAgentRootFileConflict()", () => {
     function appWithEntries(entries: Record<string, "file" | "folder">): App {
       return {
         vault: {
@@ -99,51 +104,51 @@ describe("copilotRootChange", () => {
 
     it("returns the root itself when it exists as a file", () => {
       const app = appWithEntries({ "ai.txt": "file" });
-      expect(findCopilotRootFileConflict(app, "ai.txt")).toBe("ai.txt");
+      expect(findVaultAgentRootFileConflict(app, "ai.txt")).toBe("ai.txt");
     });
 
     it("returns the first ancestor that exists as a file", () => {
       const app = appWithEntries({ team: "file" });
-      expect(findCopilotRootFileConflict(app, "team/ai")).toBe("team");
+      expect(findVaultAgentRootFileConflict(app, "team/ai")).toBe("team");
     });
 
     it("returns null when every existing prefix is a folder", () => {
       const app = appWithEntries({ team: "folder", "team/ai": "folder" });
-      expect(findCopilotRootFileConflict(app, "team/ai")).toBeNull();
+      expect(findVaultAgentRootFileConflict(app, "team/ai")).toBeNull();
     });
 
     it("returns null when nothing exists at any prefix yet", () => {
       const app = appWithEntries({});
-      expect(findCopilotRootFileConflict(app, "brand/new/root")).toBeNull();
+      expect(findVaultAgentRootFileConflict(app, "brand/new/root")).toBeNull();
     });
 
     it("returns null for an empty candidate root", () => {
       const app = appWithEntries({});
-      expect(findCopilotRootFileConflict(app, "")).toBeNull();
+      expect(findVaultAgentRootFileConflict(app, "")).toBeNull();
     });
   });
 
-  describe("applyCopilotRootChange()", () => {
+  describe("applyVaultAgentRootChange()", () => {
     it("durably persists the new root before activating it in memory", async () => {
-      seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
+      seedSettings({ vaultAgentFolder: "vault-agent", vaultAgentRootHistory: ["vault-agent"] });
       let rootWhenPersisted: string | undefined;
       const persistedSnapshots: string[] = [];
       persistSettingsWithinTransaction.mockImplementation((next: unknown) => {
-        rootWhenPersisted = getSettings().copilotFolder;
-        persistedSnapshots.push((next as CopilotSettings).copilotFolder);
+        rootWhenPersisted = getSettings().vaultAgentFolder;
+        persistedSnapshots.push((next as VaultAgentSettings).vaultAgentFolder);
         return Promise.resolve();
       });
 
-      await applyCopilotRootChange(app, "ai");
+      await applyVaultAgentRootChange(app, "ai");
 
-      expect(rootWhenPersisted).toBe("copilot");
+      expect(rootWhenPersisted).toBe("vault-agent");
       expect(persistedSnapshots).toEqual(["ai"]);
-      expect(getSettings().copilotFolder).toBe("ai");
+      expect(getSettings().vaultAgentFolder).toBe("ai");
       expect(suppressNextPersistOnce).toHaveBeenCalledTimes(1);
     });
 
     it("preserves a concurrent settings edit in memory across the reconcile", async () => {
-      seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
+      seedSettings({ vaultAgentFolder: "vault-agent", vaultAgentRootHistory: ["vault-agent"] });
       persistSettingsWithinTransaction
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
@@ -160,16 +165,16 @@ describe("copilotRootChange", () => {
           return Promise.resolve();
         });
 
-      await applyCopilotRootChange(app, "ai");
+      await applyVaultAgentRootChange(app, "ai");
 
       const after = getSettings();
-      expect(after.copilotFolder).toBe("ai");
+      expect(after.vaultAgentFolder).toBe("ai");
       expect(after.defaultConversationNoteName).toBe("edit-A");
       expect(after.defaultModelKey).toBe("edit-B");
     });
 
     it("completes the root change even when the reconcile save fails", async () => {
-      seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
+      seedSettings({ vaultAgentFolder: "vault-agent", vaultAgentRootHistory: ["vault-agent"] });
       persistSettingsWithinTransaction
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
@@ -180,30 +185,30 @@ describe("copilotRootChange", () => {
         })
         .mockRejectedValueOnce(new Error("reconcile disk full"));
 
-      await expect(applyCopilotRootChange(app, "ai")).resolves.toBeUndefined();
+      await expect(applyVaultAgentRootChange(app, "ai")).resolves.toBeUndefined();
 
-      expect(getSettings().copilotFolder).toBe("ai");
+      expect(getSettings().vaultAgentFolder).toBe("ai");
       expect(getSettings().defaultConversationNoteName).toBe("edit-A");
     });
 
     it("keeps the old root when the durable save fails", async () => {
-      seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
+      seedSettings({ vaultAgentFolder: "vault-agent", vaultAgentRootHistory: ["vault-agent"] });
       persistSettingsWithinTransaction.mockRejectedValueOnce(new Error("disk full"));
 
-      await expect(applyCopilotRootChange(app, "ai")).rejects.toThrow("disk full");
+      await expect(applyVaultAgentRootChange(app, "ai")).rejects.toThrow("disk full");
 
-      expect(getSettings().copilotFolder).toBe("copilot");
-      expect(getSettings().copilotRootHistory).toEqual(["copilot"]);
+      expect(getSettings().vaultAgentFolder).toBe("vault-agent");
+      expect(getSettings().vaultAgentRootHistory).toEqual(["vault-agent"]);
       expect(suppressNextPersistOnce).not.toHaveBeenCalled();
     });
 
     it("does not activate an invalid root", async () => {
-      seedSettings({ copilotFolder: "copilot", copilotRootHistory: ["copilot"] });
+      seedSettings({ vaultAgentFolder: "vault-agent", vaultAgentRootHistory: ["vault-agent"] });
 
-      await applyCopilotRootChange(app, "../escape");
+      await applyVaultAgentRootChange(app, "../escape");
 
-      expect(getSettings().copilotFolder).toBe("copilot");
-      expect(getSettings().copilotRootHistory).toEqual(["copilot"]);
+      expect(getSettings().vaultAgentFolder).toBe("vault-agent");
+      expect(getSettings().vaultAgentRootHistory).toEqual(["vault-agent"]);
       expect(persistSettingsWithinTransaction).not.toHaveBeenCalled();
     });
   });

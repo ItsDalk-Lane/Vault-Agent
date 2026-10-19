@@ -2,8 +2,8 @@ import { logFileManager } from "@/logFileManager";
 import { getSettings } from "@/settings/model";
 import { Notice, type App } from "obsidian";
 
-jest.mock("@/settings/copilotFolder", () => ({
-  getEffectiveCopilotFolder: () => "copilot",
+jest.mock("@/settings/vaultAgentFolder", () => ({
+  getEffectiveVaultAgentFolder: () => "vault-agent",
 }));
 jest.mock("@/settings/model", () => ({
   getSettings: jest.fn(() => ({ debug: true, openAIApiKey: "sk-should-never-be-exported" })),
@@ -97,7 +97,7 @@ describe("logFileManager", () => {
 
         await logFileManager.flush();
         expect(vault.write).toHaveBeenCalledWith(
-          "copilot/copilot-log.md",
+          "vault-agent/vault-agent-log.md",
           expect.stringContaining("hello")
         );
       });
@@ -164,14 +164,14 @@ describe("logFileManager", () => {
 
         await logFileManager.openLogFile();
         expect(Notice).toHaveBeenCalledWith(
-          "Could not write the Copilot log file: Error: read-only vault"
+          "Could not write the Vault Agent log file: Error: read-only vault"
         );
       });
     });
 
     describe("getLogPath()", () => {
       it("resolves the note under the effective Copilot root folder", () => {
-        expect(logFileManager.getLogPath()).toBe("copilot/copilot-log.md");
+        expect(logFileManager.getLogPath()).toBe("vault-agent/vault-agent-log.md");
       });
     });
   });

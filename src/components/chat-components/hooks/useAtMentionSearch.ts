@@ -14,7 +14,7 @@ import {
   CategoryOption,
   EMPTY_AGENT_MENTION_BRANDS,
 } from "./useAtMentionCategories";
-import { getEffectiveCustomPromptsFolder } from "@/settings/copilotFolder";
+import { getEffectiveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
 import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 
 const MAX_SEARCH_RESULTS = 30;

@@ -66,7 +66,7 @@ Then in either case:
 2. Import the descriptor directly from `descriptor.ts` and add it to
    `backends/registry.ts`.
 3. Settings: store backend-specific config under `agentMode.backends.<id>`
-   (extend `CopilotSettings.agentMode.backends` in `src/settings/model.ts`).
+   (extend `VaultAgentSettings.agentMode.backends` in `src/settings/model.ts`).
 4. Done. **No edits to `acp/`, `session/`, `sdk/`, or `ui/` should be
    required.** If you need one, the boundary is leaking — extend the
    descriptor surface instead.
@@ -131,7 +131,7 @@ When enabled, every parsed frame is appended as one NDJSON line outside the
 vault, under the OS temp directory:
 
 ```text
-<tmp>/obsidian-copilot/acp-frames/<vault-hash>/acp-frames.ndjson
+<tmp>/vault-agent/acp-frames/<vault-hash>/acp-frames.ndjson
 ```
 
 Each line is a `FrameRecord` (`src/agentMode/session/debugSink.ts`):

@@ -4,12 +4,12 @@ import { OPENCODE_MIN_VERSION } from "./ui/opencodeVersion";
 import { ChatModelProviders } from "@/constants";
 import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { providerNeedsResolvedApiKey } from "@/modelManagement";
 import { isCatalogProviderDefaultEndpoint } from "@/utils/providerBaseUrl";
 import type { BackendConfigRegistry, ProviderRegistry } from "@/modelManagement";
 import { AcpBackend, AcpSpawnDescriptor } from "@/agentMode/acp/types";
-import type { CopilotMode } from "@/agentMode/session/types";
+import type { VaultAgentMode } from "@/agentMode/session/types";
 import { composeDenyList, getManagedSkills, SkillManager } from "@/agentMode/skills";
 import { buildAgentSystemPrompt } from "@/agentMode/backends/shared/agentSystemPrompt";
 import {
@@ -20,7 +20,7 @@ import { OpencodeBackendDescriptor } from "./descriptor";
 import { mapProviderToOpencodeId } from "./opencodeModelResolve";
 import type { SelfHostWebSearchAgentChannel } from "@/LLMProviders/selfHostServices";
 import type { Config } from "@opencode/schema/config";
-import { installOpencodeCopilotPlugin } from "./opencodeCopilotPlugin";
+import { installOpencodeVaultAgentPlugin } from "./opencodeVaultAgentPlugin";
 
 export const OPENCODE_PROVIDER_MAP: Partial<Record<ChatModelProviders, string>> = {
   [ChatModelProviders.ANTHROPIC]: "anthropic",
@@ -33,19 +33,19 @@ export const OPENCODE_PROVIDER_MAP: Partial<Record<ChatModelProviders, string>> 
   [ChatModelProviders.XAI]: "xai",
 };
 
-const OPENCODE_COPILOT_BUILD_AGENT_ID = "copilot-build";
+const OPENCODE_VAULT_AGENT_BUILD_AGENT_ID = "vault-agent-build";
 
 const OPENCODE_BUILTIN_BUILD_AGENT_ID = "build";
 
-export const OPENCODE_CANONICAL_MODE_AGENT_IDS: Partial<Record<CopilotMode, string>> = {
-  default: OPENCODE_COPILOT_BUILD_AGENT_ID,
+export const OPENCODE_CANONICAL_MODE_AGENT_IDS: Partial<Record<VaultAgentMode, string>> = {
+  default: OPENCODE_VAULT_AGENT_BUILD_AGENT_ID,
   auto: OPENCODE_BUILTIN_BUILD_AGENT_ID,
 };
 
 export interface OpencodeModelDeps {
   providerRegistry: ProviderRegistry;
   backendConfigRegistry: BackendConfigRegistry;
-  getCopilotPluginDir?: () => string;
+  getVaultAgentPluginDir?: () => string;
   getSelfHostWebSearchChannel?: () => Promise<Readonly<SelfHostWebSearchAgentChannel>>;
 }
 
@@ -92,8 +92,8 @@ export class OpencodeBackend implements AcpBackend {
         await buildOpencodeConfig(
           settings,
           this.#deps,
-          this.#deps.getCopilotPluginDir &&
-            (await installOpencodeCopilotPlugin(this.#deps.getCopilotPluginDir()))
+          this.#deps.getVaultAgentPluginDir &&
+            (await installOpencodeVaultAgentPlugin(this.#deps.getVaultAgentPluginDir()))
         )
       );
     if (settings.enableSelfHostMode === true && configOverride !== undefined) {
@@ -187,9 +187,9 @@ const NATIVE_WEB_DENIES: readonly PermissionRule[] = [
 const OPENCODE_1_PERMISSION_KEYS = ["permission", "tools", "agent", "mode"] as const;
 
 export async function buildOpencodeConfig(
-  s: CopilotSettings,
+  s: VaultAgentSettings,
   deps: OpencodeModelDeps,
-  copilotPluginDir?: string
+  vaultAgentPluginDir?: string
 ): Promise<GeneratedOpencodeConfig> {
   const { providerRegistry, backendConfigRegistry } = deps;
 
@@ -331,7 +331,7 @@ export async function buildOpencodeConfig(
     // gains `max`) and merges them over configured variants, which cannot be
     // disabled individually. Only published levels are trusted, so drop it.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/557
-    plugins: ["-opencode.variant", ...(copilotPluginDir ? [copilotPluginDir] : [])],
+    plugins: ["-opencode.variant", ...(vaultAgentPluginDir ? [vaultAgentPluginDir] : [])],
     // Without a configured provider, native web search asks the user to pick
     // one through OpenCode's form service, and OpenCode's ACP bridge cancels
     // every form, so each search ends as "Web search cancelled". "random" is
@@ -342,7 +342,7 @@ export async function buildOpencodeConfig(
     permissions,
     agents: {
       [OPENCODE_BUILTIN_BUILD_AGENT_ID]: { system },
-      [OPENCODE_COPILOT_BUILD_AGENT_ID]: {
+      [OPENCODE_VAULT_AGENT_BUILD_AGENT_ID]: {
         mode: "primary",
         system,
         permissions: [
@@ -357,6 +357,6 @@ export async function buildOpencodeConfig(
         ],
       },
     },
-    default_agent: OPENCODE_COPILOT_BUILD_AGENT_ID,
+    default_agent: OPENCODE_VAULT_AGENT_BUILD_AGENT_ID,
   };
 }

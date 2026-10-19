@@ -10,11 +10,11 @@ export const EMPTY_PROJECT_CONFIG: ProjectConfig = {
   UsageTimestamps: 0,
 };
 
-export const COPILOT_PROJECT_ID = "copilot-project-id";
-export const COPILOT_PROJECT_NAME = "copilot-project-name";
+export const VAULT_AGENT_PROJECT_ID = "vault-agent-project-id";
+export const VAULT_AGENT_PROJECT_NAME = "vault-agent-project-name";
 export const COPILOT_PROJECT_DESCRIPTION = "copilot-project-description";
 export const COPILOT_PROJECT_CREATED = "copilot-project-created";
-export const COPILOT_PROJECT_LAST_USED = "copilot-project-last-used";
+export const VAULT_AGENT_PROJECT_LAST_USED = "vault-agent-project-last-used";
 export const COPILOT_PROJECT_INCLUSIONS = "copilot-project-inclusions";
 export const COPILOT_PROJECT_EXCLUSIONS = "copilot-project-exclusions";
 export const COPILOT_PROJECT_WEB_URLS = "copilot-project-web-urls";

@@ -12,7 +12,7 @@ import { AgentProjectHeader } from "@/agentMode/ui/AgentProjectHeader";
 import { ProjectInfoPopover } from "@/agentMode/ui/ProjectInfoPopover";
 import { AgentTabStrip } from "@/agentMode/ui/AgentTabStrip";
 import { AgentWelcomeCard } from "@/agentMode/ui/AgentWelcomeCard";
-import { CopilotBrandIcon } from "@/components/ui/CopilotBrandIcon";
+import { VaultAgentBrandIcon } from "@/components/ui/VaultAgentBrandIcon";
 import { AgentHomeShelf, type AgentHomeShelfSection } from "@/agentMode/ui/AgentHomeShelf";
 import { GlobalRecentChatsSection } from "@/agentMode/ui/GlobalRecentChatsSection";
 import {
@@ -44,7 +44,7 @@ import { ChatInputProvider } from "@/context/ChatInputContext";
 import { useChatFileDrop } from "@/hooks/useChatFileDrop";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import { getProjectLandingCaptureSignature } from "@/projects/projectContextSignature";
 import { getCachedProjectRecordById, useProjects } from "@/projects/state";
@@ -59,7 +59,7 @@ interface AgentHomeProps {
   sessionId: string;
   chatInputId: string;
   manager: AgentSessionManager;
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   onSaveChat: (saveAsNote: () => Promise<void>) => void;
   updateUserMessageHistory: (newMessage: string) => void;
 }
@@ -513,7 +513,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   const heroText = showProjectHero ? `Chat in ${projectName}` : greeting;
   const hero = (
     <div className="tw-flex tw-min-w-0 tw-items-center tw-justify-center tw-gap-3">
-      <CopilotBrandIcon className="tw-size-6 tw-shrink-0 tw-text-normal" />
+      <VaultAgentBrandIcon className="tw-size-6 tw-shrink-0 tw-text-normal" />
       <TruncatedText
         className="tw-min-w-0 tw-text-3xl tw-font-[330] tw-text-normal"
         tooltipContent={heroText}

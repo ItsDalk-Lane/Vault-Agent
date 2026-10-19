@@ -10,7 +10,7 @@ import {
 import { mockTFile } from "@/__tests__/mockObsidian";
 
 jest.mock("@/settings/model", () => ({
-  getSettings: jest.fn(() => ({ copilotFolder: "vault-copilot" })),
+  getSettings: jest.fn(() => ({ vaultAgentFolder: "vault-copilot" })),
   updateSetting: jest.fn(),
 }));
 
@@ -100,8 +100,8 @@ describe("ProjectFileManager", () => {
       const filePath = "vault-copilot/projects/My Project/project.md";
       expect(vault.create).toHaveBeenCalledWith(filePath, "Cite every source.");
       expect(frontmatter).toMatchObject({
-        "copilot-project-id": "p1",
-        "copilot-project-name": "My Project",
+        "vault-agent-project-id": "p1",
+        "vault-agent-project-name": "My Project",
       });
       expect(record).toMatchObject({ filePath, folderName: "My Project" });
       expect(getCachedProjectRecords()).toEqual([record]);

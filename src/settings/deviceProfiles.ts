@@ -1,9 +1,9 @@
 // Device-specific fields live in per-device segments because `data.json` syncs across devices:
 // https://github.com/logancyang/obsidian-copilot/issues/2539
 
-import type { CopilotSettings, DeviceAgentProfile } from "@/settings/model";
+import type { VaultAgentSettings, DeviceAgentProfile } from "@/settings/model";
 
-type AgentMode = CopilotSettings["agentMode"];
+type AgentMode = VaultAgentSettings["agentMode"];
 type Backends = AgentMode["backends"];
 
 function hasOwnKeys(obj: object): boolean {
@@ -85,9 +85,9 @@ function stripDeviceFieldsFromBackends(backends: Backends | undefined): Backends
 }
 
 export function dehydrateDeviceProfile(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   deviceId: string
-): CopilotSettings {
+): VaultAgentSettings {
   const agentMode = settings?.agentMode;
   if (!agentMode) return settings;
 
@@ -105,7 +105,10 @@ export function dehydrateDeviceProfile(
   return { ...settings, agentMode: nextAgentMode };
 }
 
-export function hydrateDeviceProfile(settings: CopilotSettings, deviceId: string): CopilotSettings {
+export function hydrateDeviceProfile(
+  settings: VaultAgentSettings,
+  deviceId: string
+): VaultAgentSettings {
   const agentMode = settings.agentMode;
   if (!agentMode) return settings;
   const profile = agentMode.deviceProfiles?.[deviceId];

@@ -229,7 +229,7 @@ describe("systemPromptRegister", () => {
           { title: "NewPrompt2", content: "", createdMs: 0, modifiedMs: 0, lastUsedMs: 0 },
         ]);
 
-        settingsChangeHandler({ copilotFolder: "OldFolder" }, { copilotFolder: "NewFolder" });
+        settingsChangeHandler({ vaultAgentFolder: "OldFolder" }, { vaultAgentFolder: "NewFolder" });
 
         jest.advanceTimersByTime(300);
 
@@ -255,7 +255,7 @@ describe("systemPromptRegister", () => {
           { title: "NewPrompt1", content: "", createdMs: 0, modifiedMs: 0, lastUsedMs: 0 },
         ]);
 
-        settingsChangeHandler({ copilotFolder: "OldFolder" }, { copilotFolder: "NewFolder" });
+        settingsChangeHandler({ vaultAgentFolder: "OldFolder" }, { vaultAgentFolder: "NewFolder" });
 
         jest.advanceTimersByTime(300);
 
@@ -282,7 +282,7 @@ describe("systemPromptRegister", () => {
           { title: "ExistingPrompt", content: "", createdMs: 0, modifiedMs: 0, lastUsedMs: 0 },
         ]);
 
-        settingsChangeHandler({ copilotFolder: "OldFolder" }, { copilotFolder: "NewFolder" });
+        settingsChangeHandler({ vaultAgentFolder: "OldFolder" }, { vaultAgentFolder: "NewFolder" });
 
         jest.advanceTimersByTime(300);
 
@@ -301,12 +301,12 @@ describe("systemPromptRegister", () => {
         const { getSettings } = jest.requireMock<{ getSettings: jest.Mock }>("@/settings/model");
         getSettings.mockReturnValue({
           defaultSystemPromptTitle: "NewDefault",
-          copilotFolder: "team/ai",
+          vaultAgentFolder: "team/ai",
         });
 
         settingsChangeHandler(
-          { copilotFolder: "copilot", defaultSystemPromptTitle: "OldDefault" },
-          { copilotFolder: "team/ai", defaultSystemPromptTitle: "NewDefault" }
+          { vaultAgentFolder: "vault-agent", defaultSystemPromptTitle: "OldDefault" },
+          { vaultAgentFolder: "team/ai", defaultSystemPromptTitle: "NewDefault" }
         );
 
         await Promise.resolve();
@@ -316,15 +316,15 @@ describe("systemPromptRegister", () => {
           expect.anything(),
           "OldDefault",
           false,
-          "copilot/system-prompts"
+          "vault-agent/system-prompts"
         );
         expect(updatePromptDefaultFlag).toHaveBeenCalledWith(expect.anything(), "NewDefault", true);
       });
 
       it("debounces rapid folder changes", async () => {
-        settingsChangeHandler({ copilotFolder: "Folder1" }, { copilotFolder: "Folder2" });
-        settingsChangeHandler({ copilotFolder: "Folder2" }, { copilotFolder: "Folder3" });
-        settingsChangeHandler({ copilotFolder: "Folder3" }, { copilotFolder: "Folder4" });
+        settingsChangeHandler({ vaultAgentFolder: "Folder1" }, { vaultAgentFolder: "Folder2" });
+        settingsChangeHandler({ vaultAgentFolder: "Folder2" }, { vaultAgentFolder: "Folder3" });
+        settingsChangeHandler({ vaultAgentFolder: "Folder3" }, { vaultAgentFolder: "Folder4" });
 
         jest.advanceTimersByTime(300);
 
@@ -339,7 +339,7 @@ describe("systemPromptRegister", () => {
         state.updateCachedSystemPrompts(cached);
         mockFetchAllSystemPrompts.mockRejectedValueOnce(new Error("Network error"));
 
-        settingsChangeHandler({ copilotFolder: "OldFolder" }, { copilotFolder: "NewFolder" });
+        settingsChangeHandler({ vaultAgentFolder: "OldFolder" }, { vaultAgentFolder: "NewFolder" });
 
         jest.advanceTimersByTime(300);
 
@@ -368,11 +368,11 @@ describe("systemPromptRegister", () => {
 
         mockFetchAllSystemPrompts.mockReturnValueOnce(promiseA).mockReturnValueOnce(promiseB);
 
-        settingsChangeHandler({ copilotFolder: "Original" }, { copilotFolder: "FolderA" });
+        settingsChangeHandler({ vaultAgentFolder: "Original" }, { vaultAgentFolder: "FolderA" });
         jest.advanceTimersByTime(300);
         await Promise.resolve();
 
-        settingsChangeHandler({ copilotFolder: "FolderA" }, { copilotFolder: "FolderB" });
+        settingsChangeHandler({ vaultAgentFolder: "FolderA" }, { vaultAgentFolder: "FolderB" });
         jest.advanceTimersByTime(300);
         await Promise.resolve();
 

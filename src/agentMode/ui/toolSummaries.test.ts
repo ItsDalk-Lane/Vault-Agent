@@ -84,14 +84,12 @@ describe("toolSummaries", () => {
         title: "Map user-facing features",
         input: {
           subagent_type: "Explore",
-          description: "Map user-facing features of obsidian-copilot",
+          description: "Map user-facing features of vault-agent",
           prompt: "Explore the codebase…",
         },
       });
       const s = lookupToolSummary(t);
-      expect(s.collapsedLine(t, CTX)).toBe(
-        'Explore · "Map user-facing features of obsidian-copilot"'
-      );
+      expect(s.collapsedLine(t, CTX)).toBe('Explore · "Map user-facing features of vault-agent"');
       const taskEquiv = lookupToolSummary({ ...t, vendorToolName: "Task" });
       expect(s).toBe(taskEquiv);
     });
@@ -465,7 +463,7 @@ describe("toolSummaries", () => {
 
     it("expands a Bash call to its full untruncated command", () => {
       const longCmd =
-        "cd ~/Developer/obsidian-copilot && rg --multiline 'foo bar baz' src/**/*.ts | head -50";
+        "cd ~/Developer/vault-agent && rg --multiline 'foo bar baz' src/**/*.ts | head -50";
       const t = tool({ vendorToolName: "Bash", input: { command: longCmd } });
       const s = lookupToolSummary(t);
       expect(s.collapsedLine(t, CTX).length).toBeLessThan(longCmd.length);

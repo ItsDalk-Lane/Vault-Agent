@@ -1,14 +1,14 @@
 import React from "react";
 import { backendNeedsSelfHostWarning, listBackendDescriptors } from "@/agentMode/backends/registry";
 import type { AgentBrand } from "@/agentMode/session/types";
-import type CopilotPlugin from "@/main";
-import { useSettingsValue, type CopilotSettings } from "@/settings/model";
+import type VaultAgentPlugin from "@/main";
+import { useSettingsValue, type VaultAgentSettings } from "@/settings/model";
 
 export { EMPTY_ANSWERERS, isFanout, resolveAnswerers } from "@/agentMode/session/fanout/answerers";
 
 export const EMPTY_AGENT_BRANDS: ReadonlyArray<AgentBrand> = Object.freeze([]);
 
-export function listInstalledAgentBrands(settings: CopilotSettings): ReadonlyArray<AgentBrand> {
+export function listInstalledAgentBrands(settings: VaultAgentSettings): ReadonlyArray<AgentBrand> {
   const brands = listBackendDescriptors()
     .filter((descriptor) => descriptor.getInstallState(settings).kind === "ready")
     .map(
@@ -23,7 +23,7 @@ export function listInstalledAgentBrands(settings: CopilotSettings): ReadonlyArr
   return brands.length > 0 ? brands : EMPTY_AGENT_BRANDS;
 }
 
-export function useInstalledAgentBrands(plugin: CopilotPlugin): ReadonlyArray<AgentBrand> {
+export function useInstalledAgentBrands(plugin: VaultAgentPlugin): ReadonlyArray<AgentBrand> {
   const settings = useSettingsValue();
   const subscribe = React.useCallback(
     (listener: () => void) => {

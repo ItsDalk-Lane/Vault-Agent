@@ -4,7 +4,7 @@ import {
   type DebuggingSupportSectionProps,
 } from "./DebuggingSupportSection";
 
-const FRAME_LOG_PATH = "/var/folders/t2/obsidian-copilot/acp-frames/3f9a1c/acp-frames.ndjson";
+const FRAME_LOG_PATH = "/var/folders/t2/vault-agent/acp-frames/3f9a1c/acp-frames.ndjson";
 
 const meta = {
   title: "Settings/Debugging & Support Section",

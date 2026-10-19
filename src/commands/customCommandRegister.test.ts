@@ -1,7 +1,7 @@
 import { App, Plugin, Vault } from "obsidian";
 import { CustomCommandRegister } from "@/commands/customCommandRegister";
 import type { CustomCommand } from "@/commands/type";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
 jest.mock("obsidian", () => ({
   Plugin: jest.fn(),
@@ -21,7 +21,7 @@ jest.mock("@/commands/customCommandManager", () => ({
 }));
 
 jest.mock("@/commands/customCommandUtils", () => ({
-  getCommandId: (title: string) => `copilot-command-${title}`,
+  getCommandId: (title: string) => `vault-agent-command-${title}`,
   isCustomCommandFile: jest.fn(() => true),
   loadAllCustomCommands: jest.fn().mockResolvedValue([]),
   fetchAllCustomCommands: jest.fn(),
@@ -40,7 +40,7 @@ jest.mock("@/commands/state", () => ({
 }));
 
 jest.mock("@/settings/model", () => ({
-  getSettings: jest.fn(() => ({ copilotFolder: "copilot" })),
+  getSettings: jest.fn(() => ({ vaultAgentFolder: "vault-agent" })),
   subscribeToSettingsChange: jest.fn().mockReturnValue(() => {}),
 }));
 
@@ -56,14 +56,14 @@ function command(title: string): CustomCommand {
   };
 }
 
-function settingsWithRoot(copilotFolder: string): CopilotSettings {
-  return { copilotFolder } as CopilotSettings;
+function settingsWithRoot(vaultAgentFolder: string): VaultAgentSettings {
+  return { vaultAgentFolder } as VaultAgentSettings;
 }
 
 describe("customCommandRegister", () => {
   describe("CustomCommandRegister", () => {
     describe("handleSettingsChange()", () => {
-      let settingsChangeHandler: (prev: CopilotSettings, next: CopilotSettings) => void;
+      let settingsChangeHandler: (prev: VaultAgentSettings, next: VaultAgentSettings) => void;
       let unsubscribe: jest.Mock;
       let addCommand: jest.Mock;
       let removeCommand: jest.Mock;
@@ -103,12 +103,12 @@ describe("customCommandRegister", () => {
         getCachedCustomCommands.mockReturnValue([command("Old")]);
         fetchAllCustomCommands.mockResolvedValue([command("New")]);
 
-        settingsChangeHandler(settingsWithRoot("copilot"), settingsWithRoot("team/ai"));
+        settingsChangeHandler(settingsWithRoot("vault-agent"), settingsWithRoot("team/ai"));
         await jest.advanceTimersByTimeAsync(0);
 
-        expect(removeCommand).toHaveBeenCalledWith("copilot-command-Old");
+        expect(removeCommand).toHaveBeenCalledWith("vault-agent-command-Old");
         expect(addCommand).toHaveBeenCalledWith(
-          expect.objectContaining({ id: "copilot-command-New", name: "New" })
+          expect.objectContaining({ id: "vault-agent-command-New", name: "New" })
         );
         expect(updateCachedCommands).toHaveBeenCalledWith([command("New")]);
       });
@@ -116,13 +116,13 @@ describe("customCommandRegister", () => {
       it("starts the reload without waiting, so no timer delay keeps old commands live", () => {
         fetchAllCustomCommands.mockResolvedValue([]);
 
-        settingsChangeHandler(settingsWithRoot("copilot"), settingsWithRoot("team/ai"));
+        settingsChangeHandler(settingsWithRoot("vault-agent"), settingsWithRoot("team/ai"));
 
         expect(fetchAllCustomCommands).toHaveBeenCalledTimes(1);
       });
 
       it("does not reload when the root — and thus the derived folder — is unchanged", async () => {
-        settingsChangeHandler(settingsWithRoot("copilot"), settingsWithRoot("copilot"));
+        settingsChangeHandler(settingsWithRoot("vault-agent"), settingsWithRoot("vault-agent"));
         await jest.advanceTimersByTimeAsync(1000);
 
         expect(fetchAllCustomCommands).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe("customCommandRegister", () => {
           .mockReturnValueOnce(stalePromise)
           .mockResolvedValueOnce([command("Fresh")]);
 
-        settingsChangeHandler(settingsWithRoot("copilot"), settingsWithRoot("a"));
+        settingsChangeHandler(settingsWithRoot("vault-agent"), settingsWithRoot("a"));
         await jest.advanceTimersByTimeAsync(0);
 
         settingsChangeHandler(settingsWithRoot("a"), settingsWithRoot("b"));
@@ -171,7 +171,7 @@ describe("customCommandRegister", () => {
         await register.initialize();
 
         expect(addCommand).toHaveBeenCalledWith(
-          expect.objectContaining({ id: "copilot-command-Summarize", name: "Summarize" })
+          expect.objectContaining({ id: "vault-agent-command-Summarize", name: "Summarize" })
         );
       });
 
@@ -261,11 +261,11 @@ describe("customCommandRegister", () => {
           } as unknown as App);
 
           const settingsChangeHandler = subscribeToSettingsChange.mock.calls[0][0] as (
-            prev: CopilotSettings,
-            next: CopilotSettings
+            prev: VaultAgentSettings,
+            next: VaultAgentSettings
           ) => void;
 
-          settingsChangeHandler(settingsWithRoot("copilot"), settingsWithRoot("team/ai"));
+          settingsChangeHandler(settingsWithRoot("vault-agent"), settingsWithRoot("team/ai"));
           await jest.advanceTimersByTimeAsync(0);
 
           register.cleanup();

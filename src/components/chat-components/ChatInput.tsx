@@ -3,7 +3,7 @@ import { useModelKey } from "@/aiParams";
 import { Button } from "@/components/ui/button";
 import { ModelSelector, type ModelSelectorEntry } from "@/components/ui/ModelSelector";
 import { useSettingsValue } from "@/settings/model";
-import type { CopilotMode } from "@/agentMode";
+import type { VaultAgentMode } from "@/agentMode";
 import {
   mergeWebTabContexts,
   normalizeUrlString,
@@ -95,9 +95,9 @@ export interface ChatInputProps {
     commitSelection?: (modelKey: string, effort: string | null) => void;
   };
   modePickerOverride?: {
-    options: { label: string; value: CopilotMode }[];
-    value: CopilotMode | null;
-    onChange: (value: CopilotMode) => void;
+    options: { label: string; value: VaultAgentMode }[];
+    value: VaultAgentMode | null;
+    onChange: (value: VaultAgentMode) => void;
     disabled?: boolean;
   };
   selectedTextContexts?: SelectedTextContext[];

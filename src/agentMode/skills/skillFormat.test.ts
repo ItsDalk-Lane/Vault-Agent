@@ -62,26 +62,26 @@ describe("skillFormat", () => {
       expect(parsed.frontmatter.allowedTools).toBe("Read Grep");
     });
 
-    it("reads metadata.copilot-enabled-agents as a comma-separated list", () => {
+    it("reads metadata.vault-agent-enabled-agents as a comma-separated list", () => {
       const parsed = parseSkillFile(
         frontmatterOf(
           "name: foo",
           "description: A skill",
           "metadata:",
-          '  copilot-enabled-agents: "claude,opencode"'
+          '  vault-agent-enabled-agents: "claude,opencode"'
         ),
         "foo"
       );
       expect(parsed.frontmatter.enabledAgents).toEqual(["claude", "opencode"]);
     });
 
-    it("reads an empty copilot-enabled-agents value as no enabled agents", () => {
+    it("reads an empty vault-agent-enabled-agents value as no enabled agents", () => {
       const parsed = parseSkillFile(
         frontmatterOf(
           "name: foo",
           "description: A skill",
           "metadata:",
-          '  copilot-enabled-agents: ""'
+          '  vault-agent-enabled-agents: ""'
         ),
         "foo"
       );
@@ -242,14 +242,14 @@ describe("skillFormat", () => {
           "metadata:",
           "  author: alice",
           "  version: 2",
-          '  copilot-enabled-agents: "claude"'
+          '  vault-agent-enabled-agents: "claude"'
         ),
         "foo"
       );
       const out = serializeSkillFile(parsed);
       expect(out).toContain("author: alice");
       expect(out).toContain("version: 2");
-      expect(out).toContain('copilot-enabled-agents: "claude"');
+      expect(out).toContain('vault-agent-enabled-agents: "claude"');
     });
 
     it("keeps foreign metadata keys when enabledAgents is patched", () => {
@@ -259,7 +259,7 @@ describe("skillFormat", () => {
           "description: A skill",
           "metadata:",
           "  author: alice",
-          '  copilot-enabled-agents: "claude"'
+          '  vault-agent-enabled-agents: "claude"'
         ),
         "foo"
       );

@@ -9,7 +9,7 @@ import type {
 jest.mock("@/logger", () => ({ logWarn: jest.fn() }));
 describe("prefetchConfigEfforts", () => {
   describe("prefetchConfigEfforts()", () => {
-    const GPT = "github-copilot/gpt-5.4";
+    const GPT = "github-vault-agent/gpt-5.4";
     const QWEN = "openrouter/qwen/qwen3.7-max";
     const NEMOTRON = "opencode/nemotron-3-super-free";
     const EFFORTS: Record<string, EffortOption[]> = {

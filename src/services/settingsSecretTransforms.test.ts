@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS } from "@/constants";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import {
   cleanupLegacyFields,
   hasPersistedSecrets,
@@ -7,11 +7,11 @@ import {
   stripKeychainFields,
 } from "@/services/settingsSecretTransforms";
 
-function makeSettings(overrides: Partial<CopilotSettings> = {}): CopilotSettings {
+function makeSettings(overrides: Partial<VaultAgentSettings> = {}): VaultAgentSettings {
   return {
     activeModels: [],
     ...overrides,
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 describe("settingsSecretTransforms", () => {
@@ -91,7 +91,7 @@ describe("settingsSecretTransforms", () => {
     });
 
     it("preserves sparse settings without adding model arrays", () => {
-      const result = stripKeychainFields({ openAIApiKey: "secret" } as CopilotSettings);
+      const result = stripKeychainFields({ openAIApiKey: "secret" } as VaultAgentSettings);
       const record = result as unknown as Record<string, unknown>;
 
       expect(record.openAIApiKey).toBe("");
@@ -113,7 +113,7 @@ describe("settingsSecretTransforms", () => {
         githubCopilotAccessToken: "gho_access",
         githubCopilotToken: "tid=copilot",
         githubCopilotTokenExpiresAt: 1893456000,
-        miyoSyncedExclusions: '{"device":"d","url":"","folder":"vault","roots":["copilot"]}',
+        miyoSyncedExclusions: '{"device":"d","url":"","folder":"vault","roots":["vault-agent"]}',
         agentMode: {
           ...DEFAULT_SETTINGS.agentMode,
           mcpServers: [
@@ -124,7 +124,7 @@ describe("settingsSecretTransforms", () => {
             },
           ],
         },
-      } as unknown as Partial<CopilotSettings>);
+      } as unknown as Partial<VaultAgentSettings>);
 
       const result = cleanupLegacyFields(settings) as unknown as Record<string, unknown>;
 

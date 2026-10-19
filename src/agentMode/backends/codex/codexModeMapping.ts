@@ -1,7 +1,7 @@
 import type {
   BackendConfigOption,
   BackendState,
-  CopilotMode,
+  VaultAgentMode,
   ModeMapping,
   RawModeState,
 } from "@/agentMode/session/types";
@@ -20,7 +20,7 @@ export function buildCodexModeMapping(): ModeMapping {
 // ACP's "read-only" mode asks before each workspace edit, matching Default on
 // other agents. Planning is Codex's separate collaboration workflow.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/618
-const CURRENT_MODE: Record<string, CopilotMode> = {
+const CURRENT_MODE: Record<string, VaultAgentMode> = {
   "read-only/default": "default",
   "agent/plan": "plan",
   "agent/default": "auto",

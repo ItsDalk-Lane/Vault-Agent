@@ -1,22 +1,22 @@
 import {
-  consumeRequestedCopilotSettingsTab,
-  openCopilotSettings,
+  consumeRequestedVaultAgentSettingsTab,
+  openVaultAgentSettings,
   openCorePluginSettings,
 } from "@/settings/openSettings";
-import { COPILOT_SETTINGS_TAB_IDS } from "@/settings/settingsTabs";
+import { VAULT_AGENT_SETTINGS_TAB_IDS } from "@/settings/settingsTabs";
 import type { App } from "obsidian";
 
 describe("openSettings", () => {
   afterEach(() => {
-    consumeRequestedCopilotSettingsTab();
+    consumeRequestedVaultAgentSettingsTab();
     jest.restoreAllMocks();
   });
 
-  describe("openCopilotSettings()", () => {
+  describe("openVaultAgentSettings()", () => {
     it("uses the first Copilot display without rendering the tab twice (https://github.com/Brevilabs/obsidian-copilot-private/issues/280)", () => {
       const consumedTabs: string[] = [];
-      const openTabById = jest.fn(() => consumedTabs.push(consumeRequestedCopilotSettingsTab()));
-      const open = jest.fn(() => consumedTabs.push(consumeRequestedCopilotSettingsTab()));
+      const openTabById = jest.fn(() => consumedTabs.push(consumeRequestedVaultAgentSettingsTab()));
+      const open = jest.fn(() => consumedTabs.push(consumeRequestedVaultAgentSettingsTab()));
       let deferredHandoff: FrameRequestCallback | undefined;
       const ownerWindow = {
         requestAnimationFrame: jest.fn((callback: FrameRequestCallback) => {
@@ -26,7 +26,7 @@ describe("openSettings", () => {
       } as unknown as Window;
       const app = { setting: { open, openTabById } } as unknown as App;
 
-      openCopilotSettings(app, ownerWindow, "advanced");
+      openVaultAgentSettings(app, ownerWindow, "advanced");
 
       expect(open).toHaveBeenCalledTimes(1);
       expect(consumedTabs).toEqual(["advanced"]);
@@ -79,8 +79,8 @@ describe("openSettings", () => {
     });
   });
 
-  describe("consumeRequestedCopilotSettingsTab()", () => {
-    it.each(COPILOT_SETTINGS_TAB_IDS)(
+  describe("consumeRequestedVaultAgentSettingsTab()", () => {
+    it.each(VAULT_AGENT_SETTINGS_TAB_IDS)(
       "consumes a requested %s tab once and defaults later ordinary opens to Basic (https://github.com/Brevilabs/obsidian-copilot-private/issues/280)",
       (tab) => {
         const ownerWindow = { requestAnimationFrame: jest.fn() } as unknown as Window;
@@ -88,10 +88,10 @@ describe("openSettings", () => {
           setting: { open: jest.fn(), openTabById: jest.fn() },
         } as unknown as App;
 
-        openCopilotSettings(app, ownerWindow, tab);
+        openVaultAgentSettings(app, ownerWindow, tab);
 
-        expect(consumeRequestedCopilotSettingsTab()).toBe(tab);
-        expect(consumeRequestedCopilotSettingsTab()).toBe("basic");
+        expect(consumeRequestedVaultAgentSettingsTab()).toBe(tab);
+        expect(consumeRequestedVaultAgentSettingsTab()).toBe("basic");
       }
     );
   });

@@ -11,7 +11,7 @@ import {
 const MANAGED: ManagedBinaryInfo = {
   platform: "darwin-arm64",
   version: "0.15.6",
-  destination: "~/.obsidian-copilot/opencode",
+  destination: "~/.vault-agent/opencode",
   run: { kind: "idle" },
 };
 
@@ -190,7 +190,7 @@ describe("ManagedBinaryConfigView", () => {
 
       expect(screen.getByText("darwin-arm64")).toBeTruthy();
       expect(screen.getByText("v0.15.6 (pinned)")).toBeTruthy();
-      expect(screen.getByText("~/.obsidian-copilot/opencode")).toBeTruthy();
+      expect(screen.getByText("~/.vault-agent/opencode")).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Uninstall" })).toBeNull();
 
       fireEvent.click(screen.getByRole("button", { name: "Download & install" }));

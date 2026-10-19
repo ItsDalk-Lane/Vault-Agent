@@ -4,7 +4,7 @@ import { FileText, FileClock } from "lucide-react";
 import fuzzysort from "fuzzysort";
 import { useAllNotes } from "./useAllNotes";
 import { TypeaheadOption } from "@/components/chat-components/TypeaheadMenuContent";
-import { getEffectiveCustomPromptsFolder } from "@/settings/copilotFolder";
+import { getEffectiveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
 
 export interface NoteSearchOption extends TypeaheadOption {
   file: TFile;

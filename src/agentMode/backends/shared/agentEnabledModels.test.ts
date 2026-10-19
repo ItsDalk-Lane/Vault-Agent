@@ -1,5 +1,5 @@
 import { agentOriginEnabledModelEntries } from "./agentEnabledModels";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { ConfiguredModel } from "@/modelManagement";
 import { ModelCapability } from "@/constants";
 
@@ -29,11 +29,11 @@ function settingsWith(
   agentType: "claude" | "codex",
   enabledModels: string[],
   configuredModels: ConfiguredModel[]
-): CopilotSettings {
+): VaultAgentSettings {
   return {
     backends: { [agentType]: { enabledModels } },
     configuredModels,
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 describe("agentEnabledModels", () => {
@@ -114,7 +114,7 @@ describe("agentEnabledModels", () => {
           codex: { enabledModels: ["cm2"] },
         },
         configuredModels: [model("cm1", "claude-sonnet-4-5"), model("cm2", "gpt-5")],
-      } as unknown as CopilotSettings;
+      } as unknown as VaultAgentSettings;
       const claude = agentOriginEnabledModelEntries(settings, "claude", bareDecode);
       expect(claude.map((e) => e.baseModelId)).toEqual(["claude-sonnet-4-5"]);
     });

@@ -126,7 +126,7 @@ describe("debugSink", () => {
       const first = getFrameLogPaths("C:/Users/zero/Vault", runtime);
       const second = getFrameLogPaths("C:/Users/zero/OtherVault", runtime);
 
-      expect(first.logPath).toContain("/obsidian-copilot/acp-frames/");
+      expect(first.logPath).toContain("/vault-agent/acp-frames/");
       expect(first.logPath).toMatch(/\/acp-frames\.ndjson$/);
       expect(first.rotatedPath).toMatch(/\/acp-frames\.old\.ndjson$/);
       expect(first.dirPath).not.toBe(second.dirPath);

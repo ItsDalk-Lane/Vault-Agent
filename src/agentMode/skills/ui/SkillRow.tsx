@@ -14,7 +14,7 @@ import type { AgentBrand, BackendId } from "@/agentMode/session/types";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context";
 import { logError } from "@/logger";
-import { getEffectiveSkillsFolder } from "@/settings/copilotFolder";
+import { getEffectiveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { SkillManager } from "@/agentMode/skills/SkillManager";
 import { decideToggleAction } from "@/agentMode/skills/toggleDecision";
 import { formatSkillDisplayName } from "@/agentMode/skills/mergeDiscovery";

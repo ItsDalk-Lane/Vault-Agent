@@ -3,13 +3,13 @@ import { OPENCODE_PINNED_VERSION, OPENCODE_MIN_VERSION } from "./ui/opencodeVers
 import { resolveEffort } from "@/lib/model-effort";
 import { OpencodeInstallModal } from "@/agentMode/backends/opencode/OpencodeInstallModal";
 import OpencodeLogo from "@/agentMode/backends/opencode/logo.svg";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { prefetchConfigEfforts } from "@/agentMode/backends/shared/prefetchConfigEfforts";
 import {
   getSettings,
   subscribeToSettingsChange,
   updateAgentModeBackendFields,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 import {
   OPENCODE_CANONICAL_MODE_AGENT_IDS,
@@ -24,7 +24,7 @@ import {
 import { opencodeEnabledModelEntries, opencodeWireBaseIdFor } from "./opencodeModelResolve";
 import { OpencodeSettingsPanel } from "./OpencodeSettingsPanel";
 import { mapNodeArch, mapNodePlatform } from "./platformResolver";
-import { opencodeCopilotPluginDir } from "./opencodeCopilotPlugin";
+import { opencodeVaultAgentPluginDir } from "./opencodeVaultAgentPlugin";
 import type { ModelSelectionSession } from "@/agentMode/session/types";
 import { simpleBinaryBackendProcess } from "@/agentMode/backends/shared/simpleBinaryBackend";
 import type {
@@ -63,7 +63,7 @@ const opencodeWire: ModelWireCodec = {
   },
 };
 
-export function getOpencodeBinaryManager(plugin: CopilotPlugin): OpencodeBinaryManager {
+export function getOpencodeBinaryManager(plugin: VaultAgentPlugin): OpencodeBinaryManager {
   if (!managerRef) managerRef = new OpencodeBinaryManager(plugin);
   return managerRef;
 }
@@ -75,7 +75,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
   displayName: "opencode",
   Icon: OpencodeLogo,
   selfHostable: true,
-  routesCopilotModels: true,
+  routesVaultAgentModels: true,
   setupDescription:
     "Copilot Plus models, or any model on your own provider key. Copilot can download and manage the binary for you.",
   skillsProjectDir: ".opencode/skills",
@@ -87,7 +87,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
   sharesMcpServersAcrossSessions: true,
   wire: opencodeWire,
 
-  getEnabledModelEntries(settings: CopilotSettings): EnabledModelEntry[] {
+  getEnabledModelEntries(settings: VaultAgentSettings): EnabledModelEntry[] {
     return [...opencodeEnabledModelEntries(settings)];
   },
 
@@ -102,19 +102,19 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
     };
   },
 
-  getWireBaseId(configuredModelId: string, settings: CopilotSettings): string | null {
+  getWireBaseId(configuredModelId: string, settings: VaultAgentSettings): string | null {
     return opencodeWireBaseIdFor(configuredModelId, settings);
   },
 
-  getInstallState(settings: CopilotSettings): InstallState {
+  getInstallState(settings: VaultAgentSettings): InstallState {
     return toOpencodeInstallState(computeInstallState(settings.agentMode?.backends?.opencode));
   },
 
-  getResolvedBinaryPath(settings: CopilotSettings): string | null {
+  getResolvedBinaryPath(settings: VaultAgentSettings): string | null {
     return settings.agentMode?.backends?.opencode?.binaryPath ?? null;
   },
 
-  subscribeInstallState(_plugin: CopilotPlugin, cb: () => void): () => void {
+  subscribeInstallState(_plugin: VaultAgentPlugin, cb: () => void): () => void {
     return subscribeToSettingsChange((prev, next) => {
       const p = prev.agentMode?.backends?.opencode;
       const n = next.agentMode?.backends?.opencode;
@@ -128,7 +128,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
     });
   },
 
-  openInstallUI(plugin: CopilotPlugin): void {
+  openInstallUI(plugin: VaultAgentPlugin): void {
     new OpencodeInstallModal(plugin.app, getOpencodeBinaryManager(plugin), {
       platform: mapNodePlatform(process.platform) ?? process.platform,
       arch: mapNodeArch(process.arch) ?? process.arch,
@@ -136,15 +136,15 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
   },
 
   managedInstall: {
-    getState(plugin: CopilotPlugin): ManagedInstallActionState {
+    getState(plugin: VaultAgentPlugin): ManagedInstallActionState {
       return getOpencodeBinaryManager(plugin).getActionState();
     },
 
-    subscribe(plugin: CopilotPlugin, onChange: () => void): () => void {
+    subscribe(plugin: VaultAgentPlugin, onChange: () => void): () => void {
       return getOpencodeBinaryManager(plugin).subscribeRuntimeState(onChange);
     },
 
-    async run(plugin: CopilotPlugin): Promise<void> {
+    async run(plugin: VaultAgentPlugin): Promise<void> {
       const manager = getOpencodeBinaryManager(plugin);
       const state = computeInstallState(getSettings().agentMode?.backends?.opencode);
       if (state.kind !== "installed") return;
@@ -196,7 +196,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
       new OpencodeBackend({
         providerRegistry,
         backendConfigRegistry,
-        getCopilotPluginDir: opencodeCopilotPluginDir,
+        getVaultAgentPluginDir: opencodeVaultAgentPluginDir,
         getSelfHostWebSearchChannel: () => {
           const bridge = args.plugin.selfHostWebSearchAgentBridge;
           if (!bridge) {
@@ -210,7 +210,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
 
   SettingsPanel: OpencodeSettingsPanel,
 
-  async onPluginLoad(plugin: CopilotPlugin): Promise<void> {
+  async onPluginLoad(plugin: VaultAgentPlugin): Promise<void> {
     const manager = getOpencodeBinaryManager(plugin);
     manager.adoptPlugin(plugin);
     manager.forgetSettledError();
@@ -220,12 +220,12 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
     });
   },
 
-  getProbeSessionId(settings: CopilotSettings): string | undefined {
+  getProbeSessionId(settings: VaultAgentSettings): string | undefined {
     const id = settings.agentMode?.backends?.opencode?.probeSessionId;
     return id && id.length > 0 ? id : undefined;
   },
 
-  async persistProbeSessionId(sessionId: string, _plugin: CopilotPlugin): Promise<void> {
+  async persistProbeSessionId(sessionId: string, _plugin: VaultAgentPlugin): Promise<void> {
     updateAgentModeBackendFields("opencode", { probeSessionId: sessionId });
   },
 

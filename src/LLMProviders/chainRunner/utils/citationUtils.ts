@@ -425,21 +425,21 @@ function buildSourcesDetails(mainContent: string, items: SourcesDisplayItem[]): 
   const listItems = nonEmptyItems
     .map(
       ({ index, html }) =>
-        `<li class="copilot-sources__item"><span class="copilot-sources__index">[${index}]</span><span class="copilot-sources__text">${html}</span></li>`
+        `<li class="vault-agent-sources__item"><span class="vault-agent-sources__index">[${index}]</span><span class="vault-agent-sources__text">${html}</span></li>`
     )
     .join("\n");
 
   return (
     `${mainContent}\n\n<br/>\n` +
-    `<details class="copilot-sources"><summary class="copilot-sources__summary">Sources</summary>\n` +
-    `<ul class="copilot-sources__list">\n${listItems}\n</ul>\n</details>`
+    `<details class="vault-agent-sources"><summary class="vault-agent-sources__summary">Sources</summary>\n` +
+    `<ul class="vault-agent-sources__list">\n${listItems}\n</ul>\n</details>`
   );
 }
 
 function wrapCitationPlaceholders(content: string): string {
   return content.replace(
     /\[(\d+(?:\s*,\s*\d+)*)\](?!\()/g,
-    '<span class="copilot-citation-ref">[$1]</span>'
+    '<span class="vault-agent-citation-ref">[$1]</span>'
   );
 }
 

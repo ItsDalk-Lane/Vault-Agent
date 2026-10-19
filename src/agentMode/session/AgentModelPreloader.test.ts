@@ -1,6 +1,6 @@
 import { App, FileSystemAdapter } from "obsidian";
 import { waitFor } from "@testing-library/react";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { AgentModelPreloader } from "./AgentModelPreloader";
 import type {
   BackendDescriptor,
@@ -25,8 +25,8 @@ function buildApp(): App {
   return { vault: { adapter } } as unknown as App;
 }
 
-function buildPlugin(): CopilotPlugin {
-  return { manifest: { version: "1.0.0" } } as unknown as CopilotPlugin;
+function buildPlugin(): VaultAgentPlugin {
+  return { manifest: { version: "1.0.0" } } as unknown as VaultAgentPlugin;
 }
 
 interface MockProcHandle {

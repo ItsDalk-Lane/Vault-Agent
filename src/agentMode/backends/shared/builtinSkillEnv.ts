@@ -1,11 +1,11 @@
-import { type CopilotSettings, getSettings } from "@/settings/model";
+import { type VaultAgentSettings, getSettings } from "@/settings/model";
 import {
   SELF_HOST_WEB_SEARCH_ENV,
   SELF_HOST_WEB_SEARCH_TOKEN_ENV,
   SELF_HOST_WEB_SEARCH_URL_ENV,
 } from "@/builtinSkills/builtinSkills";
 import {
-  COPILOT_OBSIDIAN_CLI_ENV,
+  VAULT_AGENT_OBSIDIAN_CLI_ENV,
   resolveObsidianCliPath,
 } from "@/agentMode/backends/shared/obsidianCliPath";
 import { requireNodeModule } from "@/utils/desktopRuntime";
@@ -31,7 +31,7 @@ export async function buildBuiltinSkillEnv(
     resourcesPath: (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath,
     homeDir: os.homedir(),
   });
-  if (obsidianCliPath) env[COPILOT_OBSIDIAN_CLI_ENV] = obsidianCliPath;
+  if (obsidianCliPath) env[VAULT_AGENT_OBSIDIAN_CLI_ENV] = obsidianCliPath;
 
   // The channel values are protected from backend overrides so Self-Host mode
   // cannot silently fall back to a hosted or agent-native search path.
@@ -58,8 +58,8 @@ export function sanitizeBuiltinSkillEnvOverrides(
 }
 
 export function getBuiltinSkillEnvRestartPolicy(
-  prev: CopilotSettings,
-  next: CopilotSettings,
+  prev: VaultAgentSettings,
+  next: VaultAgentSettings,
   backendId: BackendId
 ): "none" | "deferred" | "immediate" {
   const selfHostRoutingChanged =

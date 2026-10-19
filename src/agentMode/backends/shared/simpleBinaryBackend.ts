@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { AcpBackendProcess } from "@/agentMode/acp/AcpBackendProcess";
 import type { AcpBackend, AcpSpawnDescriptor } from "@/agentMode/acp/types";
 import { augmentPathForNodeShebang } from "@/agentMode/acp/nodeShebangPath";
@@ -26,7 +26,7 @@ export function buildSimpleSpawnDescriptor(
 
 export function simpleBinaryBackendProcess(
   args: {
-    plugin: CopilotPlugin;
+    plugin: VaultAgentPlugin;
     app: App;
     clientVersion: string;
     descriptor: BackendDescriptor;

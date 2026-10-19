@@ -3,7 +3,7 @@ import { ItemView, type View, type WorkspaceLeaf } from "obsidian";
 
 export const STARTUP_LOADING_TEXT = "Starting Copilot…";
 
-export interface CopilotStartup {
+export interface VaultAgentStartup {
   whenStarted(): Promise<void>;
   createStartedView(viewType: string, leaf: WorkspaceLeaf): View | undefined;
 }
@@ -16,7 +16,7 @@ export class StartupLoadingView extends ItemView {
   constructor(
     leaf: WorkspaceLeaf,
     private readonly viewType: string,
-    private readonly startup: CopilotStartup
+    private readonly startup: VaultAgentStartup
   ) {
     super(leaf);
   }

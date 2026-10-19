@@ -98,7 +98,7 @@ function readBoolean(doc: Document.Parsed, key: string): boolean | undefined {
 function readEnabledAgents(doc: Document.Parsed): BackendId[] {
   const metadata = doc.get("metadata");
   if (!isMap(metadata)) return [];
-  const raw = metadata.get("copilot-enabled-agents");
+  const raw = metadata.get("vault-agent-enabled-agents");
   if (typeof raw !== "string" || raw.trim().length === 0) return [];
   return raw
     .split(",")
@@ -239,11 +239,11 @@ function setEnabledAgents(doc: Document.Parsed, agents: BackendId[]): void {
   const map = metadata as YAMLMap;
   const value = agents.join(",");
   const scalar = new Scalar(value);
-  const existing = map.get("copilot-enabled-agents", true);
+  const existing = map.get("vault-agent-enabled-agents", true);
   if (isScalar(existing)) {
     scalar.type = existing.type ?? scalar.type;
   } else if (value.length === 0) {
     scalar.type = "QUOTE_DOUBLE";
   }
-  map.set("copilot-enabled-agents", scalar);
+  map.set("vault-agent-enabled-agents", scalar);
 }

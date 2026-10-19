@@ -51,7 +51,7 @@ export const DebuggingSupportSection: React.FC<DebuggingSupportSectionProps> = (
     <SettingItem
       type="switch"
       title="Debug Mode"
-      description="Logs Copilot chat activity to the developer console (View → Toggle Developer Tools), and pre-selects the chat log when you report an issue."
+      description="Logs agent chat activity to the developer console (View → Toggle Developer Tools), and pre-selects the chat log when you report an issue."
       checked={debug}
       onCheckedChange={onDebugChange}
     />
@@ -59,7 +59,7 @@ export const DebuggingSupportSection: React.FC<DebuggingSupportSectionProps> = (
     <SettingItem
       type="custom"
       title="Agent Mode activity log"
-      description={`Records the behind-the-scenes messages between Copilot and the agent so a report always has recent activity to attach. Stored on this device only, outside your vault (${frameLogPath}), and can include your prompts and note contents in plain text.`}
+      description={`Records the behind-the-scenes messages between the plugin and the agent so a report always has recent activity to attach. Stored on this device only, outside your vault (${frameLogPath}), and can include your prompts and note contents in plain text.`}
     >
       <div className="tw-flex tw-items-center tw-gap-2">
         <SettingSwitch checked={frameLogEnabled} onCheckedChange={onFrameLogChange} />

@@ -3,7 +3,7 @@ import { GLOBAL_SCOPE } from "@/agentMode/session/scope";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { InstallState } from "@/agentMode/session/types";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
@@ -79,7 +79,7 @@ function makeManager({
 }
 
 function renderChat(manager: AgentSessionManager) {
-  const plugin = { app: {}, agentSessionManager: manager } as unknown as CopilotPlugin;
+  const plugin = { app: {}, agentSessionManager: manager } as unknown as VaultAgentPlugin;
   return render(
     <AgentModeChat plugin={plugin} onSaveChat={() => {}} updateUserMessageHistory={() => {}} />
   );
@@ -126,7 +126,7 @@ describe("AgentModeChat", () => {
       (manager.isPreloadReady as jest.Mock).mockReturnValue(true);
       rerender(
         <AgentModeChat
-          plugin={{ app: {}, agentSessionManager: manager } as unknown as CopilotPlugin}
+          plugin={{ app: {}, agentSessionManager: manager } as unknown as VaultAgentPlugin}
           onSaveChat={() => {}}
           updateUserMessageHistory={() => {}}
         />
@@ -282,7 +282,7 @@ describe("AgentModeChat", () => {
         (manager.isPreloadReady as jest.Mock).mockReturnValue(false);
         rerender(
           <AgentModeChat
-            plugin={{ agentSessionManager: manager } as unknown as CopilotPlugin}
+            plugin={{ agentSessionManager: manager } as unknown as VaultAgentPlugin}
             onSaveChat={() => {}}
             updateUserMessageHistory={() => {}}
           />
@@ -303,7 +303,7 @@ describe("AgentModeChat", () => {
       const renderAgain = () =>
         rerender(
           <AgentModeChat
-            plugin={{ agentSessionManager: manager } as unknown as CopilotPlugin}
+            plugin={{ agentSessionManager: manager } as unknown as VaultAgentPlugin}
             onSaveChat={() => {}}
             updateUserMessageHistory={() => {}}
           />

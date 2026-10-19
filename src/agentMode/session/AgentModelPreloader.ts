@@ -1,5 +1,5 @@
 import { logError, logInfo, logWarn } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { getSettings } from "@/settings/model";
 import { App, FileSystemAdapter, Platform } from "obsidian";
 import { MethodUnsupportedError } from "./errors";
@@ -30,7 +30,7 @@ export class AgentModelPreloader {
 
   constructor(
     private readonly app: App,
-    private readonly plugin: CopilotPlugin,
+    private readonly plugin: VaultAgentPlugin,
     private readonly resolveDescriptor: (id: BackendId) => BackendDescriptor | undefined,
     private readonly beforeBackendStart?: (id: BackendId) => Promise<void>
   ) {}

@@ -1,5 +1,5 @@
 import { logError, logInfo } from "@/logger";
-import { COPILOT_SUBFOLDER } from "@/settings/copilotFolder";
+import { VAULT_AGENT_SUBFOLDER } from "@/settings/vaultAgentFolder";
 import { normalizePath, type DataAdapter } from "obsidian";
 
 type FolderAdapter = Pick<DataAdapter, "exists" | "stat" | "list" | "rename" | "mkdir">;
@@ -13,7 +13,7 @@ export type HiddenFolderMigration =
   | { status: "moved"; from: string; to: string; leftBehind: string[] }
   | { status: "failed"; from: string; to: string; reason: string };
 
-export async function revealHiddenCopilotFolder(
+export async function revealHiddenVaultAgentFolder(
   vault: { adapter: FolderAdapter },
   loadedFolder: unknown,
   visibleFolder: string
@@ -26,9 +26,9 @@ export async function revealHiddenCopilotFolder(
   try {
     if (!(await adapter.exists(hiddenFolder))) return null;
     const result: MoveResult = { moved: 0, leftBehind: [] };
-    // `.copilot` also holds Copilot's caches, so only the folders Copilot reads from its root move into the vault.
+    // The hidden root can also hold the plugin's caches, so only the folders the plugin reads from its root move into the vault.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/712
-    for (const subfolder of Object.values(COPILOT_SUBFOLDER)) {
+    for (const subfolder of Object.values(VAULT_AGENT_SUBFOLDER)) {
       const from = `${hiddenFolder}/${subfolder}`;
       if (await adapter.exists(from)) {
         await moveMerging(adapter, from, `${visibleFolder}/${subfolder}`, result);
@@ -36,7 +36,7 @@ export async function revealHiddenCopilotFolder(
     }
     if (result.moved === 0 && result.leftBehind.length === 0) return null;
 
-    logInfo(`Moved the hidden Copilot folder ${hiddenFolder} to ${visibleFolder}.`);
+    logInfo(`Moved the hidden Vault Agent folder ${hiddenFolder} to ${visibleFolder}.`);
     return {
       status: "moved",
       from: hiddenFolder,
@@ -44,7 +44,7 @@ export async function revealHiddenCopilotFolder(
       leftBehind: result.leftBehind,
     };
   } catch (error) {
-    logError(`Failed to move the hidden Copilot folder ${hiddenFolder}.`, error);
+    logError(`Failed to move the hidden Vault Agent folder ${hiddenFolder}.`, error);
     return {
       status: "failed",
       from: hiddenFolder,

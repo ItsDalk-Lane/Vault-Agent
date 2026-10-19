@@ -1,6 +1,6 @@
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
-const mockGetSettings = jest.fn<CopilotSettings, []>();
+const mockGetSettings = jest.fn<VaultAgentSettings, []>();
 
 jest.mock("@/settings/model", () => ({
   getSettings: () => mockGetSettings(),
@@ -25,7 +25,7 @@ describe("logger", () => {
   let errorSpy: jest.SpyInstance;
 
   function setDebug(debug: boolean): void {
-    mockGetSettings.mockReturnValue({ debug } as CopilotSettings);
+    mockGetSettings.mockReturnValue({ debug } as VaultAgentSettings);
   }
 
   beforeEach(() => {

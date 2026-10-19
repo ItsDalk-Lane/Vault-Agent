@@ -425,7 +425,7 @@ function buildManager(options: ManagerOptions = {}): AgentSessionManager {
 }
 
 const FEEDBACK_CHANNEL = Object.freeze({
-  name: "obsidian-copilot",
+  name: "vault-agent",
   url: "http://127.0.0.1:4100/mcp",
   headers: Object.freeze({ Authorization: "Bearer t0k3n" }),
 });
@@ -744,7 +744,7 @@ function buildHistoryHarness(opts?: {
     setPinnedAt: jest.fn(async () => undefined),
   };
   const indexStorage = opts?.indexStorage ?? makeIndexStorage();
-  const index = new AgentSessionIndex(indexStorage, "plugins/copilot/index.json");
+  const index = new AgentSessionIndex(indexStorage, "plugins/vault-agent/index.json");
   const backendId = opts?.backendId ?? "opencode";
   const descriptor = buildDescriptor({
     id: backendId,
@@ -1035,7 +1035,7 @@ describe("AgentSessionManager", () => {
         mockSavedDefault(null);
         const mgr = buildManager({
           descriptor: buildDescriptor({
-            routesCopilotModels: true,
+            routesVaultAgentModels: true,
             getEnabledModelEntries: () => [],
           }),
         });
@@ -3132,14 +3132,14 @@ describe("AgentSessionManager", () => {
           | readonly (string | { baseModelId: string; credentialState: "ok" | "missing_key" })[]
           | undefined,
         saved: { baseModelId: string; effort: string | null } | null,
-        routesCopilotModels = false
+        routesVaultAgentModels = false
       ): AgentSessionManager {
         mockSavedDefault(saved);
         return buildManager({
           descriptor: buildDescriptor(
             offered
               ? {
-                  routesCopilotModels,
+                  routesVaultAgentModels,
                   getEnabledModelEntries: () =>
                     offered.map((entry) =>
                       typeof entry === "string"
@@ -3633,7 +3633,7 @@ describe("AgentSessionManager", () => {
             "chats/agent__unpinned.md": { epoch: 1_000, backendId: "opencode" },
           },
           hiddenFiles: {
-            ".copilot/chats/agent__hidden.md":
+            ".vault-agent/chats/agent__hidden.md":
               "---\nepoch: 1000\nmode: agent\nbackendId: opencode\npinnedAt: 5000\n---\n\n**user**: hi",
           },
         });
@@ -3643,14 +3643,14 @@ describe("AgentSessionManager", () => {
         expect(Object.fromEntries(items.map((item) => [item.id, item.pinnedAt]))).toEqual({
           "chats/agent__pinned.md": 4_000,
           "chats/agent__unpinned.md": undefined,
-          ".copilot/chats/agent__hidden.md": 5_000,
+          ".vault-agent/chats/agent__hidden.md": 5_000,
         });
       });
 
       it("de-duplicates hidden-folder chats via the adapter frontmatter fallback", async () => {
         const { manager, index } = buildHistoryHarness({
           hiddenFiles: {
-            ".copilot/chats/agent__hidden.md":
+            ".vault-agent/chats/agent__hidden.md":
               '---\nepoch: 1000\nmode: agent\nbackendId: opencode\nsessionId: "s1"\n---\n\n**user**: hi',
           },
         });
@@ -3663,7 +3663,7 @@ describe("AgentSessionManager", () => {
         });
         const items = await manager.getChatHistoryItems();
         expect(items).toHaveLength(1);
-        expect(items[0]?.id).toBe(".copilot/chats/agent__hidden.md");
+        expect(items[0]?.id).toBe(".vault-agent/chats/agent__hidden.md");
       });
 
       it("scopes a project view's native entries by the index's recorded projectId", async () => {
@@ -3877,7 +3877,7 @@ describe("AgentSessionManager", () => {
             {
               sessionId: "ctx-leak",
               cwd: "/vault",
-              title: "<copilot-context> The user attached the following vault items",
+              title: "<vault-agent-context> The user attached the following vault items",
               updatedAt: null,
             },
           ],

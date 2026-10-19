@@ -21,7 +21,7 @@ export interface UsePersistentContextDropReturn {
   isDragging: boolean;
 }
 
-const INTERNAL_DRAG_TYPE = "copilot/internal-drag";
+const INTERNAL_DRAG_TYPE = "vault-agent/internal-drag";
 
 function obsidianOpenFileParam(raw: string): string | null {
   try {

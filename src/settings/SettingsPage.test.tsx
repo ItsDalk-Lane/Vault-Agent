@@ -1,6 +1,6 @@
 import { STARTUP_LOADING_TEXT } from "@/components/StartupLoadingView";
-import { CopilotSettingTab } from "@/settings/SettingsPage";
-import type CopilotPlugin from "@/main";
+import { VaultAgentSettingTab } from "@/settings/SettingsPage";
+import type VaultAgentPlugin from "@/main";
 import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import type { App } from "obsidian";
 
@@ -26,8 +26,8 @@ function createTab(started: boolean) {
   const plugin = {
     isStarted: () => isStarted,
     whenStarted: () => startup,
-  } as unknown as CopilotPlugin;
-  const tab = new CopilotSettingTab({} as App, plugin);
+  } as unknown as VaultAgentPlugin;
+  const tab = new VaultAgentSettingTab({} as App, plugin);
   const start = async () => {
     isStarted = true;
     finishStartup();
@@ -37,7 +37,7 @@ function createTab(started: boolean) {
 }
 
 describe("SettingsPage", () => {
-  describe("CopilotSettingTab", () => {
+  describe("VaultAgentSettingTab", () => {
     beforeEach(() => {
       jest.mocked(createPluginRoot).mockClear();
       document.body.replaceChildren();
@@ -45,7 +45,7 @@ describe("SettingsPage", () => {
 
     describe("getSettingDefinitions()", () => {
       it("returns no declarative definitions so Obsidian keeps rendering the tab through display()", () => {
-        const tab = new CopilotSettingTab({} as App, {} as CopilotPlugin);
+        const tab = new VaultAgentSettingTab({} as App, {} as VaultAgentPlugin);
 
         expect(tab.getSettingDefinitions()).toEqual([]);
       });

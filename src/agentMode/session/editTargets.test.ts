@@ -127,7 +127,7 @@ describe("editTargets", () => {
     });
 
     it("rejects hidden configuration folders and paths escaping the vault", () => {
-      expect(isCapturableVaultPath(".config/plugins/copilot/data.json")).toBe(false);
+      expect(isCapturableVaultPath(".config/plugins/vault-agent/data.json")).toBe(false);
       expect(isCapturableVaultPath("notes/.trash/a.md")).toBe(false);
       expect(isCapturableVaultPath("../outside.md")).toBe(false);
     });

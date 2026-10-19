@@ -1,4 +1,4 @@
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { ClaudeBackendDescriptor } from "./claude/descriptor";
 import { CodexBackendDescriptor } from "./codex/descriptor";
 import { OpencodeBackendDescriptor } from "./opencode/descriptor";
@@ -27,12 +27,12 @@ export function backendDisplayOrder(): BackendDescriptor[] {
 
 export function backendNeedsSelfHostWarning(
   descriptor: BackendDescriptor,
-  settings: CopilotSettings
+  settings: VaultAgentSettings
 ): boolean {
   return settings.enableSelfHostMode && !descriptor.selfHostable;
 }
 
-export function getActiveBackendDescriptor(settings: CopilotSettings): BackendDescriptor {
+export function getActiveBackendDescriptor(settings: VaultAgentSettings): BackendDescriptor {
   const id = settings.agentMode?.activeBackend ?? "opencode";
   return backendRegistry[id] ?? OpencodeBackendDescriptor;
 }

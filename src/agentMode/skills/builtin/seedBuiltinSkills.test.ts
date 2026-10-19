@@ -45,7 +45,7 @@ function skill(version: number): BuiltinSkill {
     name: "copilot-web-search",
     version,
     enabledAgents: ["claude", "codex", "opencode"],
-    skillMd: `---\nname: copilot-web-search\ndescription: d\nmetadata:\n  copilot-enabled-agents: claude, codex, opencode\n  copilot-builtin-version: "${version}"\n---\nbody v${version}`,
+    skillMd: `---\nname: copilot-web-search\ndescription: d\nmetadata:\n  vault-agent-enabled-agents: claude, codex, opencode\n  vault-agent-builtin-version: "${version}"\n---\nbody v${version}`,
     files: [{ path: "web-search.sh", content: `// script v${version}` }],
   };
 }
@@ -64,12 +64,12 @@ function openArtifactsSkill(): BuiltinSkill {
   };
 }
 
-const FOLDER = "copilot/skills";
-const MD = "copilot/skills/copilot-web-search/SKILL.md";
-const SCRIPT = "copilot/skills/copilot-web-search/web-search.sh";
-const LEGACY_RENAMED_MD = "copilot/skills/symposium-publish/SKILL.md";
-const RENAMED_MD = "copilot/skills/openartifacts-publish/SKILL.md";
-const RENAMED_SCRIPT = "copilot/skills/openartifacts-publish/openartifacts-publish.sh";
+const FOLDER = "vault-agent/skills";
+const MD = "vault-agent/skills/copilot-web-search/SKILL.md";
+const SCRIPT = "vault-agent/skills/copilot-web-search/web-search.sh";
+const LEGACY_RENAMED_MD = "vault-agent/skills/symposium-publish/SKILL.md";
+const RENAMED_MD = "vault-agent/skills/openartifacts-publish/SKILL.md";
+const RENAMED_SCRIPT = "vault-agent/skills/openartifacts-publish/openartifacts-publish.sh";
 
 describe("seedBuiltinSkills", () => {
   describe("seedBuiltinSkills()", () => {
@@ -84,7 +84,7 @@ describe("seedBuiltinSkills", () => {
       expect(seeded).toEqual(["copilot-web-search"]);
       expect(fs.files.get(MD)).toContain("body v1");
       expect(fs.files.get(SCRIPT)).toBe("// script v1");
-      expect(fs.dirs.has("copilot/skills/copilot-web-search")).toBe(true);
+      expect(fs.dirs.has("vault-agent/skills/copilot-web-search")).toBe(true);
     });
 
     it("is idempotent: skips a skill already present at the current version", async () => {
@@ -119,9 +119,9 @@ describe("seedBuiltinSkills", () => {
       };
       const fs = memFs();
       await seedBuiltinSkills({ skillsFolderRelPath: FOLDER, fs, skills: [v1] });
-      const obsolete = "copilot/skills/copilot-web-search/obsolete-rules.md";
+      const obsolete = "vault-agent/skills/copilot-web-search/obsolete-rules.md";
       expect(fs.files.has(obsolete)).toBe(true);
-      const custom = "copilot/skills/copilot-web-search/themes/custom.md";
+      const custom = "vault-agent/skills/copilot-web-search/themes/custom.md";
       fs.files.set(custom, "user theme");
       fs.files.set(MD, fs.files.get(MD)!.replace("claude, codex, opencode", "codex"));
 
@@ -133,8 +133,8 @@ describe("seedBuiltinSkills", () => {
       expect(fs.files.has(obsolete)).toBe(false);
       expect(fs.files.has(custom)).toBe(false);
       expect(fs.files.get(SCRIPT)).toBe("// script v2");
-      expect(fs.files.get(MD)).toContain('copilot-builtin-version: "2"');
-      expect(fs.files.get(MD)).toContain("copilot-enabled-agents: codex");
+      expect(fs.files.get(MD)).toContain('vault-agent-builtin-version: "2"');
+      expect(fs.files.get(MD)).toContain("vault-agent-enabled-agents: codex");
     });
 
     it.each(["web-search.sh", "SKILL.md"])(
@@ -194,7 +194,7 @@ describe("seedBuiltinSkills", () => {
     });
 
     it("never touches unrelated user skills in the same folder", async () => {
-      const userMd = "copilot/skills/my-skill/SKILL.md";
+      const userMd = "vault-agent/skills/my-skill/SKILL.md";
       const fs = memFs({ [userMd]: "user content" });
       await seedBuiltinSkills({ skillsFolderRelPath: FOLDER, fs, skills: [skill(1)] });
 
@@ -222,17 +222,17 @@ describe("seedBuiltinSkills", () => {
       expect(fs.files.get(SCRIPT)).toBe("// script v1");
     });
 
-    it("preserves user-modified copilot-enabled-agents when upgrading a builtin", async () => {
+    it("preserves user-modified vault-agent-enabled-agents when upgrading a builtin", async () => {
       const disabledMd = skill(1).skillMd.replace(
-        "copilot-enabled-agents: claude, codex, opencode",
-        "copilot-enabled-agents: claude"
+        "vault-agent-enabled-agents: claude, codex, opencode",
+        "vault-agent-enabled-agents: claude"
       );
       const fs = memFs({ [MD]: disabledMd, [SCRIPT]: "// script v1" });
       await seedBuiltinSkills({ skillsFolderRelPath: FOLDER, fs, skills: [skill(2)] });
 
       const written = fs.files.get(MD) ?? "";
-      expect(written).toContain("copilot-enabled-agents: claude\n");
-      expect(written).not.toContain("copilot-enabled-agents: claude, codex, opencode");
+      expect(written).toContain("vault-agent-enabled-agents: claude\n");
+      expect(written).not.toContain("vault-agent-enabled-agents: claude, codex, opencode");
       expect(written).toContain("body v2");
     });
 
@@ -245,8 +245,8 @@ describe("seedBuiltinSkills", () => {
 
       await seedBuiltinSkills({ skillsFolderRelPath: FOLDER, fs, skills: [nestedSkill] });
 
-      expect(fs.dirs.has("copilot/skills/copilot-web-search/references")).toBe(true);
-      expect(fs.files.get("copilot/skills/copilot-web-search/references/EXAMPLES.md")).toBe(
+      expect(fs.dirs.has("vault-agent/skills/copilot-web-search/references")).toBe(true);
+      expect(fs.files.get("vault-agent/skills/copilot-web-search/references/EXAMPLES.md")).toBe(
         "# Examples"
       );
     });
@@ -258,7 +258,9 @@ describe("seedBuiltinSkills", () => {
         throw new Error("unreadable predecessor");
       });
       await seedBuiltinSkills({ skillsFolderRelPath: FOLDER, fs, skills: [openArtifactsSkill()] });
-      expect(fs.files.get(RENAMED_MD)).toContain("copilot-enabled-agents: claude, codex, opencode");
+      expect(fs.files.get(RENAMED_MD)).toContain(
+        "vault-agent-enabled-agents: claude, codex, opencode"
+      );
       expect(fs.files.get(RENAMED_SCRIPT)).toBe("// script v1");
       expect(fs.files.get(LEGACY_RENAMED_MD)).toBe(oldMd);
       expect(fs.read).not.toHaveBeenCalled();
@@ -281,9 +283,9 @@ describe("seedBuiltinSkills", () => {
 
   describe("removeSeededBuiltin()", () => {
     it.each([
-      "---\nname: example\n---\nmetadata:\n  copilot-builtin-version: 1",
-      "---\nmetadata:\n  copilot-builtin-version: -1\n---\nuser",
-      "---\nmetadata:\n  copilot-builtin-version: [1]\n---\nuser",
+      "---\nname: example\n---\nmetadata:\n  vault-agent-builtin-version: 1",
+      "---\nmetadata:\n  vault-agent-builtin-version: -1\n---\nuser",
+      "---\nmetadata:\n  vault-agent-builtin-version: [1]\n---\nuser",
       "---\nmetadata: [\n---\nuser",
     ])(
       "preserves every file when ownership metadata is invalid: %s https://github.com/logancyang/obsidian-copilot/issues/3022",

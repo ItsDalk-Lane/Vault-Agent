@@ -17,7 +17,7 @@ describe("gallery-css", () => {
 
       for (const width of [300, 340, 400, 600]) {
         expect(galleryCss).toContain(
-          `.copilot-gallery-canvas[data-gallery-width="${width}"] {\n  width: ${width}px;\n}`
+          `.vault-agent-gallery-canvas[data-gallery-width="${width}"] {\n  width: ${width}px;\n}`
         );
       }
       for (const [suffix, property] of [
@@ -25,14 +25,14 @@ describe("gallery-css", () => {
         ["r", "border-right"],
       ]) {
         expect(galleryCss).toContain(
-          `.copilot-gallery-divider-${suffix} {\n  ${property}: 1px solid var(--background-modifier-border);\n}`
+          `.vault-agent-gallery-divider-${suffix} {\n  ${property}: 1px solid var(--background-modifier-border);\n}`
         );
       }
       expect(galleryCss).toContain("flex: none;");
-      expect(productionCss).not.toContain("copilot-gallery-canvas");
-      expect(productionCss).not.toContain("copilot-gallery-divider");
+      expect(productionCss).not.toContain("vault-agent-gallery-canvas");
+      expect(productionCss).not.toContain("vault-agent-gallery-divider");
       expect(productionCss).toContain(
-        ".copilot-divider-b {\n  border-bottom: 1px solid var(--background-modifier-border);\n}"
+        ".vault-agent-divider-b {\n  border-bottom: 1px solid var(--background-modifier-border);\n}"
       );
     });
   });

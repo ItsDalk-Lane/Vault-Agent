@@ -12,10 +12,10 @@ import {
 } from "@/agentMode/backends/shared/ManagedBinaryManager";
 import { OPENCODE_MIN_VERSION, OPENCODE_PINNED_VERSION } from "./ui/opencodeVersion";
 import { logError, logInfo, logWarn } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { getSettings, setSettings, type OpencodeBackendSettings } from "@/settings/model";
 import { FileSystemAdapter } from "obsidian";
-import { copilotAppDataDir } from "@/utils/appPaths";
+import { vaultAgentAppDataDir } from "@/utils/appPaths";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { expectedBinaryName, resolveOpencodeTarget } from "./platformResolver";
 import { extractNpmBinary, resolveNpmAsset, verifyNpmIntegrity } from "./npmPackage";
@@ -135,7 +135,7 @@ function clearOpencodeBinary(): void {
 }
 
 export function opencodeManagedDataDir(homeDir: string): string {
-  return nodePath().join(copilotAppDataDir(homeDir), "opencode");
+  return nodePath().join(vaultAgentAppDataDir(homeDir), "opencode");
 }
 
 export function legacyVaultDataDir(
@@ -147,7 +147,7 @@ export function legacyVaultDataDir(
 }
 
 export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> {
-  constructor(private plugin: CopilotPlugin) {
+  constructor(private plugin: VaultAgentPlugin) {
     super("opencode");
   }
 
@@ -160,7 +160,7 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
     updateOpencodeFields(settings);
   }
 
-  adoptPlugin(plugin: CopilotPlugin): void {
+  adoptPlugin(plugin: VaultAgentPlugin): void {
     this.plugin = plugin;
   }
 
@@ -195,7 +195,7 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
     if (!home || !nodePath().isAbsolute(home) || nodePath().parse(home).root === home) {
       throw new Error(
         "Could not resolve your home directory to install the opencode runtime. " +
-          "Agent Mode installs it under ~/.obsidian-copilot; check that your account has a valid home directory."
+          "Agent Mode installs it under ~/.vault-agent; check that your account has a valid home directory."
       );
     }
     return opencodeManagedDataDir(home);

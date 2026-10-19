@@ -14,7 +14,7 @@ export interface FrameRecord {
 const LOG_FILE_NAME = "acp-frames.ndjson";
 const ROTATED_FILE_NAME = "acp-frames.old.ndjson";
 const DESKTOP_UNAVAILABLE_PATH = "(Agent Mode frame logs are desktop-only)";
-const LOG_DIR_PREFIX = ["obsidian-copilot", "acp-frames"] as const;
+const LOG_DIR_PREFIX = ["vault-agent", "acp-frames"] as const;
 // Owner-only modes: the log holds full prompt/tool/note content in plaintext,
 // and on Linux os.tmpdir() can be a world-readable shared /tmp.
 // https://github.com/logancyang/obsidian-copilot-preview/issues/250
@@ -480,7 +480,7 @@ async function ensurePrivateDirectory(
   }
   if (ownerUid === null) return;
   // On a shared temp root, only the first local account to run the plugin gets
-  // a frame log: it creates `<tmp>/obsidian-copilot` owner-only, and every
+  // a frame log: it creates `<tmp>/vault-agent` owner-only, and every
   // later account stops here. Frame logging is opt-in diagnostics, so those
   // accounts lose a debug aid rather than a feature.
   // https://github.com/logancyang/obsidian-copilot-preview/issues/250

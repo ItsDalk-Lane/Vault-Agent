@@ -103,11 +103,11 @@ describe("openVaultPath", () => {
 
     beforeEach(() => {
       vaultDir = fs.realpathSync(fs.mkdtempSync(nodePath.join(os.tmpdir(), "ovp-vault-")));
-      fs.mkdirSync(nodePath.join(vaultDir, "copilot/skills"), { recursive: true });
-      fs.writeFileSync(nodePath.join(vaultDir, "copilot/skills/voice-profile.md"), "hi");
+      fs.mkdirSync(nodePath.join(vaultDir, "vault-agent/skills"), { recursive: true });
+      fs.writeFileSync(nodePath.join(vaultDir, "vault-agent/skills/voice-profile.md"), "hi");
       fs.mkdirSync(nodePath.join(vaultDir, ".claude"));
       fs.symlinkSync(
-        nodePath.join(vaultDir, "copilot/skills"),
+        nodePath.join(vaultDir, "vault-agent/skills"),
         nodePath.join(vaultDir, ".claude/skills")
       );
     });
@@ -117,10 +117,10 @@ describe("openVaultPath", () => {
     });
 
     it("opens a dot-folder symlink alias as its canonical indexed note", () => {
-      const app = buildApp(vaultDir, ["copilot/skills/voice-profile.md"]);
+      const app = buildApp(vaultDir, ["vault-agent/skills/voice-profile.md"]);
       open(app, ".claude/skills/voice-profile.md");
       expect(app.workspace.openLinkText).toHaveBeenCalledWith(
-        "copilot/skills/voice-profile.md",
+        "vault-agent/skills/voice-profile.md",
         "",
         false
       );
@@ -128,10 +128,10 @@ describe("openVaultPath", () => {
     });
 
     it("opens a root-relative dot-folder symlink alias as its canonical indexed note", () => {
-      const app = buildApp(vaultDir, ["copilot/skills/voice-profile.md"]);
+      const app = buildApp(vaultDir, ["vault-agent/skills/voice-profile.md"]);
       open(app, "/.claude/skills/voice-profile.md");
       expect(app.workspace.openLinkText).toHaveBeenCalledWith(
-        "copilot/skills/voice-profile.md",
+        "vault-agent/skills/voice-profile.md",
         "",
         false
       );
@@ -139,10 +139,10 @@ describe("openVaultPath", () => {
     });
 
     it("preserves the heading anchor when canonicalizing a symlink alias", () => {
-      const app = buildApp(vaultDir, ["copilot/skills/voice-profile.md"]);
+      const app = buildApp(vaultDir, ["vault-agent/skills/voice-profile.md"]);
       open(app, ".claude/skills/voice-profile.md#Closings");
       expect(app.workspace.openLinkText).toHaveBeenCalledWith(
-        "copilot/skills/voice-profile.md#Closings",
+        "vault-agent/skills/voice-profile.md#Closings",
         "",
         false
       );

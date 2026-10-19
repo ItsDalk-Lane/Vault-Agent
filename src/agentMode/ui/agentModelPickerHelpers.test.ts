@@ -24,7 +24,7 @@ import type { ModelActiveContext } from "./agentModelPickerHelpers";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
 type ModelCatalog = NonNullable<ReturnType<AgentSessionManager["getCachedModelCatalog"]>>;
 
@@ -159,12 +159,12 @@ const emptySettings = {
     ],
     defaultEnabledIds: ["copilot-plus-flash", "glm-5.2"],
   },
-} as unknown as CopilotSettings;
+} as unknown as VaultAgentSettings;
 
 const copilotPlusSettings = {
   ...emptySettings,
   providers: { plus: { origin: { kind: "copilot-plus" } } },
-} as unknown as CopilotSettings;
+} as unknown as VaultAgentSettings;
 
 function claudeWithInstallState(installState: InstallState): BackendDescriptor {
   return {
@@ -225,7 +225,7 @@ describe("agentModelPickerHelpers", () => {
     it("previews nothing for an agent that cannot route Copilot models", () => {
       const claude = {
         ...makeDescriptor("claude"),
-        routesCopilotModels: false,
+        routesVaultAgentModels: false,
         getEnabledModelEntries: () => [
           { baseModelId: "sonnet", name: "Sonnet", credentialState: "ok" as const },
         ],
@@ -242,41 +242,10 @@ describe("agentModelPickerHelpers", () => {
       expect(entries.every((entry) => entry.enabled !== undefined)).toBe(true);
     });
 
-    it("previews nothing once the Copilot provider is registered, since the real models are there", () => {
-      const entry = makeModelEntry("catalog-model");
-      const descriptor = {
-        ...makeDescriptor("opencode"),
-        routesCopilotModels: true,
-        getEnabledModelEntries: () => [
-          { baseModelId: entry.baseModelId, name: entry.name, credentialState: "ok" as const },
-        ],
-      } as unknown as BackendDescriptor;
-      const manager = {
-        getCachedModelCatalog: () => ({ availableModels: [entry] }),
-        getPreloadStatus: () => "ready",
-        getDefaultSelection: () => null,
-      } as unknown as AgentSessionManager;
-
-      const { entries } = buildPickerEntries(manager, [descriptor], {} as ModelActiveContext, {
-        ...emptySettings,
-        providers: {
-          "plus-1": {
-            providerId: "plus-1",
-            providerType: "openai-compatible",
-            displayName: "Copilot",
-            origin: { kind: "copilot-plus" },
-            addedAt: 0,
-          },
-        },
-      });
-
-      expect(entries.map((model) => model.name)).toEqual(["catalog-model"]);
-    });
-
     it("still shows a loading placeholder for a routing agent whose preload has not settled", () => {
       const descriptor = {
         ...makeDescriptor("opencode"),
-        routesCopilotModels: true,
+        routesVaultAgentModels: true,
         getEnabledModelEntries: () => [],
       } as unknown as BackendDescriptor;
       const manager = {
@@ -451,7 +420,7 @@ describe("agentModelPickerHelpers", () => {
       const enabled = makeModelEntry("copilot-plus/copilot-plus-flash");
       const opencode = {
         ...makeDescriptor("opencode"),
-        routesCopilotModels: true,
+        routesVaultAgentModels: true,
         getEnabledModelEntries: () => [
           { baseModelId: enabled.baseModelId, name: "Flash", credentialState: "ok" as const },
         ],
@@ -487,7 +456,7 @@ describe("agentModelPickerHelpers", () => {
       const agentDefault = makeModelEntry("opencode/fledge-alpha-free");
       const opencode = {
         ...makeDescriptor("opencode"),
-        routesCopilotModels: true,
+        routesVaultAgentModels: true,
         getEnabledModelEntries: () => [
           { baseModelId: agentDefault.baseModelId, name: "Fledge", credentialState: "ok" as const },
           {
@@ -1028,7 +997,7 @@ describe("agentModelPickerHelpers", () => {
   });
 
   describe("buildEffortOptionsByModelKey()", () => {
-    const ACTIVE = "github-copilot/gpt-5.4";
+    const ACTIVE = "github-vault-agent/gpt-5.4";
     const OTHER = "opencode/nemotron-3-super-free";
 
     function catalogWithEffort(

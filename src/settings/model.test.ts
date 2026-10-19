@@ -1,5 +1,5 @@
 import {
-  COPILOT_FOLDER_ROOT,
+  VAULT_AGENT_FOLDER_ROOT,
   DEFAULT_QA_EXCLUSIONS_SETTING,
   DEFAULT_SETTINGS,
   BUILTIN_CHAT_MODELS,
@@ -12,8 +12,8 @@ import {
   sanitizeQaExclusions,
   settingsAtom,
   settingsStore,
-  toVisibleCopilotFolder,
-  validateCopilotFolder,
+  toVisibleVaultAgentFolder,
+  validateVaultAgentFolder,
   getModelKeyFromModel,
 } from "@/settings/model";
 import { CustomModel } from "@/aiParams";
@@ -27,13 +27,13 @@ describe("model", () => {
     });
 
     it("keeps slash-only patterns distinct from canonical entries", () => {
-      const rawValue = `${encodeURIComponent("///")},${encodeURIComponent(COPILOT_FOLDER_ROOT)}`;
+      const rawValue = `${encodeURIComponent("///")},${encodeURIComponent(VAULT_AGENT_FOLDER_ROOT)}`;
 
       const sanitized = sanitizeQaExclusions(rawValue);
 
       expect(sanitized.split(",")).toEqual([
         encodeURIComponent("///"),
-        encodeURIComponent(COPILOT_FOLDER_ROOT),
+        encodeURIComponent(VAULT_AGENT_FOLDER_ROOT),
       ]);
     });
 
@@ -148,77 +148,79 @@ describe("model", () => {
     });
   });
 
-  describe("validateCopilotFolder()", () => {
+  describe("validateVaultAgentFolder()", () => {
     it("rejects empty and whitespace-only values", () => {
-      expect(validateCopilotFolder("").ok).toBe(false);
-      expect(validateCopilotFolder("   ").ok).toBe(false);
+      expect(validateVaultAgentFolder("").ok).toBe(false);
+      expect(validateVaultAgentFolder("   ").ok).toBe(false);
     });
 
     it("accepts a simple relative folder and trims it", () => {
-      expect(validateCopilotFolder("  my-ai  ")).toEqual({ ok: true, folder: "my-ai" });
+      expect(validateVaultAgentFolder("  my-ai  ")).toEqual({ ok: true, folder: "my-ai" });
     });
 
     it("accepts a nested relative folder and strips a trailing slash", () => {
-      expect(validateCopilotFolder("notes/ai/")).toEqual({ ok: true, folder: "notes/ai" });
+      expect(validateVaultAgentFolder("notes/ai/")).toEqual({ ok: true, folder: "notes/ai" });
     });
 
     it("rejects parent-traversal, absolute, and drive-letter paths", () => {
-      expect(validateCopilotFolder("../escape").ok).toBe(false);
-      expect(validateCopilotFolder("a/../b").ok).toBe(false);
-      expect(validateCopilotFolder("/etc/passwd").ok).toBe(false);
-      expect(validateCopilotFolder("C:/Users/evil").ok).toBe(false);
+      expect(validateVaultAgentFolder("../escape").ok).toBe(false);
+      expect(validateVaultAgentFolder("a/../b").ok).toBe(false);
+      expect(validateVaultAgentFolder("/etc/passwd").ok).toBe(false);
+      expect(validateVaultAgentFolder("C:/Users/evil").ok).toBe(false);
     });
 
     it("rejects any segment that starts with a dot, because Obsidian does not index hidden folders (https://github.com/Brevilabs/obsidian-copilot-private/issues/712)", () => {
-      expect(validateCopilotFolder(".copilot")).toEqual({
+      expect(validateVaultAgentFolder(".copilot")).toEqual({
         ok: false,
         reason: "Folder names cannot start with a dot.",
       });
-      expect(validateCopilotFolder("notes/.ai").ok).toBe(false);
-      expect(validateCopilotFolder("a/./b").ok).toBe(false);
-      expect(validateCopilotFolder("notes.ai/copilot").ok).toBe(true);
+      expect(validateVaultAgentFolder("notes/.ai").ok).toBe(false);
+      expect(validateVaultAgentFolder("a/./b").ok).toBe(false);
+      expect(validateVaultAgentFolder("notes.ai/copilot").ok).toBe(true);
     });
 
     it("rejects roots that overlap the active config folder at a segment boundary", () => {
       const configDir = ".vault-config";
-      expect(validateCopilotFolder(configDir, configDir).ok).toBe(false);
-      expect(validateCopilotFolder(`${configDir.toUpperCase()}/plugins`, configDir).ok).toBe(false);
-      expect(validateCopilotFolder("copilot", "copilot/system-prompts").ok).toBe(false);
-      expect(validateCopilotFolder("copilot-data", "copilot/system-prompts").ok).toBe(true);
+      expect(validateVaultAgentFolder(configDir, configDir).ok).toBe(false);
+      expect(validateVaultAgentFolder(`${configDir.toUpperCase()}/plugins`, configDir).ok).toBe(
+        false
+      );
+      expect(validateVaultAgentFolder("vault-agent", "vault-agent/system-prompts").ok).toBe(false);
+      expect(validateVaultAgentFolder("copilot-data", "vault-agent/system-prompts").ok).toBe(true);
     });
 
     it("rejects Windows-illegal characters in any segment", () => {
-      expect(validateCopilotFolder("a/b<c").ok).toBe(false);
-      expect(validateCopilotFolder('a/b"c').ok).toBe(false);
-      expect(validateCopilotFolder("a/b|c").ok).toBe(false);
+      expect(validateVaultAgentFolder("a/b<c").ok).toBe(false);
+      expect(validateVaultAgentFolder('a/b"c').ok).toBe(false);
+      expect(validateVaultAgentFolder("a/b|c").ok).toBe(false);
     });
 
     it("rejects Windows-reserved device names in any segment, any case, with or without extension", () => {
-      expect(validateCopilotFolder("NUL").ok).toBe(false);
-      expect(validateCopilotFolder("team/CON").ok).toBe(false);
-      expect(validateCopilotFolder("con.md").ok).toBe(false);
-      expect(validateCopilotFolder("Com1").ok).toBe(false);
-      expect(validateCopilotFolder("console").ok).toBe(true);
-      expect(validateCopilotFolder("nul-notes").ok).toBe(true);
+      expect(validateVaultAgentFolder("NUL").ok).toBe(false);
+      expect(validateVaultAgentFolder("team/CON").ok).toBe(false);
+      expect(validateVaultAgentFolder("con.md").ok).toBe(false);
+      expect(validateVaultAgentFolder("Com1").ok).toBe(false);
+      expect(validateVaultAgentFolder("console").ok).toBe(true);
+      expect(validateVaultAgentFolder("nul-notes").ok).toBe(true);
     });
 
     it("rejects segments ending with a dot or space on every platform", () => {
-      expect(validateCopilotFolder("copilot.").ok).toBe(false);
-      expect(validateCopilotFolder("team /ai").ok).toBe(false);
-      expect(validateCopilotFolder("team./ai").ok).toBe(false);
+      expect(validateVaultAgentFolder("copilot.").ok).toBe(false);
+      expect(validateVaultAgentFolder("team /ai").ok).toBe(false);
+      expect(validateVaultAgentFolder("team./ai").ok).toBe(false);
     });
   });
 
-  describe("toVisibleCopilotFolder()", () => {
+  describe("toVisibleVaultAgentFolder()", () => {
     it("drops the leading dots of every segment and keeps visible paths unchanged", () => {
-      expect(toVisibleCopilotFolder(" .copilot ")).toBe("copilot");
-      expect(toVisibleCopilotFolder("..a\\.b/c.d")).toBe("a\\b/c.d");
-      expect(toVisibleCopilotFolder("notes/ai")).toBe("notes/ai");
+      expect(toVisibleVaultAgentFolder(" .copilot ")).toBe("copilot");
+      expect(toVisibleVaultAgentFolder("..a\\.b/c.d")).toBe("a\\b/c.d");
+      expect(toVisibleVaultAgentFolder("notes/ai")).toBe("notes/ai");
     });
 
     it("turns traversal segments into empty segments that validation still rejects", () => {
-      expect(validateCopilotFolder(toVisibleCopilotFolder("../escape")).ok).toBe(false);
-      expect(validateCopilotFolder(toVisibleCopilotFolder("a/../b")).ok).toBe(false);
+      expect(validateVaultAgentFolder(toVisibleVaultAgentFolder("../escape")).ok).toBe(false);
+      expect(validateVaultAgentFolder(toVisibleVaultAgentFolder("a/../b")).ok).toBe(false);
     });
   });
 
@@ -228,8 +230,8 @@ describe("model", () => {
     });
 
     it("dedupes case-sensitively, preserving first-seen order", () => {
-      expect(normalizeRootFolders(["copilot", "ai", "copilot", "Copilot"])).toEqual([
-        "copilot",
+      expect(normalizeRootFolders(["vault-agent", "ai", "vault-agent", "Copilot"])).toEqual([
+        "vault-agent",
         "ai",
         "Copilot",
       ]);
@@ -267,15 +269,17 @@ describe("model", () => {
     it("preserves historical roots and folds in the pre-reset active root", () => {
       settingsStore.set(settingsAtom, {
         ...DEFAULT_SETTINGS,
-        copilotFolder: "team-ai",
-        copilotRootHistory: ["copilot", "ai"],
+        vaultAgentFolder: "team-ai",
+        vaultAgentRootHistory: ["vault-agent", "ai"],
       });
 
       resetSettings();
 
       const after = settingsStore.get(settingsAtom);
-      expect(after.copilotFolder).toBe(DEFAULT_SETTINGS.copilotFolder);
-      expect(new Set(after.copilotRootHistory)).toEqual(new Set(["copilot", "ai", "team-ai"]));
+      expect(after.vaultAgentFolder).toBe(DEFAULT_SETTINGS.vaultAgentFolder);
+      expect(new Set(after.vaultAgentRootHistory)).toEqual(
+        new Set(["vault-agent", "ai", "team-ai"])
+      );
     });
 
     it.each([false, true])(

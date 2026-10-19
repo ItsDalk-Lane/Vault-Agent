@@ -9,7 +9,7 @@ describe("tailwind", () => {
         ""
       );
       const paddingRules = Array.from(
-        css.matchAll(/([^{};]*\[data-type="copilot-chat-view"\][^{};]*)\{([^{}]*)\}/g),
+        css.matchAll(/([^{};]*\[data-type="vault-agent-chat-view"\][^{};]*)\{([^{}]*)\}/g),
         ([, selector, declarations]) => ({
           selector: selector.trim(),
           maxHeight: declarations
@@ -29,7 +29,7 @@ describe("tailwind", () => {
         [
           "is-mobile is-phone",
           "workspace-tab-container",
-          "copilot-chat-view",
+          "vault-agent-chat-view",
           [
             "max(var(--size-4-8), var(--view-bottom-spacing, calc(var(--safe-area-inset-bottom) - var(--keyboard-height))))",
           ],
@@ -37,13 +37,13 @@ describe("tailwind", () => {
         [
           "is-mobile is-phone",
           "workspace-drawer mod-right",
-          "copilot-chat-view",
+          "vault-agent-chat-view",
           ["max(var(--size-4-8), calc(var(--safe-area-inset-bottom) - var(--keyboard-height)))"],
         ],
-        ["is-mobile is-phone", "workspace-drawer mod-left", "copilot-chat-view", []],
-        ["", "workspace-drawer mod-right", "copilot-chat-view", []],
-        ["is-mobile", "workspace-drawer mod-right", "copilot-chat-view", []],
-        ["", "workspace-tab-container", "copilot-chat-view", []],
+        ["is-mobile is-phone", "workspace-drawer mod-left", "vault-agent-chat-view", []],
+        ["", "workspace-drawer mod-right", "vault-agent-chat-view", []],
+        ["is-mobile", "workspace-drawer mod-right", "vault-agent-chat-view", []],
+        ["", "workspace-tab-container", "vault-agent-chat-view", []],
         ["is-mobile is-phone", "workspace-tab-container", "markdown", []],
       ] as const) {
         const host = document.createElement("div");

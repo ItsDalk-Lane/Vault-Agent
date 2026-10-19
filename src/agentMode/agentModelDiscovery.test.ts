@@ -1,5 +1,5 @@
 import type { ModelManagementApi, Provider, ProviderOrigin } from "@/modelManagement";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import type { AgentSessionManager, BackendDescriptor } from "@/agentMode";
 import { logInfo } from "@/logger";
 import { waitFor } from "@testing-library/react";
@@ -126,8 +126,8 @@ function makeManagerFake(): ManagerFake {
   };
 }
 
-function makePlugin(api: ModelManagementApi): CopilotPlugin {
-  return { modelManagement: api } as unknown as CopilotPlugin;
+function makePlugin(api: ModelManagementApi): VaultAgentPlugin {
+  return { modelManagement: api } as unknown as VaultAgentPlugin;
 }
 
 async function waitForDiscoveryLog(message: string): Promise<void> {
@@ -377,13 +377,6 @@ describe("agentModelDiscovery", () => {
         makeProvider("p2", { kind: "byok", catalogProviderId: "openai" }),
       ]);
       expect(managed).toEqual(new Set(["anthropic", "openai"]));
-    });
-
-    it("maps copilot-plus to the reserved opencode provider id", () => {
-      const managed = buildManagedOpencodeProviderIds([
-        makeProvider("p1", { kind: "copilot-plus" }),
-      ]);
-      expect(managed).toEqual(new Set(["copilot-plus"]));
     });
 
     it("skips a BYOK provider that has no catalog provider id", () => {

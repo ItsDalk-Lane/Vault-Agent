@@ -1,4 +1,4 @@
-import { deriveConversationAttachmentsFolder } from "@/settings/copilotFolder";
+import { deriveConversationAttachmentsFolder } from "@/settings/vaultAgentFolder";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/utils/base64";
 import { sha256 } from "@/utils/hash";
 import { isFileAlreadyExistsError } from "@/utils/vaultAdapterUtils";
@@ -23,7 +23,7 @@ interface MessageWithImages {
 const savedUploads = new WeakMap<App, Map<string, Promise<string>>>();
 const pendingUploads = new WeakMap<App, Map<string, Promise<string>>>();
 const RECEIPT =
-  /<!-- copilot-image:([a-f0-9]{64}) -->\r?\n([\s\S]*?)\r?\n<!-- \/copilot-image -->/g;
+  /<!-- vault-agent-image:([a-f0-9]{64}) -->\r?\n([\s\S]*?)\r?\n<!-- \/vault-agent-image -->/g;
 
 const EMBED = /^!\[\[[^\r\n]+\]\]$|^!\[[^\r\n]*\]\([^\r\n]+\)$/gm;
 
@@ -159,7 +159,7 @@ export async function prepareChatImagesForSave<T extends MessageWithImages>(
         throw new Error("Cannot save an invalid uploaded image.");
       }
       const hash = sha256(base64);
-      const name = `copilot-image-${hash}`;
+      const name = `vault-agent-image-${hash}`;
       const savedKey = `${sourcePath || conversationsFolder}\0${hash}`;
       let saved = savedImages.get(savedKey);
       const ordinal = imageIndex++;
@@ -204,7 +204,9 @@ export async function prepareChatImagesForSave<T extends MessageWithImages>(
         void saved.catch(() => savedImages.delete(savedKey));
       }
       savedImages.set(savedKey, saved);
-      embeds.push(`<!-- copilot-image:${hash} -->\n${await saved}\n<!-- /copilot-image -->`);
+      embeds.push(
+        `<!-- vault-agent-image:${hash} -->\n${await saved}\n<!-- /vault-agent-image -->`
+      );
 
       async function writeImage(): Promise<string> {
         let current = "";

@@ -1,28 +1,28 @@
-import type { CopilotSettingsTabId } from "@/settings/settingsTabs";
+import type { VaultAgentSettingsTabId } from "@/settings/settingsTabs";
 import { callMethod, isRecord, readProperty } from "@/utils/obsidianInternals";
 import type { App } from "obsidian";
 
-let requestedCopilotSettingsTab: CopilotSettingsTabId | null = null;
+let requestedVaultAgentSettingsTab: VaultAgentSettingsTabId | null = null;
 
 interface ObsidianSettingsController {
   open: () => void;
   openTabById: (id: string) => void;
 }
 
-export function openCopilotSettings(
+export function openVaultAgentSettings(
   app: App,
   ownerWindow: Window,
-  tab: CopilotSettingsTabId
+  tab: VaultAgentSettingsTabId
 ): void {
   const settings = (app as unknown as { setting: ObsidianSettingsController }).setting;
-  requestedCopilotSettingsTab = tab;
+  requestedVaultAgentSettingsTab = tab;
   settings.open();
-  // Opening settings consumes the request immediately when Copilot is already
-  // selected. Otherwise hand off after the modal opens so Copilot renders only
+  // Opening settings consumes the request immediately when the plugin is already
+  // selected. Otherwise hand off after the modal opens so the settings shell renders only
   // once and no detached React tree is left behind.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/280
   ownerWindow.requestAnimationFrame(() => {
-    if (requestedCopilotSettingsTab !== null) settings.openTabById("copilot");
+    if (requestedVaultAgentSettingsTab !== null) settings.openTabById("vault-agent");
   });
 }
 
@@ -42,8 +42,8 @@ export function openCorePluginSettings(app: App, pluginName: string): void {
   callMethod(search, "dispatchEvent", new Event("input"));
 }
 
-export function consumeRequestedCopilotSettingsTab(): CopilotSettingsTabId {
-  const requestedTab = requestedCopilotSettingsTab ?? "basic";
-  requestedCopilotSettingsTab = null;
+export function consumeRequestedVaultAgentSettingsTab(): VaultAgentSettingsTabId {
+  const requestedTab = requestedVaultAgentSettingsTab ?? "basic";
+  requestedVaultAgentSettingsTab = null;
   return requestedTab;
 }

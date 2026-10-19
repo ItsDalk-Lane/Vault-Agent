@@ -2,7 +2,7 @@ import { AgentModeStatus } from "@/agentMode/ui/AgentModeStatus";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { BackendAuth, BackendDescriptor } from "@/agentMode/session/types";
 import type { BackendAuthUiState } from "@/agentMode/session/useBackendAuthState";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 
@@ -61,7 +61,7 @@ describe("AgentModeStatus", () => {
     it("runs the supplied install action when the backend is absent", () => {
       installState = { kind: "absent" };
       const onInstallClick = jest.fn();
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus plugin={plugin} onInstallClick={onInstallClick} />);
 
@@ -71,7 +71,7 @@ describe("AgentModeStatus", () => {
 
     it("renders the checking state without an alert or action", () => {
       installState = { kind: "checking", source: "custom" };
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -90,7 +90,7 @@ describe("AgentModeStatus", () => {
         isBackendRestartPending: jest.fn(() => false),
         getOrCreateActiveSession: jest.fn().mockResolvedValue({}),
       } as unknown as AgentSessionManager;
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus manager={manager} plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -119,7 +119,7 @@ describe("AgentModeStatus", () => {
         isBackendRestartPending: jest.fn(() => false),
         getOrCreateActiveSession: jest.fn(),
       } as unknown as AgentSessionManager;
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus manager={manager} plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -147,7 +147,7 @@ describe("AgentModeStatus", () => {
           run,
         },
       };
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       const { rerender } = render(<AgentModeStatus plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -173,7 +173,7 @@ describe("AgentModeStatus", () => {
       const message =
         "Could not read /opt/local/custom-agent-runtime/bin/claude. Check the configured path.";
       installState = { kind: "error", message };
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
       render(<AgentModeStatus plugin={plugin} onInstallClick={jest.fn()} />);
       expect(screen.getByText("Claude setup error")).toBeTruthy();
       expect(screen.getByText(message).closest("details")).toBeNull();
@@ -194,7 +194,7 @@ describe("AgentModeStatus", () => {
         cancelSignIn: jest.fn(),
         failed: false,
       };
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
       const { rerender } = render(<AgentModeStatus plugin={plugin} onInstallClick={jest.fn()} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
@@ -221,7 +221,7 @@ describe("AgentModeStatus", () => {
         isBackendRestartPending: jest.fn(() => false),
         applyHeldConfigChange: jest.fn().mockResolvedValue(undefined),
       } as unknown as AgentSessionManager;
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus manager={manager} plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -238,7 +238,7 @@ describe("AgentModeStatus", () => {
         isBackendRestartPending: jest.fn(() => true),
         applyHeldConfigChange: jest.fn().mockResolvedValue(undefined),
       } as unknown as AgentSessionManager;
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus manager={manager} plugin={plugin} onInstallClick={jest.fn()} />);
 
@@ -255,7 +255,7 @@ describe("AgentModeStatus", () => {
         isBackendRestartPending: jest.fn(() => false),
         applyHeldConfigChange: jest.fn().mockResolvedValue(undefined),
       } as unknown as AgentSessionManager;
-      const plugin = { app: {} } as unknown as CopilotPlugin;
+      const plugin = { app: {} } as unknown as VaultAgentPlugin;
 
       render(<AgentModeStatus manager={manager} plugin={plugin} onInstallClick={jest.fn()} />);
 

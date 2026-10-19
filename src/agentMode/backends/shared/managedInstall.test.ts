@@ -10,7 +10,7 @@ describe("managedInstall", () => {
     let root: string;
 
     beforeEach(() => {
-      root = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-managed-install-"));
+      root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-agent-managed-install-"));
     });
 
     afterEach(() => {

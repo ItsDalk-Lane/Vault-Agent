@@ -38,7 +38,7 @@ export async function inspectBuiltinSkill(
   }
 }
 
-const ENABLED_AGENTS_RE = /^([ \t]*copilot-enabled-agents:[ \t]*)(.*)$/m;
+const ENABLED_AGENTS_RE = /^([ \t]*vault-agent-enabled-agents:[ \t]*)(.*)$/m;
 
 function preserveEnabledAgents(existingMd: string, bundledMd: string): string {
   const existing = existingMd.match(ENABLED_AGENTS_RE);

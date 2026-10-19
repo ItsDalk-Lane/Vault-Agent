@@ -1,6 +1,6 @@
 import { ProjectConfig } from "@/aiParams";
 import { logError, logInfo, logWarn } from "@/logger";
-import { COPILOT_PROJECT_ID, PROJECTS_UNSUPPORTED_FOLDER_NAME } from "@/projects/constants";
+import { VAULT_AGENT_PROJECT_ID, PROJECTS_UNSUPPORTED_FOLDER_NAME } from "@/projects/constants";
 import { reconcileLegacyAgentsResidue } from "@/projects/legacyAgentsResidue";
 import {
   deriveProjectFolderName,
@@ -238,9 +238,13 @@ async function migrateProjectsFromSettingsToVault(app: App): Promise<StartupMigr
       let existingId = "";
       if (existingFile instanceof TFile) {
         const existingMeta = app.metadataCache.getFileCache(existingFile);
-        existingId = String(existingMeta?.frontmatter?.[COPILOT_PROJECT_ID] ?? "").trim();
+        existingId = String(existingMeta?.frontmatter?.[VAULT_AGENT_PROJECT_ID] ?? "").trim();
         if (!existingId) {
-          existingId = await readFrontmatterFieldFromFile(vault, existingFile, COPILOT_PROJECT_ID);
+          existingId = await readFrontmatterFieldFromFile(
+            vault,
+            existingFile,
+            VAULT_AGENT_PROJECT_ID
+          );
         }
       } else {
         try {
@@ -249,7 +253,7 @@ async function migrateProjectsFromSettingsToVault(app: App): Promise<StartupMigr
           if (fmMatch) {
             const parsed = parseYaml(fmMatch[1]);
             if (parsed && typeof parsed === "object") {
-              const raw = (parsed as Record<string, unknown>)[COPILOT_PROJECT_ID];
+              const raw = (parsed as Record<string, unknown>)[VAULT_AGENT_PROJECT_ID];
               existingId = (typeof raw === "string" ? raw : "").trim();
             }
           }

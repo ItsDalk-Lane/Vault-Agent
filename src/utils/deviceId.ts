@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { v4 as uuidv4, validate as validateUuid, version as uuidVersion } from "uuid";
 
-const DEVICE_ID_STORAGE_KEY = "obsidian-copilot:device-id:v1";
+const DEVICE_ID_STORAGE_KEY = "vault-agent:device-id:v1";
 
 const FALLBACK_DEVICE_ID = "unknown";
 

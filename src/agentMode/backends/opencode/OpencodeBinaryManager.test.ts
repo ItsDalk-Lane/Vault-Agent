@@ -70,7 +70,7 @@ describe("OpencodeBinaryManager", () => {
 
   const fakePlugin = {
     app: { vault: { adapter: {} } },
-    manifest: { id: "copilot-test" },
+    manifest: { id: "vault-agent-test" },
   } as never;
 
   const FileSystemAdapterMock = jest.requireMock("obsidian").FileSystemAdapter as new () => {
@@ -79,7 +79,7 @@ describe("OpencodeBinaryManager", () => {
 
   const CONFIG_DIR = "my-config";
 
-  function vaultPlugin(vaultBase = "/vault", pluginId = "copilot-test"): never {
+  function vaultPlugin(vaultBase = "/vault", pluginId = "vault-agent-test"): never {
     const adapter = new FileSystemAdapterMock();
     adapter.getBasePath = () => vaultBase;
     return {
@@ -239,7 +239,7 @@ describe("OpencodeBinaryManager", () => {
 
     it("places the managed data dir under the home dir instead of the vault", () => {
       expect(opencodeManagedDataDir("/Users/me")).toBe(
-        path.join("/Users/me", ".obsidian-copilot", "opencode")
+        path.join("/Users/me", ".vault-agent", "opencode")
       );
       expect(opencodeManagedDataDir("/Users/me")).not.toContain("plugins");
     });
@@ -264,7 +264,7 @@ describe("OpencodeBinaryManager", () => {
         const secondVault = await fs.promises.mkdtemp(path.join(os.tmpdir(), "opencode-vault-b-"));
         try {
           const seedLegacy = async (vaultBase: string, bytes: number): Promise<string> => {
-            const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "copilot-test");
+            const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "vault-agent-test");
             const bin = path.join(legacy, "1.14.0", "bin", "opencode");
             await fs.promises.mkdir(path.dirname(bin), { recursive: true });
             await fs.promises.writeFile(bin, "z".repeat(bytes));
@@ -374,7 +374,7 @@ describe("OpencodeBinaryManager", () => {
       it("https://github.com/Brevilabs/obsidian-copilot-private/issues/379 selects a custom executable and removes managed and legacy downloads", async () => {
         const vaultBase = path.join(tmpDir, "vault");
         const mgr = new OpencodeBinaryManager(vaultPlugin(vaultBase));
-        const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "copilot-test");
+        const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "vault-agent-test");
         fs.mkdirSync(mgr.getDataDir(), { recursive: true });
         fs.mkdirSync(legacy, { recursive: true });
         await mgr.setCustomBinaryPath(process.execPath);
@@ -544,7 +544,7 @@ fi
         const vaultBase = await fs.promises.mkdtemp(path.join(os.tmpdir(), "opencode-vault-"));
         try {
           const mgr = new OpencodeBinaryManager(vaultPlugin(vaultBase));
-          const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "copilot-test");
+          const legacy = legacyVaultDataDir(vaultBase, CONFIG_DIR, "vault-agent-test");
           const legacyBin = path.join(legacy, "1.14.0", "bin", "opencode");
           await fs.promises.mkdir(path.dirname(legacyBin), { recursive: true });
           await fs.promises.writeFile(legacyBin, "z".repeat(40));

@@ -1,10 +1,10 @@
 import { type App, Platform } from "obsidian";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { logError } from "@/logger";
-import { getSettings, subscribeToSettingsChange, type CopilotSettings } from "@/settings/model";
-import { deriveSkillsFolder } from "@/settings/copilotFolder";
+import { getSettings, subscribeToSettingsChange, type VaultAgentSettings } from "@/settings/model";
+import { deriveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { subscribeToSystemPromptChange } from "@/system-prompts/state";
-import { copilotAppDataDir, getVaultId } from "@/utils/appPaths";
+import { vaultAgentAppDataDir, getVaultId } from "@/utils/appPaths";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { buildAgentSystemPrompt } from "./backends/shared/agentSystemPrompt";
 import { getBuiltinSkillEnvRestartPolicy } from "./backends/shared/builtinSkillEnv";
@@ -16,7 +16,7 @@ import { AgentSessionIndex } from "./session/AgentSessionIndex";
 import { createNodeFileStorage } from "./session/nodeFileStorage";
 import { AgentSessionManager } from "./session/AgentSessionManager";
 import { createFeedbackMcpServer } from "@/agentMode/session/feedback/feedbackMcpServer";
-import { seedCopilotDefaultModel } from "./session/copilotDefaultModel";
+import { seedVaultAgentDefaultModel } from "./session/vaultAgentDefaultModel";
 import { SkillManager } from "./skills";
 import {
   availableBuiltinAgents,
@@ -32,13 +32,13 @@ import {
   createDefaultPermissionPrompter,
 } from "./ui/permissionPrompter";
 
-export { default as CopilotAgentView } from "./ui/CopilotAgentView";
+export { default as VaultAgentView } from "./ui/VaultAgentView";
 export { useBackendInstallState, useManagedInstallActionState } from "./ui/useBackendDescriptor";
 export type { AgentSessionManager } from "./session/AgentSessionManager";
 export type { BackendDescriptor, BackendId } from "./session/types";
 export { partitionOpencodeOnlyWireIds } from "./backends/opencode/opencodeProbePartition";
 export { mapProviderToOpencodeId } from "./backends/opencode/opencodeModelResolve";
-export type { CopilotMode, ModelSelection } from "./session/types";
+export type { VaultAgentMode, ModelSelection } from "./session/types";
 export { AgentDefaultModelSetting } from "./ui/AgentDefaultModelSetting";
 export { ModelEnableList } from "@/components/ui/ModelEnableList";
 export type { ModelEnableGroup } from "@/components/ui/ModelEnableList";
@@ -57,8 +57,8 @@ function isAgentModeEnabled(): boolean {
   return !Platform.isMobile;
 }
 
-export function applyCopilotDefaultModel(configuredModelId: string): BackendId[] {
-  return seedCopilotDefaultModel(listBackendDescriptors(), configuredModelId);
+export function applyVaultAgentDefaultModel(configuredModelId: string): BackendId[] {
+  return seedVaultAgentDefaultModel(listBackendDescriptors(), configuredModelId);
 }
 
 function collectAgentSkillsDirsProjectRel(): Record<string, string> {
@@ -69,7 +69,7 @@ function collectAgentSkillsDirsProjectRel(): Record<string, string> {
   return out;
 }
 
-function backendEnvOverridesKey(settings: CopilotSettings, backendId: BackendId): string {
+function backendEnvOverridesKey(settings: VaultAgentSettings, backendId: BackendId): string {
   const backends = settings.agentMode?.backends as
     | Partial<Record<BackendId, { envOverrides?: Record<string, string> }>>
     | undefined;
@@ -78,8 +78,8 @@ function backendEnvOverridesKey(settings: CopilotSettings, backendId: BackendId)
 }
 
 function spawnModelConfigKey(
-  settings: CopilotSettings,
-  backendId: keyof CopilotSettings["backends"]
+  settings: VaultAgentSettings,
+  backendId: keyof VaultAgentSettings["backends"]
 ): string {
   const enabled = new Set(settings.backends[backendId]?.enabledModels);
   return settings.configuredModels
@@ -102,7 +102,7 @@ function spawnModelConfigKey(
     .join("\n");
 }
 
-export function createAgentSessionManager(app: App, plugin: CopilotPlugin): AgentSessionManager {
+export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): AgentSessionManager {
   const os = requireNodeModule<typeof import("node:os")>("os");
   const path = requireNodeModule<typeof import("node:path")>("path");
   let lastAvailableSkillAgents: readonly string[] = [];
@@ -143,7 +143,7 @@ export function createAgentSessionManager(app: App, plugin: CopilotPlugin): Agen
   const persistenceManager = new AgentChatPersistenceManager(app);
   const vaultId = getVaultId(app);
   const indexPath = path.join(
-    copilotAppDataDir(os.homedir()),
+    vaultAgentAppDataDir(os.homedir()),
     "vaults",
     vaultId,
     "agent-chat-index.json"
@@ -181,7 +181,7 @@ export function createAgentSessionManager(app: App, plugin: CopilotPlugin): Agen
   });
   for (const descriptor of listBackendDescriptors()) {
     if (!descriptor.restartOnProviderConfigChange) continue;
-    const backendId = descriptor.id as keyof CopilotSettings["backends"];
+    const backendId = descriptor.id as keyof VaultAgentSettings["backends"];
     const refresh = (reason: string): void => {
       void manager
         .noteSpawnConfigChanged(descriptor.id, reason)

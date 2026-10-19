@@ -1,15 +1,15 @@
 import { CustomModel } from "@/aiParams";
 import { DEFAULT_BUILTIN_PREFERENCES } from "@/builtinSkills/builtinSkills";
-import { type CopilotSettings } from "@/settings/model";
+import { type VaultAgentSettings } from "@/settings/model";
 import { PromptSortStrategy } from "./types";
 
-export const CHAT_VIEWTYPE = "copilot-chat-view";
-export const CHAT_AGENT_VIEWTYPE = "copilot-agent-chat-view";
+export const CHAT_VIEWTYPE = "vault-agent-chat-view";
+export const CHAT_AGENT_VIEWTYPE = "vault-agent-chat-view";
 export const AGENT_CHAT_MODE = "agent";
-export const RELEVANT_NOTES_VIEWTYPE = "copilot-relevant-notes-view";
-export const PLAN_PREVIEW_VIEW_TYPE = "copilot-plan-preview-view";
-export const TURN_DIFF_VIEW_TYPE = "copilot-turn-diff-view";
-export const APPLY_VIEW_TYPE = "obsidian-copilot-apply-view";
+export const RELEVANT_NOTES_VIEWTYPE = "vault-agent-relevant-notes-view";
+export const PLAN_PREVIEW_VIEW_TYPE = "vault-agent-plan-preview-view";
+export const TURN_DIFF_VIEW_TYPE = "vault-agent-turn-diff-view";
+export const APPLY_VIEW_TYPE = "vault-agent-apply-view";
 export const SHARED_VIEW_TYPES = [CHAT_VIEWTYPE, APPLY_VIEW_TYPE, RELEVANT_NOTES_VIEWTYPE] as const;
 export const DESKTOP_VIEW_TYPES = [
   ...SHARED_VIEW_TYPES,
@@ -23,23 +23,23 @@ export const AGENT_VIEW_TYPES = [
   TURN_DIFF_VIEW_TYPE,
 ] as const;
 
-export const COPILOT_AGENT_ICON_ID = "copilot-agent";
+export const VAULT_AGENT_ICON_ID = "vault-agent";
 
-export const COPILOT_AGENT_ICON_TRANSFORM = "translate(0 8.2) scale(0.6579) translate(-4 -4)";
-export const COPILOT_AGENT_ICON_PATH =
+export const VAULT_AGENT_ICON_TRANSFORM = "translate(0 8.2) scale(0.6579) translate(-4 -4)";
+export const VAULT_AGENT_ICON_PATH =
   "M75.9 6.9c-6.8 1.4-12.5 6-35.5 29.3-33.5 33.8-33.5 33.9-34.2 62.2-0.3 12.4 0 20.2 0.7 22.7 2.4 7.8 10.8 11.2 17.6 7.1 1.7-1.1 14.9-14.1 29.5-29.1 14.5-14.9 26.7-27 27-26.9 0.3 0.2 12.4 12.4 27 27.3 14.6 14.8 27.6 27.8 29 28.7 5.1 3.6 13.6 1.4 16.5-4.2 1.2-2.3 1.5-6.9 1.5-22.3 0-22.9-1.2-28.6-8.3-37.9-7.6-10.2-50-52.3-54.9-54.6-5.1-2.4-10.9-3.2-15.9-2.3z";
 
-export const COPILOT_AGENT_ICON_SVG = `<g transform="${COPILOT_AGENT_ICON_TRANSFORM}"><path fill="currentColor" d="${COPILOT_AGENT_ICON_PATH}"/></g>`;
+export const VAULT_AGENT_ICON_SVG = `<g transform="${VAULT_AGENT_ICON_TRANSFORM}"><path fill="currentColor" d="${VAULT_AGENT_ICON_PATH}"/></g>`;
 
 export const USER_SENDER = "user";
 export const AI_SENDER = "ai";
 
-export const COPILOT_FOLDER_ROOT = "copilot";
-export const DEFAULT_COPILOT_FOLDER = COPILOT_FOLDER_ROOT;
-export const DEFAULT_SKILLS_FOLDER = `${COPILOT_FOLDER_ROOT}/skills`;
-export const COPILOT_CONVERSATION_TAG = "copilot-conversation";
-export const DEFAULT_QA_EXCLUSIONS_SETTING = COPILOT_FOLDER_ROOT;
-export const DEFAULT_SYSTEM_PROMPT = `You are Obsidian Copilot, a helpful assistant that integrates AI to Obsidian note-taking.
+export const VAULT_AGENT_FOLDER_ROOT = "vault-agent";
+export const DEFAULT_VAULT_AGENT_FOLDER = VAULT_AGENT_FOLDER_ROOT;
+export const DEFAULT_SKILLS_FOLDER = `${VAULT_AGENT_FOLDER_ROOT}/skills`;
+export const VAULT_AGENT_CONVERSATION_TAG = "vault-agent-conversation";
+export const DEFAULT_QA_EXCLUSIONS_SETTING = VAULT_AGENT_FOLDER_ROOT;
+export const DEFAULT_SYSTEM_PROMPT = `You are Vault Agent, a helpful assistant that integrates AI to Obsidian note-taking.
   1. Never mention that you do not have access to something. Always rely on the user provided context.
   2. Always answer to the best of your knowledge. If you are unsure about something, say so and ask the user to provide more context.
   3. If the user mentions "note", it most likely means an Obsidian note in the vault, not the generic meaning of a note.
@@ -516,7 +516,7 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
   },
 };
 
-export const ProviderSettingsKeyMap: Record<SettingKeyProviders, keyof CopilotSettings> = {
+export const ProviderSettingsKeyMap: Record<SettingKeyProviders, keyof VaultAgentSettings> = {
   anthropic: "anthropicApiKey",
   openai: "openAIApiKey",
   google: "googleApiKey",
@@ -564,9 +564,9 @@ export const COMMAND_NAMES: Record<CommandId, string> = {
 export type CommandId = (typeof COMMAND_IDS)[keyof typeof COMMAND_IDS];
 
 export const COMMAND_ICONS: Partial<Record<CommandId, string>> = {
-  [COMMAND_IDS.NEW_AGENT_CHAT]: COPILOT_AGENT_ICON_ID,
-  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: COPILOT_AGENT_ICON_ID,
-  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: COPILOT_AGENT_ICON_ID,
+  [COMMAND_IDS.NEW_AGENT_CHAT]: VAULT_AGENT_ICON_ID,
+  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: VAULT_AGENT_ICON_ID,
+  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: VAULT_AGENT_ICON_ID,
   [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "plus-circle",
   [COMMAND_IDS.OPEN_LOG_FILE]: "file-text",
   [COMMAND_IDS.CLEAR_LOG_FILE]: "file-x",
@@ -583,7 +583,7 @@ export const RESTRICTION_MESSAGES = {
     `${extension.toUpperCase()} files are not supported in the current mode.`,
 } as const;
 
-export const DEFAULT_SETTINGS: CopilotSettings = {
+export const DEFAULT_SETTINGS: VaultAgentSettings = {
   openAIApiKey: "",
   openAIOrgId: "",
   cohereApiKey: "",
@@ -596,8 +596,8 @@ export const DEFAULT_SETTINGS: CopilotSettings = {
   siliconflowApiKey: "",
   defaultModelKey: ChatModels.OPENROUTER_GEMINI_2_5_FLASH + "|" + ChatModelProviders.OPENROUTERAI,
   stream: true,
-  copilotFolder: DEFAULT_COPILOT_FOLDER,
-  copilotRootHistory: [],
+  vaultAgentFolder: DEFAULT_VAULT_AGENT_FOLDER,
+  vaultAgentRootHistory: [],
   autosaveChat: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,

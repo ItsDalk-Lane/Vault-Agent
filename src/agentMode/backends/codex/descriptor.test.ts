@@ -1,6 +1,6 @@
 import { codexAuth } from "./codexAuth";
-import type CopilotPlugin from "@/main";
-import { getSettings, setSettings, type CopilotSettings } from "@/settings/model";
+import type VaultAgentPlugin from "@/main";
+import { getSettings, setSettings, type VaultAgentSettings } from "@/settings/model";
 import { detectBinary } from "@/utils/detectBinary";
 import { resolveCodexAcpBinary } from "./codexBinaryResolver";
 import { CODEX_PINNED_VERSION } from "./codexArchive";
@@ -63,10 +63,10 @@ const ADVERTISED_CONFIG_OPTIONS: BackendConfigOption[] = [
 ];
 const mockedResolveSupportedPackage = jest.mocked(inspectCodexAcpPackage);
 
-function settingsWithCodex(codex: Record<string, unknown>): CopilotSettings {
+function settingsWithCodex(codex: Record<string, unknown>): VaultAgentSettings {
   return {
     agentMode: { backends: { codex } },
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 describe("descriptor", () => {
@@ -382,7 +382,7 @@ describe("descriptor", () => {
           const original = getSettings().agentMode;
           const listener = jest.fn();
           const unsubscribe = CodexBackendDescriptor.subscribeInstallState(
-            {} as CopilotPlugin,
+            {} as VaultAgentPlugin,
             listener
           );
           try {
@@ -413,14 +413,14 @@ describe("descriptor", () => {
         const listener = jest.fn();
         const subscribe = jest.spyOn(manager, "subscribeRuntimeState");
         try {
-          expect(CodexBackendDescriptor.managedInstall?.getState({} as CopilotPlugin)).toEqual({
+          expect(CodexBackendDescriptor.managedInstall?.getState({} as VaultAgentPlugin)).toEqual({
             kind: "idle",
           });
           const unsubscribe = CodexBackendDescriptor.managedInstall?.subscribe(
-            {} as CopilotPlugin,
+            {} as VaultAgentPlugin,
             listener
           );
-          await CodexBackendDescriptor.managedInstall?.run({} as CopilotPlugin);
+          await CodexBackendDescriptor.managedInstall?.run({} as VaultAgentPlugin);
           expect(subscribe).toHaveBeenCalledWith(listener);
           expect(install).toHaveBeenCalledTimes(1);
           unsubscribe?.();
@@ -435,7 +435,7 @@ describe("descriptor", () => {
       it("https://github.com/Brevilabs/obsidian-copilot-private/issues/530 checks the shipped pin before completing plugin load", async () => {
         const automatic = jest.spyOn(getCodexBinaryManager(), "autoUpgrade").mockResolvedValue();
         try {
-          await CodexBackendDescriptor.onPluginLoad?.({} as CopilotPlugin);
+          await CodexBackendDescriptor.onPluginLoad?.({} as VaultAgentPlugin);
           expect(automatic).toHaveBeenCalledWith(
             CODEX_PINNED_VERSION,
             CODEX_MIN_VERSION,
@@ -447,7 +447,7 @@ describe("descriptor", () => {
       });
       it("https://github.com/Brevilabs/obsidian-copilot-private/issues/368 clears the singleton failure for each plugin lifecycle", async () => {
         const reset = jest.spyOn(getCodexBinaryManager(), "forgetSettledError");
-        await CodexBackendDescriptor.onPluginLoad?.({} as CopilotPlugin);
+        await CodexBackendDescriptor.onPluginLoad?.({} as VaultAgentPlugin);
         expect(reset).toHaveBeenCalledTimes(1);
         reset.mockRestore();
       });

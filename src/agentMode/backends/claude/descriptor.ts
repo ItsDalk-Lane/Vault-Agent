@@ -1,7 +1,7 @@
 import { resolveEffort } from "@/lib/model-effort";
 import type { ModelSelectionSession } from "@/agentMode/session/types";
 import { logWarn } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import {
   getSettings,
@@ -9,7 +9,7 @@ import {
   updateAgentModeBackendFields,
   type ClaudeAutoModePermission,
   type ClaudeBackendSettings,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
@@ -50,11 +50,11 @@ const ABSENT_INSTALL_STATE: InstallState = Object.freeze({ kind: "absent" });
 
 export interface ClaudeDescriptor extends BackendDescriptor {
   auth: BackendAuth;
-  getResolvedBinaryPath(settings: CopilotSettings): string | null;
+  getResolvedBinaryPath(settings: VaultAgentSettings): string | null;
 }
 
 export function resolveClaudeAutoModePermission(
-  settings: CopilotSettings
+  settings: VaultAgentSettings
 ): ClaudeAutoModePermission {
   return settings.agentMode?.backends?.claude?.autoModePermission ?? "auto";
 }
@@ -96,7 +96,7 @@ function claudeResolverEnv(): Omit<Parameters<typeof resolveClaudeBinary>[0], "o
 // Claude Code also takes `env` from its settings files, so a server set there (such as Bedrock)
 // must not read as Anthropic. https://github.com/logancyang/obsidian-copilot/issues/2889
 function claudeEffectiveEnv(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   vaultBase: string | null
 ): Record<string, unknown> {
   const fs = requireNodeModule<typeof import("node:fs")>("fs");
@@ -127,7 +127,7 @@ function isEnabledFlag(value: unknown): boolean {
   return typeof value === "string" && TRUTHY_ENV_VALUES.has(value.trim().toLowerCase());
 }
 
-function claudeChildEnv(settings: CopilotSettings): NodeJS.ProcessEnv {
+function claudeChildEnv(settings: VaultAgentSettings): NodeJS.ProcessEnv {
   const overrides = settings.agentMode?.backends?.claude?.envOverrides;
   return overrides && Object.keys(overrides).length > 0
     ? { ...process.env, ...overrides }
@@ -135,7 +135,7 @@ function claudeChildEnv(settings: CopilotSettings): NodeJS.ProcessEnv {
 }
 
 function claudeCompatibilityInput(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   claudePath: string
 ): ClaudeCompatibilityInput {
   const overrides = settings.agentMode?.backends?.claude?.envOverrides;
@@ -151,7 +151,7 @@ function claudeCompatibilityInput(
   };
 }
 
-function resolveClaudeCliPath(settings: CopilotSettings): string | null {
+function resolveClaudeCliPath(settings: VaultAgentSettings): string | null {
   return resolveClaudeBinary({
     override: settings.agentMode?.claudeCli?.path,
     ...claudeResolverEnv(),
@@ -166,14 +166,14 @@ export function claudeCliDetectionSearchDirs(): string[] {
   return claudeBinarySearchDirs({ override: undefined, ...claudeResolverEnv() });
 }
 
-export function getClaudeInstallState(settings: CopilotSettings): InstallState {
+export function getClaudeInstallState(settings: VaultAgentSettings): InstallState {
   const claudePath = resolveClaudeCliPath(settings);
   if (!claudePath) return ABSENT_INSTALL_STATE;
   return claudeCompatibilityStore.get(claudeCompatibilityInput(settings, claudePath));
 }
 
 export async function refreshClaudeInstallState(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   force = false
 ): Promise<InstallState> {
   const claudePath = resolveClaudeCliPath(settings);
@@ -200,7 +200,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
   displayName: "Claude",
   Icon: ClaudeLogo,
   selfHostable: false,
-  routesCopilotModels: false,
+  routesVaultAgentModels: false,
   setupDescription:
     "Anthropic models, billed to your Claude Code subscription. Runs the claude CLI already on your machine.",
   skillsProjectDir: ".claude/skills",
@@ -213,7 +213,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
   wire: claudeWire,
   showModelDescriptions: true,
 
-  dataDestination(settings: CopilotSettings, vaultBase: string | null): Destination {
+  dataDestination(settings: VaultAgentSettings, vaultBase: string | null): Destination {
     const env = claudeEffectiveEnv(settings, vaultBase);
     if (isEnabledFlag(env.CLAUDE_CODE_USE_BEDROCK))
       return { kind: "cloud", label: "Amazon Bedrock" };
@@ -224,21 +224,21 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
     return { kind: "cloud", label: "Anthropic" };
   },
 
-  getEnabledModelEntries(settings: CopilotSettings): EnabledModelEntry[] {
+  getEnabledModelEntries(settings: VaultAgentSettings): EnabledModelEntry[] {
     return [
       ...agentOriginEnabledModelEntries(settings, "claude", (wireId) => claudeWire.decode(wireId)),
     ];
   },
 
-  getInstallState(settings: CopilotSettings): InstallState {
+  getInstallState(settings: VaultAgentSettings): InstallState {
     return getClaudeInstallState(settings);
   },
 
-  getResolvedBinaryPath(settings: CopilotSettings): string | null {
+  getResolvedBinaryPath(settings: VaultAgentSettings): string | null {
     return resolveClaudeCliPath(settings);
   },
 
-  subscribeInstallState(_plugin: CopilotPlugin, cb: () => void): () => void {
+  subscribeInstallState(_plugin: VaultAgentPlugin, cb: () => void): () => void {
     const unsubscribeSettings = subscribeToSettingsChange((prev, next) => {
       if (
         prev.agentMode?.claudeCli?.path !== next.agentMode?.claudeCli?.path ||
@@ -260,7 +260,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
     await refreshClaudeInstallState(getSettings(), true);
   },
 
-  openInstallUI(plugin: CopilotPlugin): void {
+  openInstallUI(plugin: VaultAgentPlugin): void {
     new ClaudeInstallModal(plugin.app, ClaudeBackendDescriptor).open();
   },
 
@@ -367,7 +367,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
 
   async applyInitialSessionConfig(
     session: AgentSession,
-    settings: CopilotSettings,
+    settings: VaultAgentSettings,
     seededSelection?: ModelSelection
   ): Promise<void> {
     const persistedEffort = settings.agentMode?.backends?.claude?.defaultModel?.effort ?? null;

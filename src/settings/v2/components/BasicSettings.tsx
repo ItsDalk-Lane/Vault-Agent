@@ -13,16 +13,16 @@ import { openAgentsFile, writeAgentsFile } from "@/instructions/agentsFile";
 import { useAgentsFileDraft } from "@/instructions/useAgentsFileDraft";
 import { logError } from "@/logger";
 import { debounce } from "@/utils/debounce";
-import { ensureCopilotSubfolders } from "@/settings/copilotFolder";
+import { ensureVaultAgentSubfolders } from "@/settings/vaultAgentFolder";
 import {
-  applyCopilotRootChange,
-  copilotRootContainsNotes,
-  findCopilotRootFileConflict,
-} from "@/settings/copilotRootChange";
-import { updateSetting, useSettingsValue, validateCopilotFolder } from "@/settings/model";
+  applyVaultAgentRootChange,
+  vaultAgentRootContainsNotes,
+  findVaultAgentRootFileConflict,
+} from "@/settings/vaultAgentRootChange";
+import { updateSetting, useSettingsValue, validateVaultAgentFolder } from "@/settings/model";
 import { QuickChatPanel } from "@/settings/v2/components/QuickChatPanel";
 import { DesktopOnlySettingsPanel } from "@/settings/v2/components/DesktopOnlySettingsPanel";
-import { CopilotFolderChangeNotice } from "@/settings/v2/components/CopilotFolderChangeNotice";
+import { VaultAgentFolderChangeNotice } from "@/settings/v2/components/VaultAgentFolderChangeNotice";
 import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
 import { VaultInstructionsSetting } from "@/settings/v2/components/VaultInstructionsSetting";
 import { formatDateTime } from "@/utils";
@@ -65,7 +65,7 @@ export const BasicSettings: React.FC = () => {
     settings.defaultConversationNoteName || "{$date}_{$time}__{$topic}"
   );
 
-  const persistedRoot = settings.copilotFolder;
+  const persistedRoot = settings.vaultAgentFolder;
   const [folderDraft, setFolderDraft] = useState(persistedRoot);
 
   useEffect(() => {
@@ -103,17 +103,17 @@ export const BasicSettings: React.FC = () => {
   };
 
   const applyFolderChange = () => {
-    const validation = validateCopilotFolder(folderDraft, app.vault.configDir);
+    const validation = validateVaultAgentFolder(folderDraft, app.vault.configDir);
     if (!validation.ok) {
-      new Notice(`Invalid Copilot folder: ${validation.reason}`, 5000);
+      new Notice(`Invalid Vault Agent folder: ${validation.reason}`, 5000);
       return;
     }
     const folder = validation.folder;
     if (folder === persistedRoot) {
-      new Notice("That's already the Copilot folder.", 3000);
+      new Notice("That's already the Vault Agent folder.", 3000);
       return;
     }
-    const conflict = findCopilotRootFileConflict(app, folder);
+    const conflict = findVaultAgentRootFileConflict(app, folder);
     if (conflict) {
       new Notice(
         `"${conflict}" is an existing file, so "${folder}" can't be used as a folder. Choose another location.`,
@@ -121,16 +121,18 @@ export const BasicSettings: React.FC = () => {
       );
       return;
     }
-    const containsMarkdown = copilotRootContainsNotes(app, folder);
+    const containsMarkdown = vaultAgentRootContainsNotes(app, folder);
     new ConfirmModal(
       app,
       () => {
-        void applyCopilotRootChange(app, folder)
-          .then(() => ensureCopilotSubfolders(app.vault, { copilotFolder: folder }))
-          .then(() => new Notice(`Copilot folder changed to "${folder}".`, 4000))
-          .catch(() => new Notice("Failed to change the Copilot folder. Check the logs.", 5000));
+        void applyVaultAgentRootChange(app, folder)
+          .then(() => ensureVaultAgentSubfolders(app.vault, { vaultAgentFolder: folder }))
+          .then(() => new Notice(`Vault Agent folder changed to "${folder}".`, 4000))
+          .catch(
+            () => new Notice("Failed to change the Vault Agent folder. Check the logs.", 5000)
+          );
       },
-      <CopilotFolderChangeNotice
+      <VaultAgentFolderChangeNotice
         oldRoot={persistedRoot}
         newRoot={folder}
         containsMarkdown={containsMarkdown}
@@ -233,8 +235,8 @@ export const BasicSettings: React.FC = () => {
 
         <SettingItem
           type="custom"
-          title="Copilot folder location"
-          description="Where Copilot keeps conversations, prompts, memory and more. All sub-folders derive from this."
+          title="Vault Agent folder location"
+          description="Where Vault Agent keeps conversations, prompts, memory and more. All sub-folders derive from this."
         >
           <div className="tw-flex tw-items-center tw-gap-2">
             <Input
@@ -247,23 +249,23 @@ export const BasicSettings: React.FC = () => {
                   applyFolderChange();
                 }
               }}
-              placeholder="copilot"
+              placeholder="vault-agent"
               className="tw-w-full sm:tw-w-[160px]"
-              aria-label="Copilot folder"
+              aria-label="Vault Agent folder"
             />
             <Button
               variant="secondary"
               onClick={applyFolderChange}
-              aria-label="Apply Copilot folder"
+              aria-label="Apply Vault Agent folder"
             >
               Apply
             </Button>
             <Button
               variant="secondary"
               size="icon"
-              onClick={() => revealFolderInExplorer(app, settings.copilotFolder)}
-              aria-label="Open Copilot folder"
-              title="Open Copilot folder"
+              onClick={() => revealFolderInExplorer(app, settings.vaultAgentFolder)}
+              aria-label="Open Vault Agent folder"
+              title="Open Vault Agent folder"
             >
               <Folder className="tw-size-4" />
             </Button>

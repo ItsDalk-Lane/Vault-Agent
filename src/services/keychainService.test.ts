@@ -33,7 +33,7 @@ jest.mock("@/logger", () => ({
 
 import { FileSystemAdapter, Notice, type App } from "obsidian";
 import { getSettings } from "@/settings/model";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { CustomModel } from "@/aiParams";
 import type { Provider } from "@/modelManagement";
 import {
@@ -43,11 +43,11 @@ import {
   providerKeychainName,
 } from "./keychainService";
 
-function makeSettings(overrides: Partial<CopilotSettings> = {}): CopilotSettings {
+function makeSettings(overrides: Partial<VaultAgentSettings> = {}): VaultAgentSettings {
   return {
     activeModels: [],
     ...overrides,
-  } as unknown as CopilotSettings;
+  } as unknown as VaultAgentSettings;
 }
 
 function makeModel(overrides: Partial<CustomModel> = {}): CustomModel {
@@ -167,14 +167,6 @@ describe("keychainService", () => {
       );
     });
 
-    it("names the Copilot Plus provider after plus", () => {
-      const provider = makeProvider({ displayName: "Copilot", origin: { kind: "copilot-plus" } });
-
-      expect(providerKeychainName(VAULT_ID, provider, {})).toBe(
-        `copilot-v${VAULT_ID}-provider-plus-api-key`
-      );
-    });
-
     it("suffixes a name another provider holds but not the provider's own current name", () => {
       const name = `copilot-v${VAULT_ID}-provider-anthropic-api-key`;
       const holder = makeProvider({ providerId: "holder", apiKeyKeychainId: name });
@@ -219,7 +211,7 @@ describe("keychainService", () => {
 
   describe("KeychainService", () => {
     describe("migrateProviderNames()", () => {
-      function migrate(entries: Record<string, string>, settings: CopilotSettings) {
+      function migrate(entries: Record<string, string>, settings: VaultAgentSettings) {
         const storage = makeMapStorage(entries);
         const service = KeychainService.getInstance(makeApp({ secretStorage: storage }));
         service.setVaultId(VAULT_ID);
@@ -460,7 +452,7 @@ describe("keychainService", () => {
         const service = KeychainService.getInstance(makeApp({ secretStorage }));
 
         const result = await service.hydrateFromKeychain(
-          makeSettings({ legacyProviderApiKey: "" } as unknown as Partial<CopilotSettings>)
+          makeSettings({ legacyProviderApiKey: "" } as unknown as Partial<VaultAgentSettings>)
         );
 
         expect((result.settings as unknown as Record<string, string>).legacyProviderApiKey).toBe(

@@ -5,8 +5,8 @@ import type { App } from "obsidian";
 import React from "react";
 import { SkillRow } from "./SkillRow";
 
-const getEffectiveSkillsFolder = jest.fn(() => "copilot/skills");
-jest.mock("@/settings/copilotFolder", () => ({
+const getEffectiveSkillsFolder = jest.fn(() => "vault-agent/skills");
+jest.mock("@/settings/vaultAgentFolder", () => ({
   getEffectiveSkillsFolder: () => getEffectiveSkillsFolder(),
 }));
 
@@ -47,8 +47,8 @@ const SCROLL_LOCK_ATTR = "data-scroll-locked";
 const canonicalSkill: Skill = {
   name: "writing-helper",
   description: "Helps with writing.",
-  filePath: "/vault/.copilot/skills/writing-helper/SKILL.md",
-  dirPath: "/vault/.copilot/skills/writing-helper",
+  filePath: "/vault/.vault-agent/skills/writing-helper/SKILL.md",
+  dirPath: "/vault/.vault-agent/skills/writing-helper",
   body: "",
   enabledAgents: [],
   location: { kind: "canonical" },
@@ -128,14 +128,14 @@ describe("SkillRow", () => {
     });
 
     it("confirms migration into the folder derived from the Copilot root, not the retired skills field", () => {
-      getEffectiveSkillsFolder.mockReturnValue("team/copilot/skills");
+      getEffectiveSkillsFolder.mockReturnValue("team/vault-agent/skills");
       renderMirroredRow();
 
       openMenu();
       fireEvent.click(screen.getByText("Migrate to shared folder"));
 
       const moveLine = lastMigrateModalOptions?.actionLines.find((line) => line.verb === "Move");
-      expect(moveLine?.detail).toContain("<vault>/team/copilot/skills/writing-helper/");
+      expect(moveLine?.detail).toContain("<vault>/team/vault-agent/skills/writing-helper/");
     });
   });
 });

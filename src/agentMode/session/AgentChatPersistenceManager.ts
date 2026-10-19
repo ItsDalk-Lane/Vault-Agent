@@ -5,10 +5,10 @@ import {
   updateChatTranscript,
 } from "@/utils/chatImagePersistence";
 import { serializeFanoutComposite } from "@/agentMode/session/fanout/fanoutTypes";
-import { AGENT_CHAT_MODE, AI_SENDER, COPILOT_CONVERSATION_TAG, USER_SENDER } from "@/constants";
+import { AGENT_CHAT_MODE, AI_SENDER, VAULT_AGENT_CONVERSATION_TAG, USER_SENDER } from "@/constants";
 import { logError, logInfo, logWarn } from "@/logger";
 import { getSettings } from "@/settings/model";
-import { getEffectiveConversationsFolder } from "@/settings/copilotFolder";
+import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
 import { FormattedDateTime } from "@/types/message";
 import {
   ensureFolderExists,
@@ -406,7 +406,7 @@ export class AgentChatPersistenceManager {
       ["agentLabel", quoted("agentLabel", args.label)],
       ["modelKey", quoted("modelKey", args.modelKey)],
       ["usage", args.usage ? `usage: '${JSON.stringify(args.usage)}'` : undefined],
-      ["tags", `tags:\n  - ${COPILOT_CONVERSATION_TAG}`],
+      ["tags", `tags:\n  - ${VAULT_AGENT_CONVERSATION_TAG}`],
     ];
   }
 }

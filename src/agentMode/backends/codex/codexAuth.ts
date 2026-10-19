@@ -6,7 +6,7 @@ import { logWarn } from "@/logger";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { detectBinary } from "@/utils/detectBinary";
 import { buildCodexAcpInvocation, resolveCodexCommand } from "./codexVersion";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
 interface AccountReply {
   id?: unknown;
@@ -14,7 +14,7 @@ interface AccountReply {
   error?: unknown;
 }
 
-async function invocation(settings: CopilotSettings) {
+async function invocation(settings: VaultAgentSettings) {
   const config = settings.agentMode?.backends?.codex;
   const descriptor = buildSimpleSpawnDescriptor(
     config?.binaryPath,
@@ -27,7 +27,7 @@ async function invocation(settings: CopilotSettings) {
   return buildCodexAcpInvocation(codex, [], descriptor.env, process.platform, node ?? undefined);
 }
 
-async function readCodexAuthStatus(settings: CopilotSettings) {
+async function readCodexAuthStatus(settings: VaultAgentSettings) {
   const call = await invocation(settings);
   if (call.env.CODEX_API_KEY?.trim() || call.env.OPENAI_API_KEY?.trim()) return { signedIn: true };
   const controller = new AbortController();
@@ -52,7 +52,7 @@ async function readCodexAuthStatus(settings: CopilotSettings) {
             JSON.stringify({
               id: 0,
               method: "initialize",
-              params: { clientInfo: { name: "obsidian_copilot", version: "1.0.0" } },
+              params: { clientInfo: { name: "vault_agent", version: "1.0.0" } },
             }) + "\n"
           );
         },

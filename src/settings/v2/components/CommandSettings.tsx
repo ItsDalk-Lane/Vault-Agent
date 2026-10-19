@@ -41,7 +41,7 @@ import { CustomCommandSettingsModal } from "@/commands/CustomCommandSettingsModa
 import { generateCopyCommandName, sortCommandsByOrder } from "@/commands/customCommandUtils";
 import { CustomCommand } from "@/commands/type";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
-import { deriveCustomPromptsFolder } from "@/settings/copilotFolder";
+import { deriveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
 import { useApp } from "@/context";
 import { SettingItem } from "@/components/ui/setting-item";
 import { SettingSection } from "@/components/ui/setting-section";

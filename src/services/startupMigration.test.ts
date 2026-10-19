@@ -25,7 +25,7 @@ const final: StartupMigrationItem = {
   title: "License",
   status: "action-required",
   summary: "Re-enter the license.",
-  details: ["Open Copilot Settings."],
+  details: ["Open Vault Agent Settings."],
 };
 
 const EMPTY_TASK: StartupMigrationTask = {
@@ -46,7 +46,7 @@ describe("startupMigration", () => {
           "Copilot finished updating this vault.",
           "API keys — Completed\nKeys migrated.",
           "Projects — Failed\nProjects failed.",
-          "License — Action required\nRe-enter the license.\n• Open Copilot Settings.",
+          "License — Action required\nRe-enter the license.\n• Open Vault Agent Settings.",
         ].join("\n\n")
       );
     });

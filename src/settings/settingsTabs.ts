@@ -1,4 +1,4 @@
-export const COPILOT_SETTINGS_TAB_IDS = [
+export const VAULT_AGENT_SETTINGS_TAB_IDS = [
   "basic",
   "byok",
   "skills",
@@ -7,4 +7,4 @@ export const COPILOT_SETTINGS_TAB_IDS = [
   "advanced",
 ] as const;
 
-export type CopilotSettingsTabId = (typeof COPILOT_SETTINGS_TAB_IDS)[number];
+export type VaultAgentSettingsTabId = (typeof VAULT_AGENT_SETTINGS_TAB_IDS)[number];

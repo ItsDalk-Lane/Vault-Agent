@@ -9,7 +9,7 @@ import {
 import { App, TFile, TAbstractFile } from "obsidian";
 import * as settingsModel from "@/settings/model";
 import * as state from "@/system-prompts/state";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { mockTFile } from "@/__tests__/mockObsidian";
 
 jest.mock("obsidian", () => ({
@@ -20,23 +20,23 @@ jest.mock("obsidian", () => ({
 
 jest.mock("@/settings/model", () => ({
   getSettings: jest.fn(() => ({
-    copilotFolder: "SystemPrompts",
+    vaultAgentFolder: "SystemPrompts",
   })),
 }));
 
-jest.mock("@/settings/copilotFolder", () => {
+jest.mock("@/settings/vaultAgentFolder", () => {
   const { getSettings } = jest.requireMock<typeof import("@/settings/model")>("@/settings/model");
   return {
-    getEffectiveSystemPromptsFolder: jest.fn(() => getSettings().copilotFolder),
+    getEffectiveSystemPromptsFolder: jest.fn(() => getSettings().vaultAgentFolder),
   };
 });
 
 describe("systemPromptUtils", () => {
   describe("getSystemPromptsFolder()", () => {
-    it("returns the effective (copilotFolder-derived) system prompts folder", () => {
+    it("returns the effective (vaultAgentFolder-derived) system prompts folder", () => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "CustomFolder/SystemPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "CustomFolder/SystemPrompts",
+      } as VaultAgentSettings);
 
       const result = getSystemPromptsFolder();
       expect(result).toBe("CustomFolder/SystemPrompts");
@@ -46,8 +46,8 @@ describe("systemPromptUtils", () => {
   describe("getPromptFilePath()", () => {
     beforeEach(() => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "SystemPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "SystemPrompts",
+      } as VaultAgentSettings);
     });
 
     it("returns correct file path with .md extension", () => {
@@ -62,8 +62,8 @@ describe("systemPromptUtils", () => {
   describe("isSystemPromptFile()", () => {
     beforeEach(() => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "SystemPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "SystemPrompts",
+      } as VaultAgentSettings);
     });
 
     it("returns true for valid system prompt file", () => {
@@ -131,8 +131,8 @@ describe("systemPromptUtils", () => {
 
     it("works with a custom copilot folder", () => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "CustomFolder/MyPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "CustomFolder/MyPrompts",
+      } as VaultAgentSettings);
 
       const validFile = mockTFile({
         path: "CustomFolder/MyPrompts/Test.md",
@@ -269,8 +269,8 @@ Content with --- separator in the middle.`;
   describe("fetchAllSystemPrompts()", () => {
     it("returns parsed prompts from the configured prompt folder", async () => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "SystemPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "SystemPrompts",
+      } as VaultAgentSettings);
       const promptFile = mockTFile({
         basename: "Test Prompt",
         path: "SystemPrompts/Test Prompt.md",
@@ -302,8 +302,8 @@ Content with --- separator in the middle.`;
   describe("loadAllSystemPrompts()", () => {
     it("returns the prompts loaded from the vault and stores them in the shared cache", async () => {
       jest.spyOn(settingsModel, "getSettings").mockReturnValue({
-        copilotFolder: "SystemPrompts",
-      } as CopilotSettings);
+        vaultAgentFolder: "SystemPrompts",
+      } as VaultAgentSettings);
       const promptFile = mockTFile({
         basename: "Test Prompt",
         path: "SystemPrompts/Test Prompt.md",

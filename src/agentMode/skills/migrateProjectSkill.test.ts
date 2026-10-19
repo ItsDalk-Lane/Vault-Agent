@@ -159,12 +159,12 @@ const skillMd = (name: string, agents = ""): string =>
     `name: ${name}`,
     "description: A skill.",
     "metadata:",
-    `  copilot-enabled-agents: "${agents}"`,
+    `  vault-agent-enabled-agents: "${agents}"`,
     "---",
     "body",
   ].join("\n");
 
-const CANONICAL = "/vault/copilot/skills";
+const CANONICAL = "/vault/vault-agent/skills";
 const CLAUDE_DIR = "/vault/.claude/skills";
 const CODEX_DIR = "/vault/.agents/skills";
 const OPENCODE_DIR = "/vault/.opencode/skills";
@@ -242,7 +242,7 @@ describe("migrateProjectSkill", () => {
       expect(result.ok).toBe(true);
       const dump = fs.dump();
       expect(fileContent(dump[`${CANONICAL}/foo/SKILL.md`])).toContain(
-        'copilot-enabled-agents: ""'
+        'vault-agent-enabled-agents: ""'
       );
       expect(dump[`${CLAUDE_DIR}/foo`]).toBeUndefined();
     });

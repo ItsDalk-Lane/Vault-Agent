@@ -4,7 +4,7 @@ import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManage
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import { logError } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { buildChatDeepLink, getSavedChatDeepLinkId } from "@/utils/chatDeepLink";
 import { extractChatTitle } from "@/utils/chatHistoryUtils";
 import { getUrlBookmarks, isBookmarksPluginDisabled } from "@/utils/obsidianBookmarks";
@@ -36,7 +36,7 @@ async function getChatLink(app: App, notePath: string): Promise<string | null> {
 
 export function useAgentHistoryControls(
   manager: AgentSessionManager,
-  plugin: CopilotPlugin,
+  plugin: VaultAgentPlugin,
   scope?: ProjectScopeId
 ): AgentHistoryControls {
   const [chatHistoryItems, setChatHistoryItems] = useState<ChatHistoryItem[]>([]);

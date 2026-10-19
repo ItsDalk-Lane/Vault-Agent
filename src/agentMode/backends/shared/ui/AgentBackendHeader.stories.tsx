@@ -17,7 +17,7 @@ const meta = {
       message: "opencode v1.18.31 is not supported. Copilot requires opencode v2.0.3 or newer.",
     },
     managedInstall: { kind: "idle" },
-    resolvedPath: "~/.obsidian-copilot/opencode/1.18.31/opencode",
+    resolvedPath: "~/.vault-agent/opencode/1.18.31/opencode",
     onConfigure: () => {},
   },
   parameters: { gallery: { host: "settings-tab", layout: "padded" } },
@@ -40,7 +40,7 @@ export const OutdatedCodex: StoryObj<AgentBackendHeaderProps> = {
       minVersion: "0.0.45",
       message: "Codex adapter 0.0.44 is not supported. Copilot requires 0.0.45 or newer.",
     },
-    resolvedPath: "~/.obsidian-copilot/codex/0.0.44/codex-acp",
+    resolvedPath: "~/.vault-agent/codex/0.0.44/codex-acp",
   },
 };
 export const Running: StoryObj<AgentBackendHeaderProps> = {
@@ -79,12 +79,13 @@ export const InstalledPaths: StoryObj<AgentBackendHeaderProps> = {
       {[
         {
           displayName: "opencode",
-          resolvedPath: "~/.local/share/copilot/binaries/opencode/1.2.3/opencode",
+          resolvedPath: "~/.local/share/vault-agent/binaries/opencode/1.2.3/opencode",
         },
         { displayName: "Claude", resolvedPath: "/usr/local/bin/claude" },
         {
           displayName: "Codex",
-          resolvedPath: "~/.local/share/copilot/binaries/codex/1.2.3/node_modules/.bin/codex-acp",
+          resolvedPath:
+            "~/.local/share/vault-agent/binaries/codex/1.2.3/node_modules/.bin/codex-acp",
         },
       ].map((backend) => (
         <AgentBackendHeader

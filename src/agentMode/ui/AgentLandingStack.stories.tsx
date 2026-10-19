@@ -1,6 +1,6 @@
 import { AgentHomeShelf, type AgentHomeShelfSection } from "@/agentMode/ui/AgentHomeShelf";
 import { AgentLandingStack } from "@/agentMode/ui/AgentLandingStack";
-import { CopilotBrandIcon } from "@/components/ui/CopilotBrandIcon";
+import { VaultAgentBrandIcon } from "@/components/ui/VaultAgentBrandIcon";
 import type { Meta, StoryObj } from "@/lib/story";
 import { FileSearch, Folder, MessageSquare, RefreshCw } from "lucide-react";
 import React from "react";
@@ -141,7 +141,7 @@ const meta = {
   args: {
     hero: (
       <div className="tw-flex tw-items-center tw-justify-center tw-gap-3">
-        <CopilotBrandIcon className="tw-size-6 tw-text-normal" />
+        <VaultAgentBrandIcon className="tw-size-6 tw-text-normal" />
         <span className="tw-text-3xl tw-font-[330] tw-text-normal">Where should we start?</span>
       </div>
     ),

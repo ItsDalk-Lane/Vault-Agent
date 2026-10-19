@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
 import { PluginProvider } from "@/contexts/PluginContext";
 import { TabProvider, useTab } from "@/contexts/TabContext";
-import CopilotPlugin from "@/main";
+import VaultAgentPlugin from "@/main";
 import { ByokPanel, ModelManagementProvider } from "@/modelManagement";
 import { resetSettings } from "@/settings/model";
-import { COPILOT_SETTINGS_TAB_IDS, type CopilotSettingsTabId } from "@/settings/settingsTabs";
+import {
+  VAULT_AGENT_SETTINGS_TAB_IDS,
+  type VaultAgentSettingsTabId,
+} from "@/settings/settingsTabs";
 import { useSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
 import { Cog, Command, Cpu, ShieldCheck, Sparkle, Wrench } from "lucide-react";
@@ -32,7 +35,7 @@ const SkillsSettingsPanel: React.FC = () => {
   );
 };
 
-const icons: Record<CopilotSettingsTabId, JSX.Element> = {
+const icons: Record<VaultAgentSettingsTabId, JSX.Element> = {
   basic: <Cog className="tw-size-5" />,
   byok: <Cpu className="tw-size-5" />,
   selfhost: <ShieldCheck className="tw-size-5" />,
@@ -41,7 +44,7 @@ const icons: Record<CopilotSettingsTabId, JSX.Element> = {
   advanced: <Wrench className="tw-size-5" />,
 };
 
-const components: Record<CopilotSettingsTabId, React.FC> = {
+const components: Record<VaultAgentSettingsTabId, React.FC> = {
   basic: () => <BasicSettings />,
   byok: () => <ByokPanel />,
   selfhost: () => <SelfHostSettings />,
@@ -50,7 +53,7 @@ const components: Record<CopilotSettingsTabId, React.FC> = {
   advanced: () => <AdvancedSettings />,
 };
 
-const TAB_LABELS: Record<CopilotSettingsTabId, string> = {
+const TAB_LABELS: Record<VaultAgentSettingsTabId, string> = {
   basic: "Basic",
   byok: "BYOK",
   selfhost: "Self-Host",
@@ -59,7 +62,7 @@ const TAB_LABELS: Record<CopilotSettingsTabId, string> = {
   advanced: "Advanced",
 };
 
-const tabs = COPILOT_SETTINGS_TAB_IDS.map((id) => ({
+const tabs = VAULT_AGENT_SETTINGS_TAB_IDS.map((id) => ({
   id,
   icon: icons[id],
   label: TAB_LABELS[id],
@@ -93,7 +96,7 @@ const SettingsContent: React.FC = () => {
       <div className="tw-w-full tw-border tw-border-solid" />
 
       <div>
-        {COPILOT_SETTINGS_TAB_IDS.map((id) => {
+        {VAULT_AGENT_SETTINGS_TAB_IDS.map((id) => {
           const Component = components[id];
           return (
             <TabContent key={id} id={id} isSelected={selectedTab === id}>
@@ -107,8 +110,8 @@ const SettingsContent: React.FC = () => {
 };
 
 interface SettingsMainV2Props {
-  plugin: CopilotPlugin;
-  initialTab?: CopilotSettingsTabId;
+  plugin: VaultAgentPlugin;
+  initialTab?: VaultAgentSettingsTabId;
 }
 
 const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "basic" }) => {
@@ -142,7 +145,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "b
                 className="tw-flex tw-flex-col tw-gap-2 tw-text-base tw-font-semibold sm:tw-flex-row sm:tw-items-center sm:tw-justify-between"
               >
                 <div className="tw-flex tw-items-center tw-gap-2">
-                  <span>Copilot Settings</span>
+                  <span>Vault Agent Settings</span>
                   <div className="tw-flex tw-items-center tw-gap-1">
                     <span className="tw-text-xs tw-font-normal tw-text-muted">
                       v{plugin.manifest.version}

@@ -1,9 +1,9 @@
-import { COPILOT_FOLDER_ROOT } from "@/constants";
+import { VAULT_AGENT_FOLDER_ROOT } from "@/constants";
 import { AGENTS_FILE_NAME, CLAUDE_FILE_NAME } from "@/instructions/agentsFile";
 import { PROJECT_CONFIG_FILE_NAME } from "@/projects/constants";
 import { logWarn } from "@/logger";
-import { getSettings, normalizeRootFolders, type CopilotSettings } from "@/settings/model";
-import { getEffectiveProjectsFolder } from "@/settings/copilotFolder";
+import { getSettings, normalizeRootFolders, type VaultAgentSettings } from "@/settings/model";
+import { getEffectiveProjectsFolder } from "@/settings/vaultAgentFolder";
 import { logFileManager } from "@/logFileManager";
 import { getPropertyValuesFromNote, getTagsFromNote, noteHasProperty, stripHash } from "@/utils";
 import { hasCaseInsensitiveFilesystem } from "@/utils/vaultAdapterUtils";
@@ -94,9 +94,11 @@ export function getMatchingPatterns(options?: {
   };
 }
 
-export function getSystemExcludedFolders(settings: CopilotSettings): string[] {
-  const history = Array.isArray(settings.copilotRootHistory) ? settings.copilotRootHistory : [];
-  return normalizeRootFolders([COPILOT_FOLDER_ROOT, settings.copilotFolder, ...history]);
+export function getSystemExcludedFolders(settings: VaultAgentSettings): string[] {
+  const history = Array.isArray(settings.vaultAgentRootHistory)
+    ? settings.vaultAgentRootHistory
+    : [];
+  return normalizeRootFolders([VAULT_AGENT_FOLDER_ROOT, settings.vaultAgentFolder, ...history]);
 }
 
 export function isSystemExcludedPath(filePath: string): boolean {

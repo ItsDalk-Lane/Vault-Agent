@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { modeStateSignature } from "@/agentMode/session/translateBackendState";
-import type { CopilotMode } from "@/agentMode/session/types";
+import type { VaultAgentMode } from "@/agentMode/session/types";
 import { buildAgentModePicker } from "./agentModePickerHelpers";
 import { useManagerSubscribe } from "./useManagerSubscribe";
 
 export interface AgentModePickerOverride {
-  options: { label: string; value: CopilotMode }[];
-  value: CopilotMode | null;
-  onChange: (value: CopilotMode) => void;
+  options: { label: string; value: VaultAgentMode }[];
+  value: VaultAgentMode | null;
+  onChange: (value: VaultAgentMode) => void;
   disabled?: boolean;
 }
 

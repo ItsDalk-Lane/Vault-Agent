@@ -2,7 +2,7 @@ import {
   getSettings,
   sanitizeBuiltinPreferences,
   setSettings,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 import {
   persistSettingsWithinTransaction,
@@ -10,7 +10,7 @@ import {
 } from "@/services/settingsPersistence";
 
 export type BuiltinPreferences = NonNullable<
-  CopilotSettings["agentMode"]["skills"]["builtinPreferences"]
+  VaultAgentSettings["agentMode"]["skills"]["builtinPreferences"]
 >;
 export type BuiltinPreferencesUpdate = (current: BuiltinPreferences) => BuiltinPreferences;
 const EMPTY_PREFERENCES: BuiltinPreferences = Object.freeze({});
@@ -20,7 +20,7 @@ let preferenceWrites: Promise<void> = Promise.resolve();
 
 export async function saveBuiltinPreferences(
   update: BuiltinPreferencesUpdate,
-  saveData: (data: CopilotSettings) => Promise<void>
+  saveData: (data: VaultAgentSettings) => Promise<void>
 ): Promise<BuiltinPreferences> {
   const result = preferenceWrites.then(async () => {
     let preferences: BuiltinPreferences = EMPTY_PREFERENCES;

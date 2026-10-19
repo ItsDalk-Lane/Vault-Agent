@@ -191,16 +191,6 @@ describe("configuredModelToCustomModel", () => {
       expect(missingStoredKey.requiresApiKey).toBe(true);
     });
 
-    it("does not substitute a placeholder key for Copilot Plus", () => {
-      const custom = configuredModelToCustomModel({
-        provider: provider({ origin: { kind: "copilot-plus" }, requiresApiKey: false }),
-        configuredModel: configuredModel(),
-        apiKey: null,
-      });
-      expect(custom.apiKey).toBeUndefined();
-      expect(custom.requiresApiKey).toBe(true);
-    });
-
     it("lists reasoning and vision capabilities from the stored model info", () => {
       const custom = configuredModelToCustomModel({
         provider: provider({ providerType: "anthropic" }),

@@ -59,7 +59,7 @@ function makeAdapter(files: Record<string, string>): SkillsFsAdapter {
   };
 }
 
-const SKILLS_ROOT = "copilot/skills";
+const SKILLS_ROOT = "vault-agent/skills";
 
 const validSkillMd = (overrides: Record<string, string> = {}) => {
   const fm = {
@@ -119,8 +119,8 @@ describe("discoverManagedSkills", () => {
       expect(result.rejected).toEqual([
         {
           name: "Bad",
-          dirPath: "copilot/skills/Bad",
-          filePath: "copilot/skills/Bad/SKILL.md",
+          dirPath: "vault-agent/skills/Bad",
+          filePath: "vault-agent/skills/Bad/SKILL.md",
           reason: expect.stringMatching(/lowercase/),
           offendingText: "name: Bad",
         },
@@ -170,13 +170,13 @@ describe("discoverManagedSkills", () => {
       expect(skills.map((s) => s.name)).toEqual(["alpha", "beta", "gamma"]);
     });
 
-    it("parses metadata.copilot-enabled-agents into BackendId[]", async () => {
+    it("parses metadata.vault-agent-enabled-agents into BackendId[]", async () => {
       const content = [
         "---",
         "name: multi",
         "description: A skill",
         "metadata:",
-        '  copilot-enabled-agents: "claude,opencode"',
+        '  vault-agent-enabled-agents: "claude,opencode"',
         "---",
         "body",
       ].join("\n");
@@ -198,12 +198,12 @@ describe("discoverManagedSkills", () => {
       });
       const { accepted: skills } = await discoverManagedSkills({
         skillsFolderRelPath: SKILLS_ROOT,
-        skillsFolderAbsPath: "/abs/vault/copilot/skills",
+        skillsFolderAbsPath: "/abs/vault/vault-agent/skills",
         adapter,
       });
       expect(skills).toHaveLength(1);
-      expect(skills[0].dirPath).toBe("/abs/vault/copilot/skills/foo");
-      expect(skills[0].filePath).toBe("/abs/vault/copilot/skills/foo/SKILL.md");
+      expect(skills[0].dirPath).toBe("/abs/vault/vault-agent/skills/foo");
+      expect(skills[0].filePath).toBe("/abs/vault/vault-agent/skills/foo/SKILL.md");
     });
 
     it("ignores subdirectories without a SKILL.md", async () => {
@@ -229,7 +229,7 @@ describe("discoverManagedSkills", () => {
           adapter: makeAdapter({
             [`${SKILLS_ROOT}/${name}/SKILL.md`]: validSkillMd({
               name,
-              ...(marked ? { metadata: '\n  copilot-builtin-version: "1"' } : {}),
+              ...(marked ? { metadata: '\n  vault-agent-builtin-version: "1"' } : {}),
             }),
           }),
         });
@@ -244,14 +244,15 @@ describe("discoverManagedSkills", () => {
         adapter: makeAdapter({
           [`${SKILLS_ROOT}/${managed.name}/SKILL.md`]: validSkillMd({
             name: managed.name,
-            metadata: '\n  copilot-builtin-version: "1"',
+            metadata: '\n  vault-agent-builtin-version: "1"',
           }),
           [`${SKILLS_ROOT}/renamed-copy/SKILL.md`]: validSkillMd({
             name: "renamed-copy",
-            metadata: '\n  copilot-builtin-version: "1"',
+            metadata: '\n  vault-agent-builtin-version: "1"',
           }),
           [`${SKILLS_ROOT}/${bodyExample.name}/SKILL.md`]:
-            validSkillMd({ name: bodyExample.name }) + '\nExample:\n  copilot-builtin-version: "1"',
+            validSkillMd({ name: bodyExample.name }) +
+            '\nExample:\n  vault-agent-builtin-version: "1"',
           [`${SKILLS_ROOT}/${markerless.name}/SKILL.md`]: validSkillMd({ name: markerless.name }),
         }),
       });

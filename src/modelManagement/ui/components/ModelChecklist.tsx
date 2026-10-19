@@ -130,7 +130,7 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
                   removable
                     ? "tw-grid-cols-[auto_1fr_auto_auto_auto]"
                     : "tw-grid-cols-[auto_1fr_auto_auto]",
-                  isLastChecked && "copilot-divider-b"
+                  isLastChecked && "vault-agent-divider-b"
                 )}
               >
                 <Checkbox

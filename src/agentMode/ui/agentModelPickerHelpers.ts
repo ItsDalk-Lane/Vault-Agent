@@ -9,7 +9,7 @@ import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManage
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
 import { backendNeedsSelfHostWarning, backendRegistry } from "@/agentMode/backends/registry";
 import { getModelKeyFromModel } from "@/settings/model";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type {
   BackendDescriptor,
   BackendId,
@@ -42,7 +42,7 @@ export function appendBackendSection(
   descriptor: BackendDescriptor,
   ctx: {
     backendModels: ReadonlyArray<ModelEntry> | null;
-    settings: CopilotSettings;
+    settings: VaultAgentSettings;
     useEnabledFallback?: boolean;
   }
 ): void {
@@ -202,7 +202,7 @@ export function buildPickerEntries(
   manager: AgentSessionManager,
   descriptors: BackendDescriptor[],
   ctx: ModelActiveContext,
-  settings: CopilotSettings
+  settings: VaultAgentSettings
 ): { entries: ModelSelectorEntry[]; valueKey: string } {
   const entries: ModelSelectorEntry[] = [];
   for (const descriptor of descriptors) {
@@ -258,7 +258,7 @@ export function buildPickerEntries(
       ctx.activeCurrentEntry &&
       // A backend that may only run enabled models must never show any other model.
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
-      !ctx.activeDescriptor.routesCopilotModels
+      !ctx.activeDescriptor.routesVaultAgentModels
     ) {
       const synth = synthesizeAgentEntry(
         baseId,
@@ -449,7 +449,7 @@ function buildCommitSelection(
 export function buildAgentModelPicker(args: {
   manager: AgentSessionManager | null;
   descriptors: BackendDescriptor[];
-  settings: CopilotSettings;
+  settings: VaultAgentSettings;
 }): AgentModelPickerOverride | null {
   const { manager, descriptors, settings } = args;
   if (!manager) return null;

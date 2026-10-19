@@ -6,7 +6,7 @@ import type {
   RawModelState,
   RawModeState,
   BackendState,
-  CopilotMode,
+  VaultAgentMode,
   EffortOption,
   ModeApplySpec,
   ModeMapping,
@@ -18,8 +18,8 @@ import type {
 } from "@/agentMode/session/types";
 import { sortEffortOptions } from "@/lib/model-effort";
 
-const CANONICAL_ORDER: CopilotMode[] = ["default", "plan", "auto"];
-const CANONICAL_LABELS: Record<CopilotMode, string> = {
+const CANONICAL_ORDER: VaultAgentMode[] = ["default", "plan", "auto"];
+const CANONICAL_LABELS: Record<VaultAgentMode, string> = {
   default: "Default",
   plan: "Plan",
   auto: "Auto",
@@ -282,7 +282,7 @@ function translateSetModeMapping(
   if (!modeState) return null;
   const advertised = new Set(modeState.availableModes.map((m) => m.id));
   const options: ModeOption[] = [];
-  const apply: Partial<Record<CopilotMode, ModeApplySpec>> = {};
+  const apply: Partial<Record<VaultAgentMode, ModeApplySpec>> = {};
   for (const value of CANONICAL_ORDER) {
     const native = mapping.canonical[value];
     if (!native || !advertised.has(native)) continue;
@@ -312,7 +312,7 @@ function translateConfigOptionModeMapping(
   }
 
   const options: ModeOption[] = [];
-  const apply: Partial<Record<CopilotMode, ModeApplySpec>> = {};
+  const apply: Partial<Record<VaultAgentMode, ModeApplySpec>> = {};
   for (const value of CANONICAL_ORDER) {
     const native = mapping.canonical[value];
     if (!native || !flatValues.has(native)) continue;
@@ -329,7 +329,7 @@ function reverseProjectMode(
   canonical: ModeMapping["canonical"],
   nativeId: string,
   visibleOptions: ModeOption[]
-): CopilotMode | null {
+): VaultAgentMode | null {
   const visible = new Set(visibleOptions.map((o) => o.value));
   for (const opt of CANONICAL_ORDER) {
     if (!visible.has(opt)) continue;

@@ -34,7 +34,7 @@ import { SkillRow } from "./SkillRow";
 import { type Skill } from "@/agentMode/skills/types";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { deriveSkillsFolder } from "@/settings/copilotFolder";
+import { deriveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { openWithSystemDefault } from "@/utils/openWithSystemDefault";
 import { openVaultPath } from "@/utils/openVaultPath";
 import { revealFolderInExplorer } from "@/utils/revealFolderInExplorer";

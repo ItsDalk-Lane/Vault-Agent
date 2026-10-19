@@ -1,7 +1,7 @@
 import type { AgentSession } from "./AgentSession";
 import { MethodUnsupportedError } from "./errors";
 import { replayPersistedMode } from "./replayPersistedMode";
-import type { BackendState, CopilotMode } from "./types";
+import type { BackendState, VaultAgentMode } from "./types";
 
 type ModeState = NonNullable<BackendState["mode"]>;
 
@@ -26,7 +26,7 @@ function makeSession({ mode, setMode, setConfigOption }: MockSessionParts): {
   return { session, setMode: setModeMock, setConfigOption: setConfigOptionMock };
 }
 
-const modeState = (current: CopilotMode | null, apply: ModeState["apply"]): ModeState => ({
+const modeState = (current: VaultAgentMode | null, apply: ModeState["apply"]): ModeState => ({
   current,
   options: [
     { value: "default", label: "Default" },

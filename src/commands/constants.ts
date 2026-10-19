@@ -11,11 +11,11 @@ export const EMPTY_COMMAND: CustomCommand = {
   lastUsedMs: 0,
 };
 
-export const COPILOT_COMMAND_CONTEXT_MENU_ENABLED = "copilot-command-context-menu-enabled";
-export const COPILOT_COMMAND_SLASH_ENABLED = "copilot-command-slash-enabled";
-export const COPILOT_COMMAND_CONTEXT_MENU_ORDER = "copilot-command-context-menu-order";
-export const COPILOT_COMMAND_MODEL_KEY = "copilot-command-model-key";
-export const COPILOT_COMMAND_LAST_USED = "copilot-command-last-used";
+export const VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED = "vault-agent-command-context-menu-enabled";
+export const VAULT_AGENT_COMMAND_SLASH_ENABLED = "vault-agent-command-slash-enabled";
+export const VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER = "vault-agent-command-context-menu-order";
+export const VAULT_AGENT_COMMAND_MODEL_KEY = "vault-agent-command-model-key";
+export const VAULT_AGENT_COMMAND_LAST_USED = "vault-agent-command-last-used";
 export const DEFAULT_COMMANDS: CustomCommand[] = [
   {
     title: "Fix grammar and spelling",

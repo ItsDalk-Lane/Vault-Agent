@@ -3,10 +3,10 @@ import {
   COPILOT_PROJECT_CREATED,
   COPILOT_PROJECT_DESCRIPTION,
   COPILOT_PROJECT_EXCLUSIONS,
-  COPILOT_PROJECT_ID,
+  VAULT_AGENT_PROJECT_ID,
   COPILOT_PROJECT_INCLUSIONS,
-  COPILOT_PROJECT_LAST_USED,
-  COPILOT_PROJECT_NAME,
+  VAULT_AGENT_PROJECT_LAST_USED,
+  VAULT_AGENT_PROJECT_NAME,
   COPILOT_PROJECT_WEB_URLS,
   COPILOT_PROJECT_YOUTUBE_URLS,
   EMPTY_PROJECT_CONFIG,
@@ -51,15 +51,15 @@ export async function writeProjectFrontmatter(
   const youtubeUrls = splitUrlsStringToArray(project.contextSource?.youtubeUrls || "");
 
   await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
-    frontmatter[COPILOT_PROJECT_ID] = project.id.trim();
-    frontmatter[COPILOT_PROJECT_NAME] = (project.name || folderName).trim();
+    frontmatter[VAULT_AGENT_PROJECT_ID] = project.id.trim();
+    frontmatter[VAULT_AGENT_PROJECT_NAME] = (project.name || folderName).trim();
     frontmatter[COPILOT_PROJECT_DESCRIPTION] = (project.description || "").trim();
     frontmatter[COPILOT_PROJECT_INCLUSIONS] = project.contextSource?.inclusions || "";
     frontmatter[COPILOT_PROJECT_EXCLUSIONS] = project.contextSource?.exclusions || "";
     frontmatter[COPILOT_PROJECT_WEB_URLS] = webUrls;
     frontmatter[COPILOT_PROJECT_YOUTUBE_URLS] = youtubeUrls;
     frontmatter[COPILOT_PROJECT_CREATED] = timestamps.createdMs;
-    frontmatter[COPILOT_PROJECT_LAST_USED] = timestamps.lastUsedMs;
+    frontmatter[VAULT_AGENT_PROJECT_LAST_USED] = timestamps.lastUsedMs;
   });
 }
 
@@ -133,18 +133,22 @@ export async function parseProjectConfigFile(
     return null;
   }
 
-  const rawId = frontmatter?.[COPILOT_PROJECT_ID];
+  const rawId = frontmatter?.[VAULT_AGENT_PROJECT_ID];
   const idFromFrontmatter =
     typeof rawId === "number" && Number.isFinite(rawId)
       ? String(rawId)
       : coerceFrontmatterString(rawId);
   if (!idFromFrontmatter.trim()) {
-    logWarn(`[Projects] Missing ${COPILOT_PROJECT_ID} in frontmatter, skipping file: ${file.path}`);
+    logWarn(
+      `[Projects] Missing ${VAULT_AGENT_PROJECT_ID} in frontmatter, skipping file: ${file.path}`
+    );
     return null;
   }
   const projectId = idFromFrontmatter.trim();
 
-  const nameFromFrontmatter = coerceFrontmatterString(frontmatter?.[COPILOT_PROJECT_NAME]).trim();
+  const nameFromFrontmatter = coerceFrontmatterString(
+    frontmatter?.[VAULT_AGENT_PROJECT_NAME]
+  ).trim();
   const projectName = nameFromFrontmatter || folderName;
 
   const description = coerceFrontmatterString(frontmatter?.[COPILOT_PROJECT_DESCRIPTION]).trim();
@@ -163,7 +167,7 @@ export async function parseProjectConfigFile(
     frontmatter?.[COPILOT_PROJECT_CREATED],
     file.stat?.ctime ?? 0
   );
-  const lastUsedMs = coerceFrontmatterNumber(frontmatter?.[COPILOT_PROJECT_LAST_USED], 0);
+  const lastUsedMs = coerceFrontmatterNumber(frontmatter?.[VAULT_AGENT_PROJECT_LAST_USED], 0);
 
   return {
     project: {
@@ -262,11 +266,11 @@ export async function ensureProjectFrontmatter(
     if (!alreadyPending) addPendingFileWrite(file.path);
 
     await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
-      if (frontmatter[COPILOT_PROJECT_ID] == null && record.project.id) {
-        frontmatter[COPILOT_PROJECT_ID] = record.project.id;
+      if (frontmatter[VAULT_AGENT_PROJECT_ID] == null && record.project.id) {
+        frontmatter[VAULT_AGENT_PROJECT_ID] = record.project.id;
       }
-      if (frontmatter[COPILOT_PROJECT_NAME] == null) {
-        frontmatter[COPILOT_PROJECT_NAME] = record.project.name || record.folderName;
+      if (frontmatter[VAULT_AGENT_PROJECT_NAME] == null) {
+        frontmatter[VAULT_AGENT_PROJECT_NAME] = record.project.name || record.folderName;
       }
       if (frontmatter[COPILOT_PROJECT_DESCRIPTION] == null && record.project.description) {
         frontmatter[COPILOT_PROJECT_DESCRIPTION] = record.project.description;
@@ -292,8 +296,8 @@ export async function ensureProjectFrontmatter(
       if (frontmatter[COPILOT_PROJECT_CREATED] == null) {
         frontmatter[COPILOT_PROJECT_CREATED] = createdMs;
       }
-      if (frontmatter[COPILOT_PROJECT_LAST_USED] == null) {
-        frontmatter[COPILOT_PROJECT_LAST_USED] = lastUsedMs;
+      if (frontmatter[VAULT_AGENT_PROJECT_LAST_USED] == null) {
+        frontmatter[VAULT_AGENT_PROJECT_LAST_USED] = lastUsedMs;
       }
     });
   } finally {

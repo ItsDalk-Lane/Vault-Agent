@@ -26,7 +26,7 @@ const ACTIONS: OpencodeConfigActions = {
 const MANAGED: OpencodeManagedInfo = {
   platform: "darwin-arm64",
   version: OPENCODE_PINNED_VERSION,
-  destination: "~/.obsidian-copilot/opencode",
+  destination: "~/.vault-agent/opencode",
   run: { kind: "idle" },
 };
 

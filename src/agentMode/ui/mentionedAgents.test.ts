@@ -7,8 +7,8 @@ import {
   useInstalledAgentBrands,
 } from "@/agentMode/ui/mentionedAgents";
 import type { BackendDescriptor, InstallState } from "@/agentMode/session/types";
-import type CopilotPlugin from "@/main";
-import type { CopilotSettings } from "@/settings/model";
+import type VaultAgentPlugin from "@/main";
+import type { VaultAgentSettings } from "@/settings/model";
 import { act, renderHook } from "@testing-library/react";
 
 const Icon = () => null;
@@ -39,8 +39,8 @@ function descriptor(id: string, install: InstallState, selfHostable = true): Bac
   } as unknown as BackendDescriptor;
 }
 
-const settings = {} as CopilotSettings;
-const selfHostSettings = { enableSelfHostMode: true } as CopilotSettings;
+const settings = {} as VaultAgentSettings;
+const selfHostSettings = { enableSelfHostMode: true } as VaultAgentSettings;
 describe("mentionedAgents", () => {
   describe("listInstalledAgentBrands()", () => {
     it("offers only ready backends; excludes absent, checking, incompatible, and errored", () => {
@@ -101,14 +101,14 @@ describe("mentionedAgents", () => {
           displayName: "Claude",
           Icon,
           getInstallState: () => install,
-          subscribeInstallState: (_plugin: CopilotPlugin, cb: () => void) => {
+          subscribeInstallState: (_plugin: VaultAgentPlugin, cb: () => void) => {
             listeners.add(cb);
             return () => listeners.delete(cb);
           },
         } as unknown as BackendDescriptor,
       ]);
 
-      const { result, unmount } = renderHook(() => useInstalledAgentBrands({} as CopilotPlugin));
+      const { result, unmount } = renderHook(() => useInstalledAgentBrands({} as VaultAgentPlugin));
       expect(result.current).toBe(EMPTY_AGENT_BRANDS);
 
       act(() => {

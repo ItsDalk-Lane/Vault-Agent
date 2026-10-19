@@ -2,7 +2,7 @@ import { useAgentHistoryControls } from "@/agentMode/ui/hooks/useAgentHistoryCon
 import { GLOBAL_SCOPE } from "@/agentMode/session/scope";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { buildNativeChatId } from "@/utils/nativeChatId";
 import { act, renderHook } from "@testing-library/react";
 import { type App, Notice, TFile } from "obsidian";
@@ -70,7 +70,7 @@ function makeBookmarkingPlugin(bookmarks: ReturnType<typeof makeBookmarks> | nul
       getPluginById: (id: string) => (id === "bookmarks" ? { enabled: bookmarks !== null } : null),
     },
   } as unknown as App;
-  return { app } as unknown as CopilotPlugin;
+  return { app } as unknown as VaultAgentPlugin;
 }
 
 const plugin = makeBookmarkingPlugin(null);
@@ -625,7 +625,7 @@ describe("useAgentHistoryControls", () => {
       const copyChatLink = jest.fn(async (resolveNotePath: () => Promise<string>) => {
         linkedNotePath = await resolveNotePath();
       });
-      const linkingPlugin = { copyChatLink } as unknown as CopilotPlugin;
+      const linkingPlugin = { copyChatLink } as unknown as VaultAgentPlugin;
       const { result } = renderHook(() => useAgentHistoryControls(makeManager(), linkingPlugin));
 
       await act(async () => {
@@ -641,7 +641,7 @@ describe("useAgentHistoryControls", () => {
       const copyChatLink = jest.fn(async (resolveNotePath: () => Promise<string>) => {
         linkedNotePath = await resolveNotePath();
       });
-      const linkingPlugin = { copyChatLink } as unknown as CopilotPlugin;
+      const linkingPlugin = { copyChatLink } as unknown as VaultAgentPlugin;
       const manager = makeManager();
       manager.getChatHistoryItems.mockResolvedValue([{ id: NATIVE_ID }]);
       manager.ensureChatNote.mockResolvedValue("chats/saved.md");

@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { FileSystemAdapter } from "obsidian";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { BackendState, ModelEntry } from "@/agentMode/session/types";
-import { getSettings, setSettings, type CopilotSettings } from "@/settings/model";
+import { getSettings, setSettings, type VaultAgentSettings } from "@/settings/model";
 
 jest.mock("@/settings/model", () => ({
   ...jest.requireActual("@/settings/model"),
@@ -409,11 +409,11 @@ describe("descriptor", () => {
           unsubscribe
         );
         const settingsChangeHandler = subscribeToSettingsChange.mock.calls[0][0] as (
-          prev: CopilotSettings,
-          next: CopilotSettings
+          prev: VaultAgentSettings,
+          next: VaultAgentSettings
         ) => void;
-        const settings = (opencode: Record<string, unknown>): CopilotSettings =>
-          ({ agentMode: { backends: { opencode } } }) as unknown as CopilotSettings;
+        const settings = (opencode: Record<string, unknown>): VaultAgentSettings =>
+          ({ agentMode: { backends: { opencode } } }) as unknown as VaultAgentSettings;
         const previousOpencode = {
           binaryPath: "/bin/opencode",
           binaryVersion: "1.0.0",
@@ -450,14 +450,14 @@ describe("descriptor", () => {
     adapter.getBasePath = () => vaultBase;
     return {
       app: { vault: { adapter, configDir: CONFIG_DIR } },
-      manifest: { id: "copilot-test" },
+      manifest: { id: "vault-agent-test" },
     } as never;
   }
 
   async function vaultWithLegacyInstall(prefix: string, bytes: number): Promise<string> {
     const vaultBase = await fs.promises.mkdtemp(path.join(os.tmpdir(), prefix));
     const bin = path.join(
-      legacyVaultDataDir(vaultBase, CONFIG_DIR, "copilot-test"),
+      legacyVaultDataDir(vaultBase, CONFIG_DIR, "vault-agent-test"),
       "1.14.0",
       "bin",
       "opencode"

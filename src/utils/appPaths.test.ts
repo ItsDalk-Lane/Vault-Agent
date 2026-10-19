@@ -2,19 +2,19 @@ import type { App } from "obsidian";
 import { FileSystemAdapter, Platform } from "obsidian";
 import * as path from "node:path";
 import { md5 } from "@/utils/hash";
-import { copilotAppDataDir, getVaultId } from "./appPaths";
+import { vaultAgentAppDataDir, getVaultId } from "./appPaths";
 
 describe("appPaths", () => {
-  describe("copilotAppDataDir()", () => {
-    it("is ~/.obsidian-copilot under the given home dir", () => {
-      expect(copilotAppDataDir("/Users/me")).toBe(path.join("/Users/me", ".obsidian-copilot"));
+  describe("vaultAgentAppDataDir()", () => {
+    it("is ~/.vault-agent under the given home dir", () => {
+      expect(vaultAgentAppDataDir("/Users/me")).toBe(path.join("/Users/me", ".vault-agent"));
     });
 
     it("throws the desktop-only error on non-desktop runtimes instead of a TypeError", () => {
       const platform = Platform as { isMobile: boolean };
       platform.isMobile = true;
       try {
-        expect(() => copilotAppDataDir("/Users/me")).toThrow(/unavailable outside the desktop/);
+        expect(() => vaultAgentAppDataDir("/Users/me")).toThrow(/unavailable outside the desktop/);
       } finally {
         platform.isMobile = false;
       }

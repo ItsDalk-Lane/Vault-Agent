@@ -7,7 +7,7 @@ export function getBuiltinSkillVersion(content: string): number | null {
   if (!frontmatter) return null;
   const doc = parseDocument(frontmatter[1]);
   if (doc.errors.length > 0) return null;
-  const marker = doc.getIn(["metadata", "copilot-builtin-version"]);
+  const marker = doc.getIn(["metadata", "vault-agent-builtin-version"]);
   if ((typeof marker !== "string" && typeof marker !== "number") || !/^\d+$/.test(String(marker)))
     return null;
   const version = Number(marker);

@@ -9,10 +9,10 @@ import {
 } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { logError } from "@/logger";
 import { logFileManager } from "@/logFileManager";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { Notice } from "obsidian";
 
-function addCommand(plugin: CopilotPlugin, id: CommandId, callback: () => void | Promise<void>) {
+function addCommand(plugin: VaultAgentPlugin, id: CommandId, callback: () => void | Promise<void>) {
   plugin.addCommand({
     id,
     name: COMMAND_NAMES[id],
@@ -26,7 +26,7 @@ function addCommand(plugin: CopilotPlugin, id: CommandId, callback: () => void |
   });
 }
 
-export function registerCommands(plugin: CopilotPlugin) {
+export function registerCommands(plugin: VaultAgentPlugin) {
   addCommand(plugin, COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW, () => {
     void plugin.activateAgentView();
   });
@@ -57,18 +57,18 @@ export function registerCommands(plugin: CopilotPlugin) {
       await flushRecordedPromptPayloadToLog();
       await logFileManager.openLogFile();
     } catch (error) {
-      logError("Error creating Copilot log file:", error);
-      new Notice("Failed to create Copilot log file.");
+      logError("Error creating Vault Agent log file:", error);
+      new Notice("Failed to create Vault Agent log file.");
     }
   });
 
   addCommand(plugin, COMMAND_IDS.CLEAR_LOG_FILE, async () => {
     try {
       await logFileManager.clear();
-      new Notice("Copilot log cleared.");
+      new Notice("Vault Agent log cleared.");
     } catch (error) {
-      logError("Error clearing Copilot log file:", error);
-      new Notice("Failed to clear Copilot log file.");
+      logError("Error clearing Vault Agent log file:", error);
+      new Notice("Failed to clear Vault Agent log file.");
     }
   });
 }

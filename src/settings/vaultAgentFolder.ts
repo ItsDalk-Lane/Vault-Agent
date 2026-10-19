@@ -1,22 +1,22 @@
-import { DEFAULT_COPILOT_FOLDER } from "@/constants";
+import { DEFAULT_VAULT_AGENT_FOLDER } from "@/constants";
 import { logWarn } from "@/logger";
-import { getSettings, type CopilotSettings } from "@/settings/model";
+import { getSettings, type VaultAgentSettings } from "@/settings/model";
 import { ensureFolderExists } from "@/utils";
 import { normalizePath, type Vault } from "obsidian";
 
-export const COPILOT_SUBFOLDER = Object.freeze({
-  conversations: "copilot-conversations",
-  customPrompts: "copilot-custom-prompts",
+export const VAULT_AGENT_SUBFOLDER = Object.freeze({
+  conversations: "conversations",
+  customPrompts: "custom-prompts",
   systemPrompts: "system-prompts",
   skills: "skills",
   memory: "memory",
   projects: "projects",
 } as const);
 
-type FolderSettings = Pick<CopilotSettings, "copilotFolder">;
+type FolderSettings = Pick<VaultAgentSettings, "vaultAgentFolder">;
 
 function copilotRoot(settings: FolderSettings): string {
-  return (settings.copilotFolder || "").trim() || DEFAULT_COPILOT_FOLDER;
+  return (settings.vaultAgentFolder || "").trim() || DEFAULT_VAULT_AGENT_FOLDER;
 }
 
 function deriveSubfolder(settings: FolderSettings, subfolder: string): string {
@@ -24,7 +24,7 @@ function deriveSubfolder(settings: FolderSettings, subfolder: string): string {
 }
 
 export function deriveConversationsFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.conversations);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.conversations);
 }
 
 export function deriveConversationAttachmentsFolder(conversationsFolder: string): string {
@@ -32,26 +32,26 @@ export function deriveConversationAttachmentsFolder(conversationsFolder: string)
 }
 
 export function deriveCustomPromptsFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.customPrompts);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.customPrompts);
 }
 
 export function deriveSystemPromptsFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.systemPrompts);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.systemPrompts);
 }
 
 export function deriveSkillsFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.skills);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.skills);
 }
 
 export function deriveMemoryFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.memory);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.memory);
 }
 
 export function deriveProjectsFolder(settings: FolderSettings): string {
-  return deriveSubfolder(settings, COPILOT_SUBFOLDER.projects);
+  return deriveSubfolder(settings, VAULT_AGENT_SUBFOLDER.projects);
 }
 
-export function getEffectiveCopilotFolder(): string {
+export function getEffectiveVaultAgentFolder(): string {
   return normalizePath(copilotRoot(getSettings()));
 }
 
@@ -79,7 +79,7 @@ export function getEffectiveProjectsFolder(): string {
   return deriveProjectsFolder(getSettings());
 }
 
-export async function ensureCopilotSubfolders(
+export async function ensureVaultAgentSubfolders(
   vault: Vault,
   settings: FolderSettings
 ): Promise<void> {
@@ -96,7 +96,7 @@ export async function ensureCopilotSubfolders(
     try {
       await ensureFolderExists(vault, folder);
     } catch (error) {
-      logWarn(`Could not pre-create Copilot sub-folder "${folder}".`, error);
+      logWarn(`Could not pre-create Vault Agent sub-folder "${folder}".`, error);
     }
   }
 }

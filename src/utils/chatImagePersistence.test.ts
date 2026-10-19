@@ -13,7 +13,7 @@ const ISSUE = "https://github.com/logancyang/obsidian-copilot/issues/2900";
 const DESTINATION_ISSUE = "https://github.com/logancyang/obsidian-copilot/issues/3242";
 const DATA = "iVBORw0KGgo=";
 const IMAGE = { type: "image_url", image_url: { url: `data:image/png;base64,${DATA}` } };
-const CHATS = "copilot/copilot-conversations";
+const CHATS = "vault-agent/conversations";
 const STORE = `${CHATS}/attachments`;
 
 function makeApp() {
@@ -45,27 +45,27 @@ function makeApp() {
 
 function visibleMessage(message: string): string {
   return message
-    .replace(/<!-- copilot-image:[\w-]+ -->\n/g, "")
-    .replace(/\n<!-- \/copilot-image -->/g, "");
+    .replace(/<!-- vault-agent-image:[\w-]+ -->\n/g, "")
+    .replace(/\n<!-- \/vault-agent-image -->/g, "");
 }
 
 describe("chatImagePersistence", () => {
   describe("stripChatImageReceipts()", () => {
     it("leaves user-authored receipt-like comments untouched (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
-      const text = "<!-- copilot-image:foo -->\nexample\n<!-- /copilot-image -->";
+      const text = "<!-- vault-agent-image:foo -->\nexample\n<!-- /vault-agent-image -->";
       expect(stripChatImageReceipts(text)).toBe(text);
     });
     it("strips CRLF receipt delimiters without exposing metadata (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
       expect(
         stripChatImageReceipts(
-          "<!-- copilot-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\r\n![[image.png]]\r\n<!-- /copilot-image -->"
+          "<!-- vault-agent-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\r\n![[image.png]]\r\n<!-- /vault-agent-image -->"
         )
       ).toBe("![[image.png]]");
     });
     it("exposes embeds without persistence metadata and keeps unrelated comments (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
       expect(
         stripChatImageReceipts(
-          "<!-- authored -->\n<!-- copilot-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[image.png]]\n<!-- /copilot-image -->"
+          "<!-- authored -->\n<!-- vault-agent-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[image.png]]\n<!-- /vault-agent-image -->"
         )
       ).toBe("<!-- authored -->\n![[image.png]]");
     });
@@ -115,7 +115,7 @@ describe("chatImagePersistence", () => {
         [{ message: "first", content: [IMAGE] }],
         CHATS
       );
-      expect(saved.message).toContain(`<!-- copilot-image:${sha256(DATA)} -->`);
+      expect(saved.message).toContain(`<!-- vault-agent-image:${sha256(DATA)} -->`);
       files.clear();
       const fresh = makeApp();
       const messages = [
@@ -145,7 +145,7 @@ describe("chatImagePersistence", () => {
 
     it("does not adopt corrupted hash-named legacy bytes (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", async () => {
       const { app, vault, files } = makeApp();
-      const path = `${STORE}/copilot-image-${sha256(DATA)}.png`;
+      const path = `${STORE}/vault-agent-image-${sha256(DATA)}.png`;
       files.set(path, base64ToArrayBuffer("AQID"));
       const [saved] = await prepareChatImagesForSave(
         app,
@@ -257,7 +257,7 @@ describe("chatImagePersistence", () => {
           prepareChatImagesForSave(
             app,
             [{ message: "", content: [JSON.parse(JSON.stringify(IMAGE))] }],
-            `${root}/copilot-conversations`
+            `${root}/conversations`
           )
         )
       );
@@ -286,7 +286,7 @@ describe("chatImagePersistence", () => {
 
     it("preserves a missing legacy attachment whose hash filename proves upload identity (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", async () => {
       const { app, vault } = makeApp();
-      const embed = `![[moved/copilot-image-${sha256(DATA)} 1.png]]`;
+      const embed = `![[moved/vault-agent-image-${sha256(DATA)} 1.png]]`;
       const [saved] = await prepareChatImagesForSave(
         app,
         [{ sender: "user", message: "image", content: [IMAGE] }],
@@ -337,7 +337,7 @@ describe("chatImagePersistence", () => {
         expect(visibleMessage(restored.message)).toBe(
           [message, "![](../organized.png)"].filter(Boolean).join("\n\n")
         );
-        expect(restored.message).toContain("<!-- copilot-image:");
+        expect(restored.message).toContain("<!-- vault-agent-image:");
         expect(vault.createBinary).not.toHaveBeenCalled();
       }
     );
@@ -427,7 +427,7 @@ describe("chatImagePersistence", () => {
     it(`stores attachments under the conversations folder instead of the vault attachment setting (${DESTINATION_ISSUE})`, async () => {
       const { app, files, folders, vault } = makeApp();
       await prepareChatImagesForSave(app, [{ message: "", content: [IMAGE] }], CHATS);
-      expect([...files.keys()][0]).toBe(`${STORE}/copilot-image-${sha256(DATA)}.png`);
+      expect([...files.keys()][0]).toBe(`${STORE}/vault-agent-image-${sha256(DATA)}.png`);
       expect(folders).toContain(STORE);
       expect(vault.getConfig).not.toHaveBeenCalled();
     });
@@ -437,10 +437,10 @@ describe("chatImagePersistence", () => {
       await prepareChatImagesForSave(
         app,
         [{ message: "", content: [IMAGE] }],
-        "team/ai/copilot-conversations"
+        "team/ai/conversations"
       );
       expect([...files.keys()][0]).toBe(
-        `team/ai/copilot-conversations/attachments/copilot-image-${sha256(DATA)}.png`
+        `team/ai/conversations/attachments/vault-agent-image-${sha256(DATA)}.png`
       );
     });
 
@@ -459,7 +459,7 @@ describe("chatImagePersistence", () => {
         const saving = prepareChatImagesForSave(
           app,
           [{ message: "", content: [IMAGE] }],
-          "copilot/copilot-conversations"
+          "vault-agent/conversations"
         );
         if (error === "Folder already exists.") await expect(saving).resolves.toHaveLength(1);
         else {
@@ -489,7 +489,7 @@ describe("chatImagePersistence", () => {
         ],
         CHATS
       );
-      expect([...files.keys()][0]).toBe(`${STORE}/copilot-image-${sha256(DATA)}.${extension}`);
+      expect([...files.keys()][0]).toBe(`${STORE}/vault-agent-image-${sha256(DATA)}.${extension}`);
     });
 
     it(`accepts unpadded base64 without changing the uploaded bytes (${ISSUE})`, async () => {
@@ -514,7 +514,7 @@ describe("chatImagePersistence", () => {
 
     it(`reuses attachments within a message and across saves, including filename collisions (${ISSUE})`, async () => {
       const { app, files, vault } = makeApp();
-      const collision = `${STORE}/copilot-image-${sha256(DATA)}.png`;
+      const collision = `${STORE}/vault-agent-image-${sha256(DATA)}.png`;
       files.set(collision, base64ToArrayBuffer("AQID"));
       const messages = [{ message: "two", content: [IMAGE, IMAGE] }];
       const first = await prepareChatImagesForSave(app, messages, CHATS);
@@ -537,7 +537,7 @@ describe("chatImagePersistence", () => {
       ]);
       expect(results[0]).toEqual(results[1]);
       expect(visibleMessage(results[0][0].message)).toBe(
-        `![](/${STORE}/copilot-image-${sha256(DATA)}.png)`
+        `![](/${STORE}/vault-agent-image-${sha256(DATA)}.png)`
       );
       expect(files.size).toBe(1);
       expect(arrayBufferToBase64([...files.values()][0])).toBe(DATA);
@@ -566,10 +566,10 @@ describe("chatImagePersistence", () => {
       const prepared = await prepareChatImagesForSave(
         app,
         [{ message: "", content: [IMAGE] }],
-        "notes ] # % (reference)/copilot-conversations"
+        "notes ] # % (reference)/conversations"
       );
       expect(visibleMessage(prepared[0].message)).toBe(
-        `![](/notes%20%5D%20%23%20%25%20%28reference%29/copilot-conversations/attachments/copilot-image-${sha256(DATA)}.png)`
+        `![](/notes%20%5D%20%23%20%25%20%28reference%29/conversations/attachments/vault-agent-image-${sha256(DATA)}.png)`
       );
     });
 
@@ -630,7 +630,7 @@ describe("chatImagePersistence", () => {
   });
   describe("preserveChatImageReferences()", () => {
     it("keeps a loaded content identity after text edits and message reordering (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
-      const receipt = `<!-- copilot-image:${sha256(DATA)} -->\n![[old.png]]\n<!-- /copilot-image -->`;
+      const receipt = `<!-- vault-agent-image:${sha256(DATA)} -->\n![[old.png]]\n<!-- /vault-agent-image -->`;
       const loaded = `**user**: earlier\n\n**user**: image\n\n${receipt}`;
       const existing = loaded.replace("old.png", "moved.png");
       const next = "**user**: edited image\n\n![[old.png]]\n\n**user**: earlier";
@@ -641,10 +641,10 @@ describe("chatImagePersistence", () => {
 
     it("restores disk-only markers after clean loading (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
       const original =
-        "**user**: image\n\n<!-- copilot-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /copilot-image -->\n[Timestamp: now]";
+        "**user**: image\n\n<!-- vault-agent-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /vault-agent-image -->\n[Timestamp: now]";
       const authored = original.replace(
         "image\n\n",
-        "image\n\n<!-- copilot-image:foo -->\nexample\n<!-- /copilot-image -->\n\n"
+        "image\n\n<!-- vault-agent-image:foo -->\nexample\n<!-- /vault-agent-image -->\n\n"
       );
       expect(
         preserveChatImageReferences(
@@ -670,7 +670,7 @@ describe("chatImagePersistence", () => {
 
     it("keeps the current receipt link when an organizer rewrites during save (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", () => {
       const next =
-        "**user**: image\n\n<!-- copilot-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /copilot-image -->\n[Timestamp: now]";
+        "**user**: image\n\n<!-- vault-agent-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /vault-agent-image -->\n[Timestamp: now]";
       expect(preserveChatImageReferences(next, next.replace("old.png", "moved.png"))).toBe(
         next.replace("old.png", "moved.png")
       );
@@ -694,7 +694,7 @@ describe("chatImagePersistence", () => {
   describe("updateChatTranscript()", () => {
     it("retains the live reference baseline across repeated saves after an organizer move (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", async () => {
       const { app, vault } = makeApp();
-      const loaded = `**user**: image\n\n<!-- copilot-image:${sha256(DATA)} -->\n![[old.png]]\n<!-- /copilot-image -->`;
+      const loaded = `**user**: image\n\n<!-- vault-agent-image:${sha256(DATA)} -->\n![[old.png]]\n<!-- /vault-agent-image -->`;
       const next = "**user**: edited\n\n![[old.png]]";
       let disk = loaded.replace("old.png", "moved.png");
       Object.assign(vault.adapter, {
@@ -707,7 +707,7 @@ describe("chatImagePersistence", () => {
       expect(disk).toContain("![[moved.png]]");
       expect(disk).toContain("**user**: edited");
       expect(baseline).toContain("![[old.png]]");
-      expect(baseline).toContain(`copilot-image:${sha256(DATA)}`);
+      expect(baseline).toContain(`vault-agent-image:${sha256(DATA)}`);
       await updateChatTranscript(app, "chat.md", () => next, baseline);
       expect(disk).toContain("![[moved.png]]");
     });
@@ -719,7 +719,7 @@ describe("chatImagePersistence", () => {
         const file = mockTFile({ path: "chat.md" });
         vault.getAbstractFileByPath.mockReturnValue(indexed ? file : null);
         const next =
-          "<!-- copilot-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /copilot-image -->";
+          "<!-- vault-agent-image:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n![[old.png]]\n<!-- /vault-agent-image -->";
         let disk = next.replace("old.png", "moved.png");
         const process = jest.fn(async (_file: TFile, update: (content: string) => string) => {
           disk = update(disk);

@@ -256,14 +256,14 @@ describe("codexVersion", () => {
   describe("bundledCodexRuntimePath()", () => {
     it(`locates the native Codex shipped beside a bundled adapter: ${DIRECT_RUNTIME_ISSUE}`, () => {
       expect(
-        bundledCodexRuntimePath("/Users/Jane Doe/.obsidian-copilot/codex/2.2.2/codex-acp", "darwin")
-      ).toBe("/Users/Jane Doe/.obsidian-copilot/codex/2.2.2/codex-runtime/bin/codex");
+        bundledCodexRuntimePath("/Users/Jane Doe/.vault-agent/codex/2.2.2/codex-acp", "darwin")
+      ).toBe("/Users/Jane Doe/.vault-agent/codex/2.2.2/codex-runtime/bin/codex");
       expect(
         bundledCodexRuntimePath(
-          "C:\\Users\\Jane Doe\\.obsidian-copilot\\codex\\2.2.2\\codex-acp.exe",
+          "C:\\Users\\Jane Doe\\.vault-agent\\codex\\2.2.2\\codex-acp.exe",
           "win32"
         )
-      ).toBe("C:\\Users\\Jane Doe\\.obsidian-copilot\\codex\\2.2.2\\codex-runtime\\bin\\codex.exe");
+      ).toBe("C:\\Users\\Jane Doe\\.vault-agent\\codex\\2.2.2\\codex-runtime\\bin\\codex.exe");
     });
   });
   describe("resolveCodexCommand()", () => {

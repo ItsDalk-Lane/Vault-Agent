@@ -1,4 +1,4 @@
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import SettingsMainV2 from "@/settings/v2/SettingsMainV2";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
@@ -30,7 +30,7 @@ const plugin = {
   app: {},
   manifest: { version: "1.2.3" },
   skills: { refresh: mockSkillManagerRefresh },
-} as unknown as CopilotPlugin;
+} as unknown as VaultAgentPlugin;
 
 describe("SettingsMainV2", () => {
   describe("SettingsMainV2()", () => {

@@ -2,7 +2,7 @@ import {
   AgentModeBanner,
   type AgentModeBannerProps,
 } from "@/components/chat-components/ui/AgentModeBanner";
-import { COPILOT_AGENT_ICON_PATH } from "@/constants";
+import { VAULT_AGENT_ICON_PATH } from "@/constants";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 
@@ -27,7 +27,7 @@ describe("AgentModeBanner", () => {
       const { container } = render(<AgentModeBanner {...props} />);
 
       const paths = Array.from(container.querySelectorAll("path"));
-      expect(paths.some((path) => path.getAttribute("d") === COPILOT_AGENT_ICON_PATH)).toBe(true);
+      expect(paths.some((path) => path.getAttribute("d") === VAULT_AGENT_ICON_PATH)).toBe(true);
       expect(container.querySelector(".lucide-circle-alert")).toBeNull();
       expect(screen.queryByText("Open Copilot Agent Chat")).not.toBeNull();
       expect(screen.queryByText("Find and edit notes with an agent.")).not.toBeNull();

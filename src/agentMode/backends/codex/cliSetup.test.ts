@@ -67,13 +67,13 @@ describe("cliSetup", () => {
     it.each([
       [
         "darwin",
-        "/Users/Jane Doe/.obsidian-copilot/codex/2.2.2/codex-acp",
-        "CODEX_HOME=/profile '/Users/Jane Doe/.obsidian-copilot/codex/2.2.2/codex-runtime/bin/codex' login",
+        "/Users/Jane Doe/.vault-agent/codex/2.2.2/codex-acp",
+        "CODEX_HOME=/profile '/Users/Jane Doe/.vault-agent/codex/2.2.2/codex-runtime/bin/codex' login",
       ],
       [
         "win32",
-        "C:\\Users\\Jane Doe\\.obsidian-copilot\\codex\\2.2.2\\codex-acp.exe",
-        "$env:CODEX_HOME = '/profile'; & 'C:\\Users\\Jane Doe\\.obsidian-copilot\\codex\\2.2.2\\codex-runtime\\bin\\codex.exe' login",
+        "C:\\Users\\Jane Doe\\.vault-agent\\codex\\2.2.2\\codex-acp.exe",
+        "$env:CODEX_HOME = '/profile'; & 'C:\\Users\\Jane Doe\\.vault-agent\\codex\\2.2.2\\codex-runtime\\bin\\codex.exe' login",
       ],
     ] as const)(
       `signs a %s bundle in through its own Codex with a quoted path: ${DIRECT_RUNTIME_ISSUE}`,

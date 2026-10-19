@@ -1,12 +1,12 @@
 import type { CustomModel } from "@/aiParams";
 import { ChatModelProviders, ProviderInfo, ProviderSettingsKeyMap } from "@/constants";
 import type { Provider, SettingKeyProviders } from "@/constants";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
 export { err2String } from "@/errorFormat";
 
 export type ModelApiKeySettings = Pick<
-  CopilotSettings,
+  VaultAgentSettings,
   | "anthropicApiKey"
   | "openAIApiKey"
   | "googleApiKey"

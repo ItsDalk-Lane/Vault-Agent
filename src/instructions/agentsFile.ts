@@ -16,7 +16,7 @@ export function isClaudeImportOnly(content: string): boolean {
 }
 
 const GENERATED_MIRROR_HEADER =
-  /^(\uFEFF?)<!-- copilot:generated-agents-mirror [^\r\n]* -->\r?\n\r?\n/;
+  /^(\uFEFF?)<!-- vault-agent:generated-agents-mirror [^\r\n]* -->\r?\n\r?\n/;
 
 export async function agentsFileIsUninitialized(app: App, folderPath: string): Promise<boolean> {
   const agentsPath = childPath(folderPath, AGENTS_FILE_NAME);

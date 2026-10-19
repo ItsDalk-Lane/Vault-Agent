@@ -1,5 +1,5 @@
 import { isOpencodeZenWireId } from "@/utils/opencodeModelId";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { ConfiguredModel, Provider } from "@/modelManagement";
 import {
   capabilitiesFromConfiguredInfo,
@@ -11,14 +11,6 @@ import type { EnabledModelCredentialState, EnabledModelEntry } from "@/agentMode
 export interface OpencodeProviderMapping {
   id: string;
   native: boolean;
-}
-
-export const COPILOT_PLUS_OPENCODE_PROVIDER_ID = "copilot-plus";
-
-export function copilotPlusModelId(wireModelId: string | null | undefined): string | null {
-  const prefix = `${COPILOT_PLUS_OPENCODE_PROVIDER_ID}/`;
-  if (typeof wireModelId !== "string" || !wireModelId.startsWith(prefix)) return null;
-  return wireModelId.slice(prefix.length);
 }
 
 const EMPTY_ENABLED_ENTRIES: readonly EnabledModelEntry[] = Object.freeze([]);
@@ -33,8 +25,6 @@ export function mapProviderToOpencodeId(provider: Provider): OpencodeProviderMap
       }
       return null;
     }
-    case "copilot-plus":
-      return { id: COPILOT_PLUS_OPENCODE_PROVIDER_ID, native: false };
     case "agent":
       return { id: provider.providerId, native: true };
     default:
@@ -50,7 +40,7 @@ function opencodeWireBaseId(provider: Provider, configuredModel: ConfiguredModel
 
 export function opencodeWireBaseIdFor(
   configuredModelId: string,
-  settings: CopilotSettings
+  settings: VaultAgentSettings
 ): string | null {
   const configuredModel = settings.configuredModels.find(
     (model) => model.configuredModelId === configuredModelId
@@ -68,7 +58,7 @@ function credentialStateFor(provider: Provider, native: boolean): EnabledModelCr
 }
 
 export function opencodeEnabledModelEntries(
-  settings: CopilotSettings
+  settings: VaultAgentSettings
 ): readonly EnabledModelEntry[] {
   const enabledIds = settings.backends.opencode?.enabledModels ?? [];
   if (enabledIds.length === 0) return EMPTY_ENABLED_ENTRIES;

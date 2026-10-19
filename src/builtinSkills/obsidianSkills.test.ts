@@ -18,7 +18,7 @@ describe("obsidianSkills", () => {
       ]);
       for (const skill of OBSIDIAN_SKILLS) {
         expect(skill.enabledAgents).toEqual(["claude", "codex", "opencode"]);
-        expect(skill.skillMd).toContain(`copilot-builtin-version: "${skill.version}"`);
+        expect(skill.skillMd).toContain(`vault-agent-builtin-version: "${skill.version}"`);
       }
     });
 
@@ -112,8 +112,8 @@ describe("obsidianSkills", () => {
     it("uses the CLI only for Obsidian runtime, index, and developer capabilities", () => {
       const md = skillMd("obsidian-cli");
       expect(md).toMatch(/description:[^\n]*currently open notes and tabs/);
-      expect(md).toContain("COPILOT_OBSIDIAN_CLI");
-      expect(md).toContain('obsidian_cli="${COPILOT_OBSIDIAN_CLI:-obsidian}"');
+      expect(md).toContain("VAULT_AGENT_OBSIDIAN_CLI");
+      expect(md).toContain('obsidian_cli="${VAULT_AGENT_OBSIDIAN_CLI:-obsidian}"');
       expect(md).toContain('"$obsidian_cli" version');
       expect(md).toContain("& $obsidianCli version");
       expect(md).toContain("always invoke it as a quoted executable");
@@ -148,7 +148,7 @@ describe("obsidianSkills", () => {
       );
       expect(md).toContain("commands filter=");
       expect(md).toContain("plugin:reload");
-      expect(md).toContain("For a plugin other than Copilot");
+      expect(md).toContain("For another plugin");
       expect(md).toContain("Never reload the\n   Copilot plugin");
       expect(md).toContain("dev:errors");
       expect(md).toContain("dev:screenshot");

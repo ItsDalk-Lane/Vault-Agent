@@ -2,7 +2,7 @@ import { backendRegistry } from "@/agentMode/backends/registry";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { BackendId, InstallState } from "@/agentMode/session/types";
 import { logError } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { act, renderHook } from "@testing-library/react";
 import { useAgentSelect } from "./useAgentSelect";
 import { useBackendInstallStates, useSessionBackendDescriptor } from "./useBackendDescriptor";
@@ -48,7 +48,7 @@ const mockSessionDescriptor = useSessionBackendDescriptor as jest.MockedFunction
 >;
 const openInstallUI = backendRegistry.codex.openInstallUI as jest.Mock;
 
-const plugin = {} as CopilotPlugin;
+const plugin = {} as VaultAgentPlugin;
 
 function makeManager(startResult: Promise<unknown> = Promise.resolve({})) {
   const listeners = new Set<() => void>();

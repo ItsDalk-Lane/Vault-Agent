@@ -1,7 +1,7 @@
 import {
   STARTUP_LOADING_TEXT,
   StartupLoadingView,
-  type CopilotStartup,
+  type VaultAgentStartup,
 } from "@/components/StartupLoadingView";
 import { logError } from "@/logger";
 import type { View, WorkspaceLeaf } from "obsidian";
@@ -33,7 +33,7 @@ function createStartedView() {
   return { view, stateApplied: stateApplied.promise };
 }
 
-function openLoadingView(createView: CopilotStartup["createStartedView"]) {
+function openLoadingView(createView: VaultAgentStartup["createStartedView"]) {
   const started = deferred();
   const leaf: FakeLeaf = {
     view: null,
@@ -42,13 +42,13 @@ function openLoadingView(createView: CopilotStartup["createStartedView"]) {
       return view;
     }),
   };
-  const startup: CopilotStartup = {
+  const startup: VaultAgentStartup = {
     whenStarted: () => started.promise,
     createStartedView: jest.fn(createView),
   };
   const view = new StartupLoadingView(
     leaf as unknown as WorkspaceLeaf,
-    "copilot-agent-chat-view",
+    "vault-agent-chat-view",
     startup
   );
   leaf.view = view;
@@ -61,7 +61,7 @@ describe("StartupLoadingView", () => {
       it("reports the type of the Copilot tab it stands in for, so Obsidian saves the layout unchanged", () => {
         const { view } = openLoadingView(() => undefined);
 
-        expect(view.getViewType()).toBe("copilot-agent-chat-view");
+        expect(view.getViewType()).toBe("vault-agent-chat-view");
       });
     });
 
@@ -104,7 +104,7 @@ describe("StartupLoadingView", () => {
         started.resolve();
         await started.promise;
 
-        expect(startup.createStartedView).toHaveBeenCalledWith("copilot-agent-chat-view", leaf);
+        expect(startup.createStartedView).toHaveBeenCalledWith("vault-agent-chat-view", leaf);
         expect(leaf.open).not.toHaveBeenCalled();
         expect(leaf.view).toBe(view);
       });

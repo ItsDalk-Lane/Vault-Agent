@@ -16,7 +16,7 @@ import {
   BackendId,
   BackendProcess,
   BackendState,
-  CopilotMode,
+  VaultAgentMode,
   CompactionSnapshot,
   CurrentPlan,
   EnabledModelEntry,
@@ -173,7 +173,7 @@ export interface AgentSessionStartOptions extends ProjectContextUpdatesHooks {
   backendId: BackendId;
   projectId?: ProjectScopeId;
   defaultModelSelection?: ModelSelection;
-  defaultMode?: CopilotMode | null;
+  defaultMode?: VaultAgentMode | null;
   getDescriptor?: () => BackendDescriptor | undefined;
   runFanoutTurn?: RunFanoutTurn;
   getDisplayName?: (backendId: BackendId) => string;
@@ -190,7 +190,7 @@ export interface AgentSessionStateOptions extends ProjectContextUpdatesHooks {
   backendId: BackendId;
   projectId?: ProjectScopeId;
   defaultModelSelection?: ModelSelection;
-  defaultMode?: CopilotMode | null;
+  defaultMode?: VaultAgentMode | null;
   cwd?: string | null;
   getDescriptor?: () => BackendDescriptor | undefined;
   runFanoutTurn?: RunFanoutTurn;
@@ -245,7 +245,7 @@ export class AgentSession {
   private labelSource: "user" | "agent" | null = null;
   private disposed = false;
   private resumeSelection: ModelSelection | undefined;
-  private resumeMode: CopilotMode | null | undefined;
+  private resumeMode: VaultAgentMode | null | undefined;
   private settleReady: () => void = () => {};
   private historyOpen = false;
   private historyUser: { wireId: string | undefined; raw: string; occurredAt?: number } | null =
@@ -414,7 +414,7 @@ export class AgentSession {
 
   private async applyStartupSelection(
     selection: ModelSelection,
-    mode: CopilotMode | null = null
+    mode: VaultAgentMode | null = null
   ): Promise<void> {
     const descriptor = this.getDescriptor?.();
     if (!descriptor) return;
@@ -438,7 +438,7 @@ export class AgentSession {
   private async settleOnEnabledModel(
     descriptor: BackendDescriptor,
     seed: ModelSelection,
-    mode: CopilotMode | null
+    mode: VaultAgentMode | null
   ): Promise<void> {
     const enabled = this.enabledModels();
     const pick = () => pickEnabledModel(enabled, this.currentState?.model, seed);
@@ -483,7 +483,7 @@ export class AgentSession {
   }
 
   private runsOnlyEnabledModels(): boolean {
-    return this.getDescriptor?.()?.routesCopilotModels === true;
+    return this.getDescriptor?.()?.routesVaultAgentModels === true;
   }
 
   private enabledModels(): readonly EnabledModelEntry[] {
@@ -2076,7 +2076,7 @@ function buildContextEnvelope(context: MessageContext | undefined): string | nul
   if (notePaths.length === 0 && excerpts.length === 0) return null;
 
   const lines: string[] = [
-    "<copilot-context>",
+    "<vault-agent-context>",
     "The user attached the following vault items as context. The vault is your current working directory; open them if you need their contents.",
   ];
   if (notePaths.length > 0) {
@@ -2091,7 +2091,7 @@ function buildContextEnvelope(context: MessageContext | undefined): string | nul
       for (const l of e.content.split("\n")) lines.push(`  ${l}`);
     }
   }
-  lines.push("</copilot-context>");
+  lines.push("</vault-agent-context>");
   return lines.join("\n");
 }
 

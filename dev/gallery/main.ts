@@ -20,7 +20,7 @@ import {
 } from "./audit";
 import { modules, presentationalComponentCount } from "./stories.generated";
 
-export const GALLERY_VIEWTYPE = "copilot-component-gallery";
+export const GALLERY_VIEWTYPE = "vault-agent-gallery";
 
 export interface GalleryShowOptions {
   width?: number;

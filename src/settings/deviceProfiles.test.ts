@@ -1,7 +1,7 @@
 import { dehydrateDeviceProfile, hydrateDeviceProfile } from "@/settings/deviceProfiles";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
-type AgentMode = CopilotSettings["agentMode"];
+type AgentMode = VaultAgentSettings["agentMode"];
 
 function makeAgentMode(partial: Partial<AgentMode> = {}): AgentMode {
   return {
@@ -13,13 +13,13 @@ function makeAgentMode(partial: Partial<AgentMode> = {}): AgentMode {
     notificationSound: false,
     notificationSoundId: "piano",
     welcomeDismissed: false,
-    skills: { folder: "copilot/skills" },
+    skills: { folder: "vault-agent/skills" },
     ...partial,
   };
 }
 
-function makeSettings(agentMode: AgentMode, settingsVersion = 6): CopilotSettings {
-  return { settingsVersion, agentMode } as unknown as CopilotSettings;
+function makeSettings(agentMode: AgentMode, settingsVersion = 6): VaultAgentSettings {
+  return { settingsVersion, agentMode } as unknown as VaultAgentSettings;
 }
 
 const DEVICE_A = "device-a";
@@ -231,7 +231,7 @@ describe("deviceProfiles", () => {
       const bConfigured = {
         ...bLoaded,
         agentMode: { ...bLoaded.agentMode, claudeCli: { path: "/b/claude" } },
-      } as CopilotSettings;
+      } as VaultAgentSettings;
       const bDisk = dehydrateDeviceProfile(bConfigured, DEVICE_B);
 
       expect(bDisk.agentMode.deviceProfiles?.[DEVICE_A]?.claudeCliPath).toBe("/a/claude");

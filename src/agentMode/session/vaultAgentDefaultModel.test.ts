@@ -1,17 +1,16 @@
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import type { BackendDescriptor } from "./types";
 
-const mockGetSettings = jest.fn<CopilotSettings, []>();
-const mockSetSettings = jest.fn<void, [(cur: CopilotSettings) => Partial<CopilotSettings>]>();
+const mockGetSettings = jest.fn<VaultAgentSettings, []>();
+const mockSetSettings = jest.fn<void, [(cur: VaultAgentSettings) => Partial<VaultAgentSettings>]>();
 
 jest.mock("@/settings/model", () => ({
   getSettings: () => mockGetSettings(),
-  setSettings: (updater: (cur: CopilotSettings) => Partial<CopilotSettings>) =>
+  setSettings: (updater: (cur: VaultAgentSettings) => Partial<VaultAgentSettings>) =>
     mockSetSettings(updater),
 }));
 
-import { OpencodeBackendDescriptor } from "@/agentMode/backends/opencode/descriptor";
-import { seedCopilotDefaultModel } from "./copilotDefaultModel";
+import { seedVaultAgentDefaultModel } from "./vaultAgentDefaultModel";
 
 const FLASH_ID = "cm-flash";
 
@@ -22,11 +21,11 @@ function descriptor(id: string, wireBaseId: string | null | undefined): BackendD
   } as unknown as BackendDescriptor;
 }
 
-function settingsWith(backends: Record<string, unknown>): CopilotSettings {
-  return { agentMode: { backends } } as unknown as CopilotSettings;
+function settingsWith(backends: Record<string, unknown>): VaultAgentSettings {
+  return { agentMode: { backends } } as unknown as VaultAgentSettings;
 }
 
-function writtenBackends(current: CopilotSettings): Record<string, unknown> {
+function writtenBackends(current: VaultAgentSettings): Record<string, unknown> {
   const updater = mockSetSettings.mock.calls[0][0];
   const patch = updater(current) as { agentMode: { backends: Record<string, unknown> } };
   return patch.agentMode.backends;
@@ -37,7 +36,7 @@ describe("copilotDefaultModel", () => {
     mockSetSettings.mockClear();
   });
 
-  describe("seedCopilotDefaultModel()", () => {
+  describe("seedVaultAgentDefaultModel()", () => {
     it("makes the model the default for every backend that can route it", () => {
       const current = settingsWith({});
       mockGetSettings.mockReturnValue(current);
@@ -46,7 +45,7 @@ describe("copilotDefaultModel", () => {
         descriptor("pi", "copilot-plus-flash"),
       ];
 
-      expect(seedCopilotDefaultModel(descriptors, FLASH_ID)).toEqual(["opencode", "pi"]);
+      expect(seedVaultAgentDefaultModel(descriptors, FLASH_ID)).toEqual(["opencode", "pi"]);
       expect(writtenBackends(current)).toEqual({
         opencode: {
           defaultModel: { baseModelId: "copilot-plus/copilot-plus-flash", effort: null },
@@ -64,7 +63,7 @@ describe("copilotDefaultModel", () => {
         descriptor("codex", undefined),
       ];
 
-      expect(seedCopilotDefaultModel(descriptors, FLASH_ID)).toEqual(["opencode"]);
+      expect(seedVaultAgentDefaultModel(descriptors, FLASH_ID)).toEqual(["opencode"]);
       expect(Object.keys(writtenBackends(current))).toEqual(["opencode"]);
     });
 
@@ -82,7 +81,7 @@ describe("copilotDefaultModel", () => {
         descriptor("claude", null),
       ];
 
-      seedCopilotDefaultModel(descriptors, FLASH_ID);
+      seedVaultAgentDefaultModel(descriptors, FLASH_ID);
 
       expect(writtenBackends(current)).toEqual({
         opencode: {
@@ -96,7 +95,7 @@ describe("copilotDefaultModel", () => {
     it("writes nothing when no backend can route the model", () => {
       mockGetSettings.mockReturnValue(settingsWith({}));
 
-      const seeded = seedCopilotDefaultModel([descriptor("claude", null)], FLASH_ID);
+      const seeded = seedVaultAgentDefaultModel([descriptor("claude", null)], FLASH_ID);
 
       expect(seeded).toEqual([]);
       expect(mockSetSettings).not.toHaveBeenCalled();
@@ -109,43 +108,9 @@ describe("copilotDefaultModel", () => {
         descriptor("pi", "copilot-plus-flash"),
       ];
 
-      seedCopilotDefaultModel(descriptors, FLASH_ID);
+      seedVaultAgentDefaultModel(descriptors, FLASH_ID);
 
       expect(mockSetSettings).toHaveBeenCalledTimes(1);
-    });
-
-    it("seeds the real OpenCode descriptor from a model that is configured but not yet enrolled", () => {
-      const settings = {
-        configuredModels: [
-          {
-            configuredModelId: FLASH_ID,
-            providerId: "plus-1",
-            info: { id: "copilot-plus-flash", displayName: "Copilot Plus Flash" },
-            configuredAt: 0,
-          },
-        ],
-        providers: {
-          "plus-1": {
-            providerId: "plus-1",
-            providerType: "openai-compatible",
-            displayName: "Copilot",
-            origin: { kind: "copilot-plus" },
-            addedAt: 0,
-          },
-        },
-        agentMode: { backends: {} },
-        enableSelfHostMode: false,
-      } as unknown as CopilotSettings;
-      mockGetSettings.mockReturnValue(settings);
-
-      const seeded = seedCopilotDefaultModel([OpencodeBackendDescriptor], FLASH_ID);
-
-      expect(seeded).toEqual(["opencode"]);
-      expect(writtenBackends(settings)).toEqual({
-        opencode: {
-          defaultModel: { baseModelId: "copilot-plus/copilot-plus-flash", effort: null },
-        },
-      });
     });
   });
 });

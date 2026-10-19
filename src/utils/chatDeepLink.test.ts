@@ -8,7 +8,7 @@ import {
 import { listMarkdownFiles, readFrontmatterViaAdapter } from "@/utils/vaultAdapterUtils";
 import type { App, TFile } from "obsidian";
 
-jest.mock("@/settings/copilotFolder", () => ({
+jest.mock("@/settings/vaultAgentFolder", () => ({
   getEffectiveConversationsFolder: () => "Copilot/conversations",
 }));
 jest.mock("@/utils/vaultAdapterUtils", () => ({

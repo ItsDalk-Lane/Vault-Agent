@@ -10,7 +10,7 @@ import {
   ManagedInstallAbortError,
   promoteManagedVersion,
 } from "@/agentMode/backends/shared/managedInstall";
-import { copilotAppDataDir } from "@/utils/appPaths";
+import { vaultAgentAppDataDir } from "@/utils/appPaths";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { getSettings, updateAgentModeBackendFields } from "@/settings/model";
 import {
@@ -52,7 +52,7 @@ export class CodexBinaryManager extends ManagedBinaryManager {
     if (!home || !path().isAbsolute(home) || path().parse(home).root === home) {
       throw new Error("Could not resolve your home directory for the managed Codex adapter.");
     }
-    return path().join(copilotAppDataDir(home), "codex");
+    return path().join(vaultAgentAppDataDir(home), "codex");
   }
   protected async installPipeline({
     signal,

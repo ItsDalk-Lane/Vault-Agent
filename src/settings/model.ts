@@ -3,7 +3,7 @@ import { ALL_MANAGED_SKILLS } from "@/builtinSkills/builtinSkills";
 import { getModelKeyFromModel } from "@/lib/model-key";
 import { atom, createStore, useAtomValue } from "jotai";
 
-import type { CopilotMode, ModelSelection } from "@/agentMode";
+import type { VaultAgentMode, ModelSelection } from "@/agentMode";
 import type { BackendConfig, BackendType, ConfiguredModel, Provider } from "@/modelManagement";
 import { MODEL_SECRET_FIELDS, TOP_LEVEL_SECRET_FIELDS } from "@/services/settingsSecretTransforms";
 import { isNotificationSoundId, type NotificationSoundId } from "@/utils/notificationSoundCatalog";
@@ -29,7 +29,7 @@ export interface LegacyCommandSettings {
   showInContextMenu: boolean;
 }
 
-export interface CopilotSettings {
+export interface VaultAgentSettings {
   openAIApiKey: string;
   openAIOrgId: string;
   cohereApiKey: string;
@@ -42,8 +42,8 @@ export interface CopilotSettings {
   siliconflowApiKey: string;
   defaultModelKey: string;
   stream: boolean;
-  copilotFolder: string;
-  copilotRootHistory: string[];
+  vaultAgentFolder: string;
+  vaultAgentRootHistory: string[];
   autosaveChat: boolean;
   debug: boolean;
   enableInlineCitations: boolean;
@@ -103,7 +103,7 @@ export type ClaudeAutoModePermission = "acceptEdits" | "auto" | "bypassPermissio
 
 export interface ClaudeBackendSettings {
   defaultModel?: ModelSelection | null;
-  defaultMode?: CopilotMode | null;
+  defaultMode?: VaultAgentMode | null;
   autoModePermission?: ClaudeAutoModePermission;
   enableThinking?: boolean;
   envOverrides?: Record<string, string>;
@@ -114,7 +114,7 @@ export interface CodexBackendSettings {
   binaryPath?: string;
   binarySource?: "managed" | "custom";
   defaultModel?: ModelSelection | null;
-  defaultMode?: CopilotMode | null;
+  defaultMode?: VaultAgentMode | null;
   envOverrides?: Record<string, string>;
 }
 
@@ -123,7 +123,7 @@ export interface OpencodeBackendSettings {
   binaryPath?: string;
   binarySource?: "managed" | "custom";
   defaultModel?: ModelSelection | null;
-  defaultMode?: CopilotMode | null;
+  defaultMode?: VaultAgentMode | null;
   probeSessionId?: string;
   envOverrides?: Record<string, string>;
 }
@@ -149,7 +149,7 @@ export interface DeviceAgentProfile {
 }
 
 export const settingsStore = createStore();
-export const settingsAtom = atom<CopilotSettings>(DEFAULT_SETTINGS);
+export const settingsAtom = atom<VaultAgentSettings>(DEFAULT_SETTINGS);
 
 const EMPTY_PROVIDERS = Object.freeze({}) as unknown as Record<string, Provider>;
 const EMPTY_CONFIGURED_MODELS = Object.freeze([]) as unknown as ConfiguredModel[];
@@ -184,7 +184,9 @@ export function normalizeRootFolders(input: readonly (string | undefined)[]): st
 }
 
 export function setSettings(
-  settings: Partial<CopilotSettings> | ((current: CopilotSettings) => Partial<CopilotSettings>)
+  settings:
+    | Partial<VaultAgentSettings>
+    | ((current: VaultAgentSettings) => Partial<VaultAgentSettings>)
 ) {
   settingsStore.set(settingsAtom, (prev) => {
     const partial = typeof settings === "function" ? settings(prev) : settings;
@@ -217,13 +219,16 @@ export function sanitizeQaExclusions(rawValue: unknown): string {
     .join(",");
 }
 
-export function updateSetting<K extends keyof CopilotSettings>(key: K, value: CopilotSettings[K]) {
+export function updateSetting<K extends keyof VaultAgentSettings>(
+  key: K,
+  value: VaultAgentSettings[K]
+) {
   setSettings((cur) => ({ ...cur, [key]: value }));
 }
 
 export function updateAgentModeBackendFields<
-  K extends keyof CopilotSettings["agentMode"]["backends"],
->(key: K, partial: Partial<NonNullable<CopilotSettings["agentMode"]["backends"][K]>>): void {
+  K extends keyof VaultAgentSettings["agentMode"]["backends"],
+>(key: K, partial: Partial<NonNullable<VaultAgentSettings["agentMode"]["backends"][K]>>): void {
   setSettings((cur) => ({
     agentMode: {
       ...cur.agentMode,
@@ -235,7 +240,7 @@ export function updateAgentModeBackendFields<
   }));
 }
 
-export function getSettings(): Readonly<CopilotSettings> {
+export function getSettings(): Readonly<VaultAgentSettings> {
   return settingsStore.get(settingsAtom);
 }
 
@@ -256,7 +261,7 @@ const SESSION_PROOF_FIELD = "entitlementToken";
 
 const TOP_LEVEL_CREDENTIAL_COMPANION_FIELDS = [
   "openAIOrgId",
-] as const satisfies readonly (keyof CopilotSettings)[];
+] as const satisfies readonly (keyof VaultAgentSettings)[];
 
 const TOP_LEVEL_CREDENTIAL_BUNDLE_FIELDS: readonly string[] = [
   ...TOP_LEVEL_SECRET_FIELDS.filter((field) => field !== SESSION_PROOF_FIELD),
@@ -336,8 +341,8 @@ export function resetSettings(): void {
   const current = getSettings();
   const currentRecord = current as unknown as Record<string, unknown>;
   const preservedRootHistory = normalizeRootFolders([
-    ...(Array.isArray(current.copilotRootHistory) ? current.copilotRootHistory : []),
-    current.copilotFolder,
+    ...(Array.isArray(current.vaultAgentRootHistory) ? current.vaultAgentRootHistory : []),
+    current.vaultAgentFolder,
   ]);
   const preservedTopLevelSecrets: Record<string, unknown> = {};
   for (const field of TOP_LEVEL_CREDENTIAL_BUNDLE_FIELDS) {
@@ -360,13 +365,13 @@ export function resetSettings(): void {
       current.configuredModels,
       preservedProviderIds
     ),
-    copilotRootHistory: preservedRootHistory,
+    vaultAgentRootHistory: preservedRootHistory,
   };
   setSettings(defaultSettingsWithBuiltIns);
 }
 
 export function subscribeToSettingsChange(
-  callback: (prev: CopilotSettings, next: CopilotSettings) => void
+  callback: (prev: VaultAgentSettings, next: VaultAgentSettings) => void
 ): () => void {
   let previousValue = getSettings();
 
@@ -377,26 +382,26 @@ export function subscribeToSettingsChange(
   });
 }
 
-export function useSettingsValue(): Readonly<CopilotSettings> {
+export function useSettingsValue(): Readonly<VaultAgentSettings> {
   return useAtomValue(settingsAtom, {
     store: settingsStore,
   });
 }
 
-export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
+export function sanitizeSettings(settings: VaultAgentSettings): VaultAgentSettings {
   const settingsToSanitize = settings || DEFAULT_SETTINGS;
   const rawSettings = settingsToSanitize as unknown as Record<string, unknown>;
   const { enableSelfHostedSearch: legacyEnableSelfHostedSearch } = rawSettings;
 
-  const sanitizedSettings: CopilotSettings = { ...settingsToSanitize };
+  const sanitizedSettings: VaultAgentSettings = { ...settingsToSanitize };
   const sanitizedSettingsRecord = sanitizedSettings as unknown as Record<string, unknown>;
   // Amazon Bedrock is no longer a chat provider, so a stored key and region
-  // would only be credentials for a service Copilot can no longer reach.
+  // would only be credentials for a service the plugin can no longer reach.
   // https://github.com/logancyang/obsidian-copilot/issues/2928
   delete sanitizedSettingsRecord.amazonBedrockApiKey;
   delete sanitizedSettingsRecord.amazonBedrockRegion;
   // Azure OpenAI is no longer a chat provider, so a stored key and its routing
-  // fields would only address a service Copilot cannot reach.
+  // fields would only address a service the plugin cannot reach.
   // https://github.com/logancyang/obsidian-copilot/issues/2932
   delete sanitizedSettingsRecord.azureOpenAIApiKey;
   delete sanitizedSettingsRecord.azureOpenAIApiInstanceName;
@@ -437,21 +442,21 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
     sanitizedSettings.defaultSendShortcut = DEFAULT_SETTINGS.defaultSendShortcut;
   }
 
-  const copilotFolderValidation = validateCopilotFolder(
-    typeof settingsToSanitize.copilotFolder === "string"
-      ? toVisibleCopilotFolder(settingsToSanitize.copilotFolder)
+  const vaultAgentFolderValidation = validateVaultAgentFolder(
+    typeof settingsToSanitize.vaultAgentFolder === "string"
+      ? toVisibleVaultAgentFolder(settingsToSanitize.vaultAgentFolder)
       : ""
   );
-  sanitizedSettings.copilotFolder = copilotFolderValidation.ok
-    ? copilotFolderValidation.folder
-    : DEFAULT_SETTINGS.copilotFolder;
+  sanitizedSettings.vaultAgentFolder = vaultAgentFolderValidation.ok
+    ? vaultAgentFolderValidation.folder
+    : DEFAULT_SETTINGS.vaultAgentFolder;
 
-  const rawRootHistory = Array.isArray(settingsToSanitize.copilotRootHistory)
-    ? settingsToSanitize.copilotRootHistory
+  const rawRootHistory = Array.isArray(settingsToSanitize.vaultAgentRootHistory)
+    ? settingsToSanitize.vaultAgentRootHistory
     : [];
-  sanitizedSettings.copilotRootHistory = normalizeRootFolders([
+  sanitizedSettings.vaultAgentRootHistory = normalizeRootFolders([
     ...rawRootHistory,
-    sanitizedSettings.copilotFolder,
+    sanitizedSettings.vaultAgentFolder,
   ]);
 
   if (
@@ -486,7 +491,7 @@ export function sanitizeSettings(settings: CopilotSettings): CopilotSettings {
   return sanitizedSettings;
 }
 
-function sanitizeAgentMode(raw: unknown): CopilotSettings["agentMode"] {
+function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
   if (!raw || typeof raw !== "object") {
     return { ...DEFAULT_SETTINGS.agentMode };
   }
@@ -512,7 +517,7 @@ function sanitizeAgentMode(raw: unknown): CopilotSettings["agentMode"] {
   const claudeSlice = existingClaude ? sanitizeClaudeBackendSettings(existingClaude) : undefined;
   const codexSlice = existingCodex ? sanitizeCodexBackendSettings(existingCodex) : undefined;
 
-  const backends: CopilotSettings["agentMode"]["backends"] = {};
+  const backends: VaultAgentSettings["agentMode"]["backends"] = {};
   if (opencodeSlice) backends.opencode = opencodeSlice;
   if (claudeSlice) backends.claude = claudeSlice;
   if (codexSlice) backends.codex = codexSlice;
@@ -562,7 +567,7 @@ function sanitizeAgentMode(raw: unknown): CopilotSettings["agentMode"] {
     skillsRaw && typeof skillsRaw.suppressMigrationConfirm === "boolean"
       ? skillsRaw.suppressMigrationConfirm
       : undefined;
-  const skills: CopilotSettings["agentMode"]["skills"] = {
+  const skills: VaultAgentSettings["agentMode"]["skills"] = {
     folder: skillsValidation.ok
       ? skillsValidation.folder
       : DEFAULT_SETTINGS.agentMode.skills.folder,
@@ -587,7 +592,9 @@ function sanitizeAgentMode(raw: unknown): CopilotSettings["agentMode"] {
   };
 }
 
-type BuiltinPreferences = NonNullable<CopilotSettings["agentMode"]["skills"]["builtinPreferences"]>;
+type BuiltinPreferences = NonNullable<
+  VaultAgentSettings["agentMode"]["skills"]["builtinPreferences"]
+>;
 const EMPTY_BUILTIN_PREFERENCES: BuiltinPreferences = Object.freeze({});
 
 export function sanitizeBuiltinPreferences(raw: unknown): BuiltinPreferences {
@@ -667,11 +674,11 @@ function validateSkillsFolder(
   return { ok: true, folder: cleaned };
 }
 
-export function toVisibleCopilotFolder(folder: string): string {
+export function toVisibleVaultAgentFolder(folder: string): string {
   return folder.trim().replace(/(^|[\\/])\.+/g, "$1");
 }
 
-export function validateCopilotFolder(
+export function validateVaultAgentFolder(
   value: string,
   configDir?: string
 ): { ok: true; folder: string } | { ok: false; reason: string } {
@@ -710,7 +717,7 @@ export function validateCopilotFolder(
     if (segment === "..") {
       return { ok: false, reason: 'Folder path cannot contain ".." segments.' };
     }
-    // Obsidian does not index dot folders, so every Copilot feature must see a visible root.
+    // Obsidian does not index dot folders, so every feature must see a visible root.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/712
     if (segment.startsWith(".")) {
       return { ok: false, reason: "Folder names cannot start with a dot." };
@@ -747,10 +754,10 @@ function sanitizeDefaultModel(raw: unknown): ModelSelection | undefined {
   return { baseModelId, effort };
 }
 
-const COPILOT_MODES: readonly CopilotMode[] = ["default", "plan", "auto"];
-function sanitizeDefaultMode(raw: unknown): CopilotMode | undefined {
+const COPILOT_MODES: readonly VaultAgentMode[] = ["default", "plan", "auto"];
+function sanitizeDefaultMode(raw: unknown): VaultAgentMode | undefined {
   return typeof raw === "string" && (COPILOT_MODES as readonly string[]).includes(raw)
-    ? (raw as CopilotMode)
+    ? (raw as VaultAgentMode)
     : undefined;
 }
 
@@ -903,7 +910,7 @@ function sanitizeDeviceProfiles(raw: unknown): Record<string, DeviceAgentProfile
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-function mergeActiveChatModelsWithCoreModels(settings: CopilotSettings): CopilotSettings {
+function mergeActiveChatModelsWithCoreModels(settings: VaultAgentSettings): VaultAgentSettings {
   settings.activeModels = mergeActiveModels(settings.activeModels, BUILTIN_CHAT_MODELS);
   return settings;
 }

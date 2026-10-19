@@ -12,8 +12,6 @@ export function providerNeedsSelfHostWarning(
 ): boolean {
   if (!settings.enableSelfHostMode) return false;
   switch (provider.origin.kind) {
-    case "copilot-plus":
-      return true;
     case "byok":
       return !isSelfHostedProvider(provider);
     case "agent":

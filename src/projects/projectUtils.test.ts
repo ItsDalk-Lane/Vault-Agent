@@ -8,12 +8,12 @@ import {
 import { mockTFile, mockTFolder } from "@/__tests__/mockObsidian";
 
 jest.mock("@/settings/model", () => ({
-  getSettings: jest.fn(() => ({ copilotFolder: "copilot-projects" })),
+  getSettings: jest.fn(() => ({ vaultAgentFolder: "vault-agent-projects" })),
 }));
 
-jest.mock("@/settings/copilotFolder", () => {
+jest.mock("@/settings/vaultAgentFolder", () => {
   const { getSettings } = jest.requireMock<typeof import("@/settings/model")>("@/settings/model");
-  return { getEffectiveProjectsFolder: jest.fn(() => getSettings().copilotFolder) };
+  return { getEffectiveProjectsFolder: jest.fn(() => getSettings().vaultAgentFolder) };
 });
 
 jest.mock("@/projects/state", () => ({
@@ -56,7 +56,7 @@ function setupAppMock(rawContent: string, frontmatter: Record<string, unknown> |
 }
 
 function makeConfigFile(folderName: string, fileName: string): TFile {
-  const path = `copilot-projects/${folderName}/${fileName}`;
+  const path = `vault-agent-projects/${folderName}/${fileName}`;
   return mockTFile({
     path,
     name: fileName,
@@ -83,7 +83,7 @@ describe("projectUtils", () => {
       } as unknown as App;
       await writeProjectFrontmatter(
         app,
-        makeMockFile("copilot-projects/my-project/project.md"),
+        makeMockFile("vault-agent-projects/my-project/project.md"),
         { id: " my-project ", name: "", ...project } as ProjectConfig,
         "my-project",
         timestamps
@@ -104,29 +104,29 @@ describe("projectUtils", () => {
       });
 
       expect(frontmatter).toEqual({
-        "copilot-project-id": "my-project",
-        "copilot-project-name": "My Project",
+        "vault-agent-project-id": "my-project",
+        "vault-agent-project-name": "My Project",
         "copilot-project-description": "A test project",
         "copilot-project-inclusions": "notes/",
         "copilot-project-exclusions": "archive/",
         "copilot-project-web-urls": ["https://example.com", "https://example.org"],
         "copilot-project-youtube-urls": [],
         "copilot-project-created": 1700000000000,
-        "copilot-project-last-used": 1700000001000,
+        "vault-agent-project-last-used": 1700000001000,
       });
     });
 
     it("names the project after its folder and leaves properties it does not own untouched", async () => {
       const frontmatter = await writeFor({}, { "copilot-project-temperature": 0.2, extra: "kept" });
 
-      expect(frontmatter["copilot-project-name"]).toBe("my-project");
+      expect(frontmatter["vault-agent-project-name"]).toBe("my-project");
       expect(frontmatter["copilot-project-temperature"]).toBe(0.2);
       expect(frontmatter.extra).toBe("kept");
     });
   });
 
   describe("parseProjectConfigFile()", () => {
-    const VALID_PATH = "copilot-projects/my-project/project.md";
+    const VALID_PATH = "vault-agent-projects/my-project/project.md";
 
     it("returns null when the YAML frontmatter is malformed", async () => {
       const malformedContent = "---\nname: {bad: yaml: here\n---\nBody text";
@@ -141,8 +141,8 @@ describe("projectUtils", () => {
     it("maps every copilot-project frontmatter field onto the project record", async () => {
       const rawContent = [
         "---",
-        "copilot-project-id: my-project",
-        "copilot-project-name: My Project",
+        "vault-agent-project-id: my-project",
+        "vault-agent-project-name: My Project",
         "copilot-project-description: A test project",
         "copilot-project-model-key: gpt-4",
         "copilot-project-temperature: 0.7",
@@ -153,14 +153,14 @@ describe("projectUtils", () => {
         "  - https://example.com",
         "copilot-project-youtube-urls: []",
         "copilot-project-created: 1700000000000",
-        "copilot-project-last-used: 1700000001000",
+        "vault-agent-project-last-used: 1700000001000",
         "---",
         "System prompt body",
       ].join("\n");
 
       const app = setupAppMock(rawContent, {
-        "copilot-project-id": "my-project",
-        "copilot-project-name": "My Project",
+        "vault-agent-project-id": "my-project",
+        "vault-agent-project-name": "My Project",
         "copilot-project-description": "A test project",
         "copilot-project-model-key": "gpt-4",
         "copilot-project-temperature": 0.7,
@@ -170,7 +170,7 @@ describe("projectUtils", () => {
         "copilot-project-web-urls": ["https://example.com"],
         "copilot-project-youtube-urls": [],
         "copilot-project-created": 1700000000000,
-        "copilot-project-last-used": 1700000001000,
+        "vault-agent-project-last-used": 1700000001000,
       });
 
       const file = makeMockFile(VALID_PATH);
@@ -189,11 +189,13 @@ describe("projectUtils", () => {
       expect(result!.folderName).toBe("my-project");
     });
 
-    it("returns null when copilot-project-id is missing from frontmatter", async () => {
-      const rawContent = ["---", "copilot-project-name: My Project", "---", "Body text"].join("\n");
+    it("returns null when vault-agent-project-id is missing from frontmatter", async () => {
+      const rawContent = ["---", "vault-agent-project-name: My Project", "---", "Body text"].join(
+        "\n"
+      );
 
       const app = setupAppMock(rawContent, {
-        "copilot-project-name": "My Project",
+        "vault-agent-project-name": "My Project",
       });
 
       const file = makeMockFile(VALID_PATH);
@@ -204,7 +206,7 @@ describe("projectUtils", () => {
   });
 
   describe("scanAllProjectConfigFiles()", () => {
-    const PROJECTS_FOLDER = "copilot-projects";
+    const PROJECTS_FOLDER = "vault-agent-projects";
 
     function setupScanApp(folders: Record<string, Record<string, string>>): App {
       const contentByPath = new Map<string, string>();
@@ -239,14 +241,20 @@ describe("projectUtils", () => {
     }
 
     const validConfig = (id: string): string =>
-      ["---", `copilot-project-id: ${id}`, `copilot-project-name: ${id}`, "---", "body"].join("\n");
+      [
+        "---",
+        `vault-agent-project-id: ${id}`,
+        `vault-agent-project-name: ${id}`,
+        "---",
+        "body",
+      ].join("\n");
 
     it("returns a record for a folder whose project.md holds a valid project", async () => {
       const app = setupScanApp({ beta: { "project.md": validConfig("beta") } });
       const records = await scanAllProjectConfigFiles(app);
       expect(records).toHaveLength(1);
       expect(records[0].project.id).toBe("beta");
-      expect(records[0].filePath).toBe("copilot-projects/beta/project.md");
+      expect(records[0].filePath).toBe("vault-agent-projects/beta/project.md");
     });
 
     it("skips a folder that only has an AGENTS.md mirror", async () => {
@@ -261,7 +269,7 @@ describe("projectUtils", () => {
       });
       const records = await scanAllProjectConfigFiles(app);
       expect(records).toHaveLength(1);
-      expect(records[0].filePath).toBe("copilot-projects/gamma/project.md");
+      expect(records[0].filePath).toBe("vault-agent-projects/gamma/project.md");
     });
   });
 });

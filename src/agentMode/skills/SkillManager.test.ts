@@ -24,7 +24,7 @@ jest.mock("@/logger", () => ({
   logError: jest.fn(),
 }));
 
-let skillsFolder = "copilot/skills";
+let skillsFolder = "vault-agent/skills";
 let preferences: BuiltinPreferences = {};
 const ISSUE = "https://github.com/logancyang/obsidian-copilot/issues/3022";
 
@@ -41,7 +41,7 @@ jest.mock("@/settings/model", () => ({
   updateSetting: jest.fn(),
 }));
 
-jest.mock("@/settings/copilotFolder", () => ({
+jest.mock("@/settings/vaultAgentFolder", () => ({
   getEffectiveSkillsFolder: () => skillsFolder,
 }));
 
@@ -86,7 +86,7 @@ const mockedReconcile = reconcile as jest.MockedFunction<typeof reconcile>;
 
 describe("SkillManager", () => {
   beforeEach(() => {
-    skillsFolder = "copilot/skills";
+    skillsFolder = "vault-agent/skills";
     preferences = {};
     mockedDiscoverManagedSkills.mockReset();
     mockedReconcile.mockClear();
@@ -139,7 +139,7 @@ describe("SkillManager", () => {
 
         expect(mockedDiscoverManagedSkills).toHaveBeenCalledTimes(2);
         expect(mockedDiscoverManagedSkills.mock.calls[0][0].skillsFolderRelPath).toBe(
-          "copilot/skills"
+          "vault-agent/skills"
         );
         expect(mockedDiscoverManagedSkills.mock.calls[1][0].skillsFolderRelPath).toBe(
           "team/skills"
@@ -153,8 +153,8 @@ describe("SkillManager", () => {
         const { result: loadErrorCount } = renderHook(() => useSkillLoadErrorCount());
         const rejected: RejectedSkill = {
           name: "broken-skill",
-          filePath: "/vault/copilot/skills/broken-skill/SKILL.md",
-          dirPath: "/vault/copilot/skills/broken-skill",
+          filePath: "/vault/vault-agent/skills/broken-skill/SKILL.md",
+          dirPath: "/vault/vault-agent/skills/broken-skill",
           reason: "The description must be quoted.",
         };
         mockedDiscoverManagedSkills.mockResolvedValueOnce(discoveryResult([], [rejected]));
@@ -249,7 +249,7 @@ describe("SkillManager", () => {
         const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 0,
           reconcileErrorCount: 0,
         };
@@ -257,7 +257,7 @@ describe("SkillManager", () => {
         const renameHandler = app.vault.on.mock.calls.find(([event]) => event === "rename")?.[1];
 
         expect(renameHandler).toBeDefined();
-        renameHandler?.({ path: "elsewhere/foo/SKILL.md" }, "copilot/skills/foo/SKILL.md");
+        renameHandler?.({ path: "elsewhere/foo/SKILL.md" }, "vault-agent/skills/foo/SKILL.md");
         jest.advanceTimersByTime(250);
 
         expect(refreshSpy).toHaveBeenCalledTimes(1);
@@ -271,7 +271,7 @@ describe("SkillManager", () => {
         mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 0,
           reconcileErrorCount: 0,
         };
@@ -300,13 +300,13 @@ describe("SkillManager", () => {
 
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 1,
           reconcileErrorCount: 0,
         };
         const refreshSpy = jest.spyOn(manager, "refresh").mockResolvedValue(refreshResult);
 
-        fireVaultEvent(app, "create", { path: "copilot/skills/unrelated/SKILL.md" });
+        fireVaultEvent(app, "create", { path: "vault-agent/skills/unrelated/SKILL.md" });
         jest.advanceTimersByTime(250);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       });
@@ -323,7 +323,7 @@ describe("SkillManager", () => {
 
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 1,
           reconcileErrorCount: 0,
         };
@@ -344,7 +344,7 @@ describe("SkillManager", () => {
 
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 1,
           reconcileErrorCount: 0,
         };
@@ -354,7 +354,7 @@ describe("SkillManager", () => {
           app,
           "rename",
           { path: "elsewhere/foo/SKILL.md" },
-          "copilot/skills/foo/SKILL.md"
+          "vault-agent/skills/foo/SKILL.md"
         );
 
         mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
@@ -394,7 +394,7 @@ describe("SkillManager", () => {
         const app = makeApp();
         const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
         const skill = makeSkill();
-        const other = makeSkill({ name: "bar", dirPath: "/vault/copilot/skills/bar" });
+        const other = makeSkill({ name: "bar", dirPath: "/vault/vault-agent/skills/bar" });
         await seedSkills(manager, [skill, other]);
         mockedRunDeleteSkill.mockResolvedValueOnce({ ok: true });
         mockedDiscoverManagedSkills.mockClear();
@@ -426,8 +426,8 @@ describe("SkillManager", () => {
         listener.mockClear();
         mockedRunRenameSkill.mockResolvedValueOnce({
           ok: true,
-          newDirPath: "/vault/copilot/skills/bar",
-          newFilePath: "/vault/copilot/skills/bar/SKILL.md",
+          newDirPath: "/vault/vault-agent/skills/bar",
+          newFilePath: "/vault/vault-agent/skills/bar/SKILL.md",
         });
         mockedRunUpdateProperties.mockResolvedValueOnce({ ok: true });
 
@@ -470,8 +470,8 @@ describe("SkillManager", () => {
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({
           ok: true,
-          newDirPath: "/vault/copilot/skills/bar",
-          newFilePath: "/vault/copilot/skills/bar/SKILL.md",
+          newDirPath: "/vault/vault-agent/skills/bar",
+          newFilePath: "/vault/vault-agent/skills/bar/SKILL.md",
         });
         mockedRunUpdateProperties.mockResolvedValueOnce({ ok: true });
 
@@ -519,7 +519,7 @@ describe("SkillManager", () => {
         });
         const refreshResult: RefreshResult = {
           ok: true,
-          folder: "copilot/skills",
+          folder: "vault-agent/skills",
           skillCount: 0,
           reconcileErrorCount: 0,
         };
@@ -566,8 +566,8 @@ describe("SkillManager", () => {
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({
           ok: true,
-          newDirPath: "/vault/copilot/skills/bar",
-          newFilePath: "/vault/copilot/skills/bar/SKILL.md",
+          newDirPath: "/vault/vault-agent/skills/bar",
+          newFilePath: "/vault/vault-agent/skills/bar/SKILL.md",
         });
         mockedRunUpdateProperties.mockResolvedValueOnce({ ok: false, reason: "write failed" });
 
@@ -604,8 +604,8 @@ describe("SkillManager", () => {
             [
               {
                 name: "broken-skill",
-                filePath: "/vault/copilot/skills/broken-skill/SKILL.md",
-                dirPath: "/vault/copilot/skills/broken-skill",
+                filePath: "/vault/vault-agent/skills/broken-skill/SKILL.md",
+                dirPath: "/vault/vault-agent/skills/broken-skill",
                 reason: "The description must be quoted.",
               },
             ]
@@ -762,7 +762,7 @@ async function flushMicrotasks(): Promise<void> {
 
 function makeSkill(overrides: Partial<Skill> = {}): Skill {
   const name = overrides.name ?? "foo";
-  const dirPath = overrides.dirPath ?? `/vault/copilot/skills/${name}`;
+  const dirPath = overrides.dirPath ?? `/vault/vault-agent/skills/${name}`;
   return {
     name: "foo",
     description: "A skill.",

@@ -4,10 +4,10 @@ import * as path from "path";
 import * as vm from "vm";
 import { logWarn } from "@/logger";
 import {
-  installOpencodeCopilotPlugin,
-  OPENCODE_COPILOT_PLUGIN_SOURCE,
-  opencodeCopilotPluginDir,
-} from "./opencodeCopilotPlugin";
+  installOpencodeVaultAgentPlugin,
+  OPENCODE_VAULT_AGENT_PLUGIN_SOURCE,
+  opencodeVaultAgentPluginDir,
+} from "./opencodeVaultAgentPlugin";
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -68,14 +68,14 @@ async function setUpPlugin(plugin: LoadedPlugin, directory = "/vault") {
   return { hooks, toolHooks, skills };
 }
 
-describe("opencodeCopilotPlugin", () => {
-  describe("OPENCODE_COPILOT_PLUGIN_SOURCE", () => {
+describe("opencodeVaultAgentPlugin", () => {
+  describe("OPENCODE_VAULT_AGENT_PLUGIN_SOURCE", () => {
     let pluginRoot: string;
     let plugin: LoadedPlugin;
 
     beforeAll(async () => {
       pluginRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "opencode-copilot-load-"));
-      await installOpencodeCopilotPlugin(pluginRoot);
+      await installOpencodeVaultAgentPlugin(pluginRoot);
       const source = await fs.promises.readFile(path.join(pluginRoot, "index.js"), "utf8");
       const module = { exports: {} as LoadedPlugin };
       vm.runInThisContext(`(function (module, require) {${source}\n})`)(module, require);
@@ -94,14 +94,14 @@ describe("opencodeCopilotPlugin", () => {
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/665 trims every request kind and removes only the built-in report skill", async () => {
       const { hooks, skills } = await setUpPlugin(plugin);
 
-      expect(plugin.id).toBe("copilot");
+      expect(plugin.id).toBe("vault-agent");
       expect([...hooks.keys()]).toEqual(["context", "compaction", "generate"]);
       expect(new Set(hooks.values()).size).toBe(1);
       expect([...skills.keys()]).toEqual(["opencode"]);
     });
 
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/665 removes the temp-folder line and the worktree hint while leaving every other system part as it was", async () => {
-      const copilotPrompt = { type: "text", text: "You are Obsidian Copilot.\n" };
+      const copilotPrompt = { type: "text", text: "You are Vault Agent.\n" };
       const identity = { type: "text", text: "# Your Model\n- Name: Flash" };
       const event = {
         system: [
@@ -286,7 +286,7 @@ describe("opencodeCopilotPlugin", () => {
 
       it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 stamps the calling session on a send_feedback call, replacing any value the model wrote", async () => {
         const input = await runBefore({
-          tool: "obsidian-copilot_send_feedback",
+          tool: "vault-agent_send_feedback",
           sessionID: "ses_caller",
           id: "call-1",
           input: { title: "t", caller_session_id: "ses_guessed" },
@@ -310,15 +310,15 @@ describe("opencodeCopilotPlugin", () => {
     });
   });
 
-  describe("opencodeCopilotPluginDir()", () => {
+  describe("opencodeVaultAgentPluginDir()", () => {
     it("places the plugin in Copilot's managed OpenCode folder outside the vault", () => {
-      expect(opencodeCopilotPluginDir()).toBe(
-        path.join(os.homedir(), ".obsidian-copilot", "opencode", "plugins", "copilot")
+      expect(opencodeVaultAgentPluginDir()).toBe(
+        path.join(os.homedir(), ".vault-agent", "opencode", "plugins", "vault-agent")
       );
     });
   });
 
-  describe("installOpencodeCopilotPlugin()", () => {
+  describe("installOpencodeVaultAgentPlugin()", () => {
     let root: string;
 
     beforeEach(async () => {
@@ -331,23 +331,23 @@ describe("opencodeCopilotPlugin", () => {
     });
 
     it("writes the plugin as a folder whose index.js holds the plugin source", async () => {
-      const dir = path.join(root, "plugins", "copilot");
+      const dir = path.join(root, "plugins", "vault-agent");
 
-      await expect(installOpencodeCopilotPlugin(dir)).resolves.toBe(dir);
+      await expect(installOpencodeVaultAgentPlugin(dir)).resolves.toBe(dir);
 
       expect(await fs.promises.readdir(dir)).toEqual(["index.js"]);
       expect(await fs.promises.readFile(path.join(dir, "index.js"), "utf8")).toBe(
-        OPENCODE_COPILOT_PLUGIN_SOURCE
+        OPENCODE_VAULT_AGENT_PLUGIN_SOURCE
       );
     });
 
     it("leaves a current plugin file untouched so running OpenCode sessions do not reload it", async () => {
       const entry = path.join(root, "index.js");
-      await fs.promises.writeFile(entry, OPENCODE_COPILOT_PLUGIN_SOURCE);
+      await fs.promises.writeFile(entry, OPENCODE_VAULT_AGENT_PLUGIN_SOURCE);
       const past = new Date("2026-01-01T00:00:00Z");
       await fs.promises.utimes(entry, past, past);
 
-      await expect(installOpencodeCopilotPlugin(root)).resolves.toBe(root);
+      await expect(installOpencodeVaultAgentPlugin(root)).resolves.toBe(root);
 
       expect((await fs.promises.stat(entry)).mtime).toEqual(past);
     });
@@ -355,10 +355,10 @@ describe("opencodeCopilotPlugin", () => {
     it("replaces a plugin file left by another Copilot version", async () => {
       await fs.promises.writeFile(path.join(root, "index.js"), "module.exports = {};");
 
-      await installOpencodeCopilotPlugin(root);
+      await installOpencodeVaultAgentPlugin(root);
 
       expect(await fs.promises.readFile(path.join(root, "index.js"), "utf8")).toBe(
-        OPENCODE_COPILOT_PLUGIN_SOURCE
+        OPENCODE_VAULT_AGENT_PLUGIN_SOURCE
       );
     });
 
@@ -366,9 +366,9 @@ describe("opencodeCopilotPlugin", () => {
       const blocker = path.join(root, "blocker");
       await fs.promises.writeFile(blocker, "");
 
-      await expect(installOpencodeCopilotPlugin(path.join(blocker, "copilot"))).resolves.toBe(
-        undefined
-      );
+      await expect(
+        installOpencodeVaultAgentPlugin(path.join(blocker, "vault-agent"))
+      ).resolves.toBe(undefined);
 
       expect(logWarn).toHaveBeenCalledWith(
         expect.stringContaining("could not write Copilot's OpenCode plugin"),

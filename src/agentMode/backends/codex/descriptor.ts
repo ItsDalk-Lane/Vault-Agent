@@ -2,14 +2,14 @@ import { prefetchConfigEfforts } from "@/agentMode/backends/shared/prefetchConfi
 import { Notice } from "obsidian";
 import { resolveEffort } from "@/lib/model-effort";
 import { codexAuth } from "./codexAuth";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { detectBinary } from "@/utils/detectBinary";
 import {
   subscribeToSettingsChange,
   updateAgentModeBackendFields,
   type CodexBackendSettings,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 import { CodexBackend } from "./CodexBackend";
 import { CodexInstallModal } from "./CodexInstallModal";
@@ -92,7 +92,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
   displayName: "Codex",
   Icon: CodexLogo,
   selfHostable: false,
-  routesCopilotModels: false,
+  routesVaultAgentModels: false,
   setupDescription:
     "OpenAI models, billed to your ChatGPT subscription. Runs the codex-acp adapter on your machine.",
   skillsProjectDir: ".agents/skills",
@@ -107,7 +107,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
   wire: codexWire,
   showModelDescriptions: true,
 
-  getEnabledModelEntries(settings: CopilotSettings): EnabledModelEntry[] {
+  getEnabledModelEntries(settings: VaultAgentSettings): EnabledModelEntry[] {
     return [
       ...agentOriginEnabledModelEntries(settings, "codex", (wireId) => codexWire.decode(wireId)),
     ];
@@ -117,7 +117,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
     return name.replace(/^gpt/i, "GPT");
   },
 
-  dataDestination(settings: CopilotSettings): Destination {
+  dataDestination(settings: VaultAgentSettings): Destination {
     const overrides = settings.agentMode?.backends?.codex?.envOverrides;
     const baseUrl = overrides?.OPENAI_BASE_URL || process.env.OPENAI_BASE_URL;
     if (baseUrl) return urlDestination(baseUrl, "The server set in OPENAI_BASE_URL");
@@ -147,7 +147,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
     };
   },
 
-  getInstallState(settings: CopilotSettings): InstallState {
+  getInstallState(settings: VaultAgentSettings): InstallState {
     const configured = settings.agentMode?.backends?.codex;
     if (!configured?.binaryPath) return { kind: "absent" };
     try {
@@ -172,11 +172,11 @@ export const CodexBackendDescriptor: BackendDescriptor = {
     }
   },
 
-  getResolvedBinaryPath(settings: CopilotSettings): string | null {
+  getResolvedBinaryPath(settings: VaultAgentSettings): string | null {
     return settings.agentMode?.backends?.codex?.binaryPath ?? null;
   },
 
-  subscribeInstallState(_plugin: CopilotPlugin, cb: () => void): () => void {
+  subscribeInstallState(_plugin: VaultAgentPlugin, cb: () => void): () => void {
     return subscribeToSettingsChange((prev, next) => {
       if (
         prev.agentMode?.backends?.codex?.binaryPath !==
@@ -191,7 +191,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
     });
   },
 
-  openInstallUI(plugin: CopilotPlugin): void {
+  openInstallUI(plugin: VaultAgentPlugin): void {
     new CodexInstallModal(plugin.app).open();
   },
 

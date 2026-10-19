@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { validate as validateUuid, version as uuidVersion } from "uuid";
 
-const STORAGE_KEY = "obsidian-copilot:device-id:v1";
+const STORAGE_KEY = "vault-agent:device-id:v1";
 
 async function loadFreshGetDeviceId(): Promise<(app: App) => string> {
   jest.resetModules();

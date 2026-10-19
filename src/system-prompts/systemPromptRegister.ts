@@ -17,7 +17,7 @@ import {
   setSelectedPromptTitle,
 } from "@/system-prompts/state";
 import { getSettings, subscribeToSettingsChange, updateSetting } from "@/settings/model";
-import { deriveSystemPromptsFolder } from "@/settings/copilotFolder";
+import { deriveSystemPromptsFolder } from "@/settings/vaultAgentFolder";
 import { debounce } from "@/utils/debounce";
 import { logError, logInfo } from "@/logger";
 

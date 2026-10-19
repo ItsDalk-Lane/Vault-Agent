@@ -18,7 +18,7 @@ import {
 } from "@/agentMode/ui/useBackendDescriptor";
 import { logError } from "@/logger";
 import React from "react";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 
 export interface AgentSelectState {
   rows: readonly AgentSelectRow[];
@@ -29,7 +29,7 @@ export interface AgentSelectState {
 }
 
 export function useAgentSelect(
-  plugin: CopilotPlugin,
+  plugin: VaultAgentPlugin,
   manager: AgentSessionManager | null | undefined
 ): AgentSelectState {
   const subscribe = React.useCallback(

@@ -6,14 +6,14 @@ import type {
 } from "@/agentMode/session/feedback/feedbackMcpServer";
 import { resolveEffort } from "@/lib/model-effort";
 import { logError, logInfo, logWarn } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
 import { AgentInputDraftStore } from "@/agentMode/session/AgentInputDraftStore";
 import {
   getSettings,
   setSettings,
   subscribeToSettingsChange,
-  type CopilotSettings,
+  type VaultAgentSettings,
 } from "@/settings/model";
 import { buildProjectContext } from "@/context/manifestBuilder";
 import { err2String } from "@/utils";
@@ -78,7 +78,7 @@ import type {
   BackendId,
   BackendModelCatalog,
   BackendProcess,
-  CopilotMode,
+  VaultAgentMode,
   EffortOption,
   LoadSessionOutput,
   ModeApplySpec,
@@ -236,7 +236,7 @@ export class AgentSessionManager {
 
   constructor(
     private readonly app: App,
-    private readonly plugin: CopilotPlugin,
+    private readonly plugin: VaultAgentPlugin,
     private readonly opts: AgentSessionManagerOptions
   ) {
     if (Platform.isMobile) {
@@ -254,7 +254,7 @@ export class AgentSessionManager {
     this.setupProjectRecordChangeMonitor();
   }
 
-  private onDefaultSelectionsChanged(prev: CopilotSettings, next: CopilotSettings): void {
+  private onDefaultSelectionsChanged(prev: VaultAgentSettings, next: VaultAgentSettings): void {
     const prevBackends = prev.agentMode?.backends as
       | Record<string, { defaultModel?: ModelSelection | null } | undefined>
       | undefined;
@@ -786,7 +786,7 @@ export class AgentSessionManager {
     const errorSeqAtStart = this.lastErrorSeq;
     const descriptor = this.resolveDescriptor(resolvedId);
     const resolvedSeed = seedSelection ?? this.getSeedSelection(resolvedId) ?? undefined;
-    if (!resolvedSeed && descriptor.routesCopilotModels) {
+    if (!resolvedSeed && descriptor.routesVaultAgentModels) {
       const message = `Enable a model for ${descriptor.displayName} in Copilot's model settings to start a chat.`;
       this.setLastError(message);
       this.notify();
@@ -1182,7 +1182,7 @@ export class AgentSessionManager {
     const runnable = offered.filter((entry) => entry.credentialState === "ok");
     // A backend that may only run enabled models has no agent default to fall back to.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
-    if (!requested && descriptor?.routesCopilotModels !== true) return null;
+    if (!requested && descriptor?.routesVaultAgentModels !== true) return null;
 
     const resolved =
       [preferred, saved].find(
@@ -1273,7 +1273,7 @@ export class AgentSessionManager {
     this.repairDefaultEffort(session.backendId, session.getState());
   }
 
-  async applyMode(backendId: BackendId, mode: CopilotMode, spec: ModeApplySpec): Promise<void> {
+  async applyMode(backendId: BackendId, mode: VaultAgentMode, spec: ModeApplySpec): Promise<void> {
     const session = this.getActiveSession();
     if (!session || session.backendId !== backendId) return;
     const latestMapping = this.resolveDescriptor(backendId).getModeMapping?.(null, null);
@@ -1286,14 +1286,14 @@ export class AgentSessionManager {
     await this.persistDefaultMode(backendId, mode);
   }
 
-  getDefaultMode(backendId: BackendId): CopilotMode | null {
+  getDefaultMode(backendId: BackendId): VaultAgentMode | null {
     const backends = getSettings().agentMode?.backends as
-      | Record<string, { defaultMode?: CopilotMode | null } | undefined>
+      | Record<string, { defaultMode?: VaultAgentMode | null } | undefined>
       | undefined;
     return backends?.[backendId]?.defaultMode ?? null;
   }
 
-  async persistDefaultMode(backendId: BackendId, mode: CopilotMode | null): Promise<void> {
+  async persistDefaultMode(backendId: BackendId, mode: VaultAgentMode | null): Promise<void> {
     setSettings((cur) => {
       const existing = (cur.agentMode.backends as Record<string, unknown> | undefined)?.[
         backendId

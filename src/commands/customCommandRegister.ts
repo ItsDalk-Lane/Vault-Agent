@@ -19,9 +19,9 @@ import {
   updateCachedCommands,
 } from "@/commands/state";
 import { CustomCommandManager } from "@/commands/customCommandManager";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { getSettings, subscribeToSettingsChange } from "@/settings/model";
-import { deriveCustomPromptsFolder } from "@/settings/copilotFolder";
+import { deriveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
 import { logError } from "@/logger";
 
 export class CustomCommandRegister {
@@ -176,7 +176,7 @@ export class CustomCommandRegister {
   private registerCommand(customCommand: CustomCommand) {
     const commandId = getCommandId(customCommand.title);
     (this.plugin as unknown as { removeCommand: (id: string) => void }).removeCommand(commandId);
-    const agentPlugin = this.plugin as CopilotPlugin;
+    const agentPlugin = this.plugin as VaultAgentPlugin;
     this.plugin.addCommand({
       id: commandId,
       name: customCommand.title,

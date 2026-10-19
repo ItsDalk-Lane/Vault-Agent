@@ -7,13 +7,13 @@ import {
 } from "@/agentMode/ui/useBackendDescriptor";
 import { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { logError } from "@/logger";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { Notice } from "obsidian";
 import React from "react";
 
 interface Props {
   manager?: AgentSessionManager;
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   onInstallClick: () => void;
 }
 

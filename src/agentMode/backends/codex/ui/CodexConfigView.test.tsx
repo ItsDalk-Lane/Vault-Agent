@@ -12,7 +12,7 @@ const ISSUE = "https://github.com/Brevilabs/obsidian-copilot-private/issues/368"
 const MANAGED: CodexManagedInfo = {
   platform: "darwin-arm64",
   version: CODEX_PINNED_VERSION,
-  destination: "~/.obsidian-copilot/codex",
+  destination: "~/.vault-agent/codex",
   run: { kind: "idle" },
 };
 const makeActions = (): jest.Mocked<CodexConfigActions> => ({
@@ -59,7 +59,7 @@ describe("CodexConfigView", () => {
       expect(screen.queryByRole("textbox")).toBeNull();
       expect(screen.getByText("darwin-arm64")).toBeTruthy();
       expect(screen.getByText(`v${CODEX_PINNED_VERSION} (pinned)`)).toBeTruthy();
-      expect(screen.getByText("~/.obsidian-copilot/codex")).toBeTruthy();
+      expect(screen.getByText("~/.vault-agent/codex")).toBeTruthy();
       fireEvent.click(screen.getByRole("radio", { name: "My own binary" }));
       expect(onSourceChange).toHaveBeenCalledWith("custom");
       expect(actions.install).not.toHaveBeenCalled();

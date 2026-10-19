@@ -7,11 +7,11 @@ import {
 import { CustomCommand } from "@/commands/type";
 import { CustomError } from "@/error";
 import {
-  COPILOT_COMMAND_CONTEXT_MENU_ENABLED,
-  COPILOT_COMMAND_CONTEXT_MENU_ORDER,
-  COPILOT_COMMAND_LAST_USED,
-  COPILOT_COMMAND_MODEL_KEY,
-  COPILOT_COMMAND_SLASH_ENABLED,
+  VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED,
+  VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER,
+  VAULT_AGENT_COMMAND_LAST_USED,
+  VAULT_AGENT_COMMAND_MODEL_KEY,
+  VAULT_AGENT_COMMAND_SLASH_ENABLED,
 } from "@/commands/constants";
 import {
   addPendingFileWrite,
@@ -72,11 +72,11 @@ export class CustomCommandManager {
       await this.app.fileManager.processFrontMatter(
         commandFile,
         (frontmatter: Record<string, unknown>) => {
-          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
-          frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
-          frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
-          frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
-          frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+          frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
+          frontmatter[VAULT_AGENT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
+          frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
+          frontmatter[VAULT_AGENT_COMMAND_MODEL_KEY] = command.modelKey;
+          frontmatter[VAULT_AGENT_COMMAND_LAST_USED] = command.lastUsedMs;
         }
       );
 
@@ -129,11 +129,11 @@ export class CustomCommandManager {
         await this.app.fileManager.processFrontMatter(
           commandFile,
           (frontmatter: Record<string, unknown>) => {
-            frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
-            frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
-            frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
-            frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
-            frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+            frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
+            frontmatter[VAULT_AGENT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
+            frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
+            frontmatter[VAULT_AGENT_COMMAND_MODEL_KEY] = command.modelKey;
+            frontmatter[VAULT_AGENT_COMMAND_LAST_USED] = command.lastUsedMs;
           }
         );
       }

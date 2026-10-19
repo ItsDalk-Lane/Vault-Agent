@@ -187,7 +187,7 @@ describe("main", () => {
     } as unknown as App;
     leaf = { app, setViewState } as unknown as WorkspaceLeaf;
     getLeaf.mockReturnValue(leaf);
-    plugin = new GalleryPlugin(app, { id: "copilot-component-gallery" } as PluginManifest);
+    plugin = new GalleryPlugin(app, { id: "vault-agent-gallery" } as PluginManifest);
     const addCommand = jest.mocked(plugin.addCommand);
     registerView = jest.mocked(plugin.registerView);
     addCommand.mockImplementation((registeredCommand) => {
@@ -489,7 +489,7 @@ describe("main", () => {
       it("registers nothing when Obsidian unloads it while stories load https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
         const firstHandle = window.__gallery;
         const unloaded = new GalleryPlugin(app, {
-          id: "copilot-component-gallery",
+          id: "vault-agent-gallery",
         } as PluginManifest);
 
         unloaded.onload();
@@ -716,7 +716,7 @@ describe("main", () => {
       it("removes only the handle still owned by the unloading plugin instance", async () => {
         const firstHandle = window.__gallery;
         const replacement = new GalleryPlugin(app, {
-          id: "copilot-component-gallery",
+          id: "vault-agent-gallery",
         } as PluginManifest);
         replacement.onload();
         await finishLoading(replacement);

@@ -784,7 +784,7 @@ describe("Gallery", () => {
 
     it("applies a preset width to the canvas and the rendered story", () => {
       const gallery = render(<GalleryHarness catalog={makeCatalog()} />);
-      const canvas = gallery.container.querySelector<HTMLElement>(".copilot-gallery-canvas");
+      const canvas = gallery.container.querySelector<HTMLElement>(".vault-agent-gallery-canvas");
 
       expect(canvas?.dataset.galleryWidth).toBe("400");
 
@@ -801,7 +801,7 @@ describe("Gallery", () => {
 
     it("applies a valid custom width across stories and rejects invalid drafts", () => {
       const gallery = render(<GalleryHarness catalog={makeCatalog()} />);
-      const canvas = gallery.container.querySelector<HTMLElement>(".copilot-gallery-canvas");
+      const canvas = gallery.container.querySelector<HTMLElement>(".vault-agent-gallery-canvas");
       const customWidth = gallery.getByRole("spinbutton", {
         name: "Custom story width in pixels",
       }) as HTMLInputElement;
@@ -847,7 +847,7 @@ describe("Gallery", () => {
       const gallery = render(
         <GalleryHarness catalog={makeCatalog()} initialState={{ width: 512 }} />
       );
-      const canvas = gallery.container.querySelector<HTMLElement>(".copilot-gallery-canvas");
+      const canvas = gallery.container.querySelector<HTMLElement>(".vault-agent-gallery-canvas");
       const customWidth = gallery.getByRole("spinbutton", {
         name: "Custom story width in pixels",
       }) as HTMLInputElement;

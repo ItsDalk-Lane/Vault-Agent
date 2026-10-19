@@ -1,6 +1,6 @@
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
-export const COPILOT_OBSIDIAN_CLI_ENV = "COPILOT_OBSIDIAN_CLI";
+export const VAULT_AGENT_OBSIDIAN_CLI_ENV = "VAULT_AGENT_OBSIDIAN_CLI";
 
 interface ObsidianCliPathInput {
   platform: NodeJS.Platform;

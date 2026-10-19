@@ -62,7 +62,7 @@ describe("feedbackMcpServer", () => {
 
     afterEach(() => server.dispose());
 
-    it("hands each session a loopback MCP server named obsidian-copilot with its own bearer token", async () => {
+    it("hands each session a loopback MCP server named vault-agent with its own bearer token", async () => {
       const first = await server.connect("session-a", jest.fn());
       const second = await server.connect("session-b", jest.fn());
 

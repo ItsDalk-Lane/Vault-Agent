@@ -2,7 +2,7 @@ import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
 import { ALL_MANAGED_SKILLS, isBuiltinSkillEnabledFor } from "@/builtinSkills/builtinSkills";
 import { logError, logInfo, logWarn } from "@/logger";
 import { getSettings, updateSetting } from "@/settings/model";
-import { getEffectiveSkillsFolder } from "@/settings/copilotFolder";
+import { getEffectiveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { publishSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { atom, createStore, useAtomValue } from "jotai";
 import { FileSystemAdapter, type App, type EventRef, type TAbstractFile } from "obsidian";

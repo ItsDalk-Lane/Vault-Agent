@@ -59,7 +59,7 @@ function makeManager() {
   const runtimeRunning = { kind: "installing", progress: null };
   const listeners = new Set<() => void>();
   const manager = {
-    getDataDir: jest.fn(() => "/home/user/.obsidian-copilot/codex"),
+    getDataDir: jest.fn(() => "/home/user/.vault-agent/codex"),
     getRuntimeState: () => (state.kind === "running" ? runtimeRunning : state),
     getActionState: () => state,
     subscribeRuntimeState: (listener: () => void) => {

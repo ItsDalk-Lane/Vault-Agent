@@ -1,9 +1,9 @@
 import {
-  COPILOT_COMMAND_CONTEXT_MENU_ENABLED,
-  COPILOT_COMMAND_CONTEXT_MENU_ORDER,
-  COPILOT_COMMAND_LAST_USED,
-  COPILOT_COMMAND_MODEL_KEY,
-  COPILOT_COMMAND_SLASH_ENABLED,
+  VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED,
+  VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER,
+  VAULT_AGENT_COMMAND_LAST_USED,
+  VAULT_AGENT_COMMAND_MODEL_KEY,
+  VAULT_AGENT_COMMAND_SLASH_ENABLED,
   EMPTY_COMMAND,
   LEGACY_SELECTED_TEXT_PLACEHOLDER,
 } from "@/commands/constants";
@@ -11,7 +11,7 @@ import { CustomCommand } from "@/commands/type";
 import { logWarn } from "@/logger";
 import { App, Notice, TAbstractFile, TFile, Vault } from "obsidian";
 import { getSettings } from "@/settings/model";
-import { getEffectiveCustomPromptsFolder } from "@/settings/copilotFolder";
+import { getEffectiveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
 import {
   updateCachedCommands,
   getCachedCustomCommands,
@@ -92,7 +92,7 @@ export function isCustomCommandFile(file: TAbstractFile): boolean {
 
 export function hasOrderFrontmatter(app: App, file: TFile): boolean {
   const metadata = app.metadataCache.getFileCache(file);
-  return metadata?.frontmatter?.[COPILOT_COMMAND_CONTEXT_MENU_ORDER] != null;
+  return metadata?.frontmatter?.[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] != null;
 }
 
 export async function parseCustomCommandFile(app: App, file: TFile): Promise<CustomCommand> {
@@ -100,13 +100,15 @@ export async function parseCustomCommandFile(app: App, file: TFile): Promise<Cus
   const content = stripFrontmatter(rawContent);
   const metadata = app.metadataCache.getFileCache(file);
   const showInContextMenu =
-    metadata?.frontmatter?.[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] ??
+    metadata?.frontmatter?.[VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED] ??
     EMPTY_COMMAND.showInContextMenu;
   const showInSlashMenu =
-    metadata?.frontmatter?.[COPILOT_COMMAND_SLASH_ENABLED] ?? EMPTY_COMMAND.showInSlashMenu;
-  const lastUsedMs = metadata?.frontmatter?.[COPILOT_COMMAND_LAST_USED] ?? EMPTY_COMMAND.lastUsedMs;
-  const order = metadata?.frontmatter?.[COPILOT_COMMAND_CONTEXT_MENU_ORDER] ?? EMPTY_COMMAND.order;
-  const modelKey = metadata?.frontmatter?.[COPILOT_COMMAND_MODEL_KEY] ?? EMPTY_COMMAND.modelKey;
+    metadata?.frontmatter?.[VAULT_AGENT_COMMAND_SLASH_ENABLED] ?? EMPTY_COMMAND.showInSlashMenu;
+  const lastUsedMs =
+    metadata?.frontmatter?.[VAULT_AGENT_COMMAND_LAST_USED] ?? EMPTY_COMMAND.lastUsedMs;
+  const order =
+    metadata?.frontmatter?.[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] ?? EMPTY_COMMAND.order;
+  const modelKey = metadata?.frontmatter?.[VAULT_AGENT_COMMAND_MODEL_KEY] ?? EMPTY_COMMAND.modelKey;
 
   return {
     title: file.basename,
@@ -419,20 +421,20 @@ export async function ensureCommandFrontmatter(app: App, file: TFile, command: C
   try {
     addPendingFileWrite(file.path);
     await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
-      if (frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] == null) {
-        frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
+      if (frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED] == null) {
+        frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ENABLED] = command.showInContextMenu;
       }
-      if (frontmatter[COPILOT_COMMAND_SLASH_ENABLED] == null) {
-        frontmatter[COPILOT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
+      if (frontmatter[VAULT_AGENT_COMMAND_SLASH_ENABLED] == null) {
+        frontmatter[VAULT_AGENT_COMMAND_SLASH_ENABLED] = command.showInSlashMenu;
       }
-      if (frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] == null) {
-        frontmatter[COPILOT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
+      if (frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] == null) {
+        frontmatter[VAULT_AGENT_COMMAND_CONTEXT_MENU_ORDER] = command.order;
       }
-      if (frontmatter[COPILOT_COMMAND_MODEL_KEY] == null) {
-        frontmatter[COPILOT_COMMAND_MODEL_KEY] = command.modelKey;
+      if (frontmatter[VAULT_AGENT_COMMAND_MODEL_KEY] == null) {
+        frontmatter[VAULT_AGENT_COMMAND_MODEL_KEY] = command.modelKey;
       }
-      if (frontmatter[COPILOT_COMMAND_LAST_USED] == null) {
-        frontmatter[COPILOT_COMMAND_LAST_USED] = command.lastUsedMs;
+      if (frontmatter[VAULT_AGENT_COMMAND_LAST_USED] == null) {
+        frontmatter[VAULT_AGENT_COMMAND_LAST_USED] = command.lastUsedMs;
       }
     });
   } finally {

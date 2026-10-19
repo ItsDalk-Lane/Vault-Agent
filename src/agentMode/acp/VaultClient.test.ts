@@ -108,7 +108,7 @@ describe("VaultClient", () => {
           buildClient(app).readTextFile({
             sessionId: "s1",
             // eslint-disable-next-line obsidianmd/hardcoded-config-path -- test fixture for hidden-dir guard
-            path: ".obsidian/plugins/copilot/data.json",
+            path: ".obsidian/plugins/vault-agent/data.json",
           })
         ).rejects.toThrow(/hidden directory/);
       });

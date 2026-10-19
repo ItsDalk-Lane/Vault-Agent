@@ -1,16 +1,16 @@
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import React, { createContext, useContext } from "react";
 
-const PluginContext = createContext<CopilotPlugin | undefined>(undefined);
+const PluginContext = createContext<VaultAgentPlugin | undefined>(undefined);
 
 export const PluginProvider: React.FC<{
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   children: React.ReactNode;
 }> = ({ plugin, children }) => (
   <PluginContext.Provider value={plugin}>{children}</PluginContext.Provider>
 );
 
-export const usePlugin = (): CopilotPlugin => {
+export const usePlugin = (): VaultAgentPlugin => {
   const plugin = useContext(PluginContext);
   if (!plugin) throw new Error("usePlugin must be used inside <PluginProvider>");
   return plugin;

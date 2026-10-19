@@ -1,15 +1,15 @@
 import { AgentModeChat } from "@/agentMode/ui/AgentModeChat";
 import { attachChatViewLayoutObservers } from "@/components/chat-components/attachChatViewLayoutObservers";
-import { CHAT_AGENT_VIEWTYPE, COPILOT_AGENT_ICON_ID } from "@/constants";
+import { CHAT_AGENT_VIEWTYPE, VAULT_AGENT_ICON_ID } from "@/constants";
 import { ChatViewEventTarget, EventTargetContext } from "@/context";
-import CopilotPlugin from "@/main";
+import VaultAgentPlugin from "@/main";
 import { registerActiveLeafChangeBridge } from "@/utils/registerActiveLeafChangeBridge";
 import { mountPluginViewRoot, type PluginViewRootHandle } from "@/utils/react/mountPluginViewRoot";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import * as React from "react";
 
-export default class CopilotAgentView extends ItemView {
+export default class VaultAgentView extends ItemView {
   private viewRoot: PluginViewRootHandle | null = null;
   private handleSaveAsNote: (() => Promise<void>) | null = null;
   private disposeLayoutObservers: (() => void) | null = null;
@@ -17,7 +17,7 @@ export default class CopilotAgentView extends ItemView {
 
   constructor(
     leaf: WorkspaceLeaf,
-    private plugin: CopilotPlugin
+    private plugin: VaultAgentPlugin
   ) {
     super(leaf);
     this.app = plugin.app;
@@ -30,7 +30,7 @@ export default class CopilotAgentView extends ItemView {
   }
 
   getIcon(): string {
-    return COPILOT_AGENT_ICON_ID;
+    return VAULT_AGENT_ICON_ID;
   }
 
   getTitle(): string {

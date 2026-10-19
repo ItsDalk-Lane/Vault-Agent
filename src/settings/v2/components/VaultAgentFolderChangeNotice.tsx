@@ -2,13 +2,13 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, FolderSync } from "lucide-react";
 import React from "react";
 
-export interface CopilotFolderChangeNoticeProps {
+export interface VaultAgentFolderChangeNoticeProps {
   oldRoot: string;
   newRoot: string;
   containsMarkdown: boolean;
 }
 
-export const CopilotFolderChangeNotice: React.FC<CopilotFolderChangeNoticeProps> = ({
+export const VaultAgentFolderChangeNotice: React.FC<VaultAgentFolderChangeNoticeProps> = ({
   oldRoot,
   newRoot,
   containsMarkdown,
@@ -17,13 +17,13 @@ export const CopilotFolderChangeNotice: React.FC<CopilotFolderChangeNoticeProps>
     <div className={cn("tw-flex tw-flex-col tw-gap-4")}>
       <div className={cn("tw-flex tw-items-center tw-gap-3 tw-text-normal")}>
         <FolderSync className={cn("tw-size-6 tw-shrink-0 tw-text-accent")} aria-hidden="true" />
-        <h2 className={cn("tw-m-0 tw-text-xl tw-font-bold")}>Change Copilot folder</h2>
+        <h2 className={cn("tw-m-0 tw-text-xl tw-font-bold")}>Change Vault Agent folder</h2>
       </div>
       <p className={cn("tw-m-0 tw-text-muted")}>
-        Copilot will keep new chats and data under <code>{newRoot}/</code>. Your files aren&apos;t
-        moved — your old data stays in <strong className={cn("tw-text-normal")}>{oldRoot}/</strong>,
-        which stays permanently excluded from Copilot search. Move it over if you want; Obsidian
-        updates the links.
+        Vault Agent will keep new chats and data under <code>{newRoot}/</code>. Your files
+        aren&apos;t moved — your old data stays in{" "}
+        <strong className={cn("tw-text-normal")}>{oldRoot}/</strong>, which stays permanently
+        excluded from vault search. Move it over if you want; Obsidian updates the links.
       </p>
       {containsMarkdown && (
         <div
@@ -40,7 +40,7 @@ export const CopilotFolderChangeNotice: React.FC<CopilotFolderChangeNoticeProps>
           <span>
             <strong>This folder already contains Markdown files.</strong> If you continue, every
             Markdown file under <code>{newRoot}/</code> — including regular notes — will be excluded
-            from Copilot search. The folder stays excluded even if you change the Copilot folder
+            from vault search. The folder stays excluded even if you change the Vault Agent folder
             later.
           </span>
         </div>

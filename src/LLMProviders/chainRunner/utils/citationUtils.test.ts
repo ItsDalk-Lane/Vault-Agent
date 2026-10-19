@@ -94,7 +94,7 @@ More content
       expect(hasExistingCitations(dashHeading)).toBe(true);
 
       const summary =
-        '<details><summary class="copilot-sources__summary">Sources</summary>List</details>';
+        '<details><summary class="vault-agent-sources__summary">Sources</summary>List</details>';
       expect(hasExistingCitations(summary)).toBe(true);
     });
 

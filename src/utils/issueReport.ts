@@ -16,7 +16,7 @@ import {
   withTruncationNote,
 } from "@/utils/logTail";
 
-const REPORT_REPO = "logancyang/obsidian-copilot";
+const REPORT_REPO_PLACEHOLDER = "OWNER/vault-agent";
 const SCREENSHOT_NAME = "screenshot.png";
 const REPORT_NOTE_NAME = "report.md";
 const SCREENSHOT_SOURCE_ID = "screenshot";
@@ -241,7 +241,7 @@ const BODY_TRUNCATION_NOTE =
   "\n\n_…report truncated. The full report is `report.md` inside the report zip._";
 
 function buildIssueUrl(title: string, prefix: string, body: string): string {
-  const base = `https://github.com/${REPORT_REPO}/issues/new?`;
+  const base = `https://github.com/${REPORT_REPO_PLACEHOLDER}/issues/new?`;
   const build = (b: string) =>
     base + new URLSearchParams({ title, body: prefix + b, labels: "bug" }).toString();
 

@@ -108,17 +108,19 @@ describe("agentsFile", () => {
     });
 
     it("initializes a missing project AGENTS file from the supplied compatibility body", async () => {
-      const { app, state } = makeApp({}, ["copilot/projects/Research"]);
+      const { app, state } = makeApp({}, ["vault-agent/projects/Research"]);
 
-      await ensureAgentsFile(app, "copilot/projects/Research", "Legacy project rules");
+      await ensureAgentsFile(app, "vault-agent/projects/Research", "Legacy project rules");
 
-      expect(state.files.get("copilot/projects/Research/AGENTS.md")).toBe("Legacy project rules");
-      expect(state.files.get("copilot/projects/Research/CLAUDE.md")).toBe("@AGENTS.md\n");
+      expect(state.files.get("vault-agent/projects/Research/AGENTS.md")).toBe(
+        "Legacy project rules"
+      );
+      expect(state.files.get("vault-agent/projects/Research/CLAUDE.md")).toBe("@AGENTS.md\n");
     });
 
     it("converts a generated mirror back to the current project.md instruction body", async () => {
       const marker =
-        "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nExisting instructions`,
       });
@@ -130,7 +132,7 @@ describe("agentsFile", () => {
 
     it("keeps a generated mirror's body when there is nothing to replace it with", async () => {
       const marker =
-        "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nExisting instructions`,
       });
@@ -149,7 +151,7 @@ describe("agentsFile", () => {
 
     it("is true for a generated mirror, which is Copilot's own output to replace", async () => {
       const marker =
-        "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nExisting instructions`,
       });
@@ -175,7 +177,7 @@ describe("agentsFile", () => {
 
     it("hides a legacy mirror's marker so an editor shows only the instructions", async () => {
       const marker =
-        "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nCite every source.`,
       });
@@ -220,7 +222,7 @@ describe("agentsFile", () => {
 
     it("takes over a legacy mirror, leaving no marker behind", async () => {
       const marker =
-        "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nOld rules`,
       });
@@ -278,7 +280,7 @@ describe("agentsFile", () => {
 
   describe("removeGeneratedInstructionFiles()", () => {
     const marker =
-      "<!-- copilot:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
+      "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
 
     it("removes a marker-owned mirror, so a recreated project starts clean", async () => {
       const { app, state } = makeApp({
@@ -330,9 +332,9 @@ describe("agentsFile", () => {
 
   describe("ensureAgentsFileForDiscovery()", () => {
     it("creates nothing for a scope with no AGENTS.md", async () => {
-      const { app, state } = makeApp({}, ["copilot/projects/Fresh"]);
+      const { app, state } = makeApp({}, ["vault-agent/projects/Fresh"]);
 
-      await ensureAgentsFileForDiscovery(app, "copilot/projects/Fresh");
+      await ensureAgentsFileForDiscovery(app, "vault-agent/projects/Fresh");
 
       expect(state.files.size).toBe(0);
     });
@@ -347,11 +349,11 @@ describe("agentsFile", () => {
     });
 
     it("never rejects when the vault write fails", async () => {
-      const { app } = makeApp({ "copilot/projects/Research/AGENTS.md": "rules" });
+      const { app } = makeApp({ "vault-agent/projects/Research/AGENTS.md": "rules" });
       (app.vault.create as jest.Mock).mockRejectedValue(new Error("disk full"));
 
       await expect(
-        ensureAgentsFileForDiscovery(app, "copilot/projects/Research")
+        ensureAgentsFileForDiscovery(app, "vault-agent/projects/Research")
       ).resolves.toBeUndefined();
     });
   });

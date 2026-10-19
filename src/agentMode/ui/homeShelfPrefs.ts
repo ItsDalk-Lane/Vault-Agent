@@ -1,7 +1,7 @@
 import { logWarn } from "@/logger";
 import type { App } from "obsidian";
 
-export const HOME_SHELF_TAB_STORAGE_KEY = "copilot:home-shelf-tab:v1";
+export const HOME_SHELF_TAB_STORAGE_KEY = "vault-agent:home-shelf-tab:v1";
 
 function loadPref(app: App, key: string): string | null {
   try {

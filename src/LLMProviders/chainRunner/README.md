@@ -1,6 +1,6 @@
 # Chain Runner Architecture & Tool Calling System
 
-This directory contains the refactored chain runner system for Obsidian Copilot, providing multiple chain execution strategies with different tool calling approaches.
+This directory contains the refactored chain runner system for Vault Agent, providing multiple chain execution strategies with different tool calling approaches.
 
 ## Overview
 

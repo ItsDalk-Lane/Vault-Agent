@@ -1,20 +1,20 @@
-import type { CopilotSettingsTabId } from "@/settings/settingsTabs";
+import type { VaultAgentSettingsTabId } from "@/settings/settingsTabs";
 import React, { createContext, useContext, useMemo, useState } from "react";
 
 interface TabContextType {
-  selectedTab: CopilotSettingsTabId;
-  setSelectedTab: (tab: CopilotSettingsTabId) => void;
+  selectedTab: VaultAgentSettingsTabId;
+  setSelectedTab: (tab: VaultAgentSettingsTabId) => void;
 }
 
 const TabContext = createContext<TabContextType | undefined>(undefined);
 
 interface TabProviderProps {
   children: React.ReactNode;
-  initialTab?: CopilotSettingsTabId;
+  initialTab?: VaultAgentSettingsTabId;
 }
 
 export const TabProvider: React.FC<TabProviderProps> = ({ children, initialTab = "basic" }) => {
-  const [selectedTab, setSelectedTab] = useState<CopilotSettingsTabId>(initialTab);
+  const [selectedTab, setSelectedTab] = useState<VaultAgentSettingsTabId>(initialTab);
 
   const value = useMemo(() => ({ selectedTab, setSelectedTab }), [selectedTab]);
 

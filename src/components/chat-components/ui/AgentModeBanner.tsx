@@ -1,4 +1,4 @@
-import { CopilotBrandIcon } from "@/components/ui/CopilotBrandIcon";
+import { VaultAgentBrandIcon } from "@/components/ui/VaultAgentBrandIcon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
@@ -29,7 +29,7 @@ export function AgentModeBanner({ onOpenAgent }: AgentModeBannerProps) {
     >
       <span className="tw-flex tw-w-full tw-flex-col tw-gap-2">
         <span className="tw-flex tw-items-center tw-gap-2">
-          <CopilotBrandIcon className="tw-size-6 tw-shrink-0 tw-text-accent" />
+          <VaultAgentBrandIcon className="tw-size-6 tw-shrink-0 tw-text-accent" />
           <span className="tw-text-ui-larger tw-font-semibold tw-leading-tight">
             Open Copilot Agent Chat
           </span>

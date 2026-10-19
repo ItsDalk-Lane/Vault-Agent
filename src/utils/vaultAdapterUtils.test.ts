@@ -16,8 +16,8 @@ function makeNoteApp(note: TFile, frontmatter: Record<string, unknown>) {
 describe("vaultAdapterUtils", () => {
   describe("listMarkdownFiles()", () => {
     it("lists the vault's markdown notes under an existing folder", () => {
-      const folder = mockTFolder({ path: "copilot/copilot-conversations" });
-      const chat = mockTFile({ path: "copilot/copilot-conversations/chat.md" });
+      const folder = mockTFolder({ path: "vault-agent/conversations" });
+      const chat = mockTFile({ path: "vault-agent/conversations/chat.md" });
       const other = mockTFile({ path: "notes/idea.md" });
       const app = {
         vault: {
@@ -32,7 +32,7 @@ describe("vaultAdapterUtils", () => {
     it("returns no notes for a folder the vault does not have", () => {
       const app = { vault: { getAbstractFileByPath: () => null } } as unknown as App;
 
-      expect(listMarkdownFiles(app, "copilot/copilot-conversations")).toEqual([]);
+      expect(listMarkdownFiles(app, "vault-agent/conversations")).toEqual([]);
     });
   });
 

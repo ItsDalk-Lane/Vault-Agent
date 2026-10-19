@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from "@/constants";
 import type { Provider } from "@/modelManagement";
 import { KeychainService } from "@/services/keychainService";
 import { loadSettingsWithKeychain, resetPersistenceState } from "@/services/settingsPersistence";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -51,7 +51,7 @@ function anthropicRow(apiKeyKeychainId: string): Provider {
   };
 }
 
-function diskSettings(pointer: string): CopilotSettings {
+function diskSettings(pointer: string): VaultAgentSettings {
   return {
     ...structuredClone(DEFAULT_SETTINGS),
     _keychainVaultId: VAULT_ID,
@@ -62,8 +62,8 @@ function diskSettings(pointer: string): CopilotSettings {
 async function load(
   app: App,
   raw: unknown
-): Promise<{ settings: CopilotSettings; saved: CopilotSettings | undefined }> {
-  let saved: CopilotSettings | undefined;
+): Promise<{ settings: VaultAgentSettings; saved: VaultAgentSettings | undefined }> {
+  let saved: VaultAgentSettings | undefined;
   const settings = await loadSettingsWithKeychain(
     app,
     raw,
@@ -75,7 +75,7 @@ async function load(
   return { settings, saved };
 }
 
-function apiKeyFor(app: App, settings: CopilotSettings): string | null {
+function apiKeyFor(app: App, settings: VaultAgentSettings): string | null {
   const pointer = settings.providers["row-anthropic"].apiKeyKeychainId!;
   return KeychainService.getInstance(app).getSecretById(pointer);
 }

@@ -67,7 +67,7 @@ describe("PropertySearchModal", () => {
       it("omits keys that only exist under a system Copilot root", () => {
         const app = makeApp([
           { path: "Notes/a.md", frontmatter: { Topics: "Physics" } },
-          { path: "copilot/copilot-conversations/chat.md", frontmatter: { mode: "agent" } },
+          { path: "vault-agent/conversations/chat.md", frontmatter: { mode: "agent" } },
         ]);
         const modal = new PropertySearchModal(app, jest.fn());
         expect(modal.getItems()).toEqual(["Topics"]);
@@ -137,7 +137,10 @@ describe("PropertySearchModal", () => {
       it("omits values that only exist under a system Copilot root", () => {
         const app = makeApp([
           { path: "Notes/a.md", frontmatter: { Topics: "Physics" } },
-          { path: "copilot/copilot-conversations/chat.md", frontmatter: { Topics: "ChatOnly" } },
+          {
+            path: "vault-agent/conversations/chat.md",
+            frontmatter: { Topics: "ChatOnly" },
+          },
         ]);
         const modal = new PropertyValueModal(app, "Topics", jest.fn());
 

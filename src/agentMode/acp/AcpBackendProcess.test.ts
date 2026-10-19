@@ -1130,7 +1130,7 @@ describe("AcpBackendProcess", () => {
       }
 
       const FEEDBACK_SERVER = {
-        name: "obsidian-copilot",
+        name: "vault-agent",
         url: "http://127.0.0.1:4100/mcp",
         headers: { Authorization: "Bearer t0k3n" },
       };
@@ -1146,7 +1146,7 @@ describe("AcpBackendProcess", () => {
         expect(req.mcpServers).toEqual([
           {
             type: "http",
-            name: "obsidian-copilot",
+            name: "vault-agent",
             url: "http://127.0.0.1:4100/mcp",
             headers: [{ name: "Authorization", value: "Bearer t0k3n" }],
           },
@@ -1214,7 +1214,7 @@ describe("AcpBackendProcess", () => {
         mockListSessions.mockRejectedValueOnce(serviceFailure());
 
         await expect(backend.newSession({ cwd: "/vault" })).rejects.toThrow(
-          "opencode's internal service failed to start. Check the Copilot log for its error."
+          "opencode's internal service failed to start. Check the Vault Agent log for its error."
         );
         expect(recover).not.toHaveBeenCalled();
       });
@@ -1233,11 +1233,11 @@ describe("AcpBackendProcess", () => {
         await backend.resumeSession({
           sessionId: "s1",
           cwd: "/vault",
-          mcpServers: [{ name: "obsidian-copilot", url: "http://127.0.0.1:1/mcp", headers: {} }],
+          mcpServers: [{ name: "vault-agent", url: "http://127.0.0.1:1/mcp", headers: {} }],
         });
         const req = mockResumeSession.mock.calls[0][0] as { mcpServers: unknown[] };
         expect(req.mcpServers).toEqual([
-          { type: "http", name: "obsidian-copilot", url: "http://127.0.0.1:1/mcp", headers: [] },
+          { type: "http", name: "vault-agent", url: "http://127.0.0.1:1/mcp", headers: [] },
         ]);
       });
 
@@ -1285,11 +1285,11 @@ describe("AcpBackendProcess", () => {
         await backend.loadSession({
           sessionId: "s1",
           cwd: "/vault",
-          mcpServers: [{ name: "obsidian-copilot", url: "http://127.0.0.1:1/mcp", headers: {} }],
+          mcpServers: [{ name: "vault-agent", url: "http://127.0.0.1:1/mcp", headers: {} }],
         });
         const req = mockLoadSession.mock.calls[0][0] as { mcpServers: unknown[] };
         expect(req.mcpServers).toEqual([
-          { type: "http", name: "obsidian-copilot", url: "http://127.0.0.1:1/mcp", headers: [] },
+          { type: "http", name: "vault-agent", url: "http://127.0.0.1:1/mcp", headers: [] },
         ]);
       });
 

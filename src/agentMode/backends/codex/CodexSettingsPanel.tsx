@@ -1,12 +1,12 @@
 import { EnvOverridesSetting } from "@/agentMode/backends/shared/EnvOverridesSetting";
-import type CopilotPlugin from "@/main";
+import type VaultAgentPlugin from "@/main";
 import { useSettingsValue } from "@/settings/model";
 import type { App } from "obsidian";
 import React from "react";
 import { updateCodexFields } from "./descriptor";
 
 interface Props {
-  plugin: CopilotPlugin;
+  plugin: VaultAgentPlugin;
   app: App;
 }
 

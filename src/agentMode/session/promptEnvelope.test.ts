@@ -4,7 +4,7 @@ describe("promptEnvelope", () => {
   describe("stripUserMessageWrapper()", () => {
     it("returns the typed text from a prompt wrapped with a context block", () => {
       const wrapped =
-        "<copilot-context>\nNotes:\n- a.md\n</copilot-context>\n\n" +
+        "<vault-agent-context>\nNotes:\n- a.md\n</vault-agent-context>\n\n" +
         "<user-message>\nsummarize a.md\n</user-message>";
 
       expect(stripUserMessageWrapper(wrapped)).toBe("summarize a.md");
@@ -22,16 +22,16 @@ describe("promptEnvelope", () => {
 
     it("ignores a wrapper tag that an attached note excerpt happens to contain", () => {
       const wrapped =
-        "<copilot-context>\nSelected excerpts:\n  the <user-message> tag wraps the prompt\n" +
-        "</copilot-context>\n\n<user-message>\nhi\n</user-message>";
+        "<vault-agent-context>\nSelected excerpts:\n  the <user-message> tag wraps the prompt\n" +
+        "</vault-agent-context>\n\n<user-message>\nhi\n</user-message>";
 
       expect(stripUserMessageWrapper(wrapped)).toBe("hi");
     });
 
     it("ignores a complete wrapper pair inside an attached note excerpt", () => {
       const wrapped =
-        "<copilot-context>\nSelected excerpts:\n  <user-message>sample</user-message>\n" +
-        "</copilot-context>\n\n<user-message>\nhi\n</user-message>";
+        "<vault-agent-context>\nSelected excerpts:\n  <user-message>sample</user-message>\n" +
+        "</vault-agent-context>\n\n<user-message>\nhi\n</user-message>";
 
       expect(stripUserMessageWrapper(wrapped)).toBe("hi");
     });

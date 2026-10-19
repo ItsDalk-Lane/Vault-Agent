@@ -24,7 +24,7 @@ const ACTIONS: CodexConfigActions = {
 const MANAGED: CodexManagedInfo = {
   platform: "darwin-arm64",
   version: CODEX_PINNED_VERSION,
-  destination: "~/.obsidian-copilot/codex",
+  destination: "~/.vault-agent/codex",
   run: { kind: "idle" },
 };
 
@@ -48,7 +48,7 @@ const InteractiveConfigView: React.FC<Partial<CodexConfigViewProps>> = (props) =
         terminalCommand:
           props.activeSource === "custom"
             ? "'/usr/local/lib/node_modules/@agentclientprotocol/codex-acp/node_modules/@openai/codex/bin/codex.js' login"
-            : `'/Users/example/.obsidian-copilot/codex/${CODEX_PINNED_VERSION}/codex-runtime/bin/codex' login`,
+            : `'/Users/example/.vault-agent/codex/${CODEX_PINNED_VERSION}/codex-runtime/bin/codex' login`,
       }}
     />
   );

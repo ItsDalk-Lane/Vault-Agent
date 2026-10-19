@@ -7,7 +7,7 @@ import { TFile } from "obsidian";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { App } from "obsidian";
 import { getSettings } from "@/settings/model";
-import { getEffectiveConversationsFolder } from "@/settings/copilotFolder";
+import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
 
 jest.mock("obsidian", () => ({
   normalizePath: (path: string) => path,
@@ -18,11 +18,11 @@ jest.mock("@/logger");
 jest.mock("@/settings/model", () => ({
   getSettings: jest.fn().mockReturnValue({
     defaultSaveFolder: "test-folder",
-    defaultConversationTag: "copilot-conversation",
+    defaultConversationTag: "vault-agent-conversation",
     defaultConversationNoteName: "{$date}_{$time}__{$topic}",
   }),
 }));
-jest.mock("@/settings/copilotFolder", () => ({
+jest.mock("@/settings/vaultAgentFolder", () => ({
   getEffectiveConversationsFolder: jest.fn(() => "test-folder"),
   deriveConversationAttachmentsFolder: jest.fn((folder: string) => `${folder}/attachments`),
 }));
@@ -154,7 +154,7 @@ describe("AgentChatPersistenceManager", () => {
       expect(file.contents).toContain("![[organized.png]]");
       file.contents = file.contents.replace(/\n/g, "\r\n");
       const loaded = await resumed.loadFile(file as unknown as TFile);
-      expect(loaded.messages[0].message).not.toContain("copilot-image:");
+      expect(loaded.messages[0].message).not.toContain("vault-agent-image:");
       file.contents = file.contents.replace("organized.png", "renamed.png");
       loaded.messages[0].message = loaded.messages[0].message.replace("image", "edited text");
       await resumed.saveSession(loaded.messages, "claude", { existingPath: saved!.path });
@@ -174,7 +174,7 @@ describe("AgentChatPersistenceManager", () => {
       Object.setPrototypeOf(file, TFile.prototype);
       const loaded = await manager.loadFile(file as unknown as TFile);
       app.files.delete(file.path);
-      file.path = "copilot-conversations/renamed-legacy.md";
+      file.path = "conversations/renamed-legacy.md";
       app.files.set(file.path, file);
       saved!.path = file.path;
       file.contents = file.contents!.replace("old.png", "moved.png");
@@ -269,7 +269,7 @@ describe("AgentChatPersistenceManager", () => {
       });
       const saved = await manager.saveSession([makeMessage(USER_SENDER, "hi")], "claude", {});
       const contents = app.files.get(saved!.path)!.contents!;
-      expect(contents).toContain("tags:\n  - copilot-conversation");
+      expect(contents).toContain("tags:\n  - vault-agent-conversation");
       expect(contents).not.toContain("user-custom-tag");
     });
 

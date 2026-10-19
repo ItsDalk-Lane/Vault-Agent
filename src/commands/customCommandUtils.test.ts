@@ -770,11 +770,11 @@ describe("customCommandUtils", () => {
 
   describe("parseCustomCommandFile()", () => {
     interface MockFrontmatter {
-      "copilot-command-context-menu-enabled"?: boolean;
-      "copilot-command-slash-enabled"?: boolean;
-      "copilot-command-context-menu-order"?: number;
-      "copilot-command-model-key"?: string;
-      "copilot-command-last-used"?: number;
+      "vault-agent-command-context-menu-enabled"?: boolean;
+      "vault-agent-command-slash-enabled"?: boolean;
+      "vault-agent-command-context-menu-order"?: number;
+      "vault-agent-command-model-key"?: string;
+      "vault-agent-command-last-used"?: number;
     }
     interface MockMetadata {
       frontmatter: MockFrontmatter;
@@ -793,11 +793,11 @@ describe("customCommandUtils", () => {
     beforeEach(() => {
       originalApp = (window as unknown as AppRef).app;
       mockFrontmatter = {
-        "copilot-command-context-menu-enabled": true,
-        "copilot-command-slash-enabled": false,
-        "copilot-command-context-menu-order": 42,
-        "copilot-command-model-key": "gpt-4",
-        "copilot-command-last-used": 1234567890,
+        "vault-agent-command-context-menu-enabled": true,
+        "vault-agent-command-slash-enabled": false,
+        "vault-agent-command-context-menu-order": 42,
+        "vault-agent-command-model-key": "gpt-4",
+        "vault-agent-command-last-used": 1234567890,
       };
       mockMetadata = { frontmatter: mockFrontmatter };
       const mockedApp: MockAppLike = {
@@ -805,7 +805,7 @@ describe("customCommandUtils", () => {
           read: jest
             .fn()
             .mockResolvedValue(
-              "---\ncopilot-command-context-menu-enabled: true\ncopilot-command-slash-enabled: false\ncopilot-command-context-menu-order: 42\ncopilot-command-model-key: gpt-4\ncopilot-command-last-used: 1234567890\n---\nPrompt content here."
+              "---\nvault-agent-command-context-menu-enabled: true\nvault-agent-command-slash-enabled: false\nvault-agent-command-context-menu-order: 42\nvault-agent-command-model-key: gpt-4\nvault-agent-command-last-used: 1234567890\n---\nPrompt content here."
             ),
         },
         metadataCache: {

@@ -210,7 +210,7 @@ describe("codexAuth", () => {
           {
             id: 0,
             method: "initialize",
-            params: { clientInfo: { name: "obsidian_copilot", version: "1.0.0" } },
+            params: { clientInfo: { name: "vault_agent", version: "1.0.0" } },
           },
           { method: "initialized" },
           { id: 1, method: "account/read", params: { refreshToken: false } },

@@ -1,5 +1,5 @@
 import type { BackendId } from "@/agentMode";
-import type { CopilotSettings } from "@/settings/model";
+import type { VaultAgentSettings } from "@/settings/model";
 import { OBSIDIAN_SKILLS } from "./obsidianSkills";
 
 export interface BuiltinSkill {
@@ -39,7 +39,7 @@ export const ALL_MANAGED_SKILLS: readonly BuiltinSkill[] = [...BUILTIN_SKILLS];
 // which would erase opt-ins synced from newer devices:
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/629
 export const DEFAULT_BUILTIN_PREFERENCES: NonNullable<
-  CopilotSettings["agentMode"]["skills"]["builtinPreferences"]
+  VaultAgentSettings["agentMode"]["skills"]["builtinPreferences"]
 > = Object.freeze(
   Object.fromEntries(
     ALL_MANAGED_SKILLS.filter((skill) => skill.defaultDisabled).map((skill) => [
@@ -50,7 +50,7 @@ export const DEFAULT_BUILTIN_PREFERENCES: NonNullable<
 );
 
 export function isBuiltinSkillEnabledFor(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   skillName: string,
   agentId: string
 ): boolean {

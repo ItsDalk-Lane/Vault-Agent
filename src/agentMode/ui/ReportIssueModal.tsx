@@ -27,7 +27,7 @@ import {
 const OPENCODE_BACKEND_ID = "opencode";
 
 const FRAME_LOG_NAME = "acp-frames.ndjson.txt";
-const CHAT_LOG_NAME = "copilot-log.md";
+const CHAT_LOG_NAME = "vault-agent-log.md";
 const OPENCODE_LOG_NAME = "opencode.log";
 
 export interface ReportIssueModalParams {
@@ -78,7 +78,7 @@ export async function createReportDir(): Promise<string> {
   const fs = requireNodeModule<typeof import("node:fs/promises")>("fs/promises");
   const os = requireNodeModule<typeof import("node:os")>("os");
   const path = requireNodeModule<typeof import("node:path")>("path");
-  return fs.mkdtemp(path.join(os.tmpdir(), "obsidian-copilot-report-"));
+  return fs.mkdtemp(path.join(os.tmpdir(), "vault-agent-report-"));
 }
 
 export async function discardReport(report: Pick<PreparedReport, "zipDir">): Promise<void> {
@@ -174,7 +174,7 @@ export class ReportIssueModal extends Modal {
       },
       {
         id: "chatLog",
-        label: "Copilot log",
+        label: "Vault Agent log",
         description: "includes Agent Mode backend errors",
         // OpenCode 2's server errors reach only this log, and reporters skipped it unchecked.
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/649

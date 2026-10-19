@@ -46,7 +46,7 @@ const runManagedInstall = jest.fn().mockResolvedValue(undefined);
 
 let resolvedPaths: Record<string, string | null> = {};
 
-const MANAGED_BINARY_PATH = "/opt/copilot/opencode/bin/opencode";
+const MANAGED_BINARY_PATH = "/opt/vault-agent/opencode/bin/opencode";
 
 const installStateListeners = new Set<() => void>();
 function publishInstallState() {

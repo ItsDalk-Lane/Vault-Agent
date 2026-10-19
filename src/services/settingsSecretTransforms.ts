@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from "@/constants";
 import { stripLegacyIndexSettings } from "@/settings/migrations/legacyIndexSettings";
-import { type CopilotSettings } from "@/settings/model";
+import { type VaultAgentSettings } from "@/settings/model";
 import { type CustomModel } from "@/aiParams";
 
 export const MODEL_SECRET_FIELDS = ["apiKey"] as const;
@@ -22,7 +22,7 @@ export const TOP_LEVEL_SECRET_FIELDS: readonly string[] = Object.freeze(
   Object.keys(DEFAULT_SETTINGS as unknown as Record<string, unknown>).filter(isSensitiveKey)
 );
 
-function asRecord(obj: CopilotSettings): Record<string, unknown> {
+function asRecord(obj: VaultAgentSettings): Record<string, unknown> {
   return obj as unknown as Record<string, unknown>;
 }
 
@@ -51,7 +51,7 @@ export function hasPersistedSecrets(rawData: Record<string, unknown>): boolean {
   return false;
 }
 
-export function stripKeychainFields(settings: CopilotSettings): CopilotSettings {
+export function stripKeychainFields(settings: VaultAgentSettings): VaultAgentSettings {
   const out = asRecord({ ...settings });
 
   for (const key of Object.keys(out)) {
@@ -62,7 +62,7 @@ export function stripKeychainFields(settings: CopilotSettings): CopilotSettings 
   if ("activeModels" in out) {
     out.activeModels = stripModelSecrets(settings.activeModels ?? []);
   }
-  return out as unknown as CopilotSettings;
+  return out as unknown as VaultAgentSettings;
 }
 
 function stripModelSecrets(models: CustomModel[]): CustomModel[] {
@@ -77,7 +77,7 @@ function stripModelSecrets(models: CustomModel[]): CustomModel[] {
   });
 }
 
-export function cleanupLegacyFields(settings: CopilotSettings): CopilotSettings {
+export function cleanupLegacyFields(settings: VaultAgentSettings): VaultAgentSettings {
   const out = asRecord(stripLegacyIndexSettings(settings));
   delete out.enableEncryption;
   delete out._keychainMigrated;
@@ -93,5 +93,5 @@ export function cleanupLegacyFields(settings: CopilotSettings): CopilotSettings 
     delete agentMode.mcpServers;
     out.agentMode = agentMode;
   }
-  return out as unknown as CopilotSettings;
+  return out as unknown as VaultAgentSettings;
 }

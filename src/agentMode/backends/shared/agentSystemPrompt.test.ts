@@ -1,4 +1,4 @@
-import { COPILOT_PROMPT_BASE } from "./agentSystemPrompt";
+import { VAULT_AGENT_PROMPT_BASE } from "./agentSystemPrompt";
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -7,12 +7,12 @@ jest.mock("@/logger", () => ({
 }));
 
 describe("agentSystemPrompt", () => {
-  describe("COPILOT_PROMPT_BASE", () => {
+  describe("VAULT_AGENT_PROMPT_BASE", () => {
     it("does not carry chat-mode-only baggage that misfires in tool-driven agents", () => {
-      expect(COPILOT_PROMPT_BASE).not.toMatch(/@vault/);
-      expect(COPILOT_PROMPT_BASE).not.toMatch(/getCurrentTime/);
-      expect(COPILOT_PROMPT_BASE).not.toMatch(/getTimeRangeMs/);
-      expect(COPILOT_PROMPT_BASE).not.toMatch(/YouTube/);
+      expect(VAULT_AGENT_PROMPT_BASE).not.toMatch(/@vault/);
+      expect(VAULT_AGENT_PROMPT_BASE).not.toMatch(/getCurrentTime/);
+      expect(VAULT_AGENT_PROMPT_BASE).not.toMatch(/getTimeRangeMs/);
+      expect(VAULT_AGENT_PROMPT_BASE).not.toMatch(/YouTube/);
     });
   });
 });

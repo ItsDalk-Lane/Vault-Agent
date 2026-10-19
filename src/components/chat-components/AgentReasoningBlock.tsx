@@ -41,7 +41,7 @@ export const AgentReasoningBlock: React.FC<AgentReasoningBlockProps> = ({
             {isActive ? (
               <>
                 Reasoning
-                <span className="copilot-shimmer-text" aria-hidden="true">
+                <span className="vault-agent-shimmer-text" aria-hidden="true">
                   ...
                 </span>
               </>

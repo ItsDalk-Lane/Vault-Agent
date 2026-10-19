@@ -93,7 +93,7 @@ const makeManager = (): {
     setCustomBinaryPath,
     uninstall,
     downloadsSize: jest.fn().mockResolvedValue(2048),
-    getDataDir: jest.fn().mockReturnValue("/home/user/.obsidian-copilot/opencode"),
+    getDataDir: jest.fn().mockReturnValue("/home/user/.vault-agent/opencode"),
   } as unknown as OpencodeBinaryManager;
   return {
     manager,

@@ -7,7 +7,7 @@ import {
 } from "@/system-prompts/constants";
 import { UserSystemPrompt } from "@/system-prompts/type";
 import { App, normalizePath, TAbstractFile, TFile } from "obsidian";
-import { getEffectiveSystemPromptsFolder } from "@/settings/copilotFolder";
+import { getEffectiveSystemPromptsFolder } from "@/settings/vaultAgentFolder";
 import { stripFrontmatter } from "@/utils";
 import {
   updateCachedSystemPrompts,

@@ -5,12 +5,12 @@ import { type LegacyBackupResult } from "@/services/legacyCredentialBackup";
 import { cleanupLegacyFields, stripKeychainFields } from "@/services/settingsSecretTransforms";
 import type { StartupMigrationItem } from "@/services/startupMigration";
 import { CURRENT_SETTINGS_VERSION } from "@/settings/migrations/version";
-import { type CopilotSettings, sanitizeSettings } from "@/settings/model";
+import { type VaultAgentSettings, sanitizeSettings } from "@/settings/model";
 import { getDeviceId } from "@/utils/deviceId";
 import { type App, Notice } from "obsidian";
 
 let writeQueue: Promise<void> = Promise.resolve();
-let lastPersistedSettings: CopilotSettings | undefined;
+let lastPersistedSettings: VaultAgentSettings | undefined;
 let suppressNextPersist = false;
 let transactionEpoch = 0;
 let legacyCredentialsUnprotected = false;
@@ -22,18 +22,18 @@ function isValidKeychainVaultId(value: unknown): value is string {
   return typeof value === "string" && KEYCHAIN_VAULT_ID_RE.test(value);
 }
 
-function cloneRawSettings(rawData: unknown): CopilotSettings {
+function cloneRawSettings(rawData: unknown): VaultAgentSettings {
   if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
-    return {} as CopilotSettings;
+    return {} as VaultAgentSettings;
   }
-  return structuredClone(rawData) as CopilotSettings;
+  return structuredClone(rawData) as VaultAgentSettings;
 }
 
 function buildDiskSettings(
-  settings: CopilotSettings,
+  settings: VaultAgentSettings,
   vaultId: string,
   isFreshInstall: boolean
-): CopilotSettings {
+): VaultAgentSettings {
   const stripped = stripKeychainFields(cleanupLegacyFields(structuredClone(settings)));
   stripped._keychainVaultId = vaultId;
   if (isFreshInstall) {
@@ -55,7 +55,7 @@ export function releaseLegacyCredentialHold(): void {
   legacyCredentialsUnprotected = false;
 }
 
-export function refreshLastPersistedSettings(data: CopilotSettings): void {
+export function refreshLastPersistedSettings(data: VaultAgentSettings): void {
   lastPersistedSettings = structuredClone(data);
 }
 
@@ -81,7 +81,7 @@ export async function flushPersistence(): Promise<void> {
 
 function credentialMigrationFromRecovery(
   app: App,
-  recovery: CopilotSettings["_pendingCredentialRecovery"]
+  recovery: VaultAgentSettings["_pendingCredentialRecovery"]
 ): StartupMigrationItem | null {
   if (
     !recovery ||
@@ -110,8 +110,8 @@ function credentialMigrationFromRecovery(
 
 function migrateProviderNames(
   keychain: KeychainService,
-  rawSettings: CopilotSettings
-): CopilotSettings {
+  rawSettings: VaultAgentSettings
+): VaultAgentSettings {
   if (!keychain.isAvailable()) return rawSettings;
   try {
     return keychain.migrateProviderNames(rawSettings);
@@ -124,10 +124,10 @@ function migrateProviderNames(
 export async function loadSettingsWithKeychain(
   app: App,
   rawData: unknown,
-  saveData: (data: CopilotSettings) => Promise<void>,
+  saveData: (data: VaultAgentSettings) => Promise<void>,
   backupLegacyCredentials: (rawData: unknown) => Promise<LegacyBackupResult>,
   onMigration?: (item: StartupMigrationItem) => void
-): Promise<CopilotSettings> {
+): Promise<VaultAgentSettings> {
   const isFreshInstall = rawData == null;
   const rawSettings = cloneRawSettings(rawData);
   const keychain = KeychainService.getInstance();
@@ -242,9 +242,9 @@ export async function loadSettingsWithKeychain(
 }
 
 async function persistKeychainSettings(
-  settings: CopilotSettings,
-  saveData: (data: CopilotSettings) => Promise<void>,
-  prev: CopilotSettings | undefined
+  settings: VaultAgentSettings,
+  saveData: (data: VaultAgentSettings) => Promise<void>,
+  prev: VaultAgentSettings | undefined
 ): Promise<void> {
   if (legacyCredentialsUnprotected) {
     throw new Error(
@@ -295,17 +295,17 @@ async function persistKeychainSettings(
 }
 
 export async function persistSettingsWithinTransaction(
-  settings: CopilotSettings,
-  saveData: (data: CopilotSettings) => Promise<void>,
-  prevSettings?: CopilotSettings
+  settings: VaultAgentSettings,
+  saveData: (data: VaultAgentSettings) => Promise<void>,
+  prevSettings?: VaultAgentSettings
 ): Promise<void> {
   await persistKeychainSettings(settings, saveData, prevSettings);
 }
 
 export async function persistSettings(
-  settings: CopilotSettings,
-  saveData: (data: CopilotSettings) => Promise<void>,
-  prevSettings?: CopilotSettings
+  settings: VaultAgentSettings,
+  saveData: (data: VaultAgentSettings) => Promise<void>,
+  prevSettings?: VaultAgentSettings
 ): Promise<void> {
   if (suppressNextPersist) {
     suppressNextPersist = false;
@@ -323,8 +323,8 @@ export async function persistSettings(
 
 async function restoreKeychainFromSettings(
   keychain: KeychainService,
-  restoreFrom: CopilotSettings | undefined,
-  failedSettings: CopilotSettings
+  restoreFrom: VaultAgentSettings | undefined,
+  failedSettings: VaultAgentSettings
 ): Promise<void> {
   if (!restoreFrom) return;
 

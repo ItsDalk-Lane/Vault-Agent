@@ -1,7 +1,7 @@
 import type { BackendDescriptor, BackendId } from "./types";
-import { type CopilotSettings, getSettings, setSettings } from "@/settings/model";
+import { type VaultAgentSettings, getSettings, setSettings } from "@/settings/model";
 
-export function seedCopilotDefaultModel(
+export function seedVaultAgentDefaultModel(
   descriptors: readonly BackendDescriptor[],
   configuredModelId: string
 ): BackendId[] {
@@ -13,7 +13,7 @@ export function seedCopilotDefaultModel(
   }
   if (targets.size === 0) return [];
 
-  setSettings((cur: CopilotSettings) => {
+  setSettings((cur: VaultAgentSettings) => {
     const backends = { ...cur.agentMode.backends } as Record<
       string,
       Record<string, unknown> | undefined
