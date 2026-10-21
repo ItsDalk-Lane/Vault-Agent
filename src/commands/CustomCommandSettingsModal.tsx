@@ -12,6 +12,7 @@ import { CustomPromptSyntaxInstruction } from "@/components/CustomPromptSyntaxIn
 import { CustomCommand } from "@/commands/type";
 import { validateCommandName } from "@/commands/customCommandUtils";
 import { useChatBackendModelOptions } from "@/hooks/useChatBackendModelOptions";
+import { t } from "@/i18n";
 
 type FormErrors = {
   title?: string;
@@ -56,7 +57,7 @@ function CustomCommandSettingsModalContent({
     }
 
     if (!command.content.trim()) {
-      newErrors.content = "Prompt is required";
+      newErrors.content = t("ui.command.promptRequired");
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -70,24 +71,24 @@ function CustomCommandSettingsModalContent({
   return (
     <div className="tw-flex tw-flex-col tw-gap-4 tw-p-4">
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <Label htmlFor="title">Name</Label>
+        <Label htmlFor="title">{t("ui.command.name")}</Label>
         <Input
           id="title"
           value={command.title}
           onChange={(e) => handleUpdate("title", e.target.value)}
-          placeholder="Enter command name"
+          placeholder={t("ui.command.enterName")}
         />
         {errors.title && <div className="tw-text-sm tw-text-error">{errors.title}</div>}
       </div>
 
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <Label htmlFor="content">Prompt</Label>
+        <Label htmlFor="content">{t("ui.command.prompt")}</Label>
         <CustomPromptSyntaxInstruction />
         <Textarea
           id="content"
           value={command.content}
           onChange={(e) => handleUpdate("content", e.target.value)}
-          placeholder="Enter command prompt"
+          placeholder={t("ui.command.enterPrompt")}
           className="tw-min-h-[200px]"
         />
         {errors.content && <div className="tw-text-sm tw-text-error">{errors.content}</div>}
@@ -105,7 +106,7 @@ function CustomCommandSettingsModalContent({
           checked={command.showInContextMenu}
           onCheckedChange={(checked) => handleUpdate("showInContextMenu", checked)}
         />
-        <Label htmlFor="showInContextMenu">Show in context menu</Label>
+        <Label htmlFor="showInContextMenu">{t("ui.command.showInContextMenu")}</Label>
       </div>
 
       <div className="tw-flex tw-items-center tw-gap-2">
@@ -114,15 +115,15 @@ function CustomCommandSettingsModalContent({
           checked={command.showInSlashMenu}
           onCheckedChange={(checked) => handleUpdate("showInSlashMenu", checked)}
         />
-        <Label htmlFor="showInSlashMenu">Show in slash menu</Label>
+        <Label htmlFor="showInSlashMenu">{t("ui.command.showInSlashMenu")}</Label>
       </div>
 
       <div className="tw-flex tw-justify-end tw-gap-2">
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button variant="default" onClick={handleSubmit}>
-          Save
+          {t("ui.common.save")}
         </Button>
       </div>
     </div>
@@ -140,7 +141,7 @@ export class CustomCommandSettingsModal extends Modal {
   ) {
     super(app);
     // @ts-ignore
-    this.setTitle("Edit Command");
+    this.setTitle(t("ui.command.editTitle"));
   }
 
   onOpen() {

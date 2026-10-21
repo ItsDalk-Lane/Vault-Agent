@@ -1,5 +1,6 @@
 import { resolveEffort } from "@/lib/model-effort";
 import type { BackendConfigOption } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import {
   query,
   type EffortLevel,
@@ -23,7 +24,7 @@ export function synthesizeEffortConfigOption(
     id: "effort",
     type: "select",
     category: "thought_level",
-    name: "Effort",
+    name: t("agentInfra.sdk.effort"),
     currentValue: value,
     options: levels.map((v) => ({ value: v, name: v })),
   };

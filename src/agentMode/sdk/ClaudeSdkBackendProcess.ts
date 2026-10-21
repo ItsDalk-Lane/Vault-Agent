@@ -1,4 +1,5 @@
 import { isCompactCommand } from "@/commands/compactCommand";
+import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
 import { err2String } from "@/utils";
 import {
@@ -133,16 +134,18 @@ export interface ClaudeSdkBackendProcessOptions {
   checkCompatibility?: () => Promise<void>;
 }
 
-const STATIC_SDK_MODES: RawModeState = {
-  currentModeId: "default",
-  availableModes: [
-    { id: "default", name: "Default" },
-    { id: "plan", name: "Plan" },
-    { id: "acceptEdits", name: "Accept Edits" },
-    { id: "auto", name: "Auto" },
-    { id: "bypassPermissions", name: "Bypass Permissions" },
-  ],
-};
+function staticSdkModes(): RawModeState {
+  return {
+    currentModeId: "default",
+    availableModes: [
+      { id: "default", name: t("agentInfra.sdk.mode.default") },
+      { id: "plan", name: t("agentInfra.sdk.mode.plan") },
+      { id: "acceptEdits", name: t("agentInfra.sdk.mode.acceptEdits") },
+      { id: "auto", name: t("agentInfra.sdk.mode.auto") },
+      { id: "bypassPermissions", name: t("agentInfra.sdk.mode.bypassPermissions") },
+    ],
+  };
+}
 
 export class ClaudeSdkBackendProcess implements BackendProcess {
   private readonly sessionHandlers = new Map<SessionId, SessionUpdateHandler>();
@@ -267,9 +270,7 @@ export class ClaudeSdkBackendProcess implements BackendProcess {
       if (await this.opts.checkAuth()) {
         this.authConfirmed = true;
       } else {
-        throw new AuthRequiredError(
-          "You're not signed in to Claude. Use the Sign in button above the chat box to continue."
-        );
+        throw new AuthRequiredError(t("agentInfra.sdk.claudeNotSignedIn"));
       }
     }
 
@@ -681,10 +682,11 @@ export class ClaudeSdkBackendProcess implements BackendProcess {
             })),
           }
         : null;
+    const baseModes = staticSdkModes();
     const modes: RawModeState = {
-      ...STATIC_SDK_MODES,
-      currentModeId: session?.permissionMode ?? STATIC_SDK_MODES.currentModeId,
-      availableModes: [...STATIC_SDK_MODES.availableModes],
+      ...baseModes,
+      currentModeId: session?.permissionMode ?? baseModes.currentModeId,
+      availableModes: [...baseModes.availableModes],
     };
     const modelInfo = seedModel ? catalog.find((m) => m.value === seedModel) : undefined;
     const effortOpt = synthesizeEffortConfigOption(modelInfo, session?.effort);

@@ -1,11 +1,12 @@
 import { SettingItem } from "@/components/ui/setting-item";
+import { t, type MessageKey } from "@/i18n";
 import type { SelfHostSearchProvider } from "@/settings/model";
 import { ArrowUpRight } from "lucide-react";
 import React from "react";
 
 interface SearchProviderConfig {
-  apiKeyTitle: string;
-  description: string;
+  apiKeyTitleKey: MessageKey;
+  descriptionKey: MessageKey;
   label: string;
   placeholder: string;
   signupUrl: string;
@@ -13,29 +14,29 @@ interface SearchProviderConfig {
 
 const SEARCH_PROVIDER_CONFIGS: Record<SelfHostSearchProvider, SearchProviderConfig> = {
   firecrawl: {
-    apiKeyTitle: "Firecrawl API Key",
-    description: "Web search & fetch via Firecrawl.",
+    apiKeyTitleKey: "settings.selfHost.provider.firecrawl.apiKeyTitle",
+    descriptionKey: "settings.selfHost.provider.firecrawl.description",
     label: "Firecrawl",
     placeholder: "fc-…",
     signupUrl: "https://firecrawl.link/logan-yang",
   },
   perplexity: {
-    apiKeyTitle: "Perplexity API Key",
-    description: "Web search via Perplexity Sonar.",
+    apiKeyTitleKey: "settings.selfHost.provider.perplexity.apiKeyTitle",
+    descriptionKey: "settings.selfHost.provider.perplexity.description",
     label: "Perplexity Sonar",
     placeholder: "pplx-…",
     signupUrl: "https://docs.perplexity.ai",
   },
   parallel: {
-    apiKeyTitle: "Parallel API Key",
-    description: "Web search via Parallel.",
+    apiKeyTitleKey: "settings.selfHost.provider.parallel.apiKeyTitle",
+    descriptionKey: "settings.selfHost.provider.parallel.description",
     label: "Parallel",
     placeholder: "parallel-…",
     signupUrl: "https://platform.parallel.ai/",
   },
   exa: {
-    apiKeyTitle: "Exa API Key",
-    description: "Web search via Exa.",
+    apiKeyTitleKey: "settings.selfHost.provider.exa.apiKeyTitle",
+    descriptionKey: "settings.selfHost.provider.exa.description",
     label: "Exa",
     placeholder: "exa-…",
     signupUrl: "https://dashboard.exa.ai/api-keys",
@@ -68,8 +69,8 @@ export const SelfHostWebSearchSettings: React.FC<SelfHostWebSearchSettingsProps>
     <>
       <SettingItem
         type="select"
-        title="Web Search Provider"
-        description="Your key turns this into an agent skill parameter."
+        title={t("settings.selfHost.searchProvider")}
+        description={t("settings.selfHost.searchProviderDesc")}
         value={provider}
         onChange={(value) => onProviderChange(value as SelfHostSearchProvider)}
         options={SEARCH_PROVIDER_OPTIONS}
@@ -78,17 +79,18 @@ export const SelfHostWebSearchSettings: React.FC<SelfHostWebSearchSettingsProps>
 
       <SettingItem
         type="password"
-        title={config.apiKeyTitle}
+        title={t(config.apiKeyTitleKey)}
         description={
           <span>
-            {config.description}{" "}
+            {t(config.descriptionKey)}{" "}
             <a
               href={config.signupUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="tw-text-accent"
             >
-              Sign up <ArrowUpRight className="tw-inline tw-size-3 tw-align-text-bottom" />
+              {t("settings.selfHost.signUp")}{" "}
+              <ArrowUpRight className="tw-inline tw-size-3 tw-align-text-bottom" />
             </a>
           </span>
         }

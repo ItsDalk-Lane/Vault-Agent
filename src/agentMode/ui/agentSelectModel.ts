@@ -1,4 +1,5 @@
 import type { BackendDescriptor, BackendId, InstallState } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 
 export type AgentSelectStatus =
   | "checking"
@@ -57,7 +58,7 @@ export function buildAgentSelectRows(
     return {
       id: descriptor.id,
       name: descriptor.displayName,
-      description: descriptor.setupDescription,
+      description: t(descriptor.setupDescription),
       status: toSelectStatus(state.kind),
       recommended: descriptor.id === recommendedId,
       statusMessage: statusMessageOf(state),
@@ -68,17 +69,17 @@ export function buildAgentSelectRows(
 export function resolveAgentSelectCta(row: AgentSelectRow): AgentSelectCta {
   if (row.status === "checking") {
     return {
-      label: "Checking…",
-      note: `Checking ${row.name} setup…`,
+      label: t("agentChat.agentSelect.checking"),
+      note: t("agentChat.agentSelect.checkingSetup", { name: row.name }),
       action: "wait",
     };
   }
   if (row.status === "installed") {
-    return { label: "Start chat", note: null, action: "start" };
+    return { label: t("agentChat.agentSelect.startChat"), note: null, action: "start" };
   }
   return {
-    label: "Configure",
-    note: row.statusMessage ?? `${row.name} isn't set up on this machine yet.`,
+    label: t("agentChat.agentSelect.configure"),
+    note: row.statusMessage ?? t("agentChat.agentSelect.notSetup", { name: row.name }),
     action: "configure",
   };
 }

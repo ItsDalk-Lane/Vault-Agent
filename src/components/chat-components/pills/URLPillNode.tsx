@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import {
   $getRoot,
   DOMConversionMap,
@@ -124,7 +125,9 @@ export class URLPillNode extends BasePillNode {
       <PillBadge className="tw-whitespace-nowrap">
         <div className="tw-flex tw-items-center tw-gap-1">
           <span className="tw-max-w-40 tw-truncate">{displayText}</span>
-          {this.__isActive && <span className="tw-text-xs tw-text-faint">Active</span>}
+          {this.__isActive && (
+            <span className="tw-text-xs tw-text-faint">{t("ui.chat.pill.active")}</span>
+          )}
         </div>
       </PillBadge>
     );

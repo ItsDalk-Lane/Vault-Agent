@@ -7,6 +7,7 @@ import { useAllNotes } from "./useAllNotes";
 import { useAllFolders } from "./useAllFolders";
 import { useOpenWebTabs } from "./useOpenWebTabs";
 import { useActiveWebTabState } from "./useActiveWebTabState";
+import { t } from "@/i18n";
 import {
   AgentMentionBrand,
   AtMentionCategory,
@@ -75,13 +76,13 @@ export function useAtMentionSearch(
             const isLoaded = tab.isLoaded !== false;
             return {
               key: `webtab-${tab.url || tab.title || index}-${index}`,
-              title: tab.title || "Untitled",
-              subtitle: isLoaded ? tab.url : "Tab not loaded",
+              title: tab.title || t("ui.chat.untitled"),
+              subtitle: isLoaded ? tab.url : t("ui.chat.tabNotLoaded"),
               category: "webTabs",
               data: tab,
               content: undefined,
               disabled: !isLoaded,
-              disabledReason: "Switch to this tab to load it first",
+              disabledReason: t("ui.chat.tabNotLoadedSwitch"),
               icon: isLoaded
                 ? React.createElement(Globe, { className: "tw-size-4" })
                 : React.createElement(CircleDashed, { className: "tw-size-4 tw-text-muted" }),
@@ -123,7 +124,7 @@ export function useAtMentionSearch(
         if (activeWebTab) {
           activeOptions.push({
             key: "active-web-tab",
-            title: "Active Web Tab",
+            title: t("ui.chat.activeWebTab"),
             subtitle: undefined,
             category: "activeWebTab",
             data: activeWebTab,
@@ -135,7 +136,7 @@ export function useAtMentionSearch(
         if (currentActiveFile) {
           activeOptions.push({
             key: `active-note-${currentActiveFile.path}`,
-            title: "Active Note",
+            title: t("ui.chat.activeNote"),
             subtitle: undefined,
             category: "activeNote",
             data: currentActiveFile,
@@ -160,7 +161,7 @@ export function useAtMentionSearch(
         activeNoteMatches && currentActiveFile
           ? {
               key: `active-note-${currentActiveFile.path}`,
-              title: "Active Note",
+              title: t("ui.chat.activeNote"),
               subtitle: undefined,
               category: "activeNote" as AtMentionCategory,
               data: currentActiveFile,
@@ -175,7 +176,7 @@ export function useAtMentionSearch(
         activeWebTabMatches && activeWebTab
           ? {
               key: "active-web-tab",
-              title: "Active Web Tab",
+              title: t("ui.chat.activeWebTab"),
               subtitle: undefined,
               category: "activeWebTab" as AtMentionCategory,
               data: activeWebTab,

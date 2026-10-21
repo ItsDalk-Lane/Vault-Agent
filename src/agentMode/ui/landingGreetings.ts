@@ -1,21 +1,23 @@
-const LANDING_GREETINGS: readonly string[] = Object.freeze([
-  "What can I help with?",
-  "Where should we start?",
-  "What's on your mind?",
-  "What are you working on?",
-  "How can I help today?",
-  "Ready when you are.",
-  "What would you like to explore?",
-  "Let's pick up where you left off.",
-  "What can I do for you?",
-  "Got something to capture?",
-  "What's next on your list?",
-  "Where to begin?",
-  "What shall we dig into?",
-  "Ask me anything.",
+import { t, type MessageKey } from "@/i18n";
+
+const LANDING_GREETING_KEYS: readonly MessageKey[] = Object.freeze([
+  "home.greeting.help",
+  "home.greeting.start",
+  "home.greeting.mind",
+  "home.greeting.working",
+  "home.greeting.today",
+  "home.greeting.ready",
+  "home.greeting.explore",
+  "home.greeting.resume",
+  "home.greeting.serve",
+  "home.greeting.capture",
+  "home.greeting.next",
+  "home.greeting.begin",
+  "home.greeting.dig",
+  "home.greeting.anything",
 ]);
 
 export function pickRandomGreeting(): string {
-  const index = Math.floor(Math.random() * LANDING_GREETINGS.length);
-  return LANDING_GREETINGS[index];
+  const index = Math.floor(Math.random() * LANDING_GREETING_KEYS.length);
+  return t(LANDING_GREETING_KEYS[index]);
 }

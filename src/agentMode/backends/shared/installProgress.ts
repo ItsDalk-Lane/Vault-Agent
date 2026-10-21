@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { formatBytes } from "@/utils/formatBytes";
 
 export interface ManagedInstallProgress {
@@ -18,14 +19,18 @@ export class InstallProgressReporter {
   ) {}
 
   connecting(): void {
-    this.phase(`Connecting to ${this.displayName} download…`, 5);
+    this.phase(t("agentInfra.backend.progress.connecting", { name: this.displayName }), 5);
   }
 
   download(received: number, total: number): void {
     this.stopTicker();
     const fraction = Math.min(1, received / total);
     this.publish({
-      label: `Downloading ${this.displayName} — ${formatBytes(received)} / ${formatBytes(total)}`,
+      label: t("agentInfra.backend.progress.downloading", {
+        name: this.displayName,
+        received: formatBytes(received),
+        total: formatBytes(total),
+      }),
       percent:
         DOWNLOAD_START_PERCENT +
         Math.floor(fraction * (DOWNLOAD_END_PERCENT - DOWNLOAD_START_PERCENT)),
@@ -33,20 +38,23 @@ export class InstallProgressReporter {
   }
 
   extracting(): void {
-    this.phase(`Extracting ${this.displayName}…`, 80);
+    this.phase(t("agentInfra.backend.progress.extracting", { name: this.displayName }), 80);
   }
 
   verifying(subject = this.displayName): void {
-    this.phase(`Verifying ${subject}…`, 90);
+    this.phase(t("agentInfra.backend.progress.verifying", { subject }), 90);
   }
 
   activating(): void {
-    this.phase(`Activating ${this.displayName}…`, 98);
+    this.phase(t("agentInfra.backend.progress.activating", { name: this.displayName }), 98);
   }
 
   done(): void {
     this.stopTicker();
-    this.publish({ label: `${this.displayName} ready.`, percent: 100 });
+    this.publish({
+      label: t("agentInfra.backend.progress.ready", { name: this.displayName }),
+      percent: 100,
+    });
   }
 
   dispose(): void {
@@ -59,7 +67,10 @@ export class InstallProgressReporter {
     const startedAt = Date.now();
     this.ticker = window.setInterval(() => {
       const seconds = Math.floor((Date.now() - startedAt) / 1000);
-      this.publish({ label: `${label} ${seconds}s elapsed`, percent });
+      this.publish({
+        label: t("agentInfra.backend.progress.elapsed", { label, seconds }),
+        percent,
+      });
     }, ELAPSED_TICK_MS);
   }
 

@@ -1,4 +1,5 @@
 import { ManagedInstallAbortError } from "@/agentMode/backends/shared/managedInstall";
+import { t } from "@/i18n";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
 const STALL_TIMEOUT_MS = 30_000;
@@ -32,18 +33,27 @@ export async function downloadFile(
           // A downgraded redirect would let the network substitute the release asset.
           // https://github.com/Brevilabs/obsidian-copilot-private/issues/379
           if (next.protocol !== "https:") {
-            reject(new Error(`Unsafe ${displayName} download redirect.`));
+            reject(
+              new Error(t("agentInfra.backend.download.unsafeRedirect", { name: displayName }))
+            );
             return;
           }
           get(next.href, hops - 1);
         } else if (status === 200) resolve(res);
         else {
           res.resume();
-          reject(new Error(`${displayName} download failed: HTTP ${status}`));
+          reject(
+            new Error(
+              t("agentInfra.backend.download.httpFailed", {
+                name: displayName,
+                status,
+              })
+            )
+          );
         }
       });
       req.setTimeout(STALL_TIMEOUT_MS, () =>
-        req.destroy(new Error(`${displayName} download stalled. Check your network and retry.`))
+        req.destroy(new Error(t("agentInfra.backend.download.stalled", { name: displayName })))
       );
       req.on("error", reject);
     };
@@ -54,7 +64,7 @@ export async function downloadFile(
   const bytes = options.bytes ?? Number(response.headers["content-length"]);
   if (!Number.isSafeInteger(bytes) || bytes <= 0) {
     response.destroy();
-    throw new Error(`${displayName} download size unknown.`);
+    throw new Error(t("agentInfra.backend.download.sizeUnknown", { name: displayName }));
   }
   const hash = crypto.createHash("sha256");
   let received = 0;
@@ -64,7 +74,8 @@ export async function downloadFile(
   try {
     for await (const chunk of response as AsyncIterable<Uint8Array>) {
       received += chunk.length;
-      if (received > bytes) throw new Error(`${displayName} download size mismatch.`);
+      if (received > bytes)
+        throw new Error(t("agentInfra.backend.download.sizeMismatch", { name: displayName }));
       hash.update(chunk);
       await output.writeFile(chunk);
       const percent = Math.floor((received / bytes) * 100);
@@ -80,7 +91,8 @@ export async function downloadFile(
     response.destroy();
     await output.close();
   }
-  if (received !== bytes) throw new Error(`${displayName} download size mismatch.`);
+  if (received !== bytes)
+    throw new Error(t("agentInfra.backend.download.sizeMismatch", { name: displayName }));
   if (sha256 && hash.digest("hex") !== sha256)
-    throw new Error(`${displayName} download checksum mismatch.`);
+    throw new Error(t("agentInfra.backend.download.checksumMismatch", { name: displayName }));
 }

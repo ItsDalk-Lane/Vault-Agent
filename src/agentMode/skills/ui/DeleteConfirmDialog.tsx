@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import { createPluginRoot } from "@/utils/react/createPluginRoot";
@@ -33,13 +34,19 @@ const DeleteConfirmBody: React.FC<{
         />
         <p className="tw-m-0 tw-text-ui-smaller tw-leading-relaxed tw-text-normal">
           {isProject
-            ? `This removes the skill ${paths.length > 1 ? "folders" : "folder"} from your project. Vault sync / git is the only rollback path.`
-            : "This removes the canonical copy and every agent symlink. Vault sync / git is the only rollback path."}
+            ? t(
+                paths.length > 1
+                  ? "agentInfra.skills.delete.projectWarningFolders"
+                  : "agentInfra.skills.delete.projectWarningFolder"
+              )
+            : t("agentInfra.skills.delete.canonicalWarning")}
         </p>
       </div>
 
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <div className="tw-text-ui-smaller tw-text-muted">Will remove:</div>
+        <div className="tw-text-ui-smaller tw-text-muted">
+          {t("agentInfra.skills.delete.willRemove")}
+        </div>
         <ul className="tw-m-0 tw-list-none tw-space-y-1 tw-p-0 tw-font-mono tw-text-ui-smaller tw-text-normal">
           {paths.map(({ path, note }) => (
             <li key={path} className="tw-flex tw-items-baseline tw-gap-2">
@@ -59,10 +66,10 @@ const DeleteConfirmBody: React.FC<{
 
       <div className="tw-flex tw-justify-end tw-gap-2 tw-pt-2">
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button variant="destructive" onClick={onConfirm}>
-          Delete skill
+          {t("agentInfra.skills.delete.confirm")}
         </Button>
       </div>
     </div>
@@ -81,7 +88,7 @@ export class DeleteConfirmModal extends Modal {
   ) {
     super(app);
     // @ts-ignore
-    this.setTitle(`Delete ${skill.name}?`);
+    this.setTitle(t("agentInfra.skills.delete.title", { name: skill.name }));
   }
 
   onOpen() {
@@ -122,7 +129,7 @@ function collectDeletePaths(
       if (dir === undefined) continue;
       out.push({
         path: `${dir.replace(/\/+$/, "")}/${skill.name}/`,
-        note: "project SKILL.md and supporting files",
+        note: t("agentInfra.skills.delete.noteProject"),
       });
     }
     return out;
@@ -130,12 +137,12 @@ function collectDeletePaths(
 
   out.push({
     path: `${folder}/${skill.name}/`,
-    note: "canonical SKILL.md and supporting files",
+    note: t("agentInfra.skills.delete.noteCanonical"),
   });
   for (const agent of skill.enabledAgents) {
     const dir = agentDirsProjectRel[agent];
     if (dir === undefined) continue;
-    out.push({ path: `${dir}/${skill.name}`, note: "symlink" });
+    out.push({ path: `${dir}/${skill.name}`, note: t("agentInfra.skills.delete.noteSymlink") });
   }
   return out;
 }

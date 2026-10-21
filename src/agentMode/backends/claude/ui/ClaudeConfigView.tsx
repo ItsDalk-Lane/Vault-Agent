@@ -7,6 +7,7 @@ import {
   ConfigWarningStrip,
 } from "@/agentMode/backends/shared/ui/ConfigDialogShell";
 import { CommandBlock } from "@/agentMode/backends/shared/ui/SetupSteps";
+import { t } from "@/i18n";
 import type { InstallState } from "@/agentMode/session/types";
 import {
   AuthenticationSection,
@@ -44,22 +45,22 @@ export const ClaudeConfigView: React.FC<ClaudeConfigViewProps> = ({
 }) => (
   <ConfigDialogShell
     authStatus={auth.status}
-    title="Configure Claude"
+    title={t("agentInfra.backend.claude.configureTitle")}
     state={state}
     warning={<ConfigWarningStrip state={state} detail={claudeUpdateDetail(state)} />}
     onClose={onClose}
   >
-    <ConfigSection title="Claude Code binary">
+    <ConfigSection title={t("agentInfra.backend.claude.binarySection")}>
       <p className="tw-my-0 tw-text-sm tw-text-muted">
-        Copilot runs the <code>claude</code> CLI on this machine. Auto-detect checks the usual
-        install locations.
+        {t("agentInfra.backend.claude.binaryBodyPrefix")} <code>claude</code>{" "}
+        {t("agentInfra.backend.claude.binaryBodySuffix")}
       </p>
       <BinaryPathSetting
         binaryName="claude"
         placeholder={PATH_PLACEHOLDER}
         initialPath={binaryPath}
         hasPersistedPath={hasBinaryPathOverride}
-        notFoundHint="claude not found in known install locations. Run the install command below, then click Auto-detect again."
+        notFoundHint={t("agentInfra.backend.claude.notFoundHint")}
         onSave={onSavePath}
         onClear={onClearPath}
         persistOnAutoDetect
@@ -68,12 +69,12 @@ export const ClaudeConfigView: React.FC<ClaudeConfigViewProps> = ({
       />
     </ConfigSection>
 
-    <ConfigSection title="Install Claude Code">
+    <ConfigSection title={t("agentInfra.backend.claude.installSection")}>
       <CommandBlock command={CLAUDE_INSTALL_COMMAND} />
     </ConfigSection>
     <AuthenticationSection
       ready={state.kind === "ready"}
-      unavailableMessage="Set up a supported Claude CLI above to enable sign-in."
+      unavailableMessage={t("agentInfra.backend.claude.unavailable")}
       auth={auth}
     />
   </ConfigDialogShell>

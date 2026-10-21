@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import { OPENCODE_PINNED_VERSION, OPENCODE_MIN_VERSION } from "./ui/opencodeVersion";
 import { resolveEffort } from "@/lib/model-effort";
+import { t } from "@/i18n";
 import { OpencodeInstallModal } from "@/agentMode/backends/opencode/OpencodeInstallModal";
 import OpencodeLogo from "@/agentMode/backends/opencode/logo.svg";
 import type VaultAgentPlugin from "@/main";
@@ -76,8 +77,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
   Icon: OpencodeLogo,
   selfHostable: true,
   routesVaultAgentModels: true,
-  setupDescription:
-    "Any model on your own provider key. Vault Agent can download and manage the binary for you.",
+  setupDescription: "agentInfra.setup.opencode",
   skillsProjectDir: ".opencode/skills",
   crossDiscoveredAgents: ["claude", "codex"],
   restartOnManagedSkillsChange: true,
@@ -97,8 +97,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
     if (option.kind !== "allow_always") return option;
     return {
       ...option,
-      description:
-        "Saves a rule that opencode uses in later chats in this folder: the vault folder, or the project note's folder for a project chat.",
+      description: t("agentInfra.backend.permission.opencode.ruleScope"),
     };
   },
 
@@ -200,7 +199,7 @@ export const OpencodeBackendDescriptor: BackendDescriptor = {
         getSelfHostWebSearchChannel: () => {
           const bridge = args.plugin.selfHostWebSearchAgentBridge;
           if (!bridge) {
-            throw new Error("Copilot self-host web search channel is unavailable.");
+            throw new Error(t("agentInfra.backend.opencode.webSearchUnavailable"));
           }
           return bridge.getChannel();
         },

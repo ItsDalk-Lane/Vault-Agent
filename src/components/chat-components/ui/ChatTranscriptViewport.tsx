@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowDown } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 export interface ChatTranscriptViewportProps {
   children: React.ReactNode;
@@ -36,8 +37,8 @@ export function ChatTranscriptViewport({
           type="button"
           variant="secondary"
           size="icon"
-          aria-label="Scroll to end"
-          title="Scroll to end"
+          aria-label={t("ui.action.scrollToEnd")}
+          title={t("ui.action.scrollToEnd")}
           onClick={scrollToEnd}
           className="tw-absolute tw-inset-x-0 tw-bottom-3 tw-z-[1] tw-mx-auto tw-size-8 tw-rounded-full tw-border tw-border-solid tw-border-border tw-bg-primary hover:tw-bg-interactive-hover"
         >

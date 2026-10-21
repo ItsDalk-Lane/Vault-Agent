@@ -1,5 +1,6 @@
 import React from "react";
 import { FileDiff, FileText } from "lucide-react";
+import { t } from "@/i18n";
 import type { TurnFileChange } from "@/agentMode/session/types";
 import { FileChangeCounts, FileChangeStatusBadge } from "@/agentMode/ui/FileChangeSummary";
 
@@ -20,7 +21,7 @@ export const FilesChangedCard: React.FC<FilesChangedCardProps> = ({ changes, onO
         <div className="vault-agent-divider-b tw-flex tw-items-center tw-gap-1.5 tw-px-3 tw-py-2">
           <FileDiff className="tw-size-3.5 tw-shrink-0 tw-text-muted" />
           <span className="tw-min-w-0 tw-flex-1 tw-truncate tw-text-sm tw-font-medium">
-            Files changed ({rows.length})
+            {t("agentChat.fileChange.filesChanged", { count: rows.length })}
           </span>
           <FileChangeCounts additions={additions} deletions={deletions} />
         </div>

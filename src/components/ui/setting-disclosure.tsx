@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import React from "react";
@@ -8,7 +9,7 @@ interface SettingDisclosureProps extends React.ComponentPropsWithoutRef<"button"
 }
 
 export const SettingDisclosure = React.forwardRef<HTMLButtonElement, SettingDisclosureProps>(
-  ({ open, label = "Advanced", className, ...props }, ref) => (
+  ({ open, label, className, ...props }, ref) => (
     <button
       ref={ref}
       type="button"
@@ -22,7 +23,7 @@ export const SettingDisclosure = React.forwardRef<HTMLButtonElement, SettingDisc
       {...props}
     >
       <ChevronRight className={cn("tw-size-3.5 tw-transition-transform", open && "tw-rotate-90")} />
-      {label}
+      {label ?? t("ui.common.advanced")}
     </button>
   )
 );

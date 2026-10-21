@@ -1,5 +1,6 @@
 import { resolveEffort } from "@/lib/model-effort";
 import { SettingItem } from "@/components/ui/setting-item";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { useSettingsValue } from "@/settings/model";
 import React, { useSyncExternalStore } from "react";
@@ -8,7 +9,7 @@ import type { BackendDescriptor, EnabledModelEntry } from "@/agentMode/session/t
 import { AgentDefaultEffortSetting } from "@/agentMode/ui/AgentDefaultEffortSetting";
 import {
   EMPTY_EFFORT_OPTIONS,
-  MISSING_KEY_LABEL,
+  missingKeyLabel,
   resolveEffortOptions,
 } from "./agentModelPickerHelpers";
 import { useManagerSubscribe } from "./useManagerSubscribe";
@@ -19,8 +20,6 @@ interface Props {
 }
 
 const AGENT_DEFAULT_VALUE = "__agent_default__";
-const AGENT_DEFAULT_LABEL = "Agent default";
-const EFFORT_NOT_SUPPORTED_LABEL = "Not supported";
 
 export const AgentDefaultModelSetting: React.FC<Props> = ({ descriptor, manager }) => {
   const subscribe = useManagerSubscribe(manager);
@@ -72,20 +71,24 @@ export const AgentDefaultModelSetting: React.FC<Props> = ({ descriptor, manager 
   }));
   const defaultMissingFromEnabled =
     hasExplicitDefault && !enabledOptions.some((o) => o.value === selectedBaseId);
+  const agentDefaultLabel = t("agentChat.defaultModel.agentDefault");
   const modelOptions = defaultMissingFromEnabled
     ? [
-        { label: AGENT_DEFAULT_LABEL, value: AGENT_DEFAULT_VALUE },
-        { label: `${current?.baseModelId} (disabled)`, value: selectedBaseId },
+        { label: agentDefaultLabel, value: AGENT_DEFAULT_VALUE },
+        {
+          label: t("agentChat.defaultModel.disabled", { model: current?.baseModelId ?? "" }),
+          value: selectedBaseId,
+        },
         ...enabledOptions,
       ]
-    : [{ label: AGENT_DEFAULT_LABEL, value: AGENT_DEFAULT_VALUE }, ...enabledOptions];
+    : [{ label: agentDefaultLabel, value: AGENT_DEFAULT_VALUE }, ...enabledOptions];
 
   return (
     <>
       <SettingItem
         type="select"
-        title="Default model"
-        description="Used for new chats and multi-agent answers on this agent. Open chats switch on their next turn."
+        title={t("agentChat.defaultModel.title")}
+        description={t("agentChat.defaultModel.description")}
         value={selectedBaseId}
         onChange={onModelChange}
         options={modelOptions}
@@ -93,7 +96,9 @@ export const AgentDefaultModelSetting: React.FC<Props> = ({ descriptor, manager 
       <AgentDefaultEffortSetting
         value={current?.effort ?? null}
         options={effortOptions}
-        disabledLabel={hasExplicitDefault ? EFFORT_NOT_SUPPORTED_LABEL : AGENT_DEFAULT_LABEL}
+        disabledLabel={
+          hasExplicitDefault ? t("agentChat.defaultModel.notSupported") : agentDefaultLabel
+        }
         onChange={onEffortChange}
       />
     </>
@@ -102,5 +107,7 @@ export const AgentDefaultModelSetting: React.FC<Props> = ({ descriptor, manager 
 
 function modelOptionLabel(entry: EnabledModelEntry): string {
   const base = entry.name || entry.baseModelId;
-  return entry.credentialState === "missing_key" ? `${base} (${MISSING_KEY_LABEL})` : base;
+  return entry.credentialState === "missing_key"
+    ? t("agentChat.defaultModel.missingKeyOption", { model: base, label: missingKeyLabel() })
+    : base;
 }

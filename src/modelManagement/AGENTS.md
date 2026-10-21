@@ -8,7 +8,7 @@ model selection, and the transient catalog types used during setup.
 `models.dev` (the catalog) is consumed **only during setup**. When the
 user adds a provider via BYOK, when an agent is configured, a `Provider` row
 is created with an
-`origin` discriminator (`byok` / `agent` / `copilot-plus`). Each
+`origin` discriminator (`byok` / `agent`). Each
 provider has zero or more `ConfiguredModel` rows under it, each
 embedding a `ModelInfo` snapshot copied from the catalog (or
 hand-typed for self-hosted endpoints). The plugin keeps working

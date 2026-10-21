@@ -380,13 +380,14 @@ export default [
                 "!@/lib",
                 "!@/lib/*",
                 "!@/constants",
+                "!@/i18n",
               ],
               allowTypeImports: true,
               message:
                 "src/components/ui must not import values outside @/components/ui, @/lib, " +
-                "and @/constants. Type-only imports are always fine. If a primitive needs " +
-                "plugin state, take it as a prop; if it needs a helper, move the helper to " +
-                "@/lib. Reaching into @/settings, @/aiParams, @/utils, or @/agentMode couples " +
+                "@/constants, and @/i18n. Type-only imports are always fine. If a primitive " +
+                "needs plugin state, take it as a prop; if it needs a helper, move the helper " +
+                "to @/lib. Reaching into @/settings, @/aiParams, @/utils, or @/agentMode couples " +
                 "a presentational component to the plugin runtime and makes it unrenderable " +
                 "and untestable in isolation.",
             },

@@ -5,7 +5,7 @@ import type { AgentSessionIndexEntry } from "./AgentSessionIndex";
 import {
   deriveChatTitleFromMessages,
   mergeChatHistoryItems,
-  UNTITLED_NATIVE_CHAT,
+  untitledNativeChat,
 } from "./chatHistoryMerge";
 import type { AgentChatMessage } from "./types";
 
@@ -105,7 +105,7 @@ describe("chatHistoryMerge", () => {
 
     it("untitled native sessions fall back to a placeholder title", () => {
       const merged = mergeChatHistoryItems([], [nativeEntry({ title: null })]);
-      expect(merged[0]?.title).toBe(UNTITLED_NATIVE_CHAT);
+      expect(merged[0]?.title).toBe(untitledNativeChat());
     });
 
     it("different sessions on different backends never merge, even with the same session id", () => {

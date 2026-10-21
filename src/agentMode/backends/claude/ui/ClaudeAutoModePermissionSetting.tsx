@@ -1,12 +1,15 @@
 import { SettingItem } from "@/components/ui/setting-item";
+import { t } from "@/i18n";
 import type { ClaudeAutoModePermission } from "@/settings/model";
 import React from "react";
 
-const AUTO_MODE_OPTIONS: { label: string; value: ClaudeAutoModePermission }[] = [
-  { label: "Auto", value: "auto" },
-  { label: "Accept edits", value: "acceptEdits" },
-  { label: "Bypass permissions", value: "bypassPermissions" },
-];
+function autoModeOptions(): { label: string; value: ClaudeAutoModePermission }[] {
+  return [
+    { label: t("agentInfra.backend.claude.autoMode.auto"), value: "auto" },
+    { label: t("agentInfra.backend.claude.autoMode.acceptEdits"), value: "acceptEdits" },
+    { label: t("agentInfra.backend.claude.autoMode.bypass"), value: "bypassPermissions" },
+  ];
+}
 
 export interface ClaudeAutoModePermissionSettingProps {
   value: ClaudeAutoModePermission;
@@ -19,10 +22,10 @@ export const ClaudeAutoModePermissionSetting: React.FC<ClaudeAutoModePermissionS
 }) => (
   <SettingItem
     type="select"
-    title="Auto mode permissions"
-    description="Auto lets Claude judge each request and still ask about risky ones, Accept edits auto-approves file edits only, and Bypass permissions skips every check."
+    title={t("agentInfra.backend.claude.autoModeTitle")}
+    description={t("agentInfra.backend.claude.autoModeDescription")}
     value={value}
-    options={AUTO_MODE_OPTIONS}
+    options={autoModeOptions()}
     onChange={(next) => onChange(next as ClaudeAutoModePermission)}
   />
 );

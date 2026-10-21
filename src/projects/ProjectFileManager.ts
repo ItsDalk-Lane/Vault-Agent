@@ -1,6 +1,7 @@
 import { ProjectConfig } from "@/aiParams";
 import { removeGeneratedInstructionFiles } from "@/instructions/agentsFile";
 import { logError, logInfo, logWarn } from "@/logger";
+import { t } from "@/i18n";
 import {
   VAULT_AGENT_PROJECT_LAST_USED,
   PROJECTS_UNSUPPORTED_FOLDER_NAME,
@@ -95,10 +96,10 @@ export class ProjectFileManager {
 
   public async createProject(project: ProjectConfig): Promise<ProjectFileRecord> {
     const projectId = (project.id || "").trim();
-    if (!projectId) throw new Error("Project id cannot be empty");
+    if (!projectId) throw new Error(t("ui.project.err.idEmpty"));
 
     if (getCachedProjectRecordById(projectId)) {
-      throw new Error(`Project id already exists: ${projectId}`);
+      throw new Error(t("ui.project.err.idExists", { id: projectId }));
     }
 
     const trimmedName = (project.name || "").trim();
@@ -107,7 +108,7 @@ export class ProjectFileManager {
         (r) => r.project.name.trim().toLowerCase() === trimmedName.toLowerCase()
       );
       if (nameExists) {
-        throw new Error(`A project with the name "${trimmedName}" already exists`);
+        throw new Error(t("ui.project.err.nameExists", { name: trimmedName }));
       }
     }
 
@@ -122,8 +123,11 @@ export class ProjectFileManager {
     );
     if (existingFolderConflict) {
       throw new Error(
-        `Folder name collision: project id "${projectId}" sanitizes to folder "${folderName}" ` +
-          `which conflicts with existing project "${existingFolderConflict.project.id}"`
+        t("ui.project.err.folderCollision", {
+          id: projectId,
+          folder: folderName,
+          existingId: existingFolderConflict.project.id,
+        })
       );
     }
 
@@ -135,8 +139,11 @@ export class ProjectFileManager {
 
       if (await this.vault.adapter.exists(filePath)) {
         throw new Error(
-          `Project file already exists at "${filePath}". ` +
-            `This may be a folder name collision — project id "${projectId}" sanitizes to folder "${folderName}"`
+          t("ui.project.err.fileExists", {
+            path: filePath,
+            id: projectId,
+            folder: folderName,
+          })
         );
       }
 
@@ -185,7 +192,7 @@ export class ProjectFileManager {
     }
 
     const existing = getCachedProjectRecordById(normalizedId);
-    if (!existing) throw new Error(`Project not found: ${normalizedId}`);
+    if (!existing) throw new Error(t("ui.project.err.notFound", { id: normalizedId }));
 
     const trimmedName = (nextProject.name || "").trim();
     if (trimmedName) {
@@ -195,7 +202,7 @@ export class ProjectFileManager {
           r.project.name.trim().toLowerCase() === trimmedName.toLowerCase()
       );
       if (nameConflict) {
-        throw new Error(`A project with the name "${trimmedName}" already exists`);
+        throw new Error(t("ui.project.err.nameExists", { name: trimmedName }));
       }
     }
 
@@ -217,13 +224,16 @@ export class ProjectFileManager {
       );
       if (folderConflict) {
         throw new Error(
-          `Cannot rename project folder: "${nextFolderName}" conflicts with project "${folderConflict.project.name}"`
+          t("ui.project.err.renameCollision", {
+            name: nextFolderName,
+            existingName: folderConflict.project.name,
+          })
         );
       }
       const isCaseOnlyRename =
         newFolderPath.toLowerCase() === projectFolderIn(existing.folderName).toLowerCase();
       if (!isCaseOnlyRename && (await this.vault.adapter.exists(newFolderPath))) {
-        throw new Error(`Cannot rename project folder: "${newFolderPath}" already exists on disk`);
+        throw new Error(t("ui.project.err.renameExists", { path: newFolderPath }));
       }
 
       oldFilePathForPending = filePath;
@@ -234,7 +244,7 @@ export class ProjectFileManager {
         const oldFolderPath = projectFolderIn(existing.folderName);
         const folderObj = this.vault.getAbstractFileByPath(oldFolderPath);
         if (!(folderObj instanceof TFolder)) {
-          throw new Error(`Project folder not found: ${oldFolderPath}`);
+          throw new Error(t("ui.project.err.folderNotFound", { path: oldFolderPath }));
         }
         await this.vault.rename(folderObj, newFolderPath);
       } catch (renameError) {

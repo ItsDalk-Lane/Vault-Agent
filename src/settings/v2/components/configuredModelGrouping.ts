@@ -1,4 +1,5 @@
 import type { ModelEnableGroup, ModelEnableRow } from "@/components/ui/ModelEnableList";
+import { t } from "@/i18n";
 import type { Destination } from "@/types/destination";
 import { isOpencodeZenWireId, OPENCODE_ZEN_PROVIDER_ID } from "@/utils/opencodeModelId";
 import {
@@ -109,7 +110,10 @@ const OPENCODE_LOCAL_PROVIDER_IDS = new Set(["lmstudio", "ollama"]);
 function opencodeProviderDestination(providerId: string): Destination {
   if (providerId === OPENCODE_ZEN_PROVIDER_ID) return { kind: "cloud", label: "OpenCode Zen" };
   if (OPENCODE_LOCAL_PROVIDER_IDS.has(providerId)) {
-    return { kind: "local", label: `The ${providerId} server set in opencode` };
+    return {
+      kind: "local",
+      label: t("settings.models.opencodeLocalDestination", { provider: providerId }),
+    };
   }
   return { kind: "cloud", label: providerId };
 }
@@ -119,7 +123,7 @@ function originBadgeLabel(kind: OriginKind): string {
     case "byok":
       return "BYOK";
     case "agent":
-      return "Agent Provided";
+      return t("settings.models.badgeAgentProvided");
   }
 }
 

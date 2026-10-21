@@ -2,6 +2,7 @@ import { ProviderVerificationStatus } from "@/modelManagement/ui/components/Prov
 import type { VerificationResult } from "@/modelManagement/types/runtime";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { t } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +56,7 @@ export const ByokGlobalTable: React.FC<ByokGlobalTableProps> = ({
         )}
         data-testid="byok-table-empty"
       >
-        {emptyMessage ?? "No providers yet — click + Add a provider to start."}
+        {emptyMessage ?? t("ui.model.noProviders")}
       </div>
     );
   }
@@ -101,25 +102,27 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
           await api.coordinator.removeConfiguredModel(configuredModelId);
         } catch (err) {
           logError("[ByokGlobalTable] removeConfiguredModel failed", err);
-          new Notice("Failed to remove model.");
+          new Notice(t("ui.model.failedRemoveModel"));
         }
       },
-      `Remove ${modelName} from ${provider.displayName}?`,
-      "Remove model",
-      "Remove",
-      "Cancel"
+      t("ui.model.removeModelConfirm", { model: modelName, provider: provider.displayName }),
+      t("ui.model.removeModelTitle"),
+      t("ui.common.remove"),
+      t("common.cancel")
     );
     modal.open();
   };
 
   const getSubLine = (): string => {
     if (!providerRequiresApiKey(provider)) {
-      return "Local models on your machine";
+      return t("ui.model.localModels");
     }
     if (models.length === 0) {
-      return "No models added";
+      return t("ui.model.noModelsAdded");
     }
-    return `${models.length} ${models.length === 1 ? "model" : "models"}`;
+    return models.length === 1
+      ? t("ui.model.modelCountOne", { count: models.length })
+      : t("ui.model.modelCountMany", { count: models.length });
   };
 
   return (
@@ -175,7 +178,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={(e) => e.stopPropagation()}
-                  aria-label={`More actions for ${provider.displayName}`}
+                  aria-label={t("ui.model.moreActionsFor", { provider: provider.displayName })}
                   className="tw-shrink-0"
                 >
                   <MoreVertical className="tw-size-4" />
@@ -189,7 +192,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                   }}
                 >
                   <Settings2 className="tw-mr-2 tw-size-4" />
-                  Edit key
+                  {t("ui.model.editKey")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -199,7 +202,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                   className="tw-text-error"
                 >
                   <Trash2 className="tw-mr-2 tw-size-4" />
-                  Remove
+                  {t("ui.common.remove")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -252,7 +255,7 @@ const ModelRow: React.FC<{ model: ConfiguredModel; onRemove: () => void }> = ({
           e.stopPropagation();
           onRemove();
         }}
-        aria-label={`Remove ${model.info.displayName}`}
+        aria-label={t("ui.model.removeModelAria", { model: model.info.displayName })}
         tabIndex={0}
       >
         <XIcon className="tw-size-4" />

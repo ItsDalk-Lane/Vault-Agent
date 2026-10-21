@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { VerificationResult } from "@/modelManagement/types/runtime";
 import { Loader2 } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 export interface ProviderVerificationStatusProps {
   result?: VerificationResult;
@@ -13,14 +14,14 @@ export function ProviderVerificationStatus({ result }: ProviderVerificationStatu
   // Only a fresh successful probe earns a success badge. Connection failures
   // remain inconclusive rather than accusing a valid key of being invalid.
   const label = !result
-    ? "Checking…"
+    ? t("ui.model.checking")
     : result.ok
-      ? "Verified"
+      ? t("ui.model.verified")
       : result.code === "missing_api_key"
-        ? "No key"
+        ? t("ui.model.noKey")
         : result.code === "invalid_api_key"
-          ? "Invalid key"
-          : "Check failed";
+          ? t("ui.model.invalidKey")
+          : t("ui.model.checkFailed");
   return (
     <Badge
       variant={result && !result.ok ? "destructive" : "secondary"}
@@ -44,7 +45,7 @@ export function ProviderVerificationProgress({ pending }: ProviderVerificationPr
       className="tw-pointer-events-none tw-absolute tw-right-0 tw-top-0 tw-flex -tw-translate-y-1/2 tw-items-center tw-gap-1.5 tw-rounded-full tw-bg-primary tw-px-2 tw-py-1 tw-text-xs tw-text-muted tw-shadow-sm"
     >
       <Loader2 className="tw-size-3 tw-animate-spin" aria-hidden="true" />
-      Verifying providers…
+      {t("ui.model.verifyingProviders")}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type {
 } from "@/agentMode/session/types";
 import { InstallBadge } from "@/agentMode/backends/shared/installStatus";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { TruncatedText } from "@/components/TruncatedText";
 import { DestinationIcon } from "@/components/ui/DestinationIcon";
 import type { Destination } from "@/types/destination";
@@ -67,7 +68,7 @@ export function AgentBackendHeader({
           variant={installState.kind === "ready" ? "secondary" : "default"}
           onClick={onConfigure}
         >
-          Configure
+          {t("agentInfra.backend.configure")}
         </Button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import {
   ModelCapability,
   TEXT_READABLE_EXTENSIONS,
 } from "@/constants";
+import { t } from "@/i18n";
 import { logInfo, logWarn } from "@/logger";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { MemoryVariables } from "@langchain/core/memory";
@@ -578,7 +579,7 @@ export async function insertAtCursor(app: App, text: string) {
 export async function insertIntoEditor(app: App, message: string, replace: boolean = false) {
   let leaf = app.workspace.getMostRecentLeaf();
   if (!leaf) {
-    new Notice("No active leaf found.");
+    new Notice(t("notice.noActiveLeaf"));
     return;
   }
 
@@ -588,7 +589,7 @@ export async function insertIntoEditor(app: App, message: string, replace: boole
   }
 
   if (!(leaf.view instanceof MarkdownView)) {
-    new Notice("Failed to open a markdown view.");
+    new Notice(t("notice.openMarkdownFailed"));
     return;
   }
 
@@ -618,7 +619,7 @@ export async function insertIntoEditor(app: App, message: string, replace: boole
 
   const finalizeInsertion = (): void => {
     editor.focus();
-    new Notice("Message inserted into the active note.");
+    new Notice(t("notice.messageInserted"));
   };
 
   const view = editor.cm;

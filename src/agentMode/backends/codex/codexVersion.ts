@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { parseSemver } from "@/utils/semver";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { assertBinaryCompatible } from "@/agentMode/backends/shared/binaryCompatibility";
@@ -40,7 +41,10 @@ function defaultPackageFs(): CodexAcpPackageFs {
 
 function unsupportedAdapter(): Error {
   return new Error(
-    `The configured Codex adapter is not supported. Install ${CURRENT_PACKAGE_NAME} ${CODEX_MIN_VERSION} or newer, then run Auto-detect again.`
+    t("agentInfra.backend.compat.codexUnsupportedAdapter", {
+      package: CURRENT_PACKAGE_NAME,
+      minimum: CODEX_MIN_VERSION,
+    })
   );
 }
 
@@ -181,9 +185,7 @@ export function resolveCodexCommand(
   // Node cannot spawn a Windows command script without a shell, so name the files it can run.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/686
   if (platform === "win32" && /\.(cmd|bat)$/i.test(codexPath)) {
-    throw new Error(
-      `CODEX_PATH names ${codexPath}, which Copilot cannot run directly. Point CODEX_PATH at codex.exe or Codex's bin\\codex.js instead.`
-    );
+    throw new Error(t("agentInfra.backend.compat.codexPathCommand", { path: codexPath }));
   }
   return codexPath;
 }
@@ -210,9 +212,7 @@ export function buildCodexAcpInvocation(
     // so the package entry must run through the Node installation that owns it.
     // https://github.com/logancyang/obsidian-copilot/issues/2916
     if (!nodePath) {
-      throw new Error(
-        "Node.js was not found. Install Node.js, restart Obsidian, then run Codex Auto-detect again."
-      );
+      throw new Error(t("agentInfra.backend.compat.codexNodeMissing"));
     }
     return { command: nodePath, args: [entryPath, ...args], env };
   }

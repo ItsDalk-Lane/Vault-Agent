@@ -4,6 +4,7 @@ import {
   type BackendDescriptor,
   type ModelEnableGroup,
 } from "@/agentMode";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import {
   backendsAtom,
@@ -77,15 +78,12 @@ export const ConfiguredModelEnableList: React.FC<ConfiguredModelEnableListProps>
   const emptyState =
     descriptor.id === "opencode" ? (
       <span>
-        No models configured yet. Add a provider on the{" "}
-        <span className="tw-font-medium">Models (BYOK)</span> tab, or sign in to an opencode
-        subscription, to curate models here.
+        {t("settings.models.emptyPrefix")}{" "}
+        <span className="tw-font-medium">{t("settings.models.byokTab")}</span>{" "}
+        {t("settings.models.emptyOpencodeSuffix")}
       </span>
     ) : (
-      <span>
-        No models reported yet. Sign in / install the {descriptor.displayName} CLI and reload, or
-        open a chat session with this agent.
-      </span>
+      <span>{t("settings.models.emptyBackend", { backend: descriptor.displayName })}</span>
     );
 
   return (
@@ -94,7 +92,9 @@ export const ConfiguredModelEnableList: React.FC<ConfiguredModelEnableListProps>
       onToggle={handleToggle}
       query={query}
       onQueryChange={setQuery}
-      searchPlaceholder={`Search ${descriptor.displayName} models…`}
+      searchPlaceholder={t("settings.models.searchPlaceholder", {
+        backend: descriptor.displayName,
+      })}
       emptyState={emptyState}
       defaultOpenGroupKey={groups[0]?.key}
     />

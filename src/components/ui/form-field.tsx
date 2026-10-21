@@ -1,5 +1,6 @@
 import React from "react";
 import { Label } from "./label";
+import { t } from "@/i18n";
 
 interface FormFieldProps {
   label?: string | React.ReactNode;
@@ -15,7 +16,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   required = false,
   error = false,
   description,
-  errorMessage = "This field is required",
+  errorMessage,
   children,
 }) => {
   return (
@@ -27,7 +28,7 @@ export const FormField: React.FC<FormFieldProps> = ({
       )}
       {description && <p className="tw-text-sm tw-text-muted">{description}</p>}
       {children}
-      {error && <p className="tw-text-xs tw-text-error">{errorMessage}</p>}
+      {error && <p className="tw-text-xs tw-text-error">{errorMessage ?? t("ui.form.required")}</p>}
     </div>
   );
 };

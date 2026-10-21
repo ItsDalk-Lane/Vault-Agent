@@ -1,6 +1,7 @@
 import { getPropertyPattern, shouldIndexFile } from "@/search/searchUtils";
 import { getPropertyValuesFromNote } from "@/utils";
 import { App, FuzzySuggestModal, TFile } from "obsidian";
+import { t } from "@/i18n";
 
 function isSelectablePropertyKey(key: string): boolean {
   return key.length > 0 && key !== "position" && key === key.trim() && !/[:[\]]/.test(key);
@@ -47,7 +48,7 @@ export class PropertyValueModal extends FuzzySuggestModal<PropertyValueChoice> {
     private readonly onChoose: (pattern: string) => void
   ) {
     super(app);
-    this.setPlaceholder(`Select a value for "${key}"`);
+    this.setPlaceholder(t("ui.property.selectValue", { key }));
   }
 
   getItems(): PropertyValueChoice[] {
@@ -55,7 +56,7 @@ export class PropertyValueModal extends FuzzySuggestModal<PropertyValueChoice> {
   }
 
   getItemText(choice: PropertyValueChoice): string {
-    return choice === null ? "Any value — notes that declare this key" : choice;
+    return choice === null ? t("ui.property.anyValue") : choice;
   }
 
   onChooseItem(choice: PropertyValueChoice): void {
@@ -69,7 +70,7 @@ export class PropertySearchModal extends FuzzySuggestModal<string> {
     private readonly onChoose: (pattern: string) => void
   ) {
     super(app);
-    this.setPlaceholder("Select a property key");
+    this.setPlaceholder(t("ui.property.selectKey"));
   }
 
   getItems(): string[] {

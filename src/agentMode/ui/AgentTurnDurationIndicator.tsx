@@ -1,4 +1,5 @@
 import { VaultAgentSpinner } from "@/components/chat-components/VaultAgentSpinner";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -27,9 +28,10 @@ export function formatWorkedDuration(durationMs: number): string {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
+  if (hours > 0)
+    return t("agentChat.turnDuration.hoursMinutesSeconds", { hours, minutes, seconds });
+  if (minutes > 0) return t("agentChat.turnDuration.minutesSeconds", { minutes, seconds });
+  return t("agentChat.turnDuration.seconds", { seconds });
 }
 
 export const AgentTurnDurationIndicator: React.FC<AgentTurnDurationIndicatorProps> = (props) => {
@@ -68,13 +70,13 @@ export const AgentTurnDurationIndicator: React.FC<AgentTurnDurationIndicatorProp
           <span
             className={isRunning ? "vault-agent-shimmer-text tw-font-medium" : "tw-font-medium"}
           >
-            {props.label ?? "Worked for"}
+            {props.label ?? t("agentChat.turnDuration.workedFor")}
           </span>{" "}
           <span className="tw-tabular-nums">{formatWorkedDuration(durationMs)}</span>
         </span>
         {isRunning ? (
           <span className="tw-sr-only" role="status" aria-live="polite">
-            {props.label ?? "Agent is working"}
+            {props.label ?? t("agentChat.turnDuration.agentWorking")}
           </span>
         ) : null}
       </div>

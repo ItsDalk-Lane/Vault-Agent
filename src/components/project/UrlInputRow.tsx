@@ -6,6 +6,7 @@ import { resolveInputUrls } from "@/utils/urlTagUtils";
 import { Clipboard, Plus } from "lucide-react";
 import * as React from "react";
 import { useState } from "react";
+import { t } from "@/i18n";
 
 interface UrlInputRowProps {
   onSubmit: (text: string) => void;
@@ -13,11 +14,7 @@ interface UrlInputRowProps {
   autoFocus?: boolean;
 }
 
-export function UrlInputRow({
-  onSubmit,
-  placeholder = "Enter a URL…",
-  autoFocus,
-}: UrlInputRowProps) {
+export function UrlInputRow({ onSubmit, placeholder, autoFocus }: UrlInputRowProps) {
   const [value, setValue] = useState("");
   const hasValue = value.trim().length > 0;
 
@@ -61,7 +58,7 @@ export function UrlInputRow({
             void handleAction();
           }
         }}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("ui.project.urlPlaceholder")}
         className="tw-min-w-0 tw-flex-1"
       />
       <Button
@@ -72,11 +69,11 @@ export function UrlInputRow({
           !hasValue &&
             "!tw-border !tw-border-solid !tw-border-border !tw-bg-primary !tw-text-muted !tw-shadow-none hover:!tw-bg-interactive-hover hover:!tw-text-normal"
         )}
-        title={hasValue ? "Add to list" : "Paste from clipboard"}
+        title={hasValue ? t("ui.project.addToList") : t("ui.project.pasteFromClipboard")}
         onClick={() => void handleAction()}
       >
         {hasValue ? <Plus className="tw-size-3.5" /> : <Clipboard className="tw-size-3.5" />}
-        {hasValue ? "Add" : "Paste"}
+        {hasValue ? t("ui.common.add") : t("ui.project.paste")}
       </Button>
     </div>
   );

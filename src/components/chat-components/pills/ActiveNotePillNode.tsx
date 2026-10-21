@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import {
   DOMConversionMap,
   DOMConversionOutput,
@@ -95,11 +96,7 @@ function ActiveNotePillComponent(): JSX.Element {
             content="activeNote"
             openBracket="{"
             closeBracket="}"
-            tooltipContent={
-              <div className="tw-text-left">
-                Will use the active note at the time the message is sent
-              </div>
-            }
+            tooltipContent={<div className="tw-text-left">{t("ui.chat.pill.activeNoteHint")}</div>}
           />
         </div>
       </PillBadge>
@@ -119,7 +116,7 @@ function ActiveNotePillComponent(): JSX.Element {
           closeBracket="]]"
           tooltipContent={<div className="tw-text-left">{notePath}</div>}
         />
-        <span className="tw-text-xs tw-text-faint">Current</span>
+        <span className="tw-text-xs tw-text-faint">{t("ui.chat.pill.current")}</span>
         {isPdf && <span className="tw-text-xs tw-text-faint">pdf</span>}
       </div>
     </PillBadge>

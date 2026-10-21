@@ -3,6 +3,7 @@ import { $getSelection, $isRangeSelection, $isRootNode, type LexicalNode } from 
 import type { BackendId, Skill } from "@/agentMode";
 import { COMPACT_COMMAND_NAME } from "@/commands/compactCommand";
 import type { CustomCommand } from "@/commands/type";
+import { t } from "@/i18n";
 
 export type SlashMenuItem =
   | {
@@ -29,13 +30,15 @@ export type SlashMenuItem =
       command: CustomCommand;
     };
 
-const COMPACT_ITEM: SlashMenuItem = {
-  kind: "builtin",
-  key: `builtin:${COMPACT_COMMAND_NAME}`,
-  name: COMPACT_COMMAND_NAME,
-  description: "Summarize this chat to free up context",
-  body: "",
-};
+function compactItem(): SlashMenuItem {
+  return {
+    kind: "builtin",
+    key: `builtin:${COMPACT_COMMAND_NAME}`,
+    name: COMPACT_COMMAND_NAME,
+    description: t("ui.chat.slashCompactDesc"),
+    body: "",
+  };
+}
 
 export function composeSlashMenuItems(
   skills: Skill[],
@@ -62,7 +65,7 @@ export function composeSlashMenuItems(
   });
 
   return [
-    ...(isAgentMode ? [COMPACT_ITEM] : []),
+    ...(isAgentMode ? [compactItem()] : []),
     ...visibleSkills.map<SlashMenuItem>((skill, index) => ({
       kind: "skill",
       key: `skill:${skill.name}:${index}`,

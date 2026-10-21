@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { Destination } from "@/types/destination";
 import { ChevronRight } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 export interface ModelEnableRow {
   id: string;
@@ -53,7 +54,7 @@ const EnabledCountBadge: React.FC<EnabledCountBadgeProps> = ({ rows }) => {
   return (
     <Badge
       variant="accent"
-      title={`${count} selected`}
+      title={t("ui.model.selectedCount", { count })}
       className="tw-shrink-0 tw-px-1.5 tw-py-0 tw-font-normal"
     >
       {count}
@@ -66,7 +67,7 @@ export const ModelEnableList: React.FC<ModelEnableListProps> = ({
   onToggle,
   query,
   onQueryChange,
-  searchPlaceholder = "Search models…",
+  searchPlaceholder,
   emptyState,
   defaultOpenGroupKey,
 }) => {
@@ -115,12 +116,19 @@ export const ModelEnableList: React.FC<ModelEnableListProps> = ({
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-2">
-      <SearchBar value={query} onChange={onQueryChange} placeholder={searchPlaceholder} />
+      <SearchBar
+        value={query}
+        onChange={onQueryChange}
+        placeholder={searchPlaceholder ?? t("ui.model.searchModels")}
+      />
 
       <div className="tw-max-h-80 tw-overflow-y-auto tw-pr-1">
         {!hasRows ? (
           <div className="tw-py-6 tw-text-center tw-text-sm tw-text-muted">
-            {emptyState ?? (searching ? `No models match “${query.trim()}”.` : "No models.")}
+            {emptyState ??
+              (searching
+                ? t("ui.model.noModelsMatch", { query: query.trim() })
+                : t("ui.model.noModels"))}
           </div>
         ) : (
           <div className="tw-space-y-2">

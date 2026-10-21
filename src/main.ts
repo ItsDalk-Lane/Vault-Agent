@@ -17,6 +17,7 @@ import {
   TURN_DIFF_VIEW_TYPE,
 } from "@/constants";
 import { ContextProcessor } from "@/contextProcessor";
+import { applyLanguage, t } from "@/i18n";
 import { createSelfHostWebSearchAgentBridge } from "@/LLMProviders/selfHostServices";
 import type { SelfHostWebSearchAgentBridge } from "@/LLMProviders/selfHostServices";
 import { logError, logFatalError, logInfo, logWarn } from "@/logger";
@@ -139,7 +140,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       // reads, and this catch keeps Obsidian from logging the failure itself.
       // https://github.com/logancyang/obsidian-copilot/issues/3518
       logFatalError("Vault Agent failed to start.", error);
-      new Notice("Vault Agent failed to start. Check the console for details.");
+      new Notice(t("notice.startFailed"));
       // Obsidian keeps a plugin enabled when work after onload fails, so release whatever
       // startup registered before the failure. https://github.com/logancyang/obsidian-copilot/issues/3518
       this.unload();
@@ -176,12 +177,13 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       app: this.app,
     });
     this.settingsUnsubscriber = subscribeToSettingsChange((prev, next) => {
+      applyLanguage(next.language);
       void (async () => {
         try {
           await persistSettings(next, (data) => this.saveData(data), prev);
         } catch (error) {
           logError("Failed to persist settings.", error);
-          new Notice("Vault Agent failed to save settings. Check logs and try again.");
+          new Notice(t("notice.saveSettingsFailed"));
         }
       })();
     });
@@ -254,7 +256,11 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
     this.initActiveLeafChangeHandler();
 
-    this.addRibbonIcon(VAULT_AGENT_ICON_ID, "Open Agent Chat", () => void this.toggleAgentView());
+    this.addRibbonIcon(
+      VAULT_AGENT_ICON_ID,
+      t("app.ribbon.openAgentChat"),
+      () => void this.toggleAgentView()
+    );
 
     if (isDesktopRuntime()) {
       const { activeLeafRef, layoutRef } = startActiveWebTabTracking(this.app, {
@@ -581,7 +587,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       await this.agentSessionManager?.addContextNoteToActiveChat(note);
     } catch (error) {
       logError("Failed to add a note to Agent Chat.", error);
-      new Notice("Could not add the note to Agent Chat. Check Vault Agent logs.");
+      new Notice(t("notice.addNoteFailed"));
     }
   }
 
@@ -601,7 +607,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       await manager.createSession();
     } catch (error) {
       logWarn("[VaultAgentPlugin] Failed to create agent session", error);
-      new Notice("Failed to create agent session. Check Vault Agent logs.");
+      new Notice(t("notice.createSessionFailed"));
     }
   }
 
@@ -613,7 +619,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       await this.activateAgentView();
     } catch (error) {
       logWarn("[VaultAgentPlugin] Failed to create agent session with draft", error);
-      new Notice("Failed to create agent session. Check Vault Agent logs.");
+      new Notice(t("notice.createSessionFailed"));
     }
   }
 
@@ -640,11 +646,11 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
   private requireAgentView(): AgentSessionManager | null {
     if (!isDesktopRuntime()) {
-      new Notice("Agent Chat is not available on mobile.");
+      new Notice(t("notice.notDesktop"));
       return null;
     }
     if (!this.agentSessionManager) {
-      new Notice("Agent Chat is not initialized.");
+      new Notice(t("notice.agentNotReady"));
       return null;
     }
     return this.agentSessionManager;
@@ -678,6 +684,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
         })
     );
     setSettings(hydrateDeviceProfile(settings, getDeviceId(this.app)));
+    applyLanguage(getSettings().language);
   }
 
   // Single choke point for persisted writes; the load-time keychain bootstrap bypasses it via
@@ -765,7 +772,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       }
     }
     if (mode !== AGENT_CHAT_MODE) {
-      new Notice("This note is not an Agent chat.");
+      new Notice(t("notice.notAgentChat"));
       return;
     }
     await this.loadAgentChatHistory(file);
@@ -781,10 +788,10 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       await navigator.clipboard.writeText(
         buildChatMarkdownLink(extractChatTitle(this.app, file), url)
       );
-      new Notice("Chat link copied.");
+      new Notice(t("notice.linkCopied"));
     } catch (error) {
       logError("Failed to copy chat link", error);
-      new Notice("Could not copy chat link.");
+      new Notice(t("notice.linkCopyFailed"));
     }
   }
 
@@ -793,13 +800,13 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     try {
       const chatId = isNativeChatId(id) ? id : (await findChatFileByDeepLinkId(this.app, id))?.path;
       if (!chatId) {
-        new Notice("Chat link not found.");
+        new Notice(t("notice.linkNotFound"));
         return;
       }
       await this.loadChatById(chatId);
     } catch (error) {
       logError("Failed to open chat link", error);
-      new Notice("Could not open chat link.");
+      new Notice(t("notice.openLinkFailed"));
     }
   }
 
@@ -834,9 +841,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
   async openChatSourceFile(fileId: string): Promise<void> {
     if (isNativeChatId(fileId)) {
-      new Notice(
-        "This chat has no saved note. Turn on Autosave Chat as Markdown to save chats as notes in your vault."
-      );
+      new Notice(t("notice.noSavedNote"));
       return;
     }
     const file = this.app.vault.getAbstractFileByPath(fileId);
@@ -874,7 +879,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
         }, 500);
       });
 
-      new Notice("Chat title updated.");
+      new Notice(t("notice.titleUpdated"));
     } else {
       throw new Error("Chat file not found.");
     }
@@ -884,7 +889,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     const file = this.app.vault.getAbstractFileByPath(fileId);
     if (file instanceof TFile) {
       await trashFile(this.app, file);
-      new Notice("Chat deleted.");
+      new Notice(t("notice.chatDeleted"));
     } else {
       throw new Error("Chat file not found.");
     }

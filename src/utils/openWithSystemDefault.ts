@@ -1,5 +1,6 @@
 import { logError } from "@/logger";
 import { Notice } from "obsidian";
+import { t } from "@/i18n";
 
 export async function openWithSystemDefault(absPath: string): Promise<void> {
   try {
@@ -10,16 +11,16 @@ export async function openWithSystemDefault(absPath: string): Promise<void> {
     };
     const shell = electron.shell ?? electron.remote?.shell;
     if (!shell?.openPath) {
-      new Notice(`Open this file manually: ${absPath}`);
+      new Notice(t("ui.notice.openManually", { path: absPath }));
       return;
     }
     const errMsg = await shell.openPath(absPath);
     if (typeof errMsg === "string" && errMsg.length > 0) {
       logError(`openWithSystemDefault: shell.openPath failed for ${absPath}: ${errMsg}`);
-      new Notice(`Could not open file: ${errMsg}`);
+      new Notice(t("ui.notice.openFailed", { error: errMsg }));
     }
   } catch (err) {
     logError(`openWithSystemDefault failed for ${absPath}:`, err);
-    new Notice(`Open this file manually: ${absPath}`);
+    new Notice(t("ui.notice.openManually", { path: absPath }));
   }
 }

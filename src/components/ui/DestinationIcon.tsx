@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { Destination } from "@/types/destination";
 import { Cloud, Lock, Monitor } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 const ICONS = { lock: Lock, cloud: Cloud, local: Monitor } as const;
 
@@ -31,7 +32,7 @@ export function DestinationIcon({ destination, note, className }: DestinationIco
       >
         <Icon className="tw-size-3.5" />
       </HelpTooltip>
-      <span className="tw-sr-only">Sends requests to: {content}</span>
+      <span className="tw-sr-only">{t("ui.destination.sendsRequestsTo", { content })}</span>
     </span>
   );
 }

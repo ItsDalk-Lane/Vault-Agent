@@ -1,4 +1,5 @@
 import type { ProjectConfig } from "@/aiParams";
+import { t } from "@/i18n";
 import { logWarn } from "@/logger";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import { getCachedProjectRecordById } from "@/projects/state";
@@ -50,7 +51,7 @@ async function persistInclusions(
 ): Promise<number> {
   const record = getCachedProjectRecordById(projectId);
   if (!record) {
-    new Notice("Project not found — could not add to context");
+    new Notice(t("agentChat.contextDrop.projectNotFound"));
     return 0;
   }
 
@@ -158,7 +159,7 @@ export function usePersistentContextDrop(
       const files = stringItems.length > 0 ? await collectDroppedFiles(app, stringItems) : [];
       if (files.length === 0) {
         if (hasExternalFiles) {
-          new Notice("Only vault files or folders can be added to project context");
+          new Notice(t("agentChat.contextDrop.onlyVaultFiles"));
         }
         return;
       }
@@ -166,13 +167,13 @@ export function usePersistentContextDrop(
       try {
         const added = await persistInclusions(app, projectId, files);
         if (added > 0) {
-          new Notice("Added to project context");
+          new Notice(t("agentChat.contextDrop.added"));
         } else {
-          new Notice("Already in project context");
+          new Notice(t("agentChat.contextDrop.alreadyAdded"));
         }
       } catch (err) {
         logWarn("[project-context] failed to add dropped inclusion", err);
-        new Notice("Could not add to project context");
+        new Notice(t("agentChat.contextDrop.addFailed"));
       }
     };
 

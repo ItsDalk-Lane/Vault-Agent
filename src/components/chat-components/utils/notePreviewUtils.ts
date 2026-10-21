@@ -1,5 +1,6 @@
 import { TFile, App } from "obsidian";
 import { logWarn } from "@/logger";
+import { t } from "@/i18n";
 
 const NOTE_PREVIEW_MAX_LENGTH = 500;
 
@@ -21,7 +22,7 @@ async function loadNoteContentForPreview(app: App, file: TFile): Promise<string>
     return truncatedContent;
   } catch (error) {
     logWarn("Failed to read note content:", error);
-    return "Failed to load content";
+    return t("ui.chat.failedLoadContent");
   }
 }
 

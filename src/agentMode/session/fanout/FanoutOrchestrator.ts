@@ -19,9 +19,9 @@ import type {
 } from "@/agentMode/session/types";
 import {
   buildSummaryUserPrompt,
-  FANOUT_AGENT_TIMEOUT_ERROR,
+  fanoutAgentTimeoutError,
+  fanoutAllFailedSummary,
   FANOUT_AGENT_TIMEOUT_MS,
-  FANOUT_ALL_FAILED_SUMMARY,
   FANOUT_CANCEL_GRACE_MS,
   FANOUT_TRAILING_CHUNK_GRACE_MS,
   selectSummaryInputs,
@@ -127,7 +127,7 @@ export class FanoutOrchestrator {
     );
     if (!summaryPrompt) {
       turn.summary.status = "done";
-      turn.summary.text = FANOUT_ALL_FAILED_SUMMARY;
+      turn.summary.text = fanoutAllFailedSummary();
       turn.summary.complete = true;
       input.onChange(turn);
       return;
@@ -276,7 +276,7 @@ export class FanoutOrchestrator {
       };
       const onAbort = () => beginCancel(() => resolve("aborted"));
       const timeout = window.setTimeout(
-        () => beginCancel(() => reject(new Error(FANOUT_AGENT_TIMEOUT_ERROR))),
+        () => beginCancel(() => reject(new Error(fanoutAgentTimeoutError()))),
         FANOUT_AGENT_TIMEOUT_MS
       );
       signal.addEventListener("abort", onAbort, { once: true });

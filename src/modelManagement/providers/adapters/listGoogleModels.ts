@@ -3,6 +3,7 @@ import {
   parseModelListResponse,
   type ListModelsResult,
 } from "./listModelsHttp";
+import { t } from "@/i18n";
 
 const MODEL_PREFIX = "models/";
 
@@ -17,7 +18,7 @@ export async function listGoogleModels(
 ): Promise<ListModelsResult> {
   const trimmed = baseUrl.trim();
   if (!trimmed) {
-    return { ok: false, message: "Enter a base URL before fetching models." };
+    return { ok: false, message: t("ui.model.err.baseUrlRequired") };
   }
   const base = trimmed.replace(/\/$/, "").replace(/\/v1(beta)?$/, "");
 

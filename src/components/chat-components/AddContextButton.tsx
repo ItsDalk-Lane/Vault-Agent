@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AtMentionTypeahead } from "./AtMentionTypeahead";
+import { t } from "@/i18n";
 
 interface AddContextButtonProps {
   onSelect: (category: string, data: unknown) => void;
@@ -29,13 +30,13 @@ export const AddContextButton: React.FC<AddContextButtonProps> = ({
                 variant="ghost2"
                 size="icon"
                 className="tw-text-muted hover:tw-text-accent"
-                aria-label="Add context"
+                aria-label={t("ui.chat.addContext")}
               >
                 <Plus className="tw-size-4" />
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
-          <TooltipContent className="tw-px-1 tw-py-0.5">Add context</TooltipContent>
+          <TooltipContent className="tw-px-1 tw-py-0.5">{t("ui.chat.addContext")}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <PopoverContent

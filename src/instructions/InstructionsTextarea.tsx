@@ -1,4 +1,5 @@
 import { Textarea } from "@/components/ui/textarea";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import React from "react";
 
@@ -20,7 +21,7 @@ export const InstructionsTextarea: React.FC<InstructionsTextareaProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
-      placeholder="e.g. Put new notes you create in Inbox/ and link them to a related note."
+      placeholder={t("settings.instructions.examplePlaceholder")}
       className={cn("tw-min-h-32 tw-w-full", className)}
     />
   );

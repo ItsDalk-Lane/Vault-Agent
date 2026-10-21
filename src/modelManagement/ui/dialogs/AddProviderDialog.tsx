@@ -6,20 +6,23 @@ import type { ProviderDefinition } from "@/modelManagement/types/runtime";
 import { Plus } from "lucide-react";
 import { App } from "obsidian";
 import React, { useMemo, useState } from "react";
+import { t } from "@/i18n";
 
 const RECOMMENDED_IDS: readonly string[] = ["anthropic", "openai", "google"];
 
-const RECOMMENDED_DESCRIPTIONS: Record<string, string> = {
-  anthropic: "Claude family",
-  openai: "GPT family",
-  google: "Gemini family",
-};
+function recommendedDescription(id: string): string | undefined {
+  if (id === "anthropic") return t("ui.model.family.claude");
+  if (id === "openai") return t("ui.model.family.gpt");
+  if (id === "google") return t("ui.model.family.gemini");
+  return undefined;
+}
 
-const PROVIDER_TYPE_HINTS: Record<ProviderType, string> = {
-  anthropic: "e.g. claude-sonnet-5",
-  google: "e.g. gemini-2.5-pro",
-  "openai-compatible": "e.g. gpt-5",
-};
+function providerTypeHint(providerType: ProviderType): string {
+  if (providerType === "anthropic") return t("ui.model.hint.anthropic");
+  if (providerType === "google") return t("ui.model.hint.google");
+  if (providerType === "openai-compatible") return t("ui.model.hint.openaiCompatible");
+  return t("ui.model.hint.addModelId");
+}
 
 function catalogToDefinition(catalog: CatalogProvider): ProviderDefinition {
   return {
@@ -28,7 +31,7 @@ function catalogToDefinition(catalog: CatalogProvider): ProviderDefinition {
     providerType: catalog.providerType,
     defaultBaseUrl: catalog.defaultBaseUrl,
     requiresApiKey: true,
-    modelInputHint: PROVIDER_TYPE_HINTS[catalog.providerType] ?? "Add a model id",
+    modelInputHint: providerTypeHint(catalog.providerType),
     catalogProviderId: catalog.id,
   };
 }
@@ -70,22 +73,22 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
 
   return (
     <div className="tw-flex tw-h-full tw-min-h-0 tw-flex-col tw-gap-4 tw-overflow-hidden tw-px-2">
-      <div className="tw-text-sm tw-text-muted">Pick a provider to configure.</div>
+      <div className="tw-text-sm tw-text-muted">{t("ui.model.pickProvider")}</div>
 
-      <SearchBar value={query} onChange={setQuery} placeholder="Search providers…" />
+      <SearchBar value={query} onChange={setQuery} placeholder={t("ui.model.searchProviders")} />
 
       <div className="tw-flex tw-min-h-0 tw-flex-1 tw-flex-col tw-gap-4 tw-overflow-y-auto">
         {recommended.length > 0 && (
           <section data-testid="add-provider-recommended">
             <div className="tw-mb-2 tw-text-ui-smaller tw-font-medium tw-uppercase tw-tracking-wide tw-text-muted">
-              Recommended
+              {t("ui.model.recommended")}
             </div>
             <div className="tw-flex tw-flex-col tw-gap-0.5">
               {recommended.map((p) => (
                 <ProviderRow
                   key={p.id}
                   provider={p}
-                  description={RECOMMENDED_DESCRIPTIONS[p.id]}
+                  description={recommendedDescription(p.id)}
                   onClick={() => onPick(catalogToDefinition(p))}
                 />
               ))}
@@ -96,7 +99,7 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
         {local.length > 0 && (
           <section data-testid="add-provider-local">
             <div className="tw-mb-2 tw-text-ui-smaller tw-font-medium tw-uppercase tw-tracking-wide tw-text-muted">
-              Self Host
+              {t("ui.model.selfHost")}
             </div>
             <div className="tw-flex tw-flex-col tw-gap-0.5">
               {local.map((t) => (
@@ -109,7 +112,7 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
         {more.length > 0 && (
           <section data-testid="add-provider-more">
             <div className="tw-mb-2 tw-text-ui-smaller tw-font-medium tw-uppercase tw-tracking-wide tw-text-muted">
-              More providers
+              {t("ui.model.moreProviders")}
             </div>
             <div className="tw-flex tw-flex-col tw-gap-0.5">
               {more.map((p) => (
@@ -125,7 +128,7 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
 
         {noMatches && (
           <div className="tw-rounded-md tw-border tw-border-dashed tw-border-border tw-px-4 tw-py-6 tw-text-center tw-text-sm tw-text-muted">
-            No providers match your search.
+            {t("ui.model.noProviderMatch")}
           </div>
         )}
       </div>
@@ -182,12 +185,12 @@ interface TemplateRowProps {
 const TemplateRow: React.FC<TemplateRowProps> = ({ template, onClick }) => {
   const descriptor = template.defaultBaseUrl
     ? template.defaultBaseUrl.replace(/^https?:\/\//, "")
-    : "custom endpoint";
+    : t("ui.model.customEndpoint");
   return (
     <KeyboardButton
       onClick={onClick}
       testId={`add-provider-template-${template.id}`}
-      ariaLabel={`Add ${template.displayName} provider`}
+      ariaLabel={t("ui.model.addProviderAria", { name: template.displayName })}
       className={ROW_CLASS}
     >
       <span className="tw-flex tw-min-w-0 tw-flex-1 tw-items-baseline tw-gap-1.5 tw-truncate">
@@ -209,7 +212,7 @@ const ProviderRow: React.FC<ProviderRowProps> = ({ provider, onClick, descriptio
   <KeyboardButton
     onClick={onClick}
     testId={`add-provider-card-${provider.id}`}
-    ariaLabel={`Add ${provider.displayName} provider`}
+    ariaLabel={t("ui.model.addProviderAria", { name: provider.displayName })}
     className={ROW_CLASS}
   >
     <span className="tw-flex tw-min-w-0 tw-flex-1 tw-items-baseline tw-gap-1.5 tw-truncate">
@@ -226,7 +229,7 @@ const CustomProviderCta: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <KeyboardButton
     onClick={onClick}
     testId="add-provider-custom-cta"
-    ariaLabel="Add a custom provider"
+    ariaLabel={t("ui.model.addCustomProvider")}
     className={cn(
       "tw-mt-2 tw-flex tw-w-full tw-items-center tw-justify-center tw-gap-1.5 tw-rounded-md tw-px-4 tw-py-5",
       "tw-border tw-border-solid tw-bg-interactive-accent/10 tw-border-interactive-accent/40",
@@ -234,7 +237,7 @@ const CustomProviderCta: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     )}
   >
     <Plus className="tw-size-4" />
-    Add a custom provider
+    {t("ui.model.addCustomProvider")}
   </KeyboardButton>
 );
 
@@ -250,7 +253,7 @@ export class AddProviderModal extends ReactModal {
     app: App,
     private readonly opts: AddProviderModalOptions
   ) {
-    super(app, "Add a provider");
+    super(app, t("ui.model.addProvider"));
   }
 
   onOpen(): void {

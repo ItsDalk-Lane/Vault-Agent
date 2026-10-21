@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { t } from "@/i18n";
 import {
   ArrowUpRight,
   Check,
@@ -143,7 +144,7 @@ export function ChatHistoryPopover({
       return [
         {
           key: "All",
-          label: "All",
+          label: t("ui.chat.history.all"),
           chats: paginatedHistory,
           priority: 0,
         },
@@ -167,21 +168,23 @@ export function ChatHistoryPopover({
       let groupKey: string;
       let priority: number;
       if (diffDays === 0) {
-        groupKey = "Today";
+        groupKey = t("ui.chat.history.today");
         priority = 0;
       } else if (diffDays === 1) {
-        groupKey = "Yesterday";
+        groupKey = t("ui.chat.history.yesterday");
         priority = 1;
       } else if (diffDays < 7) {
-        groupKey = `${diffDays}d ago`;
+        groupKey = t("ui.chat.history.daysAgo", { days: diffDays });
         priority = 2 + diffDays;
       } else if (diffDays < 30) {
         const weeks = Math.floor(diffDays / 7);
-        groupKey = weeks === 1 ? "1w ago" : `${weeks}w ago`;
+        groupKey =
+          weeks === 1 ? t("ui.chat.history.weekAgo") : t("ui.chat.history.weeksAgo", { weeks });
         priority = 10 + weeks;
       } else {
         const months = Math.floor(diffDays / 30);
-        groupKey = months === 1 ? "1m ago" : `${months}m ago`;
+        groupKey =
+          months === 1 ? t("ui.chat.history.monthAgo") : t("ui.chat.history.monthsAgo", { months });
         priority = 50 + months;
       }
 
@@ -284,7 +287,7 @@ export function ChatHistoryPopover({
             <div className="tw-p-2">
               {groupedHistory.length === 0 ? (
                 <div className="tw-py-8 tw-text-center tw-text-muted">
-                  {searchQuery ? "No matching chat history found." : "No chat history"}
+                  {searchQuery ? t("ui.chat.history.noMatch") : t("ui.chat.history.none")}
                 </div>
               ) : (
                 <>
@@ -332,7 +335,10 @@ export function ChatHistoryPopover({
 
                   {displayCount < sortedHistory.length ? (
                     <div className="tw-py-2 tw-text-center tw-text-xs tw-text-muted">
-                      Showing {displayCount} of {sortedHistory.length} — scroll for more
+                      {t("ui.chat.history.showing", {
+                        shown: displayCount,
+                        total: sortedHistory.length,
+                      })}
                     </div>
                   ) : null}
                 </>
@@ -461,7 +467,7 @@ function ChatHistoryItem({
         {isRunning && (
           <LoaderCircle
             className="tw-size-3.5 tw-shrink-0 tw-animate-spin tw-text-accent group-focus-within:tw-hidden group-hover:tw-hidden"
-            aria-label="Responding"
+            aria-label={t("ui.chat.history.responding")}
           />
         )}
 
@@ -481,7 +487,7 @@ function ChatHistoryItem({
                   onDelete(chat.id);
                 }}
                 className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
-                title="Confirm Delete"
+                title={t("ui.chat.history.confirmDelete")}
               >
                 <Check className="tw-size-3" />
               </Button>
@@ -493,7 +499,7 @@ function ChatHistoryItem({
                   onCancelDelete();
                 }}
                 className="tw-size-5 tw-p-0"
-                title="Cancel deletion"
+                title={t("ui.chat.history.cancelDelete")}
               >
                 <X className="tw-size-3" />
               </Button>
@@ -505,8 +511,8 @@ function ChatHistoryItem({
                   size="sm"
                   variant="ghost"
                   className="tw-size-5 tw-p-0"
-                  aria-label="Close session"
-                  title="Close session"
+                  aria-label={t("ui.chat.history.closeSession")}
+                  title={t("ui.chat.history.closeSession")}
                   onClick={(event) => {
                     event.stopPropagation();
                     safeAsyncHandler(onCloseSession)(chat.id);
@@ -525,7 +531,7 @@ function ChatHistoryItem({
                   }
                 }}
                 className="tw-size-5 tw-p-0"
-                title="Open the source file"
+                title={t("ui.chat.history.openSource")}
               >
                 <ArrowUpRight className="tw-size-4" />
               </Button>
@@ -549,7 +555,7 @@ function ChatHistoryItem({
                   onDelete(chat.id);
                 }}
                 className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
-                title="delete file"
+                title={t("ui.chat.history.deleteFile")}
               >
                 <Trash2 className="tw-size-3" />
               </Button>

@@ -3,6 +3,7 @@ import { ChatButtons } from "@/components/chat-components/ChatButtons";
 import { AssistantResponseFooter } from "@/components/ui/AssistantResponseFooter";
 import { SourcesModal } from "@/components/modals/SourcesModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/i18n";
 import {
   ContextFolderBadge,
   ContextNoteBadge,
@@ -159,7 +160,7 @@ const linkInlineCitations = (root: HTMLElement): void => {
           }
           link.className = `copilot-citation-link${sourceAnchor.className ? ` ${sourceAnchor.className}` : ""}`;
           link.textContent = String(num);
-          link.setAttribute("aria-label", `Source ${num}`);
+          link.setAttribute("aria-label", t("ui.chat.sourceRef", { num }));
           span.appendChild(link);
         });
         span.appendChild(doc.createTextNode("]"));
@@ -394,7 +395,12 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
       };
 
       const processThinkSection = (content: string): string => {
-        return processCollapsibleSection(content, "think", "Thought for a while", "Thinking...");
+        return processCollapsibleSection(
+          content,
+          "think",
+          t("ui.chat.thoughtForAWhile"),
+          t("ui.chat.thinking")
+        );
       };
 
       const processWriteFileSection = (content: string): string => {
@@ -427,8 +433,8 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
         return processCollapsibleSection(
           processedContent,
           "writeFile",
-          "Generated new content",
-          "Generating changes..."
+          t("ui.chat.generatedNewContent"),
+          t("ui.chat.generatingChanges")
         );
       };
 
@@ -482,7 +488,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
           if (!videoId) {
             return match;
           }
-          const displayTitle = title || "YouTube Video";
+          const displayTitle = title || t("ui.chat.youtubeVideo");
           const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
           return `[![${displayTitle}](${thumbnail})](${url})`;
         });
@@ -810,7 +816,7 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
                   <div key={index} className="message-image-content">
                     <img
                       src={item.image_url!.url}
-                      alt="User uploaded image"
+                      alt={t("ui.chat.userUploadedImage")}
                       className="chat-message-image"
                     />
                   </div>

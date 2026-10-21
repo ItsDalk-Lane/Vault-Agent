@@ -4,6 +4,7 @@ import { getProviderLabel } from "@/lib/model-display-utils";
 import { EyeOff } from "lucide-react";
 import { ModelCapability } from "@/constants";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { t } from "@/i18n";
 
 interface ModelDisplayProps {
   model: CustomModel;
@@ -14,8 +15,6 @@ interface ModelCapabilityIconsProps {
   capabilities?: ModelCapability[];
   iconSize?: number;
 }
-
-const NO_VISION_LABEL = "This model does not support image inputs.";
 
 export function hasCapabilityIcons(capabilities: ModelCapability[] | undefined): boolean {
   if (capabilities === undefined) return false;
@@ -29,7 +28,7 @@ export const ModelCapabilityIcons: React.FC<ModelCapabilityIconsProps> = ({
   if (capabilities === undefined) return null;
   if (capabilities.includes(ModelCapability.VISION)) return null;
   return (
-    <HelpTooltip content={NO_VISION_LABEL} side="top">
+    <HelpTooltip content={t("ui.model.noVision")} side="top">
       <EyeOff
         className="tw-text-muted"
         style={{ width: iconSize, height: iconSize }}

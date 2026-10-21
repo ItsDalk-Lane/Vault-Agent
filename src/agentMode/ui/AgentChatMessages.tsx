@@ -13,6 +13,7 @@ import ChatSingleMessage from "@/components/chat-components/ChatSingleMessage";
 import { ChatTranscriptViewport } from "@/components/chat-components/ui/ChatTranscriptViewport";
 import { USER_SENDER } from "@/constants";
 import { useChatScrolling } from "@/hooks/useChatScrolling";
+import { t } from "@/i18n";
 import type { AgentChatBackend } from "@/agentMode/session/AgentChatBackend";
 import type {
   AgentChatMessage,
@@ -277,7 +278,7 @@ const AgentChatMessages = memo(
         {pendingActionId ? (
           <div
             role="region"
-            aria-label="Pending agent actions"
+            aria-label={t("agentChat.chatMessages.pendingActions")}
             data-testid="agent-action-rail"
             // A verbose question can exceed a short chat pane. Bound and scroll
             // the rail so its resolution controls remain reachable.

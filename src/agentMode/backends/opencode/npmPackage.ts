@@ -1,4 +1,5 @@
 import { ManagedInstallAbortError } from "@/agentMode/backends/shared/managedInstall";
+import { t } from "@/i18n";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { requestUrl } from "obsidian";
 
@@ -27,15 +28,24 @@ export async function resolveNpmAsset(
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/560
     if (response.status === 404) continue;
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`OpenCode npm package lookup failed with status ${response.status}.`);
+      throw new Error(
+        t("agentInfra.backend.download.opencodeNpmLookup", { status: response.status })
+      );
     }
     const { tarball, integrity } = (response.json as NpmMetadata).dist ?? {};
     if (!tarball || !integrity?.startsWith("sha512-")) {
-      throw new Error(`Missing tarball or sha512 integrity for ${packageName}@${version}.`);
+      throw new Error(
+        t("agentInfra.backend.download.opencodeNpmMissingIntegrity", {
+          package: packageName,
+          version,
+        })
+      );
     }
     return { name: new URL(tarball).pathname.split("/").pop() as string, url: tarball, integrity };
   }
-  throw new Error(`No matching OpenCode npm package found. Tried: ${candidates.join(", ")}.`);
+  throw new Error(
+    t("agentInfra.backend.download.opencodeNpmNoMatch", { candidates: candidates.join(", ") })
+  );
 }
 
 export async function verifyNpmIntegrity(
@@ -52,7 +62,7 @@ export async function verifyNpmIntegrity(
   }
   if (signal?.aborted) throw new ManagedInstallAbortError();
   if (`sha512-${hash.digest("base64")}` !== integrity) {
-    throw new Error("OpenCode npm download integrity mismatch. Retry the installation.");
+    throw new Error(t("agentInfra.backend.download.opencodeIntegrity"));
   }
 }
 
@@ -121,5 +131,5 @@ export async function extractNpmBinary(
     if (signal?.aborted) throw new ManagedInstallAbortError();
     throw error;
   }
-  if (!found) throw new Error(`OpenCode npm archive lacks ${wanted}.`);
+  if (!found) throw new Error(t("agentInfra.backend.download.opencodeArchiveMissing", { wanted }));
 }

@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 interface DeleteTextDescriptor {
   displayName: string;
   agentProductName?: string;
@@ -9,12 +11,12 @@ function agentName(descriptor: DeleteTextDescriptor): string {
 
 export function describeChatDelete(descriptor: DeleteTextDescriptor | undefined): string {
   return descriptor
-    ? `Delete this chat from Copilot? ${agentName(descriptor)} may keep its own copy of this conversation on this computer.`
-    : "Delete this chat from Copilot?";
+    ? t("chatDelete.confirmWithAgent", { agent: agentName(descriptor) })
+    : t("chatDelete.confirm");
 }
 
 export function formatChatDeleteNotice(descriptor: DeleteTextDescriptor | undefined): string {
   return descriptor
-    ? `Chat deleted from Copilot. ${agentName(descriptor)} may keep its own copy.`
-    : "Chat deleted from Copilot.";
+    ? t("chatDelete.noticeWithAgent", { agent: agentName(descriptor) })
+    : t("chatDelete.notice");
 }

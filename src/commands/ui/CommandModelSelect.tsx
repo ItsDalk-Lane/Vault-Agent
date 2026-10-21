@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { ChevronDown } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 export interface CommandModelSelectProps {
   value: string;
@@ -11,7 +12,7 @@ export interface CommandModelSelectProps {
 export function CommandModelSelect({ value, options, onChange }: CommandModelSelectProps) {
   return (
     <div className="tw-flex tw-flex-col tw-gap-2">
-      <Label htmlFor="modelKey">Model (Optional)</Label>
+      <Label htmlFor="modelKey">{t("ui.command.modelOptional")}</Label>
       <div className="tw-group tw-relative tw-w-full">
         <select
           id="modelKey"
@@ -19,7 +20,7 @@ export function CommandModelSelect({ value, options, onChange }: CommandModelSel
           onChange={(event) => onChange(event.target.value)}
           className="tw-flex tw-h-9 tw-w-full tw-appearance-none tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-dropdown tw-px-3 tw-py-1 tw-pr-8 tw-text-sm tw-shadow tw-transition-colors hover:tw-bg-interactive-hover hover:tw-text-normal focus:tw-outline-none focus:tw-ring-1 focus:tw-ring-ring disabled:tw-cursor-not-allowed disabled:tw-opacity-50"
         >
-          <option value="">Default model</option>
+          <option value="">{t("ui.command.defaultModel")}</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

@@ -2,6 +2,7 @@ import { AgentModeChat } from "@/agentMode/ui/AgentModeChat";
 import { attachChatViewLayoutObservers } from "@/components/chat-components/attachChatViewLayoutObservers";
 import { CHAT_AGENT_VIEWTYPE, VAULT_AGENT_ICON_ID } from "@/constants";
 import { ChatViewEventTarget, EventTargetContext } from "@/context";
+import { t } from "@/i18n";
 import VaultAgentPlugin from "@/main";
 import { registerActiveLeafChangeBridge } from "@/utils/registerActiveLeafChangeBridge";
 import { mountPluginViewRoot, type PluginViewRootHandle } from "@/utils/react/mountPluginViewRoot";
@@ -34,11 +35,11 @@ export default class VaultAgentView extends ItemView {
   }
 
   getTitle(): string {
-    return "Vault Agent Chat";
+    return t("app.view.agentChatTitle");
   }
 
   getDisplayText(): string {
-    return "Vault Agent";
+    return t("app.view.agentChatDisplay");
   }
 
   async onOpen(): Promise<void> {

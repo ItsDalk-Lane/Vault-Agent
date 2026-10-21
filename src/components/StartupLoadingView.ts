@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { ItemView, type View, type WorkspaceLeaf } from "obsidian";
 
@@ -44,7 +45,7 @@ export class StartupLoadingView extends ItemView {
   async onOpen(): Promise<void> {
     this.contentEl.createDiv({
       cls: "tw-flex tw-size-full tw-items-center tw-justify-center tw-text-muted",
-      text: STARTUP_LOADING_TEXT,
+      text: t("ui.startup.loading"),
     });
     void this.replaceOnceStarted().catch((error) => {
       logError("Copilot could not open a tab restored during startup.", error);

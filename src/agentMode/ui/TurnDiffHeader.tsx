@@ -2,6 +2,7 @@ import type { TurnFileChange } from "@/agentMode/session/types";
 import { FileChangeCounts, FileChangeStatusBadge } from "@/agentMode/ui/FileChangeSummary";
 import type { ChangeStep } from "@/agentMode/ui/renderedDiff/ChangeScroller";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import React from "react";
 
@@ -43,7 +44,7 @@ export const TurnDiffHeader: React.FC<TurnDiffHeaderProps> = ({
           className="tw-ml-2 !tw-h-auto tw-shrink-0 !tw-border-0 !tw-bg-transparent !tw-px-0 !tw-text-accent !tw-shadow-none"
           onClick={onOpenNote}
         >
-          Open note
+          {t("agentChat.turnDiff.openNote")}
         </Button>
       ) : null}
     </div>
@@ -52,13 +53,23 @@ export const TurnDiffHeader: React.FC<TurnDiffHeaderProps> = ({
 
 const ChangeStepper: React.FC<ChangeStepperProps> = ({ current, total, onStep }) => (
   <span className="tw-ml-1 tw-flex tw-shrink-0 tw-items-center">
-    <Button variant="ghost2" size="icon" aria-label="Previous change" onClick={() => onStep(-1)}>
+    <Button
+      variant="ghost2"
+      size="icon"
+      aria-label={t("agentChat.turnDiff.previousChange")}
+      onClick={() => onStep(-1)}
+    >
       <ChevronUp className="tw-size-4" />
     </Button>
     <span className="tw-min-w-[6ch] tw-text-center tw-text-xs tw-tabular-nums tw-text-muted">
-      {current + 1} of {total}
+      {t("agentChat.turnDiff.position", { current: current + 1, total })}
     </span>
-    <Button variant="ghost2" size="icon" aria-label="Next change" onClick={() => onStep(1)}>
+    <Button
+      variant="ghost2"
+      size="icon"
+      aria-label={t("agentChat.turnDiff.nextChange")}
+      onClick={() => onStep(1)}
+    >
       <ChevronDown className="tw-size-4" />
     </Button>
   </span>

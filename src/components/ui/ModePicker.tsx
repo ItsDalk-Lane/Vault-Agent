@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,28 +23,23 @@ interface ModePickerProps {
   className?: string;
 }
 
-const MODE_DISPLAY: Record<VaultAgentMode, { label: string; description: string }> = {
-  auto: {
-    label: "Auto",
-    description: "Uses the agent's Auto permissions for tools and edits.",
-  },
-  plan: {
-    label: "Plan",
-    description: "Drafts a plan and waits for your approval before editing.",
-  },
-  default: {
-    label: "Safe",
-    description: "Allows edits under the agent's approval rules.",
-  },
-};
-
 function getModeLabel(value: VaultAgentMode): string {
-  return MODE_DISPLAY[value]?.label ?? value;
+  if (value === "auto") return t("ui.model.mode.auto");
+  if (value === "plan") return t("ui.model.mode.plan");
+  if (value === "default") return t("ui.model.mode.safe");
+  return value;
+}
+
+function getModeDescription(value: VaultAgentMode): string | undefined {
+  if (value === "auto") return t("ui.model.mode.autoDesc");
+  if (value === "plan") return t("ui.model.mode.planDesc");
+  if (value === "default") return t("ui.model.mode.safeDesc");
+  return undefined;
 }
 
 export function ModePicker({ override, className }: ModePickerProps) {
   const { options, value, onChange, disabled } = override;
-  const triggerLabel = value ? getModeLabel(value) : "Mode";
+  const triggerLabel = value ? getModeLabel(value) : t("ui.model.mode.trigger");
 
   return (
     <DropdownMenu>
@@ -60,7 +56,7 @@ export function ModePicker({ override, className }: ModePickerProps) {
               "tw-text-red/70 hover:tw-text-red/100 focus-visible:tw-text-red/100",
             className
           )}
-          title="Operational mode"
+          title={t("ui.model.mode.title")}
         >
           <span className="tw-truncate">{triggerLabel}</span>
           {!disabled && <ChevronDown className="tw-mt-0.5 tw-size-4 tw-shrink-0" />}
@@ -68,7 +64,8 @@ export function ModePicker({ override, className }: ModePickerProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="tw-w-[320px]">
         {options.map((opt) => {
-          const display = MODE_DISPLAY[opt.value];
+          const displayLabel = getModeLabel(opt.value) || opt.label;
+          const displayDescription = getModeDescription(opt.value);
           const isActive = value === opt.value;
           return (
             <DropdownMenuItem
@@ -80,12 +77,10 @@ export function ModePicker({ override, className }: ModePickerProps) {
                 {isActive && <Check className="tw-size-3 tw-text-muted" />}
               </div>
               <div className="tw-flex tw-flex-col tw-gap-0.5">
-                <span className="tw-text-sm tw-font-medium tw-text-normal">
-                  {display?.label ?? opt.label}
-                </span>
-                {display?.description && (
+                <span className="tw-text-sm tw-font-medium tw-text-normal">{displayLabel}</span>
+                {displayDescription && (
                   <span className="tw-text-xs tw-leading-snug tw-text-muted">
-                    {display.description}
+                    {displayDescription}
                   </span>
                 )}
               </div>

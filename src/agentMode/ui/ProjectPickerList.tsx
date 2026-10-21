@@ -9,6 +9,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { ProjectFolderIcon } from "@/components/ui/ProjectFolderIcon";
 import { useIncrementalPaging } from "@/hooks/useIncrementalPaging";
 import { useRecentUsageManagerRevision } from "@/hooks/useRecentUsageManagerRevision";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { filterProjects } from "@/utils/projectUtils";
 import { RecentUsageManager, sortByStrategy, type SortStrategy } from "@/utils/recentUsageManager";
@@ -106,20 +107,24 @@ export const ProjectPickerList = memo(
           className
         )}
       >
-        {onCreate && <AgentHomeCreateRow label="New project" onClick={onCreate} />}
+        {onCreate && (
+          <AgentHomeCreateRow label={t("agentChat.project.newProject")} onClick={onCreate} />
+        )}
         {projects.length > 0 && (
           <div className="tw-p-1">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Search projects..."
+              placeholder={t("agentChat.project.searchProjects")}
               inputClassName="!tw-h-7"
             />
           </div>
         )}
         {filteredProjects.length === 0 ? (
           <div className="tw-flex tw-flex-1 tw-items-center tw-justify-center tw-px-2 tw-py-1.5 tw-text-xs tw-text-muted">
-            {projects.length > 0 ? "No matching projects" : "No projects available"}
+            {projects.length > 0
+              ? t("agentChat.project.noMatchingProjects")
+              : t("agentChat.project.noProjects")}
           </div>
         ) : (
           <AgentHomePreviewList>

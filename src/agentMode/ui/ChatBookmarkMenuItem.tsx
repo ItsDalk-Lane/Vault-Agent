@@ -2,6 +2,7 @@ import type { ChatBookmarkState } from "@/agentMode/ui/hooks/useAgentHistoryCont
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { useApp } from "@/context";
+import { t } from "@/i18n";
 import { openBookmarksPluginSettings } from "@/utils/obsidianBookmarks";
 import { Bookmark, BookmarkMinus, Info } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -36,14 +37,14 @@ export function ChatBookmarkMenuItem({
         onSelect={() => openBookmarksPluginSettings(app)}
       >
         <Bookmark />
-        Add to bookmarks
+        {t("controls.addBookmark")}
         <span className="tw-ml-auto">
           <HelpTooltip
             side="bottom"
             contentClassName="tw-max-w-60"
-            content="Turn on the Bookmarks core plugin to bookmark chats. Select to open it in Settings."
+            content={t("agentChat.bookmarks.offHint")}
           >
-            <Info className="tw-size-3.5" aria-label="Bookmarks is turned off" />
+            <Info className="tw-size-3.5" aria-label={t("agentChat.bookmarks.off")} />
           </HelpTooltip>
         </span>
       </DropdownMenuItem>
@@ -54,7 +55,7 @@ export function ChatBookmarkMenuItem({
   return (
     <DropdownMenuItem onSelect={() => onSetBookmarked(!bookmarked)}>
       {bookmarked ? <BookmarkMinus /> : <Bookmark />}
-      {bookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+      {bookmarked ? t("agentChat.bookmarks.remove") : t("controls.addBookmark")}
     </DropdownMenuItem>
   );
 }

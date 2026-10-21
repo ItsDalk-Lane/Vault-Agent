@@ -2,6 +2,7 @@ import { ResetSettingsConfirmModal } from "@/components/modals/ResetSettingsConf
 import { Button } from "@/components/ui/button";
 import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
 import { PluginProvider } from "@/contexts/PluginContext";
+import { t, type MessageKey } from "@/i18n";
 import { TabProvider, useTab } from "@/contexts/TabContext";
 import VaultAgentPlugin from "@/main";
 import { ByokPanel, ModelManagementProvider } from "@/modelManagement";
@@ -11,6 +12,7 @@ import {
   type VaultAgentSettingsTabId,
 } from "@/settings/settingsTabs";
 import { useSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
+import { useLanguage } from "@/i18n/useLanguage";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
 import { Cog, Command, Cpu, ShieldCheck, Sparkle, Wrench } from "lucide-react";
 import React from "react";
@@ -26,7 +28,7 @@ const LazySkillsSettings = React.lazy(() =>
 
 const SkillsSettingsPanel: React.FC = () => {
   if (!isDesktopRuntime()) {
-    return <DesktopOnlySettingsPanel message="Skills are available on desktop." />;
+    return <DesktopOnlySettingsPanel message={t("settings.skillsDesktopOnly")} />;
   }
   return (
     <React.Suspense fallback={null}>
@@ -53,24 +55,23 @@ const components: Record<VaultAgentSettingsTabId, React.FC> = {
   advanced: () => <AdvancedSettings />,
 };
 
-const TAB_LABELS: Record<VaultAgentSettingsTabId, string> = {
-  basic: "Basic",
-  byok: "BYOK",
-  selfhost: "Self-Host",
-  command: "Command",
-  skills: "Skills",
-  advanced: "Advanced",
+const TAB_LABEL_KEYS: Record<VaultAgentSettingsTabId, MessageKey> = {
+  basic: "settings.tab.basic",
+  byok: "settings.tab.byok",
+  selfhost: "settings.tab.selfhost",
+  command: "settings.tab.command",
+  skills: "settings.tab.skills",
+  advanced: "settings.tab.advanced",
 };
-
-const tabs = VAULT_AGENT_SETTINGS_TAB_IDS.map((id) => ({
-  id,
-  icon: icons[id],
-  label: TAB_LABELS[id],
-})) satisfies TabItemType[];
 
 const SettingsContent: React.FC = () => {
   const { selectedTab, setSelectedTab } = useTab();
   const skillLoadErrorCount = useSkillLoadErrorCount();
+  const tabs = VAULT_AGENT_SETTINGS_TAB_IDS.map((id) => ({
+    id,
+    icon: icons[id],
+    label: t(TAB_LABEL_KEYS[id]),
+  })) satisfies TabItemType[];
 
   return (
     <div className="tw-flex tw-flex-col">
@@ -85,7 +86,7 @@ const SettingsContent: React.FC = () => {
               // load failures remain visible from every settings section.
               warningLabel:
                 tab.id === "skills" && skillLoadErrorCount > 0
-                  ? "Some skills failed to load"
+                  ? t("settings.skillsLoadFailed")
                   : undefined,
             }}
             isSelected={selectedTab === tab.id}
@@ -115,6 +116,7 @@ interface SettingsMainV2Props {
 }
 
 const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "basic" }) => {
+  useLanguage();
   const [resetKey, setResetKey] = React.useState(0);
 
   React.useEffect(() => {
@@ -145,7 +147,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "b
                 className="tw-flex tw-flex-col tw-gap-2 tw-text-base tw-font-semibold sm:tw-flex-row sm:tw-items-center sm:tw-justify-between"
               >
                 <div className="tw-flex tw-items-center tw-gap-2">
-                  <span>Vault Agent Settings</span>
+                  <span>{t("settings.title")}</span>
                   <div className="tw-flex tw-items-center tw-gap-1">
                     <span className="tw-text-xs tw-font-normal tw-text-muted">
                       v{plugin.manifest.version}
@@ -154,7 +156,7 @@ const SettingsMainV2: React.FC<SettingsMainV2Props> = ({ plugin, initialTab = "b
                 </div>
                 <div className="tw-self-end sm:tw-self-auto">
                   <Button variant="secondary" size="sm" onClick={handleReset}>
-                    Reset Settings
+                    {t("settings.reset")}
                   </Button>
                 </div>
               </div>

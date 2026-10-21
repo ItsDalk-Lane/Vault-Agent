@@ -2,6 +2,7 @@ import { ProjectConfig } from "@/aiParams";
 import { AddProjectModal } from "@/components/modals/project/AddProjectModal";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { getProjectFolderPath } from "@/projects/projectPaths";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
@@ -31,7 +32,7 @@ export function revealProjectFolder(app: App, project: ProjectConfig): void {
       return;
     }
   }
-  new Notice(`Can't reveal "${project.name}" — its folder isn't visible in the file explorer.`);
+  new Notice(t("agentChat.project.cantReveal", { name: project.name }));
 }
 
 interface AgentProjectRowActionsProps {
@@ -61,13 +62,13 @@ export const AgentProjectRowActions = memo(
             onDeleted?.(project.id);
           } catch (e) {
             logError("[AgentProjectRowActions] deleteProject failed", e);
-            new Notice(`Failed to delete project "${project.name}".`);
+            new Notice(t("agentChat.project.deleteFailed", { name: project.name }));
           }
         },
-        `Delete project "${project.name}"? This removes its configuration; your notes stay in the vault.`,
-        "Delete project",
-        "Delete",
-        "Cancel"
+        t("agentChat.project.deletePrompt", { name: project.name }),
+        t("agentChat.project.deleteTitle"),
+        t("agentChat.delete"),
+        t("common.cancel")
       ).open();
     };
 
@@ -76,8 +77,8 @@ export const AgentProjectRowActions = memo(
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`Reveal ${project.name} in vault`}
-          title="Reveal in vault"
+          aria-label={t("agentChat.project.revealNamed", { name: project.name })}
+          title={t("agentChat.project.revealInVault")}
           className="tw-size-5 tw-p-0"
           onClick={(e) => {
             e.stopPropagation();
@@ -89,8 +90,8 @@ export const AgentProjectRowActions = memo(
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`Edit project ${project.name}`}
-          title="Edit project"
+          aria-label={t("agentChat.project.editNamed", { name: project.name })}
+          title={t("agentChat.project.edit")}
           className="tw-size-5 tw-p-0"
           onClick={(e) => {
             e.stopPropagation();
@@ -102,8 +103,8 @@ export const AgentProjectRowActions = memo(
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`Delete project ${project.name}`}
-          title="Delete"
+          aria-label={t("agentChat.project.deleteNamed", { name: project.name })}
+          title={t("agentChat.delete")}
           className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
           onClick={(e) => {
             e.stopPropagation();

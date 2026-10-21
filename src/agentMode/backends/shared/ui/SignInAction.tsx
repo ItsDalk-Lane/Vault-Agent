@@ -1,5 +1,6 @@
 import type { BackendAuthStatus } from "@/agentMode/session/types";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import React from "react";
 
 export interface SignInActionProps {
@@ -15,20 +16,28 @@ export interface SignInActionProps {
 export const SignInAction: React.FC<SignInActionProps> = (auth) => (
   <div className="tw-flex tw-flex-col tw-items-start tw-gap-2" aria-live="polite">
     {auth.status?.signedIn ? (
-      <span>Signed in{auth.status.label ? ` as ${auth.status.label}` : ""}.</span>
+      <span>
+        {auth.status.label
+          ? t("agentInfra.backend.auth.signedInAs", { label: auth.status.label })
+          : t("agentInfra.backend.auth.signedInSentence")}
+      </span>
     ) : (
       <>
         {auth.signingIn && (
-          <p className="tw-my-0 tw-text-sm tw-text-muted">Finish signing in in your browser.</p>
+          <p className="tw-my-0 tw-text-sm tw-text-muted">
+            {t("agentInfra.backend.auth.finishInBrowser")}
+          </p>
         )}
         {auth.failed && (
-          <p className="tw-my-0 tw-text-sm tw-text-muted">Sign-in didn't complete. Try again.</p>
+          <p className="tw-my-0 tw-text-sm tw-text-muted">
+            {t("agentInfra.backend.auth.signInIncomplete")}
+          </p>
         )}
         <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-2">
           {auth.signingIn && auth.url ? (
             <Button asChild variant="default" size="sm">
               <a href={auth.url} target="_blank" rel="noopener noreferrer">
-                Open sign-in page
+                {t("agentInfra.backend.auth.openSignInPage")}
               </a>
             </Button>
           ) : (
@@ -39,17 +48,17 @@ export const SignInAction: React.FC<SignInActionProps> = (auth) => (
               disabled={auth.signingIn || auth.status === null}
             >
               {auth.signingIn
-                ? "Signing in…"
+                ? t("agentInfra.backend.auth.signingIn")
                 : auth.failed
-                  ? "Try again"
+                  ? t("agentInfra.backend.auth.tryAgain")
                   : auth.status === null
-                    ? "Checking sign-in…"
-                    : (auth.signInLabel ?? "Sign in")}
+                    ? t("agentInfra.backend.auth.checkingSignIn")
+                    : (auth.signInLabel ?? t("agentInfra.backend.auth.signIn"))}
             </Button>
           )}
           {auth.signingIn && auth.onCancel && (
             <Button variant="ghost" size="sm" onClick={auth.onCancel}>
-              Cancel sign-in
+              {t("agentInfra.backend.auth.cancelSignIn")}
             </Button>
           )}
         </div>

@@ -1,5 +1,6 @@
 import type { BuiltinPreferences } from "@/settings/builtinSkillPreferences";
 import type { AgentBrand, BackendId } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,9 +45,9 @@ export function BuiltinSkillsTable({
   onToggleAgent,
 }: BuiltinSkillsTableProps) {
   return (
-    <section aria-label="Built-in Skills" className="tw-space-y-3">
+    <section aria-label={t("agentInfra.skills.builtin.title")} className="tw-space-y-3">
       <div role="heading" aria-level={3} className="tw-text-left tw-text-base tw-font-semibold">
-        Built-in Skills
+        {t("agentInfra.skills.builtin.title")}
       </div>
       {error && (
         <div role="alert" className="tw-text-ui-smaller tw-text-error">
@@ -68,7 +69,7 @@ export function BuiltinSkillsTable({
           />
         ))}
         {skills.length === 0 && (
-          <p className="tw-text-ui-smaller tw-text-muted">No built-in skills match your search.</p>
+          <p className="tw-text-ui-smaller tw-text-muted">{t("agentInfra.skills.builtin.empty")}</p>
         )}
       </div>
     </section>
@@ -113,11 +114,11 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
                   variant="secondary"
                   className="tw-hidden tw-shrink-0 @[140px]/skill-title:tw-inline-flex"
                 >
-                  Disabled
+                  {t("agentInfra.skills.builtin.disabled")}
                 </Badge>
                 <span
-                  title="Disabled"
-                  aria-label="Disabled"
+                  title={t("agentInfra.skills.builtin.disabled")}
+                  aria-label={t("agentInfra.skills.builtin.disabled")}
                   className="tw-shrink-0 @[140px]/skill-title:tw-hidden"
                 >
                   <CircleOff aria-hidden="true" className="tw-size-3.5 tw-text-muted" />
@@ -151,8 +152,11 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
                   disabled={pending || !skillEnabled || !available || !!unavailableReason}
                   title={
                     !available
-                      ? `Set up ${agent.displayName} to enable`
-                      : `${skill.name} for ${agent.displayName}`
+                      ? t("agentInfra.skills.builtin.setUpToEnable", { agent: agent.displayName })
+                      : t("agentInfra.skills.builtin.forAgent", {
+                          skill: skill.name,
+                          agent: agent.displayName,
+                        })
                   }
                   onClick={() => onToggleAgent(skill.name, agent.id, !enabled)}
                 />
@@ -166,8 +170,8 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
               <Button
                 variant="ghost"
                 size="icon"
-                title="More actions"
-                aria-label={`More actions for ${skill.name}`}
+                title={t("agentInfra.skills.actions.more")}
+                aria-label={t("agentInfra.skills.actions.moreFor", { name: skill.name })}
               >
                 <MoreVertical className="tw-size-4" />
               </Button>
@@ -179,14 +183,16 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
                 onSelect={() => onToggleSkill(skill.name, !skillEnabled)}
               >
                 <Power className="tw-size-3.5" />
-                {skillEnabled ? "Disable skill" : "Enable skill"}
+                {skillEnabled
+                  ? t("agentInfra.skills.actions.disableSkill")
+                  : t("agentInfra.skills.actions.enableSkill")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="tw-gap-2.5 tw-text-ui-small"
                 onSelect={() => setPreviewOpen(!previewOpen)}
               >
                 <Eye className="tw-size-3.5" />
-                View SKILL.md (read-only)
+                {t("agentInfra.skills.actions.viewSkillMd")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -194,7 +200,7 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
       />
       {previewOpen && (
         <pre
-          aria-label={`${skill.name} content (read-only)`}
+          aria-label={t("agentInfra.skills.builtin.contentAria", { name: skill.name })}
           className="tw-max-h-80 tw-overflow-auto tw-whitespace-pre-wrap tw-break-all tw-rounded-md tw-bg-secondary tw-p-3 tw-text-ui-smaller"
         >
           {skill.content}

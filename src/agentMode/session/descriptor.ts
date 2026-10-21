@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/i18n";
 import type { App } from "obsidian";
 import type React from "react";
 import type VaultAgentPlugin from "@/main";
@@ -84,7 +85,7 @@ export interface BackendDescriptor {
 
   readonly routesVaultAgentModels: boolean;
 
-  readonly setupDescription: string;
+  readonly setupDescription: MessageKey;
 
   readonly skillsProjectDir: string;
 

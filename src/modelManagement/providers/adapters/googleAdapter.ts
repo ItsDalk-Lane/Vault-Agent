@@ -5,6 +5,7 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { VerificationResult } from "@/modelManagement/types/runtime";
 import type { AdapterBuildContext, AdapterVerifyContext, ProviderAdapter } from "./ProviderAdapter";
 import { verifyViaListModels } from "./verifyViaListModels";
+import { t } from "@/i18n";
 
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
 
@@ -25,7 +26,7 @@ export const googleAdapter: ProviderAdapter<Extras> = {
       return Promise.resolve({
         ok: false,
         code: "missing_api_key",
-        message: "An API key is required to verify this Google provider.",
+        message: t("ui.model.err.googleKeyRequired"),
         checkedAt: Date.now(),
       });
     }

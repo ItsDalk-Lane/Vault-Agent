@@ -10,6 +10,8 @@ import {
   useManagedInstallActionState,
   useSessionBackendDescriptor,
 } from "@/agentMode/ui/useBackendDescriptor";
+import { t } from "@/i18n";
+import { useLanguage } from "@/i18n/useLanguage";
 import type VaultAgentPlugin from "@/main";
 import { logError } from "@/logger";
 import React from "react";
@@ -25,6 +27,7 @@ export const AgentModeChat: React.FC<Props> = ({
   onSaveChat,
   updateUserMessageHistory,
 }) => {
+  useLanguage();
   const manager = plugin.agentSessionManager;
   const descriptor = useSessionBackendDescriptor(manager);
   const installState = useBackendInstallState(descriptor, plugin);
@@ -93,7 +96,7 @@ export const AgentModeChat: React.FC<Props> = ({
       <div className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
         <div className="tw-flex-1" />
         <AgentStatusCard
-          summary={`Updating ${descriptor.displayName}…`}
+          summary={t("agentChat.updating", { name: descriptor.displayName })}
           message={managedInstall.label}
           progress={{ percent: managedInstall.percent }}
         />
@@ -125,7 +128,7 @@ export const AgentModeChat: React.FC<Props> = ({
   if (!preloadReady || awaitingAuth) {
     return (
       <div className="tw-flex tw-size-full tw-items-center tw-justify-center tw-text-muted">
-        {awaitingAuth ? "Checking agent sign-in…" : "Loading agent models…"}
+        {awaitingAuth ? t("agentChat.checkingSignIn") : t("agentChat.loadingModels")}
       </div>
     );
   }

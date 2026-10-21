@@ -1,4 +1,5 @@
 import { ModelEnableList, type ModelEnableGroup } from "@/components/ui/ModelEnableList";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import {
   backendsAtom,
@@ -49,8 +50,9 @@ export const ChatModelEnableList: React.FC = () => {
 
   const emptyState = (
     <span>
-      No models configured yet. Add a provider on the{" "}
-      <span className="tw-font-medium">Models (BYOK)</span> tab to populate Quick Chat.
+      {t("settings.models.emptyPrefix")}{" "}
+      <span className="tw-font-medium">{t("settings.models.byokTab")}</span>{" "}
+      {t("settings.models.emptyChatSuffix")}
     </span>
   );
 
@@ -60,7 +62,7 @@ export const ChatModelEnableList: React.FC = () => {
       onToggle={handleToggle}
       query={query}
       onQueryChange={setQuery}
-      searchPlaceholder="Search chat models…"
+      searchPlaceholder={t("settings.chatModels.searchPlaceholder")}
       emptyState={emptyState}
     />
   );

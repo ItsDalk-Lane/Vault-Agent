@@ -1,5 +1,6 @@
 import { App, FuzzyMatch, TFile } from "obsidian";
 import { BaseNoteModal } from "./BaseNoteModal";
+import { t } from "@/i18n";
 
 interface ProjectFileSelectModalProps {
   app: App;
@@ -23,7 +24,7 @@ export class ProjectFileSelectModal extends BaseNoteModal<TFile> {
     this.availableNotes = this.getOrderedProjectFiles(excludeFilePaths);
     this.titleOnly = titleOnly;
     // @ts-ignore
-    this.setTitle("Select File");
+    this.setTitle(t("ui.note.selectFile"));
   }
 
   protected getOrderedProjectFiles(excludeFilePaths: string[] = []): TFile[] {
@@ -92,10 +93,10 @@ export class ProjectFileSelectModal extends BaseNoteModal<TFile> {
   protected formatNoteTitle(basename: string, isActive: boolean, extension?: string): string {
     let title = basename;
     if (isActive) {
-      title += " (current)";
+      title += t("ui.note.currentSuffix");
     }
     if (extension) {
-      title += ` (${extension.toUpperCase()})`;
+      title += t("ui.note.extensionSuffix", { extension: extension.toUpperCase() });
     }
     return title;
   }

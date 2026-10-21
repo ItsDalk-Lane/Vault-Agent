@@ -3,6 +3,8 @@ import type { App } from "obsidian";
 declare global {
   var app: App;
 
+  function getLanguage(): string;
+
   interface Window {
     createEl<K extends keyof HTMLElementTagNameMap>(
       tag: K,

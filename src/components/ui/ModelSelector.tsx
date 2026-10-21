@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,11 +67,11 @@ export function ModelSelector({
         >
           <div className="tw-min-w-0 tw-flex-1 tw-truncate">
             {modelError ? (
-              <span className="tw-truncate tw-text-error">Model Load Failed</span>
+              <span className="tw-truncate tw-text-error">{t("ui.model.loadFailed")}</span>
             ) : currentModel ? (
               <ModelDisplay model={currentModel} iconSize={8} />
             ) : (
-              <span className="tw-truncate">Select Model</span>
+              <span className="tw-truncate">{t("ui.model.selectModel")}</span>
             )}
           </div>
           {currentModel?._needsSelfHostWarning && (
@@ -87,7 +88,7 @@ export function ModelSelector({
             ? checkModelApiKey(model, apiKeySettings).hasApiKey
             : true;
           const itemDisabled = Boolean(disabledReason) || !hasApiKey;
-          const rightLabel = disabledReason ?? (!hasApiKey ? "Needs API key" : null);
+          const rightLabel = disabledReason ?? (!hasApiKey ? t("ui.model.needsApiKey") : null);
           const showHeader = model._group !== undefined && model._group !== lastGroup;
           const headerKey = `__group__${model._group}__${getModelKeyFromModel(model)}`;
           lastGroup = model._group;
@@ -114,7 +115,7 @@ export function ModelSelector({
                     setModelError(null);
                     onChange(getModelKeyFromModel(model));
                   } catch (error) {
-                    const msg = `Model switch failed: ` + err2String(error);
+                    const msg = t("ui.model.switchFailed", { error: err2String(error) });
                     setModelError(msg);
                     const lastValidModel = models.find(
                       (m) => m.enabled !== false && getModelKeyFromModel(m) === value

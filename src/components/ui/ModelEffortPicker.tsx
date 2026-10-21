@@ -10,6 +10,7 @@ import { ModelDisplay } from "@/components/ui/model-display";
 import type { ModelSelectorEntry } from "@/components/ui/ModelSelector";
 import { getModelKeyFromModel } from "@/lib/model-key";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export interface ModelEffortPickerOverride {
   models: ModelSelectorEntry[];
@@ -169,13 +170,13 @@ export function ModelEffortPicker({ override, className }: ModelEffortPickerProp
           size="fit"
           disabled={disabled}
           className={cn("tw-min-w-0 tw-justify-start tw-text-muted", className)}
-          title="Model · effort"
+          title={t("ui.model.effort.title")}
         >
           <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
             {currentModel ? (
               <ModelDisplay model={currentModel} iconSize={8} />
             ) : (
-              <span className="tw-truncate">Select Model</span>
+              <span className="tw-truncate">{t("ui.model.selectModel")}</span>
             )}
             {currentEffortLabel && (
               <>
@@ -199,7 +200,11 @@ export function ModelEffortPicker({ override, className }: ModelEffortPickerProp
         sideOffset={4}
         onKeyDown={handleKeyDown}
       >
-        <div className="tw-max-h-72 tw-overflow-y-auto tw-py-1" role="listbox" aria-label="Model">
+        <div
+          className="tw-max-h-72 tw-overflow-y-auto tw-py-1"
+          role="listbox"
+          aria-label={t("ui.model.model")}
+        >
           {models.map((entry) => {
             const key = getModelKeyFromModel(entry);
             const disabledReason = entry._disabledReason;
@@ -286,11 +291,11 @@ function EffortFooter({ options, value, onChange }: EffortFooterProps) {
         options.findIndex((o) => o.value === value)
       )
     : 0;
-  const currentLabel = hasOptions ? (options[idx]?.label ?? "") : "n/a";
+  const currentLabel = hasOptions ? (options[idx]?.label ?? "") : t("ui.model.effort.na");
   return (
     <div className="tw-flex tw-h-6 tw-items-center tw-justify-between tw-gap-3">
       <span className="tw-font-mono tw-text-[10px] tw-uppercase tw-tracking-wider tw-text-muted">
-        Effort
+        {t("ui.model.effort.label")}
       </span>
       <div className="tw-flex tw-items-center tw-gap-3">
         {hasOptions ? (
@@ -336,7 +341,7 @@ function EffortStepper({ options, value, onChange }: EffortStepperProps) {
         const clamped = Math.max(0, Math.min(options.length - 1, next));
         onChange(options[clamped]?.value ?? null);
       }}
-      aria-label="Effort"
+      aria-label={t("ui.model.effort.label")}
       className="tw-relative tw-flex tw-h-6 tw-w-[140px] tw-touch-none tw-select-none tw-items-center"
     >
       <SliderPrimitive.Track className="tw-relative tw-mx-1.5 tw-h-0.5 tw-w-full tw-grow tw-rounded-full tw-bg-[var(--background-modifier-border)]">
@@ -362,7 +367,7 @@ function EffortStepper({ options, value, onChange }: EffortStepperProps) {
         })}
       </div>
       <SliderPrimitive.Thumb
-        aria-label="Effort"
+        aria-label={t("ui.model.effort.label")}
         className="tw-flex tw-size-6 tw-items-center tw-justify-center tw-rounded-full tw-border-[1.5px] tw-border-solid tw-border-border tw-bg-primary tw-shadow-sm tw-transition-colors focus-visible:tw-outline-none focus-visible:tw-ring-2 focus-visible:tw-ring-ring focus-visible:tw-ring-offset-1 disabled:tw-pointer-events-none disabled:tw-opacity-50"
       >
         <span aria-hidden className="tw-size-2 tw-rounded-full tw-bg-interactive-accent" />

@@ -19,6 +19,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { type ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import { ChatIconWithAttention } from "@/components/chat-components/ChatIconWithAttention";
 import { useApp } from "@/context";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { isNativeChatId } from "@/utils/nativeChatId";
 import { formatCompactRelativeTime } from "@/utils/formatRelativeTime";
@@ -195,7 +196,7 @@ function RecentChatMenu({
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
-        <RowActionButton label="More actions" ref={trackRowBody}>
+        <RowActionButton label={t("agentChat.recentChats.moreActions")} ref={trackRowBody}>
           <MoreHorizontal className="tw-size-4" />
         </RowActionButton>
       </DropdownMenuTrigger>
@@ -208,12 +209,12 @@ function RecentChatMenu({
       >
         <DropdownMenuItem onSelect={() => safeAsyncHandler(onSetChatPinned)(item.id, !pinned)}>
           {pinned ? <PinOff /> : <Pin />}
-          {pinned ? "Unpin chat" : "Pin chat"}
+          {pinned ? t("agentChat.recentChats.unpinChat") : t("agentChat.recentChats.pinChat")}
         </DropdownMenuItem>
         {isNoteBacked && (
           <DropdownMenuItem onSelect={() => onOpenSourceFile(item.id)}>
             <ArrowUpRight />
-            Open source note
+            {t("agentChat.recentChats.openSourceNote")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
@@ -222,11 +223,11 @@ function RecentChatMenu({
           }
         >
           <Pencil />
-          Rename
+          {t("agentChat.rename")}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => safeAsyncHandler(onCopyChatLink)(item.id)}>
           <Link />
-          Copy chat link
+          {t("controls.copyChatLink")}
         </DropdownMenuItem>
         <ChatBookmarkMenuItem
           getBookmarkState={readBookmarkState}
@@ -238,7 +239,7 @@ function RecentChatMenu({
         {isSessionOpen && onCloseSession && (
           <DropdownMenuItem onSelect={() => safeAsyncHandler(onCloseSession)(item.id)}>
             <Power />
-            Close session
+            {t("agentChat.closeSession")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
@@ -248,14 +249,14 @@ function RecentChatMenu({
               app,
               () => onDeleteChat(item.id),
               describeChatDelete(item.backendId ? backendRegistry[item.backendId] : undefined),
-              "Delete chat",
-              "Delete",
-              "Cancel"
+              t("agentChat.recentChats.deleteChat"),
+              t("agentChat.delete"),
+              t("common.cancel")
             ).open()
           }
         >
           <Trash2 />
-          Delete
+          {t("agentChat.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -322,7 +323,7 @@ const RecentChatRow = memo(function RecentChatRow({
               "tw-size-3.5 tw-shrink-0 tw-animate-spin tw-text-accent",
               menuOpen ? "tw-hidden" : "group-focus-within:tw-hidden group-hover:tw-hidden"
             )}
-            aria-label="Responding"
+            aria-label={t("agentChat.recentChats.responding")}
           />
         ) : (
           <span
@@ -344,21 +345,26 @@ const RecentChatRow = memo(function RecentChatRow({
           )}
         >
           <RowActionButton
-            label={pinned ? "Unpin chat" : "Pin chat"}
+            label={
+              pinned ? t("agentChat.recentChats.unpinChat") : t("agentChat.recentChats.pinChat")
+            }
             onClick={() => safeAsyncHandler(onSetChatPinned)(item.id, !pinned)}
           >
             {pinned ? <PinOff className="tw-size-3.5" /> : <Pin className="tw-size-3.5" />}
           </RowActionButton>
           {isSessionOpen && onCloseSession && (
             <RowActionButton
-              label="Close session"
+              label={t("agentChat.closeSession")}
               onClick={() => safeAsyncHandler(onCloseSession)(item.id)}
             >
               <Power className="tw-size-3" />
             </RowActionButton>
           )}
           {isNoteBacked && (
-            <RowActionButton label="Open source note" onClick={() => onOpenSourceFile(item.id)}>
+            <RowActionButton
+              label={t("agentChat.recentChats.openSourceNote")}
+              onClick={() => onOpenSourceFile(item.id)}
+            >
               <ArrowUpRight className="tw-size-4" />
             </RowActionButton>
           )}
@@ -476,7 +482,7 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
           <SearchBar
             value={query}
             onChange={setQuery}
-            placeholder="Search chats..."
+            placeholder={t("agentChat.recentChats.searchChats")}
             inputClassName="!tw-h-7"
           />
         </div>
@@ -484,10 +490,10 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
       {filteredItems.length === 0 ? (
         <div className="tw-flex tw-flex-1 tw-items-center tw-justify-center tw-px-2 tw-py-1.5 tw-text-xs tw-text-muted">
           {items.length > 0
-            ? "No matching chats"
+            ? t("agentChat.recentChats.noMatchingChats")
             : variant === "project"
-              ? "No chats in this project yet"
-              : "No recent chats"}
+              ? t("agentChat.recentChats.noChatsInProject")
+              : t("agentChat.recentChats.noRecentChats")}
         </div>
       ) : (
         <AgentHomePreviewList>

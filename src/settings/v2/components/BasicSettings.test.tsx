@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "@/constants";
+import { applyLanguage } from "@/i18n";
 import { settingsAtom, settingsStore } from "@/settings/model";
 import { BasicSettings } from "@/settings/v2/components/BasicSettings";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -83,6 +84,18 @@ describe("BasicSettings", () => {
       findVaultAgentRootFileConflict.mockReturnValue(null);
       systemPrompts.mockReturnValue([]);
       isDesktopRuntime.mockReturnValue(true);
+    });
+
+    it("renders the settings copy in Simplified Chinese after switching language", () => {
+      applyLanguage("zh-CN", []);
+      try {
+        render(<BasicSettings />);
+        expect(screen.getByText("常规")).not.toBeNull();
+        expect(screen.getByText("语言")).not.toBeNull();
+        expect(screen.getByLabelText("Vault Agent 文件夹")).not.toBeNull();
+      } finally {
+        applyLanguage("en", []);
+      }
     });
 
     it("puts the Agents section above General so setup comes before preferences", async () => {

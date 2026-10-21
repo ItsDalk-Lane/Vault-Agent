@@ -1,6 +1,7 @@
 import { ConfigStatusBadge } from "@/agentMode/backends/shared/installStatus";
 import type { BackendAuthStatus, InstallState } from "@/agentMode/session/types";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { AlertTriangle } from "lucide-react";
 import React from "react";
 
@@ -37,7 +38,7 @@ export const ConfigDialogShell: React.FC<ConfigDialogShellProps> = ({
     <div className="vault-agent-divider-t tw-flex tw-justify-end tw-gap-2 tw-bg-secondary tw-px-4 tw-py-3">
       {footer ?? (
         <Button variant="default" size="default" onClick={onClose}>
-          Done
+          {t("agentInfra.backend.done")}
         </Button>
       )}
     </div>

@@ -8,6 +8,7 @@ import {
   LEGACY_SELECTED_TEXT_PLACEHOLDER,
 } from "@/commands/constants";
 import { CustomCommand } from "@/commands/type";
+import { t } from "@/i18n";
 import { logWarn } from "@/logger";
 import { App, Notice, TAbstractFile, TFile, Vault } from "obsidian";
 import { getSettings } from "@/settings/model";
@@ -245,7 +246,7 @@ async function extractVariablesFromPrompt(
           variableResult.files.push(activeNote);
         }
       } else {
-        new Notice("No active note found.");
+        new Notice(t("notice.noActiveNote"));
       }
     } else if (variableNameLower === "activewebtab") {
       continue;

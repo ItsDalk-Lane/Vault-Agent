@@ -4,6 +4,7 @@ import { pickToolIcon } from "@/agentMode/ui/toolIcons";
 import type { ToolCallPart } from "@/agentMode/ui/agentTrail";
 import type {} from "@/agentMode/session/types";
 import { formatDuration } from "@/lib/duration";
+import { t } from "@/i18n";
 import { diffTargetPaths, primaryEditTargetPath } from "@/agentMode/session/editTargets";
 import { isAbsolutePath } from "@/utils/vaultPath";
 
@@ -53,10 +54,6 @@ function isOpencodeTaskTool(part: ToolCallPart): boolean {
   return typeof input?.subagent_type === "string";
 }
 
-export function pluralize(n: number, singular: string): string {
-  return `${n} ${n === 1 ? singular : `${singular}s`}`;
-}
-
 function targetFromTitle(part: ToolCallPart): string {
   const t = part.title;
   if (!t) return "…";
@@ -77,7 +74,7 @@ function humanizeToolName(name: string): string {
 function genericToolLabel(part: ToolCallPart): string {
   if (!part.vendorToolName && /\s/.test(part.title)) return part.title;
   const bare = part.vendorToolName ?? part.title;
-  return humanizeToolName(bare) || "Tool call";
+  return humanizeToolName(bare) || t("agentChat.toolCallFallback");
 }
 
 function firstQuestionText(part: ToolCallPart): string | null {
@@ -91,22 +88,6 @@ function firstQuestionText(part: ToolCallPart): string | null {
   if (header) return header;
   const question = typeof first.question === "string" ? first.question.trim() : "";
   return question || null;
-}
-
-function verb(part: ToolCallPart, progressive: string, past: string): string {
-  return part.status === "completed" || part.status === "failed" ? past : progressive;
-}
-
-function fileChangeVerb(
-  part: ToolCallPart,
-  progressive: string,
-  past: string,
-  negated: string
-): string {
-  // A failed or denied file change leaves the note untouched, so the label
-  // must not claim it happened.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/691
-  return part.status === "failed" ? `Didn't ${negated}` : verb(part, progressive, past);
 }
 
 function createsNewFile(part: ToolCallPart): boolean {
@@ -171,11 +152,15 @@ function approxTokens(part: ToolCallPart): number {
 
 const READ_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "Read" }),
-  collapsedLine: (p, ctx) =>
-    `${verb(p, "Reading", "Read")} ${displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p)}`,
+  collapsedLine: (p, ctx) => {
+    const target = displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p);
+    return p.status === "completed" || p.status === "failed"
+      ? t("agentChat.tools.readDone", { target })
+      : t("agentChat.tools.readRunning", { target });
+  },
   outcome: (p) => {
-    const t = approxTokens(p);
-    return t > 0 ? `~${formatTokens(t)} tokens` : null;
+    const tokens = approxTokens(p);
+    return tokens > 0 ? t("agentChat.tools.outcomeTokens", { tokens: formatTokens(tokens) }) : null;
   },
   targetPath: (p, ctx) => targetFromPath(p, ctx?.vaultBase ?? null),
 };
@@ -183,28 +168,63 @@ const READ_SUMMARY: ToolSummary = {
 const LIST_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "LS" }),
   collapsedLine: (p, ctx) => {
-    const v = verb(p, "Listing", "Listed");
     const path = displayTargetFromPath(p, ctx?.vaultBase ?? null);
-    return path ? `${v} ${path}` : `${v} vault root`;
+    const completed = p.status === "completed" || p.status === "failed";
+    if (path) {
+      return completed
+        ? t("agentChat.tools.listDone", { target: path })
+        : t("agentChat.tools.listRunning", { target: path });
+    }
+    return completed ? t("agentChat.tools.listRootDone") : t("agentChat.tools.listRootRunning");
   },
   outcome: () => null,
 };
 
+// A failed or denied file change leaves the note untouched, so the label
+// must not claim it happened.
+// https://github.com/Brevilabs/obsidian-copilot-private/issues/691
 const EDIT_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "Edit" }),
   collapsedLine: (p, ctx) => {
     const diffPathCount = diffTargetPaths(p.output).length;
-    const lead = fileChangeVerb(p, "Editing", "Edited", createsNewFile(p) ? "create" : "edit");
-    return `${lead} ${
-      diffPathCount > 1
-        ? pluralize(diffPathCount, "file")
-        : (displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? "files")
-    }`;
+    const failed = p.status === "failed";
+    const creates = createsNewFile(p);
+    const completed = p.status === "completed" || failed;
+    if (diffPathCount > 1) {
+      const count = diffPathCount;
+      if (failed) {
+        return creates
+          ? t("agentChat.tools.editFailedCreateMany", { count })
+          : t("agentChat.tools.editFailedEditMany", { count });
+      }
+      return completed
+        ? t("agentChat.tools.editDoneMany", { count })
+        : t("agentChat.tools.editRunningMany", { count });
+    }
+    const target = displayTargetFromPath(p, ctx?.vaultBase ?? null);
+    if (failed) {
+      if (creates) {
+        return target
+          ? t("agentChat.tools.editFailedCreate", { target })
+          : t("agentChat.tools.editFailedCreateFallback");
+      }
+      return target
+        ? t("agentChat.tools.editFailedEdit", { target })
+        : t("agentChat.tools.editFailedEditFallback");
+    }
+    if (!target) {
+      return completed
+        ? t("agentChat.tools.editDoneFallback")
+        : t("agentChat.tools.editRunningFallback");
+    }
+    return completed
+      ? t("agentChat.tools.editDone", { target })
+      : t("agentChat.tools.editRunning", { target });
   },
   outcome: (p) => {
     const { added, removed } = diffStats(p);
     if (added === 0 && removed === 0) return null;
-    return `+${added} / −${removed} lines`;
+    return t("agentChat.tools.outcomeDiffLines", { added, removed });
   },
   targetPath: (p, ctx) =>
     diffTargetPaths(p.output).length > 1 ? null : targetFromPath(p, ctx?.vaultBase ?? null),
@@ -217,12 +237,17 @@ const BASH_SUMMARY: ToolSummary = {
     if (typeof input?.description === "string" && input.description.length > 0) {
       return input.description;
     }
-    const v = verb(p, "Running", "Ran");
+    const completed = p.status === "completed" || p.status === "failed";
     if (typeof input?.command === "string") {
       const cmd = input.command.length > 60 ? input.command.slice(0, 60) + "…" : input.command;
-      return `${v} \`${cmd}\``;
+      return completed
+        ? t("agentChat.tools.bashDoneCommand", { command: cmd })
+        : t("agentChat.tools.bashRunningCommand", { command: cmd });
     }
-    return `${v} ${targetFromTitle(p)}`;
+    const target = targetFromTitle(p);
+    return completed
+      ? t("agentChat.tools.bashDoneTarget", { target })
+      : t("agentChat.tools.bashRunningTarget", { target });
   },
   outcome: () => null,
   expandedDetails: (p) => {
@@ -238,9 +263,17 @@ const BASH_SUMMARY: ToolSummary = {
 const SEARCH_VAULT_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "Grep" }),
   collapsedLine: (p) => {
-    const v = verb(p, "Searching vault", "Searched vault");
+    const completed = p.status === "completed" || p.status === "failed";
     const q = queryFromInput(p);
-    return q ? `${v} · "${q}"` : `${v} · ${targetFromTitle(p)}`;
+    if (q) {
+      return completed
+        ? t("agentChat.tools.searchVaultDoneQuery", { query: q })
+        : t("agentChat.tools.searchVaultRunningQuery", { query: q });
+    }
+    const target = targetFromTitle(p);
+    return completed
+      ? t("agentChat.tools.searchVaultDoneTarget", { target })
+      : t("agentChat.tools.searchVaultRunningTarget", { target });
   },
   outcome: () => null,
 };
@@ -248,9 +281,17 @@ const SEARCH_VAULT_SUMMARY: ToolSummary = {
 const WEB_SEARCH_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "WebSearch" }),
   collapsedLine: (p) => {
-    const v = verb(p, "Searching web", "Searched web");
+    const completed = p.status === "completed" || p.status === "failed";
     const q = queryFromInput(p);
-    return q ? `${v} · "${q}"` : `${v} · ${targetFromTitle(p)}`;
+    if (q) {
+      return completed
+        ? t("agentChat.tools.searchWebDoneQuery", { query: q })
+        : t("agentChat.tools.searchWebRunningQuery", { query: q });
+    }
+    const target = targetFromTitle(p);
+    return completed
+      ? t("agentChat.tools.searchWebDoneTarget", { target })
+      : t("agentChat.tools.searchWebRunningTarget", { target });
   },
   outcome: () => null,
 };
@@ -258,10 +299,12 @@ const WEB_SEARCH_SUMMARY: ToolSummary = {
 const WEB_FETCH_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "WebFetch" }),
   collapsedLine: (p) => {
-    const v = verb(p, "Fetching", "Fetched");
+    const completed = p.status === "completed" || p.status === "failed";
     const input = p.input as { url?: unknown } | null | undefined;
-    if (typeof input?.url === "string") return `${v} ${input.url}`;
-    return `${v} ${targetFromTitle(p)}`;
+    const target = typeof input?.url === "string" ? input.url : targetFromTitle(p);
+    return completed
+      ? t("agentChat.tools.fetchDone", { target })
+      : t("agentChat.tools.fetchRunning", { target });
   },
   outcome: () => null,
 };
@@ -280,7 +323,9 @@ const TASK_SUMMARY: ToolSummary = {
         : typeof input?.prompt === "string"
           ? input.prompt.slice(0, 60)
           : targetFromTitle(p);
-    return agent ? `${agent} · "${desc}"` : `Sub-agent · "${desc}"`;
+    return agent
+      ? t("agentChat.tools.taskNamed", { agent, description: desc })
+      : t("agentChat.tools.taskFallback", { description: desc });
   },
   outcome: (p) => {
     const progress = p.progress;
@@ -290,7 +335,11 @@ const TASK_SUMMARY: ToolSummary = {
       bits.push(progress.description.trim());
     }
     if (progress.toolUses !== undefined) {
-      bits.push(pluralize(progress.toolUses, "tool"));
+      bits.push(
+        progress.toolUses === 1
+          ? t("agentChat.subAgent.tools_one", { count: progress.toolUses })
+          : t("agentChat.subAgent.tools_many", { count: progress.toolUses })
+      );
     }
     if (progress.durationMs !== undefined) bits.push(formatDuration(progress.durationMs));
     return bits.length > 0 ? bits.join(" · ") : null;
@@ -299,26 +348,41 @@ const TASK_SUMMARY: ToolSummary = {
 
 const TODO_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "TodoWrite" }),
-  collapsedLine: (p) => `${verb(p, "Updating", "Updated")} task list`,
+  collapsedLine: (p) =>
+    p.status === "completed" || p.status === "failed"
+      ? t("agentChat.tools.todoDone")
+      : t("agentChat.tools.todoRunning"),
   outcome: (p) => {
     const input = p.input as { todos?: unknown[] } | null | undefined;
     const n = Array.isArray(input?.todos) ? input.todos.length : 0;
-    return n > 0 ? pluralize(n, "task") : null;
+    return n > 0
+      ? n === 1
+        ? t("agentChat.tools.todoOutcome_one", { count: n })
+        : t("agentChat.tools.todoOutcome_many", { count: n })
+      : null;
   },
 };
 
 const EXIT_PLAN_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "ExitPlanMode" }),
-  collapsedLine: (p) => `${verb(p, "Proposing", "Proposed")} plan`,
+  collapsedLine: (p) =>
+    p.status === "completed" || p.status === "failed"
+      ? t("agentChat.tools.exitPlanDone")
+      : t("agentChat.tools.exitPlanRunning"),
   outcome: () => null,
 };
 
 const ASK_USER_QUESTION_SUMMARY: ToolSummary = {
   icon: MessageCircleQuestion,
   collapsedLine: (p) => {
-    const v = verb(p, "Asking", "Asked");
+    const completed = p.status === "completed" || p.status === "failed";
     const q = firstQuestionText(p);
-    return q ? `${v}: "${q}"` : `${v} a question`;
+    if (q) {
+      return completed
+        ? t("agentChat.tools.askDoneQuestion", { question: q })
+        : t("agentChat.tools.askRunningQuestion", { question: q });
+    }
+    return completed ? t("agentChat.tools.askDoneGeneric") : t("agentChat.tools.askRunningGeneric");
   },
   outcome: () => null,
 };
@@ -326,9 +390,16 @@ const ASK_USER_QUESTION_SUMMARY: ToolSummary = {
 const SKILL_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ vendorToolName: "Skill" }),
   collapsedLine: (p) => {
-    const v = verb(p, "Running", "Ran");
+    const completed = p.status === "completed" || p.status === "failed";
     const name = skillNameFromInput(p);
-    return name ? `${v} skill ${name}` : `${v} a skill`;
+    if (name) {
+      return completed
+        ? t("agentChat.tools.skillDoneNamed", { name })
+        : t("agentChat.tools.skillRunningNamed", { name });
+    }
+    return completed
+      ? t("agentChat.tools.skillDoneGeneric")
+      : t("agentChat.tools.skillRunningGeneric");
   },
   outcome: () => null,
   expandedDetails: (p) => {
@@ -359,9 +430,17 @@ const VENDOR_SUMMARIES: Record<string, ToolSummary> = {
 const KIND_SEARCH_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ toolKind: "search" }),
   collapsedLine: (p) => {
-    const v = verb(p, "Searching", "Searched");
+    const completed = p.status === "completed" || p.status === "failed";
     const q = queryFromInput(p);
-    return q ? `${v} · "${q}"` : `${v} · ${targetFromTitle(p)}`;
+    if (q) {
+      return completed
+        ? t("agentChat.tools.searchKindDoneQuery", { query: q })
+        : t("agentChat.tools.searchKindRunningQuery", { query: q });
+    }
+    const target = targetFromTitle(p);
+    return completed
+      ? t("agentChat.tools.searchKindDoneTarget", { target })
+      : t("agentChat.tools.searchKindRunningTarget", { target });
   },
   outcome: () => null,
 };
@@ -375,14 +454,23 @@ const KIND_FETCH_SUMMARY: ToolSummary = {
 };
 const KIND_DELETE_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ toolKind: "delete" }),
-  collapsedLine: (p, ctx) =>
-    `${fileChangeVerb(p, "Deleting", "Deleted", "delete")} ${displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p)}`,
+  collapsedLine: (p, ctx) => {
+    const target = displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p);
+    if (p.status === "failed") return t("agentChat.tools.deleteFailed", { target });
+    return p.status === "completed"
+      ? t("agentChat.tools.deleteDone", { target })
+      : t("agentChat.tools.deleteRunning", { target });
+  },
   outcome: () => null,
 };
 const KIND_MOVE_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ toolKind: "move" }),
-  collapsedLine: (p, ctx) =>
-    `${verb(p, "Moving", "Moved")} ${displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p)}`,
+  collapsedLine: (p, ctx) => {
+    const target = displayTargetFromPath(p, ctx?.vaultBase ?? null) ?? targetFromTitle(p);
+    return p.status === "completed" || p.status === "failed"
+      ? t("agentChat.tools.moveDone", { target })
+      : t("agentChat.tools.moveRunning", { target });
+  },
   outcome: () => null,
 };
 const KIND_SWITCH_MODE_SUMMARY: ToolSummary = {
@@ -391,7 +479,10 @@ const KIND_SWITCH_MODE_SUMMARY: ToolSummary = {
 };
 const KIND_THINK_SUMMARY: ToolSummary = {
   icon: pickToolIcon({ toolKind: "think" }),
-  collapsedLine: (p) => verb(p, "Thinking", "Thought"),
+  collapsedLine: (p) =>
+    p.status === "completed" || p.status === "failed"
+      ? t("agentChat.tools.thinkDone")
+      : t("agentChat.tools.thinkRunning"),
   outcome: () => null,
 };
 

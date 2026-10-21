@@ -16,16 +16,19 @@ import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { formatBinaryPathForDisplay } from "@/utils/binaryPath";
 import { formatBytes } from "@/utils/formatBytes";
 import { OPENCODE_PINNED_VERSION } from "@/agentMode/backends/opencode/ui/opencodeVersion";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { useSettingsValue } from "@/settings/model";
 import { App, Notice } from "obsidian";
 import React from "react";
 
-const STARTING_RUN: OpencodeRunState = Object.freeze({
-  kind: "running",
-  label: "Starting…",
-  percent: 0,
-});
+function startingRun(): OpencodeRunState {
+  return Object.freeze({
+    kind: "running",
+    label: t("agentInfra.backend.status.starting"),
+    percent: 0,
+  });
+}
 
 const errorState = (err: unknown): OpencodeRunState => ({
   kind: "error",
@@ -61,7 +64,7 @@ export const OpencodeConfigContainer: React.FC<{
     runtime.kind === "installing"
       ? runtime.progress
         ? { kind: "running", ...runtime.progress }
-        : STARTING_RUN
+        : startingRun()
       : runtime.kind === "error"
         ? { kind: "error", message: runtime.message }
         : { kind: "idle" };
@@ -71,7 +74,7 @@ export const OpencodeConfigContainer: React.FC<{
       .install()
       .then(({ version }) => {
         forgetUpgradeOutcome();
-        new Notice(`opencode v${version} installed.`);
+        new Notice(t("agentInfra.backend.opencode.installed", { version }));
       })
       .catch((err: unknown) => {
         if (err instanceof AbortError || (err as Error)?.name === "AbortError") return;
@@ -93,21 +96,30 @@ export const OpencodeConfigContainer: React.FC<{
         try {
           await manager.uninstall();
           forgetUpgradeOutcome();
-          new Notice(`opencode uninstalled${bytes > 0 ? ` (freed ${formatBytes(bytes)})` : ""}.`);
+          new Notice(
+            bytes > 0
+              ? t("agentInfra.backend.opencode.uninstalledFreed", { size: formatBytes(bytes) })
+              : t("agentInfra.backend.opencode.uninstalled")
+          );
         } catch (e) {
           logError("[AgentMode] uninstall failed", e);
-          new Notice(`Uninstall failed: ${e instanceof Error ? e.message : String(e)}`);
+          new Notice(
+            t("agentInfra.backend.opencode.uninstallFailed", {
+              error: e instanceof Error ? e.message : String(e),
+            })
+          );
         }
       },
-      `Remove all downloaded opencode binaries${bytes > 0 ? ` (${formatBytes(bytes)})` : ""}, ` +
-        "including any old copy inside your vault? Your custom binary path and BYOK keys are kept.",
-      "Uninstall opencode",
-      "Uninstall"
+      bytes > 0
+        ? t("agentInfra.backend.opencode.removeConfirmWithSize", { size: formatBytes(bytes) })
+        : t("agentInfra.backend.opencode.removeConfirm"),
+      t("agentInfra.backend.opencode.removeTitle"),
+      t("agentInfra.backend.managed.uninstall")
     ).open();
   }, [app, manager, forgetUpgradeOutcome]);
 
   const upgrade = React.useCallback(() => {
-    setUpgradeRun(STARTING_RUN);
+    setUpgradeRun(startingRun());
     const action =
       activeSource === "custom"
         ? manager.upgradeCustomBinary()
@@ -117,7 +129,7 @@ export const OpencodeConfigContainer: React.FC<{
     action
       .then(({ version }) => {
         setUpgradeRun({ kind: "idle" });
-        new Notice(`opencode upgraded to v${version}.`);
+        new Notice(t("agentInfra.backend.opencode.upgraded", { version }));
       })
       .catch((err: unknown) => {
         if (err instanceof AbortError || (err as Error)?.name === "AbortError") {
@@ -142,7 +154,7 @@ export const OpencodeConfigContainer: React.FC<{
         return e instanceof Error ? e.message : String(e);
       }
       forgetUpgradeOutcome();
-      new Notice("Custom opencode binary path saved.");
+      new Notice(t("agentInfra.backend.opencode.customPathSaved"));
       return null;
     },
     [manager, forgetUpgradeOutcome]
@@ -152,11 +164,15 @@ export const OpencodeConfigContainer: React.FC<{
     try {
       await manager.setCustomBinaryPath(null);
     } catch (e) {
-      new Notice(`Couldn't clear the custom path: ${e instanceof Error ? e.message : String(e)}`);
+      new Notice(
+        t("agentInfra.backend.opencode.clearFailed", {
+          error: e instanceof Error ? e.message : String(e),
+        })
+      );
       return;
     }
     forgetUpgradeOutcome();
-    new Notice("Custom opencode path cleared.");
+    new Notice(t("agentInfra.backend.opencode.customPathCleared"));
   }, [manager, forgetUpgradeOutcome]);
 
   return (

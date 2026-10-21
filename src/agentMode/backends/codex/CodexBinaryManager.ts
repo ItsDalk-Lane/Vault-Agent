@@ -13,6 +13,7 @@ import {
 import { vaultAgentAppDataDir } from "@/utils/appPaths";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { getSettings, updateAgentModeBackendFields } from "@/settings/model";
+import { t } from "@/i18n";
 import {
   bundledCodexRuntimePath,
   resolveSupportedCodexAcpPackage,
@@ -26,7 +27,7 @@ const EMPTY_BINARY_SETTINGS: BinarySettings = Object.freeze({});
 
 export class CodexBinaryManager extends ManagedBinaryManager {
   constructor() {
-    super("Codex adapter");
+    super(t("agentInfra.backend.codex.adapterName"));
   }
 
   protected readBinarySettings(): BinarySettings {
@@ -50,7 +51,7 @@ export class CodexBinaryManager extends ManagedBinaryManager {
   getDataDir(): string {
     const home = requireNodeModule<typeof import("node:os")>("os").homedir();
     if (!home || !path().isAbsolute(home) || path().parse(home).root === home) {
-      throw new Error("Could not resolve your home directory for the managed Codex adapter.");
+      throw new Error(t("agentInfra.backend.codex.homeDir"));
     }
     return path().join(vaultAgentAppDataDir(home), "codex");
   }
@@ -83,7 +84,7 @@ export class CodexBinaryManager extends ManagedBinaryManager {
         signal
       );
       if (!runtime.includes("Codex CLI"))
-        throw new Error("The bundled Codex runtime could not start.");
+        throw new Error(t("agentInfra.backend.codex.runtimeStart"));
       if (signal.aborted) throw new ManagedInstallAbortError();
       progress.activating();
       await promoteManagedVersion(stageDir, versionDir, "Codex adapter");
@@ -110,7 +111,9 @@ function entryPath(versionDir: string): string {
 async function verifyLauncher(entry: string, signal: AbortSignal): Promise<void> {
   const stdout = await run(entry, ["--version"], signal);
   if (!stdout.includes(CODEX_PINNED_VERSION)) {
-    throw new Error(`The Codex adapter did not report version ${CODEX_PINNED_VERSION}.`);
+    throw new Error(
+      t("agentInfra.backend.codex.versionMismatch", { version: CODEX_PINNED_VERSION })
+    );
   }
 }
 

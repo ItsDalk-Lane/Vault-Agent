@@ -769,7 +769,7 @@ describe("GlobalRecentChatsSection", () => {
       act(() => chooseMenuItem(menu, "Delete"));
       const dialog = lastModal();
       expect(dialog.titleEl.textContent).toBe("Delete chat");
-      expect(within(dialog.contentEl).getByText("Delete this chat from Copilot?")).toBeTruthy();
+      expect(within(dialog.contentEl).getByText("Delete this chat from Vault Agent?")).toBeTruthy();
       await act(async () => {
         fireEvent.click(within(dialog.contentEl).getByRole("button", { name: "Delete" }));
       });
@@ -803,7 +803,7 @@ describe("GlobalRecentChatsSection", () => {
 
         expect(
           within(lastModal().contentEl).getByText(
-            `Delete this chat from Copilot? ${agent} may keep its own copy of this conversation on this computer.`
+            `Delete this chat from Vault Agent? ${agent} may keep its own copy of this conversation on this computer.`
           )
         ).toBeTruthy();
       }

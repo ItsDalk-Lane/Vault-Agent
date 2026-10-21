@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import {
   $getRoot,
   DOMConversionMap,
@@ -20,7 +21,7 @@ export interface SerializedWebTabPillNode extends SerializedBasePillNode {
 }
 
 function formatWebTabPillTextContent(url: string, title?: string): string {
-  const displayText = title?.trim() || getDomainFromUrl(url) || "Untitled";
+  const displayText = title?.trim() || getDomainFromUrl(url) || t("ui.chat.untitled");
   return `[🌐: ${displayText}]`;
 }
 

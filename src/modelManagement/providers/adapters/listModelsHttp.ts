@@ -1,4 +1,5 @@
 import { safeFetchNoThrow } from "@/utils";
+import { t } from "@/i18n";
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const MAX_BODY_CHARS = 200;
@@ -27,7 +28,7 @@ export async function fetchWithListModelsTimeout(
   let timer: number | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = window.setTimeout(
-      () => reject(new ListModelsTimeoutError(`Timed out after ${timeoutMs}ms`)),
+      () => reject(new ListModelsTimeoutError(t("ui.model.err.timeout", { ms: timeoutMs }))),
       timeoutMs
     );
   });
@@ -53,13 +54,15 @@ export async function parseModelListResponse(
 ): Promise<ListModelsResponseResult> {
   const { status } = response;
   if (status === 401 || status === 403) {
-    return { ok: false, message: "Authentication failed — check your API key.", status };
+    return { ok: false, message: t("ui.model.err.authentication"), status };
   }
   if (status < 200 || status >= 300) {
     const snippet = await readBodySnippet(response);
     return {
       ok: false,
-      message: snippet ? `HTTP ${status}: ${snippet}` : `HTTP ${status}`,
+      message: snippet
+        ? t("ui.model.err.httpWithSnippet", { status, snippet })
+        : t("ui.model.err.http", { status }),
       status,
     };
   }
@@ -68,12 +71,12 @@ export async function parseModelListResponse(
   try {
     payload = await response.json();
   } catch {
-    return { ok: false, message: "Endpoint returned an unreadable response.", status };
+    return { ok: false, message: t("ui.model.err.unreadable"), status };
   }
 
   const list = (payload as Record<string, unknown> | null)?.[shape.listKey];
   if (!Array.isArray(list)) {
-    return { ok: false, message: "Endpoint did not return a model list.", status };
+    return { ok: false, message: t("ui.model.err.noModelList"), status };
   }
 
   const seen = new Set<string>();

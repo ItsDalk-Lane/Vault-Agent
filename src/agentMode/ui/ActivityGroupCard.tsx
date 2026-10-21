@@ -7,6 +7,7 @@ import {
 } from "@/agentMode/ui/activityGroups";
 import { pickToolIcon } from "@/agentMode/ui/toolIcons";
 import { AgentActivityCard } from "@/components/chat-components/AgentActivityCard";
+import { t } from "@/i18n";
 
 export interface ActivityGroupCardProps {
   group: ActivityGroupNode;
@@ -38,7 +39,9 @@ export const ActivityGroupCard: React.FC<ActivityGroupCardProps> = ({
       trailing={
         <>
           {summary.failed > 0 ? (
-            <span className="tw-shrink-0 tw-text-xs tw-text-muted">{summary.failed} failed</span>
+            <span className="tw-shrink-0 tw-text-xs tw-text-muted">
+              {t("agentChat.activity.failedCount", { count: summary.failed })}
+            </span>
           ) : null}
           {isProcessing ? (
             <Loader2 className="tw-size-3 tw-shrink-0 tw-animate-spin tw-text-loading" />

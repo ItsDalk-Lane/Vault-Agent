@@ -24,12 +24,17 @@ jest.mock("./useBackendDescriptor", () => ({
 }));
 
 jest.mock("@/agentMode/backends/registry", () => {
+  const setupKeys: Record<string, string> = {
+    opencode: "agentInfra.setup.opencode",
+    claude: "agentInfra.setup.claude",
+    codex: "agentInfra.setup.codex",
+  };
   const openInstallUI = jest.fn();
   const make = (id: string, displayName: string) => ({
     id,
     displayName,
     auth: id === "opencode" ? undefined : {},
-    setupDescription: `${displayName} description`,
+    setupDescription: setupKeys[id],
     openInstallUI,
   });
   const order = [make("opencode", "opencode"), make("claude", "Claude"), make("codex", "Codex")];

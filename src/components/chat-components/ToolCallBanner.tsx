@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { ToolResultFormatter } from "@/tools/ToolResultFormatter";
 import { ChevronRight } from "lucide-react";
 import React, { useMemo, useState } from "react";
+import { t } from "@/i18n";
 
 const SHIMMER_ANIMATION = "shimmer 2s ease-in-out infinite";
 
@@ -23,7 +24,10 @@ const formatToolResult = (toolName: string, result: string | null): string | nul
   }
 
   if (result.length > MAX_DISPLAY_CHARS) {
-    return `Tool '${toolName}' returned ${result.length.toLocaleString()} characters. The full output is preserved in chat history but omitted here to keep the UI responsive.`;
+    return t("ui.chat.toolCall.tooLong", {
+      tool: toolName,
+      count: result.length.toLocaleString(),
+    });
   }
 
   try {
@@ -31,7 +35,9 @@ const formatToolResult = (toolName: string, result: string | null): string | nul
     if (formatted.length > MAX_DISPLAY_CHARS) {
       return (
         formatted.slice(0, MAX_DISPLAY_CHARS) +
-        `\n\n… (truncated ${(formatted.length - MAX_DISPLAY_CHARS).toLocaleString()} characters for display)`
+        t("ui.chat.toolCall.truncated", {
+          count: (formatted.length - MAX_DISPLAY_CHARS).toLocaleString(),
+        })
       );
     }
     return formatted;
@@ -96,8 +102,12 @@ export const ToolCallBanner: React.FC<ToolCallBannerProps> = ({
             <span className="tw-text-base">{emoji}</span>
             <span className="tw-font-medium">
               {toolName === "readNote"
-                ? `${actuallyExecuting ? "Reading" : "Read"} ${displayName}`
-                : `${actuallyExecuting ? "Calling" : "Called"} ${displayName}`}
+                ? actuallyExecuting
+                  ? t("ui.chat.toolCall.readingWithName", { name: displayName })
+                  : t("ui.chat.toolCall.readWithName", { name: displayName })
+                : actuallyExecuting
+                  ? t("ui.chat.toolCall.callingWithName", { name: displayName })
+                  : t("ui.chat.toolCall.calledWithName", { name: displayName })}
               {actuallyExecuting && toolName !== "readNote" && "..."}
             </span>
             {actuallyExecuting && confirmationMessage && (
@@ -121,7 +131,7 @@ export const ToolCallBanner: React.FC<ToolCallBannerProps> = ({
           <div className="tw-border-t tw-border-border tw-px-3 tw-py-2.5 sm:tw-px-4 sm:tw-py-3">
             <div className="tw-text-sm tw-text-muted">
               <pre className="tw-overflow-x-auto tw-whitespace-pre-wrap tw-font-mono tw-text-xs">
-                {formattedResult ?? "No result available"}
+                {formattedResult ?? t("ui.chat.toolCall.noResult")}
               </pre>
             </div>
           </div>

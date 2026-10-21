@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import {
   ExternalLink,
   FileText,
@@ -111,7 +112,7 @@ export function ContextActiveNoteBadge({
       <TruncatedText className="tw-max-w-40" tooltipContent={tooltipContent} alwaysShowTooltip>
         {currentActiveFile.basename}
       </TruncatedText>
-      <span className="tw-text-xs tw-text-faint">Current</span>
+      <span className="tw-text-xs tw-text-faint">{t("ui.chat.pill.current")}</span>
       {isPdf && <span className="tw-text-xs tw-text-faint">pdf</span>}
       {isCanvas && <span className="tw-text-xs tw-text-faint">canvas</span>}
     </ContextBadgeWrapper>
@@ -132,7 +133,7 @@ export function ContextActiveWebTabBadge({
   }
 
   const domain = getDomainFromUrl(activeWebTab.url);
-  const displayText = activeWebTab.title || domain || activeWebTab.url || "Untitled";
+  const displayText = activeWebTab.title || domain || activeWebTab.url || t("ui.chat.untitled");
   const tooltipContent = <div className="tw-text-left">{activeWebTab.url}</div>;
 
   return (
@@ -145,7 +146,7 @@ export function ContextActiveWebTabBadge({
       <TruncatedText className="tw-max-w-40" tooltipContent={tooltipContent} alwaysShowTooltip>
         {displayText}
       </TruncatedText>
-      <span className="tw-text-xs tw-text-faint">Current</span>
+      <span className="tw-text-xs tw-text-faint">{t("ui.chat.pill.current")}</span>
     </ContextBadgeWrapper>
   );
 }
@@ -184,8 +185,8 @@ export function ContextUrlBadge({ url, onRemove }: ContextUrlBadgeProps) {
 export function ContextWebTabBadge({ webTab, onRemove, onClick }: ContextWebTabBadgeProps) {
   const isLoaded = webTab.isLoaded !== false;
   const domain = getDomainFromUrl(webTab.url);
-  const displayText = webTab.title || domain || webTab.url || "Untitled";
-  const tooltipText = isLoaded ? webTab.url : "Tab not loaded - switch to this tab to load content";
+  const displayText = webTab.title || domain || webTab.url || t("ui.chat.untitled");
+  const tooltipText = isLoaded ? webTab.url : t("ui.chat.tabNotLoadedTooltip");
 
   return (
     <ContextBadgeWrapper
@@ -201,7 +202,7 @@ export function ContextWebTabBadge({ webTab, onRemove, onClick }: ContextWebTabB
       >
         {displayText}
       </TruncatedText>
-      {!isLoaded && <span className="tw-text-xs tw-text-muted">(not loaded)</span>}
+      {!isLoaded && <span className="tw-text-xs tw-text-muted">{t("ui.chat.pill.notLoaded")}</span>}
     </ContextBadgeWrapper>
   );
 }
@@ -239,7 +240,7 @@ export function ContextSelectedTextBadge({
   const isWebSelection = isWebSelectedTextContext(selectedText);
   const location =
     isWebSelection || selectedText.startLine === 0
-      ? "Selection"
+      ? t("ui.chat.selection")
       : selectedText.startLine === selectedText.endLine
         ? `L${selectedText.startLine}`
         : `L${selectedText.startLine}-${selectedText.endLine}`;

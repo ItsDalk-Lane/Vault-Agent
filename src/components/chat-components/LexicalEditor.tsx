@@ -39,6 +39,7 @@ import { ActiveFileProvider } from "./context/ActiveFileContext";
 import { CloudAgentProvider, EMPTY_CLOUD_AGENT_IDS } from "./context/CloudAgentContext";
 import { useSettingsValue } from "@/settings/model";
 import { type AgentMentionBrand, EMPTY_AGENT_MENTION_BRANDS } from "./hooks/useAtMentionCategories";
+import { t } from "@/i18n";
 
 interface LexicalEditorProps {
   value: string;
@@ -73,7 +74,7 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   value,
   onChange,
   onSubmit,
-  placeholder = "Type a message...",
+  placeholder,
   onNotesChange,
   onNotesRemoved,
   onURLsChange,
@@ -180,7 +181,7 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
               }
               placeholder={
                 <div className="tw-pointer-events-none tw-absolute tw-left-2 tw-top-0 tw-select-none tw-text-sm tw-text-muted/60">
-                  {placeholder}
+                  {placeholder ?? t("ui.chat.typeMessage")}
                 </div>
               }
               ErrorBoundary={LexicalErrorBoundary}

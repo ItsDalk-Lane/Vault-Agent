@@ -4,6 +4,7 @@ import { TFile } from "obsidian";
 import { useApp } from "@/context";
 import { TypeaheadMenuPortal } from "@/components/chat-components/TypeaheadMenuPortal";
 import { useNoteSearch, NoteSearchOption } from "@/components/chat-components/hooks/useNoteSearch";
+import { t } from "@/i18n";
 import {
   useTypeaheadPlugin,
   TypeaheadState,
@@ -39,7 +40,7 @@ export function NoteCommandPlugin({
         });
         return content;
       } catch {
-        const errorMsg = "Failed to load content";
+        const errorMsg = t("ui.chat.failedLoadContent");
         setPreviewContent((prev) => {
           const newMap = new Map(prev);
           newMap.set(file.path, errorMsg);

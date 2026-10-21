@@ -1,6 +1,7 @@
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
@@ -81,7 +82,7 @@ export const AgentStatusCard: React.FC<AgentStatusCardProps> = ({
       <Progress
         value={progress.percent}
         aria-valuenow={progress.percent}
-        aria-label="Installation progress"
+        aria-label={t("agentChat.statusCard.installationProgress")}
       />
     )}
     {action &&

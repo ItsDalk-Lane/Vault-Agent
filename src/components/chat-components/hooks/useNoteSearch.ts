@@ -5,6 +5,7 @@ import fuzzysort from "fuzzysort";
 import { useAllNotes } from "./useAllNotes";
 import { TypeaheadOption } from "@/components/chat-components/TypeaheadMenuContent";
 import { getEffectiveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
+import { t } from "@/i18n";
 
 export interface NoteSearchOption extends TypeaheadOption {
   file: TFile;
@@ -54,7 +55,7 @@ export function useNoteSearch(
       if (currentActiveFile) {
         const activeNoteOption: NoteSearchOption = {
           key: `active-note-${currentActiveFile.path}`,
-          title: "Active Note",
+          title: t("ui.chat.activeNote"),
           subtitle: currentActiveFile.path,
           content: "",
           category: "activeNote",
@@ -81,7 +82,7 @@ export function useNoteSearch(
       activeNoteMatches && currentActiveFile
         ? {
             key: `active-note-${currentActiveFile.path}`,
-            title: "Active Note",
+            title: t("ui.chat.activeNote"),
             subtitle: currentActiveFile.path,
             content: "",
             category: "activeNote",

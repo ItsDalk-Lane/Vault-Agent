@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
 import {
   client as createClient,
@@ -658,11 +659,11 @@ export class AcpBackendProcess implements BackendProcess {
     if (serviceAnswers) return err;
     if (!this.hasServedSession) {
       return new Error(
-        `${this.backend.displayName}'s internal service failed to start. Check the Vault Agent log for its error.`
+        t("agentInfra.acp.serviceFailedToStart", { agent: this.backend.displayName })
       );
     }
     this.unhealthyHandler?.();
-    return new Error(`${this.backend.displayName}'s internal service stopped. Please try again.`);
+    return new Error(t("agentInfra.acp.serviceStopped", { agent: this.backend.displayName }));
   }
 
   private requireConnection(): ClientConnection {

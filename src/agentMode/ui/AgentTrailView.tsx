@@ -21,6 +21,7 @@ import { useThinkingClock } from "@/agentMode/ui/useThinkingClock";
 import { useTrailExpansion, type TrailExpansion } from "@/agentMode/ui/useTrailExpansion";
 import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndicator";
 import { AssistantResponseFooter } from "@/components/ui/AssistantResponseFooter";
+import { t } from "@/i18n";
 import { getVaultBase } from "@/utils/vaultPath";
 import { App } from "obsidian";
 
@@ -257,7 +258,7 @@ interface PlanPillProps {
 const PlanPill: React.FC<PlanPillProps> = ({ entries }) =>
   entries.length === 0 ? null : (
     <div className="tw-my-1 tw-rounded tw-border tw-border-border tw-bg-secondary tw-px-2 tw-py-1">
-      <p className="tw-mb-1 tw-text-xs tw-text-muted">Plan</p>
+      <p className="tw-mb-1 tw-text-xs tw-text-muted">{t("agentChat.trail.plan")}</p>
       <ul className="tw-flex tw-flex-col tw-gap-0.5 tw-text-sm">
         {entries.map((e, i) => (
           // eslint-disable-next-line @eslint-react/no-array-index-key -- plan entries are positional and may share content

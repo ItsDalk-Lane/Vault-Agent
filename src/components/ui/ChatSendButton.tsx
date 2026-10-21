@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUp } from "lucide-react";
 import React from "react";
+import { t } from "@/i18n";
 
 interface ChatSendButtonProps {
   inputMessage: string;
@@ -13,7 +14,7 @@ export function ChatSendButton({ inputMessage, imageCount, onSend }: ChatSendBut
     <Button
       size="icon"
       className="tw-rounded-full tw-bg-interactive-accent tw-text-on-accent hover:tw-bg-interactive-accent-hover"
-      aria-label="Send"
+      aria-label={t("ui.action.send")}
       onClick={onSend}
       disabled={!inputMessage.trim() && imageCount === 0}
     >

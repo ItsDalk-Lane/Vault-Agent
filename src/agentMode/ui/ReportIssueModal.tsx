@@ -2,6 +2,7 @@ import { frameSink } from "@/agentMode/session/debugSink";
 import { logError, logInfo, logWarn } from "@/logger";
 import { flushRecordedPromptPayloadToLog } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { logFileManager } from "@/logFileManager";
+import { t } from "@/i18n";
 import { isDesktopRuntime, requireNodeModule } from "@/utils/desktopRuntime";
 import { formatBytes } from "@/utils/formatBytes";
 import {
@@ -119,12 +120,12 @@ export class ReportIssueModal extends Modal {
   constructor(private readonly params: ReportIssueModalParams) {
     super(params.app);
     // @ts-ignore — setTitle exists at runtime (see ConfirmModal).
-    this.setTitle("Report an issue");
+    this.setTitle(t("report.title"));
   }
 
   onOpen() {
     if (!isDesktopRuntime()) {
-      new Notice("Reporting an issue is available on desktop only.");
+      new Notice(t("report.desktopOnly"));
       this.close();
       return;
     }
@@ -165,17 +166,17 @@ export class ReportIssueModal extends Modal {
     const settings = getSettings();
     const activityLogOn = settings.agentMode.debugFullFrames;
     const sources: ReportSourceOption[] = [
-      { id: "screenshot", label: "Screenshot of the Obsidian window", defaultChecked: true },
+      { id: "screenshot", label: t("report.source.screenshot"), defaultChecked: true },
       {
         id: "activityLog",
-        label: "Agent Mode activity log",
-        description: activityLogOn ? undefined : "turned off in Settings → Advanced",
+        label: t("report.source.activityLog"),
+        description: activityLogOn ? undefined : t("report.source.activityLogOff"),
         defaultChecked: activityLogOn,
       },
       {
         id: "chatLog",
-        label: "Vault Agent log",
-        description: "includes Agent Mode backend errors",
+        label: t("report.source.chatLog"),
+        description: t("report.source.chatLogDesc"),
         // OpenCode 2's server errors reach only this log, and reporters skipped it unchecked.
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/649
         defaultChecked: true,
@@ -184,8 +185,8 @@ export class ReportIssueModal extends Modal {
     if (this.params.activeBackend === OPENCODE_BACKEND_ID) {
       sources.push({
         id: "opencodeLog",
-        label: "OpenCode backend log",
-        description: "may include unrelated sessions",
+        label: t("report.source.opencodeLog"),
+        description: t("report.source.opencodeLogDesc"),
         // A report opened from a chat is about that chat, so it ticks the log Settings leaves off for privacy.
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
         defaultChecked: this.params.preselectAllSources === true,
@@ -276,30 +277,30 @@ export class ReportIssueModal extends Modal {
     const opened = await openIssuePageWith(getElectronShell(), url);
     this.close();
     if (!opened) {
-      this.issueLinkNotice("Vault Agent could not open your browser.", url);
+      this.issueLinkNotice(t("report.browserFailed"), url);
     } else {
-      new Notice("Finish the issue in your browser and attach the report zip to it.");
+      new Notice(t("report.attachReminder"));
     }
   }
 
   private issueLinkNotice(text: string, url: string): void {
     const fragment = this.contentEl.doc.win.createFragment();
     fragment.append(`${text} `);
-    fragment.createEl("a", { href: url, text: "Open the GitHub issue page" });
+    fragment.createEl("a", { href: url, text: t("report.linkText") });
     new Notice(fragment, 0);
   }
 
   private revealFile(path: string): void {
     const shell = getElectronShell();
     if (!shell?.showItemInFolder) {
-      new Notice(`Vault Agent could not open the folder. The report is at ${path}`);
+      new Notice(t("report.folderFailed", { path }));
       return;
     }
     try {
       shell.showItemInFolder(path);
     } catch (err) {
       logError("[ReportIssue] could not reveal the report:", err);
-      new Notice(`Vault Agent could not open the folder. The report is at ${path}`);
+      new Notice(t("report.folderFailed", { path }));
     }
   }
 }
@@ -307,11 +308,11 @@ export class ReportIssueModal extends Modal {
 async function activityLogRequest(): Promise<ReportLogRequest> {
   const base = { id: "activityLog", name: FRAME_LOG_NAME };
   if (!getSettings().agentMode.debugFullFrames) {
-    return { ...base, unavailableReason: "The Agent Mode activity log is turned off." };
+    return { ...base, unavailableReason: t("report.unavailable.activityOff") };
   }
   const path = await frameSink.getValidatedPath();
   return path === null
-    ? { ...base, unavailableReason: "The Agent Mode activity log's location is unavailable." }
+    ? { ...base, unavailableReason: t("report.unavailable.activityPath") }
     : { ...base, path };
 }
 
@@ -321,13 +322,15 @@ async function chatLogRequest(): Promise<ReportLogRequest> {
   const text = logFileManager.exportLogText();
   return text.length > 0
     ? { ...base, text }
-    : { ...base, unavailableReason: "No chat log entries." };
+    : { ...base, unavailableReason: t("report.unavailable.noChatLog") };
 }
 
 async function opencodeLogRequest(): Promise<ReportLogRequest> {
   const base = { id: "opencodeLog", name: OPENCODE_LOG_NAME };
   const path = await resolveOpencodeLogPath();
-  return path ? { ...base, path } : { ...base, unavailableReason: "No OpenCode log was found." };
+  return path
+    ? { ...base, path }
+    : { ...base, unavailableReason: t("report.unavailable.noOpencodeLog") };
 }
 
 async function resolveOpencodeLogPath(): Promise<string | null> {

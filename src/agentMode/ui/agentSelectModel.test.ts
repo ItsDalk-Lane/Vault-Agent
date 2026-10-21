@@ -5,11 +5,17 @@ import {
   type AgentSelectRow,
 } from "./agentSelectModel";
 
+const SETUP_KEYS = {
+  opencode: "agentInfra.setup.opencode",
+  claude: "agentInfra.setup.claude",
+  codex: "agentInfra.setup.codex",
+} as const;
+
 function descriptor(id: BackendId, overrides: Partial<BackendDescriptor> = {}): BackendDescriptor {
   return {
     id,
     displayName: id,
-    setupDescription: `${id} description`,
+    setupDescription: SETUP_KEYS[id as keyof typeof SETUP_KEYS],
     ...overrides,
   } as BackendDescriptor;
 }
@@ -32,7 +38,8 @@ function rowWith(overrides: Partial<AgentSelectRow> = {}): AgentSelectRow {
   return {
     id: "opencode",
     name: "opencode",
-    description: "opencode description",
+    description:
+      "Any model on your own provider key. Vault Agent can download and manage the binary for you.",
     status: "absent",
     recommended: false,
     statusMessage: null,
@@ -106,7 +113,9 @@ describe("agentSelectModel", () => {
       const [row] = buildAgentSelectRows([OPENCODE], {}, "opencode");
 
       expect(row.name).toBe("opencode");
-      expect(row.description).toBe("opencode description");
+      expect(row.description).toBe(
+        "Any model on your own provider key. Vault Agent can download and manage the binary for you."
+      );
     });
 
     it("returns one shared frozen slice when there are no descriptors", () => {

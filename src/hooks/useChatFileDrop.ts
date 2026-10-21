@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { isAllowedFileForNoteContext } from "@/utils";
 import { App, Notice, TFile } from "obsidian";
 import { RefObject, useEffect, useState } from "react";
@@ -140,7 +141,7 @@ export function useChatFileDrop(props: UseChatFileDropProps): UseChatFileDropRet
           if (isImage) {
             const isDuplicate = selectedImages.some((img) => img.name === file.name);
             if (isDuplicate) {
-              new Notice("This image is already in the context");
+              new Notice(t("notice.imageAlreadyContext"));
               continue;
             }
 
@@ -153,15 +154,13 @@ export function useChatFileDrop(props: UseChatFileDropProps): UseChatFileDropRet
           } else if (isAllowedFileForNoteContext(file)) {
             const isDuplicate = contextNotes.some((note) => note.path === file.path);
             if (isDuplicate) {
-              new Notice("This note is already in the context");
+              new Notice(t("notice.noteAlreadyContext"));
               continue;
             }
 
             setContextNotes((prev) => [...prev, file]);
           } else {
-            new Notice(
-              `Unsupported file type: ${file.extension}. Supported types: md, pdf, canvas, and images.`
-            );
+            new Notice(t("notice.unsupportedFileType", { extension: file.extension }));
           }
         }
       } else if (fileItems.length > 0) {

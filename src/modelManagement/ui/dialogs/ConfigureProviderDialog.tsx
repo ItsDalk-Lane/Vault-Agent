@@ -16,6 +16,7 @@ import type { ConfiguredModel, Provider } from "@/modelManagement/types/persiste
 import type { ProviderDefinition, VerificationResult } from "@/modelManagement/types/runtime";
 import { CorsCompatibilitySetting } from "@/modelManagement/ui/components/CorsCompatibilitySetting";
 import { ModelChecklist } from "@/modelManagement/ui/components/ModelChecklist";
+import { t } from "@/i18n";
 import {
   ModelManagementProvider,
   useModelManagement,
@@ -245,7 +246,7 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
       setVerification({
         ok: false,
         code: "missing_api_key",
-        message: "Enter an API key to verify this provider.",
+        message: t("ui.model.enterApiKeyToVerify"),
         checkedAt: Date.now(),
       });
       return;
@@ -294,7 +295,7 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
       onClose();
     } catch (err) {
       logError("[ConfigureProviderDialog] setupProvider failed", err);
-      new Notice("Failed to save provider. See console for details.");
+      new Notice(t("ui.model.saveProviderFailed"));
     } finally {
       setSaving(false);
     }
@@ -329,7 +330,7 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
       onClose();
     } catch (err) {
       logError("[ConfigureProviderDialog] save changes failed", err);
-      new Notice("Failed to save changes. See console for details.");
+      new Notice(t("ui.model.saveChangesFailed"));
     } finally {
       setSaving(false);
     }
@@ -350,12 +351,12 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
           onClose();
         } catch (err) {
           logError("[ConfigureProviderDialog] removeProvider failed", err);
-          new Notice("Failed to remove provider.");
+          new Notice(t("ui.model.removeProviderFailed"));
         }
       },
-      `Remove ${provider.displayName}? This also removes all of its models from every model picker.`,
-      "Remove provider",
-      "Remove",
+      t("ui.model.removeProviderConfirm", { provider: provider.displayName }),
+      t("ui.model.removeProvider"),
+      t("ui.common.remove"),
       "Cancel"
     );
     modal.open();
@@ -387,29 +388,27 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
     <div className="tw-flex tw-h-full tw-min-h-0 tw-flex-col tw-gap-4 tw-overflow-hidden">
       <div className="tw-flex tw-flex-col tw-gap-1 tw-border-b tw-border-border tw-px-2 tw-pb-3">
         <div className="tw-text-lg tw-font-semibold tw-leading-none tw-tracking-tight">
-          Configure {headerName}
+          {t("ui.model.configureTitle", { name: headerName })}
         </div>
-        <div className="tw-text-sm tw-text-muted">
-          Enter credentials and choose which models to enable.
-        </div>
+        <div className="tw-text-sm tw-text-muted">{t("ui.model.configureSubtitle")}</div>
       </div>
 
       <div className="tw-flex tw-min-h-0 tw-flex-1 tw-flex-col tw-gap-4 tw-overflow-y-auto tw-px-2 tw-py-1">
-        <FormField label="Display name">
+        <FormField label={t("ui.model.displayName")}>
           <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </FormField>
 
         <FormField
           label={
             <span className="tw-inline-flex tw-items-center tw-gap-2">
-              API key
+              {t("ui.model.apiKey")}
               <span className="tw-text-ui-smaller tw-font-normal tw-text-muted">
-                {requiresApiKey ? "required" : "optional"}
+                {requiresApiKey ? t("ui.model.required") : t("ui.model.optional")}
               </span>
               {verification?.ok === true && (
                 <Badge className="tw-gap-1 tw-bg-success tw-text-success">
                   <CheckCircle2 className="tw-size-3" />
-                  Verified
+                  {t("ui.model.verified")}
                 </Badge>
               )}
             </span>
@@ -423,32 +422,34 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
                 setApiKey(v);
                 setVerification(null);
               }}
-              placeholder={state.mode === "edit" ? "No API key set" : "Paste your API key"}
+              placeholder={
+                state.mode === "edit" ? t("ui.model.noApiKeySet") : t("ui.model.pasteApiKey")
+              }
             />
             <Button variant="secondary" onClick={safeAsyncHandler(handleTest)} disabled={testing}>
-              {testing ? <Loader2 className="tw-size-4 tw-animate-spin" /> : "Test"}
+              {testing ? <Loader2 className="tw-size-4 tw-animate-spin" /> : t("ui.model.test")}
             </Button>
             {state.mode === "edit" && apiKey.length > 0 && (
               <Button variant="destructive" onClick={handleClearKey} data-testid="api-key-clear">
-                Clear
+                {t("ui.model.clear")}
               </Button>
             )}
           </div>
           {testFailed ? (
             <div className="tw-flex tw-items-center tw-gap-1.5 tw-text-xs tw-text-error">
               <XCircle className="tw-size-3.5 tw-shrink-0" />
-              <span>{verification?.message || "Verification failed"}</span>
+              <span>{verification?.message || t("ui.model.verificationFailed")}</span>
             </div>
           ) : (
             missingRequiredKey && (
               <div className="tw-text-xs tw-text-muted">
-                An API key is required for this provider.
+                {t("ui.model.apiKeyRequiredForProvider")}
               </div>
             )
           )}
         </FormField>
 
-        <FormField label="Base URL">
+        <FormField label={t("ui.model.baseUrl")}>
           <Input
             value={baseUrl}
             onChange={(e) => {
@@ -462,7 +463,7 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
         <CorsCompatibilitySetting checked={enableCors} onCheckedChange={setEnableCors} />
 
         <div className="tw-flex tw-flex-col tw-gap-2">
-          <div className="tw-text-sm tw-font-medium tw-text-normal">Models</div>
+          <div className="tw-text-sm tw-font-medium tw-text-normal">{t("ui.model.models")}</div>
           <ModelChecklist
             availableModels={pool.availableModels}
             selected={pool.selectedWireIds}
@@ -482,20 +483,20 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
       {state.mode === "new" ? (
         <div className="tw-flex tw-flex-col-reverse tw-gap-2 tw-px-2 sm:tw-flex-row sm:tw-justify-end">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             variant="default"
             onClick={safeAsyncHandler(handleSaveNew)}
             disabled={!canSave || saving}
           >
-            {saving ? <Loader2 className="tw-size-4 tw-animate-spin" /> : "Save"}
+            {saving ? <Loader2 className="tw-size-4 tw-animate-spin" /> : t("ui.common.save")}
           </Button>
         </div>
       ) : (
         <div className="tw-flex tw-flex-col-reverse tw-gap-2 tw-px-2 sm:tw-flex-row sm:tw-justify-between">
           <Button variant="destructive" onClick={handleRemove} disabled={saving}>
-            Remove provider
+            {t("ui.model.removeProvider")}
           </Button>
           <div className="tw-flex tw-gap-2">
             <Button variant="secondary" onClick={onClose} disabled={saving}>
@@ -506,7 +507,7 @@ const ConfigureProviderBody: React.FC<ConfigureProviderBodyProps> = ({
               onClick={safeAsyncHandler(handleSaveEdit)}
               disabled={!canSave || saving}
             >
-              {saving ? <Loader2 className="tw-size-4 tw-animate-spin" /> : "Save"}
+              {saving ? <Loader2 className="tw-size-4 tw-animate-spin" /> : t("ui.common.save")}
             </Button>
           </div>
         </div>

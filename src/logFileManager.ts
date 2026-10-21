@@ -1,4 +1,5 @@
 import { err2String } from "@/errorFormat";
+import { t } from "@/i18n";
 import { App, Notice, TFile } from "obsidian";
 import { ensureFolderExists } from "@/utils";
 import { getSettings } from "@/settings/model";
@@ -198,7 +199,7 @@ class LogFileManager {
       }
     } catch (error) {
       // The log file is the logger's own sink, so a write failure can only surface as a Notice. https://github.com/Brevilabs/obsidian-copilot-private/issues/647
-      new Notice(`Could not write the Vault Agent log file: ${String(error)}`);
+      new Notice(t("notice.logWriteFailed", { error: String(error) }));
     }
 
     const abstract = app.vault.getAbstractFileByPath(path);

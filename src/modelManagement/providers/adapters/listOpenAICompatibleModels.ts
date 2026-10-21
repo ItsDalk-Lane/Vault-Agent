@@ -4,6 +4,7 @@ import {
   type ListModelsResponseResult,
   type ListModelsResult,
 } from "./listModelsHttp";
+import { t } from "@/i18n";
 
 export type { ListModelsResult } from "./listModelsHttp";
 
@@ -19,7 +20,7 @@ export async function listOpenAICompatibleModels(
 ): Promise<ListModelsResult> {
   const trimmed = baseUrl.trim();
   if (!trimmed) {
-    return { ok: false, message: "Enter a base URL before fetching models." };
+    return { ok: false, message: t("ui.model.err.baseUrlRequired") };
   }
   const base = trimmed.replace(/\/$/, "");
 
@@ -32,7 +33,7 @@ export async function listOpenAICompatibleModels(
 
   const looksLikeMissingV1 = result.status === 404 && !/\/v1(\/|$)/.test(base);
   const message = looksLikeMissingV1
-    ? `${result.message} If your endpoint serves the OpenAI API under /v1, add it to the base URL.`
+    ? t("ui.model.err.addV1Hint", { message: result.message })
     : result.message;
   return { ok: false, message };
 }

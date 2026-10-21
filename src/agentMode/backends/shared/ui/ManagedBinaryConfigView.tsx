@@ -8,6 +8,7 @@ import type { BackendAuthStatus, InstallState } from "@/agentMode/session/types"
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { SegmentedControl, type SegmentedControlOption } from "@/components/ui/segmented-control";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Info } from "lucide-react";
 import React from "react";
@@ -63,10 +64,12 @@ export interface ManagedBinaryConfigViewProps extends ManagedBinaryConfigProps {
   children?: React.ReactNode;
 }
 
-const SOURCE_OPTIONS: SegmentedControlOption<ManagedBinarySource>[] = [
-  { label: "Managed by Vault Agent", value: "managed" },
-  { label: "My own binary", value: "custom" },
-];
+function sourceOptions(): SegmentedControlOption<ManagedBinarySource>[] {
+  return [
+    { label: t("agentInfra.backend.managed.sourceManaged"), value: "managed" },
+    { label: t("agentInfra.backend.managed.sourceCustom"), value: "custom" },
+  ];
+}
 
 interface ManagedBinaryInstallProps {
   managed: ManagedBinaryInfo;
@@ -91,7 +94,7 @@ const ManagedBinaryInstall: React.FC<ManagedBinaryInstallProps> = ({
         {managed.canCancel !== false && (
           <div className="tw-flex tw-justify-end">
             <Button variant="ghost" size="default" onClick={actions.cancelInstall}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </div>
         )}
@@ -102,11 +105,13 @@ const ManagedBinaryInstall: React.FC<ManagedBinaryInstallProps> = ({
   return (
     <div className="tw-flex tw-flex-col tw-gap-2">
       <dl className="tw-my-0 tw-grid tw-grid-cols-[max-content_1fr] tw-gap-x-4 tw-gap-y-1 tw-text-sm [&>dd]:tw-ml-0">
-        <dt className="tw-text-muted">Platform</dt>
+        <dt className="tw-text-muted">{t("agentInfra.backend.managed.platform")}</dt>
         <dd className="tw-font-mono">{managed.platform}</dd>
-        <dt className="tw-text-muted">Version</dt>
-        <dd className="tw-font-mono">v{managed.version} (pinned)</dd>
-        <dt className="tw-text-muted">Destination</dt>
+        <dt className="tw-text-muted">{t("agentInfra.backend.managed.version")}</dt>
+        <dd className="tw-font-mono">
+          {t("agentInfra.backend.managed.pinned", { version: managed.version })}
+        </dd>
+        <dt className="tw-text-muted">{t("agentInfra.backend.managed.destination")}</dt>
         <dd className="tw-break-all tw-font-mono">{managed.destination}</dd>
       </dl>
       {run.kind === "error" && (
@@ -121,14 +126,14 @@ const ManagedBinaryInstall: React.FC<ManagedBinaryInstallProps> = ({
           onClick={actions.install}
         >
           {installed
-            ? "Reinstall"
+            ? t("agentInfra.backend.managed.reinstall")
             : managed.hasDownloads
-              ? "Reinstall & use managed"
-              : "Download & install"}
+              ? t("agentInfra.backend.managed.reinstallUseManaged")
+              : t("agentInfra.backend.managed.downloadInstall")}
         </Button>
         {(managed.hasDownloads ?? installed) && (
           <Button variant="destructive" size="default" onClick={actions.uninstall}>
-            Uninstall
+            {t("agentInfra.backend.managed.uninstall")}
           </Button>
         )}
       </div>
@@ -187,9 +192,9 @@ export const ManagedBinaryConfigView: React.FC<ManagedBinaryConfigViewProps> = (
   >
     <ConfigSection>
       <SegmentedControl
-        aria-label={`${binaryName} binary source`}
+        aria-label={t("agentInfra.backend.managed.binarySourceAria", { binary: binaryName })}
         className={cn("tw-self-start")}
-        options={SOURCE_OPTIONS}
+        options={sourceOptions()}
         value={source}
         onChange={onSourceChange}
         disabled={managed.run.kind === "running"}
@@ -203,9 +208,9 @@ export const ManagedBinaryConfigView: React.FC<ManagedBinaryConfigViewProps> = (
           <p className="tw-my-0 tw-text-normal">
             {activeSource === "custom"
               ? managed.hasDownloads
-                ? "Your own binary is currently in use. Vault Agent's managed downloads are still on this computer. Reinstall to switch to Managed by Vault Agent, or uninstall to free up space."
-                : "Your own binary is currently in use. Download and install the managed copy to switch to Managed by Vault Agent."
-              : "The Copilot-managed binary is currently in use. Apply your own binary path below to switch to it."}
+                ? t("agentInfra.backend.managed.inUseCustomWithDownloads")
+                : t("agentInfra.backend.managed.inUseCustom")
+              : t("agentInfra.backend.managed.inUseManaged")}
           </p>
         </div>
       ) : (
@@ -219,10 +224,7 @@ export const ManagedBinaryConfigView: React.FC<ManagedBinaryConfigViewProps> = (
           className="tw-flex tw-items-start tw-gap-2 tw-rounded-md tw-border tw-border-solid tw-bg-callout-warning/20 tw-p-3 tw-text-sm tw-border-warning/40"
         >
           <AlertTriangle aria-hidden className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-warning" />
-          <p className="tw-my-0 tw-text-normal">
-            Copilot is tested with the version managed by Copilot. Other versions may not work
-            correctly. We recommend Managed by Vault Agent.
-          </p>
+          <p className="tw-my-0 tw-text-normal">{t("agentInfra.backend.managed.versionWarning")}</p>
         </div>
       )}
       {source === "managed" ? (

@@ -1,5 +1,6 @@
 import { SettingItem } from "@/components/ui/setting-item";
 import { SettingSection } from "@/components/ui/setting-section";
+import { t } from "@/i18n";
 import React from "react";
 
 interface ModelOption {
@@ -22,15 +23,13 @@ export const QuickChatModelSettings: React.FC<QuickChatModelSettingsProps> = ({
 }) => (
   <SettingSection>
     <div className="tw-flex tw-min-w-0 tw-flex-col tw-py-4">
-      <span className="tw-text-base tw-font-semibold">Quick Chat models</span>
-      <span className="tw-text-xs tw-text-muted">
-        Models shown in the chat model picker. Add providers on the Models (BYOK) tab.
-      </span>
+      <span className="tw-text-base tw-font-semibold">{t("settings.quickChat.modelsTitle")}</span>
+      <span className="tw-text-xs tw-text-muted">{t("settings.quickChat.modelsDesc")}</span>
     </div>
     <SettingItem
       type="select"
-      title="Default model"
-      description="The model new chats start with. Pick from your enabled Quick Chat models."
+      title={t("settings.quickChat.defaultModel")}
+      description={t("settings.quickChat.defaultModelDesc")}
       value={defaultModelId ?? "Select Model"}
       onChange={(value) => {
         if (value === "Select Model") return;
@@ -39,9 +38,9 @@ export const QuickChatModelSettings: React.FC<QuickChatModelSettingsProps> = ({
       options={
         defaultModelId !== undefined
           ? options
-          : [{ label: "Select Model", value: "Select Model" }, ...options]
+          : [{ label: t("settings.quickChat.selectModel"), value: "Select Model" }, ...options]
       }
-      placeholder="Model"
+      placeholder={t("settings.quickChat.modelPlaceholder")}
     />
     <div className="tw-py-4">{children}</div>
   </SettingSection>

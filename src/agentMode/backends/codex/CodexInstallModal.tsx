@@ -9,6 +9,7 @@ import { ManagedInstallOperationInFlightError } from "@/agentMode/backends/share
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { FullBleedReactModal } from "@/components/modals/ReactModal";
 import { useApp } from "@/context";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { useSettingsValue } from "@/settings/model";
 import { formatBinaryPathForDisplay } from "@/utils/binaryPath";
@@ -70,7 +71,7 @@ export const CodexConfigContainer: React.FC<CodexConfigContainerProps> = ({ mana
   try {
     destination = formatBinaryPathForDisplay(manager.getDataDir());
   } catch {
-    destination = "Unavailable";
+    destination = t("agentInfra.backend.managed.unavailable");
   }
 
   const install = (): void => {
@@ -84,7 +85,7 @@ export const CodexConfigContainer: React.FC<CodexConfigContainerProps> = ({ mana
   const saveCustomPath = async (path: string): Promise<string | null> => {
     try {
       await manager.setCustomBinaryPath(path);
-      new Notice("Codex adapter path saved.");
+      new Notice(t("agentInfra.backend.codex.pathSaved"));
       return null;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
@@ -94,10 +95,12 @@ export const CodexConfigContainer: React.FC<CodexConfigContainerProps> = ({ mana
   const clearCustomPath = async (): Promise<void> => {
     try {
       await manager.setCustomBinaryPath(null);
-      new Notice("Codex adapter path cleared.");
+      new Notice(t("agentInfra.backend.codex.pathCleared"));
     } catch (error) {
       new Notice(
-        `Couldn't clear the custom path: ${error instanceof Error ? error.message : String(error)}`
+        t("agentInfra.backend.codex.clearFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
       );
     }
   };
@@ -110,20 +113,24 @@ export const CodexConfigContainer: React.FC<CodexConfigContainerProps> = ({ mana
         async () => {
           try {
             await manager.uninstall();
-            new Notice(`Codex adapter uninstalled (freed ${size}).`);
+            new Notice(t("agentInfra.backend.codex.uninstalled", { size }));
           } catch (error) {
             new Notice(
-              `Couldn't uninstall the Codex adapter: ${error instanceof Error ? error.message : String(error)}`
+              t("agentInfra.backend.codex.uninstallFailed", {
+                error: error instanceof Error ? error.message : String(error),
+              })
             );
           }
         },
-        `Remove all Copilot-managed Codex adapter downloads (${size})? Your own binary and Codex login are kept.`,
-        "Uninstall Codex adapter",
-        "Uninstall"
+        t("agentInfra.backend.codex.removeConfirm", { size }),
+        t("agentInfra.backend.codex.removeTitle"),
+        t("agentInfra.backend.managed.uninstall")
       ).open();
     } catch (error) {
       new Notice(
-        `Couldn't inspect Codex downloads: ${error instanceof Error ? error.message : String(error)}`
+        t("agentInfra.backend.codex.inspectFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
       );
     }
   };

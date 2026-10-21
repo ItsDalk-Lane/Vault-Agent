@@ -1,4 +1,5 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { t } from "@/i18n";
 
 const SDK_STREAM_STALL_TIMEOUT_MS = 60_000;
 
@@ -59,5 +60,8 @@ export async function* guardSdkStreamStall(
   } finally {
     disarm();
   }
-  if (stalled) throw new Error(SDK_STREAM_STALL_MESSAGE);
+  if (stalled)
+    throw new Error(
+      t("agentInfra.sdk.streamStalled", { seconds: SDK_STREAM_STALL_TIMEOUT_MS / 1000 })
+    );
 }

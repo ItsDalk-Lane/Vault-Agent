@@ -8,6 +8,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { cn } from "@/lib/utils";
 import { capabilitiesFromConfiguredInfo } from "@/modelManagement/chatModel/modelCapabilityFlags";
 import type { ModelInfo } from "@/modelManagement/types/catalog";
+import { t } from "@/i18n";
 import {
   formatContextWindow,
   formatReleaseDate,
@@ -66,7 +67,7 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-2">
-      <FormField label="Model ID">
+      <FormField label={t("ui.model.modelId")}>
         <div className="tw-flex tw-gap-2">
           <Input
             className="tw-flex-1"
@@ -78,21 +79,25 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
                 handleManualAdd();
               }
             }}
-            placeholder={modelInputHint ?? "Enter a model ID"}
+            placeholder={modelInputHint ?? t("ui.model.enterModelId")}
             data-testid="model-checklist-manual-input"
           />
           <Button variant="secondary" onClick={handleManualAdd} disabled={!manualId.trim()}>
-            Add
+            {t("ui.common.add")}
           </Button>
         </div>
       </FormField>
 
-      <SearchBar value={query} onChange={onQueryChange} placeholder="Search available models…" />
+      <SearchBar
+        value={query}
+        onChange={onQueryChange}
+        placeholder={t("ui.model.searchAvailableModels")}
+      />
 
       {fetching && (
         <div className="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-text-muted">
           <Loader2 className="tw-size-3.5 tw-shrink-0 tw-animate-spin" />
-          <span>Loading models…</span>
+          <span>{t("ui.model.loadingModels")}</span>
         </div>
       )}
 
@@ -141,7 +146,7 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
                   <span className="tw-truncate tw-text-normal">{model.displayName}</span>
                   {model.isEmbedding && (
                     <Badge variant="secondary" className="tw-shrink-0 tw-text-ui-smaller">
-                      Embedding
+                      {t("ui.model.embedding")}
                     </Badge>
                   )}
                   {hasCapabilityIcons(capabilities) && (
@@ -158,7 +163,7 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Remove ${model.id}`}
+                    aria-label={t("ui.model.removeModelAria", { model: model.id })}
                     data-testid={`model-row-remove-${model.id}`}
                     onClick={(e) => {
                       e.preventDefault();
@@ -182,10 +187,10 @@ export const ModelChecklist: React.FC<ModelChecklistProps> = ({
           data-testid="model-checklist-empty"
         >
           {fetching
-            ? "Loading models…"
+            ? t("ui.model.loadingModels")
             : query.trim()
-              ? "No models match the current filters."
-              : "No models discovered — enter a model ID above or test your credentials."}
+              ? t("ui.model.noModelsMatchFilters")
+              : t("ui.model.noModelsDiscovered")}
         </div>
       )}
     </div>

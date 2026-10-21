@@ -1,5 +1,6 @@
 import { logError, logInfo, logWarn } from "@/logger";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
+import { t } from "@/i18n";
 import {
   ensureProjectFrontmatter,
   getProjectsFolder,
@@ -98,7 +99,7 @@ export class ProjectRegister {
       updateCachedProjectRecords(nextRecords);
 
       logInfo(`[Projects] Folder changed -> reloaded: ${nextFolder}`);
-      new Notice(`Projects folder updated: ${nextFolder}`);
+      new Notice(t("ui.project.folderUpdated", { folder: nextFolder }));
     } catch (error) {
       if (currentRequestId !== this.folderChangeRequestId) return;
 
@@ -108,9 +109,7 @@ export class ProjectRegister {
       updateCachedProjectRecords([]);
 
       logError(`[Projects] Failed to reload after folder change: ${nextFolder}`, error);
-      new Notice(
-        `Failed to reload projects from "${nextFolder}". Projects cleared — reopen settings to retry.`
-      );
+      new Notice(t("ui.project.reloadFailed", { folder: nextFolder }));
     }
   }
 

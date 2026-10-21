@@ -1,7 +1,8 @@
 import type { ActivityMember } from "@/agentMode/ui/activityGroups";
 import { lookupToolSummary, type ToolSummaryContext } from "@/agentMode/ui/toolSummaries";
+import { t } from "@/i18n";
 
-const REASONING_LABEL = "Reasoning";
+const REASONING_LABEL = "agentChat.trail.reasoning" as const;
 
 export function isReasoningActive(members: ActivityMember[], atLiveEdge: boolean): boolean {
   const trailingMember = members[members.length - 1];
@@ -21,7 +22,7 @@ export function activityLiveStep(
   ctx?: ToolSummaryContext
 ): string | null {
   if (!atLiveEdge) return null;
-  if (isReasoningActive(members, atLiveEdge)) return REASONING_LABEL;
+  if (isReasoningActive(members, atLiveEdge)) return t(REASONING_LABEL);
   for (let i = members.length - 1; i >= 0; i--) {
     const member = members[i];
     if (member.type !== "action") continue;

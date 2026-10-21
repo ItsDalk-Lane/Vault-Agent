@@ -1,4 +1,5 @@
 import type { VerificationResult } from "@/modelManagement/types/runtime";
+import { t } from "@/i18n";
 import {
   fetchWithListModelsTimeout,
   ListModelsTimeoutError,
@@ -41,7 +42,7 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
     return {
       ok: false,
       code: "invalid_api_key",
-      message: "Authentication failed — check your API key.",
+      message: t("ui.model.err.authentication"),
       checkedAt,
     };
   }
@@ -49,7 +50,7 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
     return {
       ok: false,
       code: "rate_limited",
-      message: "Rate limited — try again in a moment.",
+      message: t("ui.model.err.rateLimited"),
       checkedAt,
     };
   }
@@ -57,7 +58,9 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
   return {
     ok: false,
     code: "http_error",
-    message: snippet ? `HTTP ${status}: ${snippet}` : `HTTP ${status}`,
+    message: snippet
+      ? t("ui.model.err.httpWithSnippet", { status, snippet })
+      : t("ui.model.err.http", { status }),
     checkedAt,
   };
 }

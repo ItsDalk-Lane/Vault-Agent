@@ -4,6 +4,7 @@ import { TFile } from "obsidian";
 import { useApp } from "@/context";
 import { TypeaheadMenuPortal } from "@/components/chat-components/TypeaheadMenuPortal";
 import { useTypeaheadPlugin } from "@/components/chat-components/hooks/useTypeaheadPlugin";
+import { t } from "@/i18n";
 import {
   $replaceTriggeredTextWithPill,
   PillData,
@@ -67,7 +68,7 @@ export function AtMentionCommandPlugin({
 
         setCurrentPreviewContent(truncatedContent);
       } catch {
-        setCurrentPreviewContent("Failed to load content");
+        setCurrentPreviewContent(t("ui.chat.failedLoadContent"));
       }
     },
     [app]

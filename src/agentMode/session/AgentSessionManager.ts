@@ -5,6 +5,7 @@ import type {
   FeedbackOfferHandler,
 } from "@/agentMode/session/feedback/feedbackMcpServer";
 import { resolveEffort } from "@/lib/model-effort";
+import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
@@ -566,7 +567,7 @@ export class AgentSessionManager {
 
   private async saveAsNote(session: AgentSession, sessionId: string): Promise<string> {
     const saved = await this.saveSessionNow(session);
-    if (!saved) throw new Error(`Could not save chat ${sessionId} as a note.`);
+    if (!saved) throw new Error(t("agentInfra.session.saveNoteFailed", { id: sessionId }));
     return saved.path;
   }
 
@@ -968,7 +969,7 @@ export class AgentSessionManager {
   async enterProject(projectId: ProjectScopeId): Promise<void> {
     if (this.disposed) return;
     if (projectId !== GLOBAL_SCOPE && !getCachedProjectRecordById(projectId)) {
-      new Notice("This project no longer exists. Restore it to open its chats.");
+      new Notice(t("agentInfra.session.projectGone"));
       return;
     }
     const current = this.getActiveSession();
@@ -1211,8 +1212,12 @@ export class AgentSessionManager {
     logInfo(`[AgentMode] ${backendId} cannot start a chat on ${baseModelId}`);
     new Notice(
       replacementName
-        ? `${agent} couldn't use ${model}. Using ${replacementName} instead.`
-        : `${agent} couldn't use ${model}. Enable a model ${agent} can run.`
+        ? t("agentInfra.session.modelUnavailableWithReplacement", {
+            agent,
+            model,
+            replacement: replacementName,
+          })
+        : t("agentInfra.session.modelUnavailable", { agent, model })
     );
   }
 
@@ -1826,7 +1831,7 @@ export class AgentSessionManager {
     const loaded = await this.opts.persistenceManager.loadFile(file);
     const projectId = loaded.projectId;
     if (projectId !== GLOBAL_SCOPE && !getCachedProjectRecordById(projectId)) {
-      new Notice("This chat belongs to a project that no longer exists.");
+      new Notice(t("agentInfra.session.chatProjectGone"));
       throw new OrphanedProjectError(projectId);
     }
     const previousActiveProjectId = this.activeProjectId;
@@ -1930,7 +1935,7 @@ export class AgentSessionManager {
     const entry = index ? await index.getEntry(backendId, sessionId) : null;
     const projectId: ProjectScopeId = entry?.projectId ?? GLOBAL_SCOPE;
     if (projectId !== GLOBAL_SCOPE && !getCachedProjectRecordById(projectId)) {
-      new Notice("This chat belongs to a project that no longer exists.");
+      new Notice(t("agentInfra.session.chatProjectGone"));
       throw new OrphanedProjectError(projectId);
     }
     return { entry, projectId };
@@ -2592,7 +2597,9 @@ export class AgentSessionManager {
         this.backends.delete(backendId);
       }
       this.preloader.clearCached(backendId);
-      new Notice(`${this.resolveDescriptor(backendId).displayName} refreshed.`);
+      new Notice(
+        t("agentInfra.session.refreshed", { agent: this.resolveDescriptor(backendId).displayName })
+      );
       if (!this.disposed && this.isBackendInstalled(backendId)) {
         const probe = this.preloader.preload(backendId);
         this.registerPreload(backendId, probe);

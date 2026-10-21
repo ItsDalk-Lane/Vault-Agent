@@ -9,6 +9,7 @@ import {
   MODEL_SECRET_FIELDS,
   TOP_LEVEL_SECRET_FIELDS,
 } from "@/services/settingsSecretTransforms";
+import { t } from "@/i18n";
 import { Notice } from "obsidian";
 import { md5 } from "@/utils/hash";
 import { logError, logWarn } from "@/logger";
@@ -396,9 +397,7 @@ export class KeychainService {
       await saveData(toSave);
     } catch (error) {
       logError("forgetAllSecrets: saveData failed — aborting keychain clear", error);
-      new Notice(
-        "Failed to remove API keys from data.json. Obsidian Keychain was NOT cleared. Please try again."
-      );
+      new Notice(t("notice.keysRemoveFailed"));
       return;
     }
 
@@ -412,14 +411,11 @@ export class KeychainService {
     syncMemory(stripped);
 
     if (keychainError) {
-      new Notice(
-        "Some Obsidian Keychain entries could not be removed. " +
-          "Your keys have been cleared from data.json and memory. Please restart and retry."
-      );
+      new Notice(t("notice.keychainPartialRemoveFailed"));
       throw keychainError;
     }
 
-    new Notice("All API keys for this vault removed. Please re-enter them.");
+    new Notice(t("notice.keysRemoved"));
   }
 
   private async hydrateModelSecrets(

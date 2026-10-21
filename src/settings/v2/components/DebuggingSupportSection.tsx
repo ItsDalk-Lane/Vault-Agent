@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { SettingItem } from "@/components/ui/setting-item";
 import { SettingSection } from "@/components/ui/setting-section";
 import { SettingSwitch } from "@/components/ui/setting-switch";
+import { t } from "@/i18n";
 import React from "react";
 
 export interface DebuggingSupportSectionProps {
@@ -29,45 +30,45 @@ export const DebuggingSupportSection: React.FC<DebuggingSupportSectionProps> = (
   onOpenFrameLog,
   onClearFrameLog,
 }) => (
-  <SettingSection label="Debugging & support">
+  <SettingSection label={t("settings.debug.section")}>
     <SettingItem
       type="custom"
-      title="Report an issue"
-      description="Walks you through collecting a screenshot and recent logs, packs them into a single zip you can review, uploads it privately, and opens a prefilled GitHub issue with the report ID already in it."
+      title={t("report.title")}
+      description={t("settings.debug.reportIssueDesc")}
     >
       <Button variant="default" size="sm" onClick={onReportIssue}>
-        Report an issue
+        {t("report.title")}
       </Button>
     </SettingItem>
 
     <SettingItem
       type="switch"
-      title="Offer feedback reports in Agent Chat"
-      description="When something goes wrong in Agent Chat, the agent can draft a report for you to review. Nothing is sent unless you press Report."
+      title={t("settings.debug.offerFeedback")}
+      description={t("settings.debug.offerFeedbackDesc")}
       checked={offerFeedbackCards}
       onCheckedChange={onOfferFeedbackCardsChange}
     />
 
     <SettingItem
       type="switch"
-      title="Debug Mode"
-      description="Logs agent chat activity to the developer console (View → Toggle Developer Tools), and pre-selects the chat log when you report an issue."
+      title={t("settings.debug.debugMode")}
+      description={t("settings.debug.debugModeDesc")}
       checked={debug}
       onCheckedChange={onDebugChange}
     />
 
     <SettingItem
       type="custom"
-      title="Agent Mode activity log"
-      description={`Records the behind-the-scenes messages between the plugin and the agent so a report always has recent activity to attach. Stored on this device only, outside your vault (${frameLogPath}), and can include your prompts and note contents in plain text.`}
+      title={t("settings.debug.activityLog")}
+      description={t("settings.debug.activityLogDesc", { path: frameLogPath })}
     >
       <div className="tw-flex tw-items-center tw-gap-2">
         <SettingSwitch checked={frameLogEnabled} onCheckedChange={onFrameLogChange} />
         <Button variant="secondary" size="sm" onClick={onOpenFrameLog}>
-          Open
+          {t("settings.debug.open")}
         </Button>
         <Button variant="secondary" size="sm" onClick={onClearFrameLog}>
-          Clear
+          {t("settings.debug.clear")}
         </Button>
       </div>
     </SettingItem>

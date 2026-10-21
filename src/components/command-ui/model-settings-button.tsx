@@ -2,6 +2,7 @@ import * as React from "react";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/i18n";
 
 interface ModelSettingsButtonProps {
   needsModel: boolean;
@@ -10,7 +11,7 @@ interface ModelSettingsButtonProps {
 }
 
 export function ModelSettingsButton({ needsModel, disabled, onClick }: ModelSettingsButtonProps) {
-  const label = needsModel ? "A model must be selected" : "Configure the default model";
+  const label = needsModel ? t("ui.command.modelNeeded") : t("ui.command.configureDefaultModel");
   return (
     <TooltipProvider delayDuration={0}>
       <Tooltip>

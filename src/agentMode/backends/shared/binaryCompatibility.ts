@@ -1,4 +1,5 @@
 import type { InstallState } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import { compareSemver, parseSemver } from "@/utils/semver";
 
 export type BinaryInspection =
@@ -16,7 +17,7 @@ export function classifyBinaryInstall(
   if (!parsed || !parseSemver(minimumVersion)) {
     return {
       kind: "error",
-      message: `${displayName} has invalid version metadata. Configure a valid installation.`,
+      message: t("agentInfra.backend.compat.invalidMetadata", { name: displayName }),
     };
   }
   const order = compareSemver(inspection.version, minimumVersion);
@@ -27,7 +28,11 @@ export function classifyBinaryInstall(
       source: inspection.source,
       currentVersion: inspection.version,
       minVersion: minimumVersion,
-      message: `${displayName} v${inspection.version} is not supported. Vault Agent requires ${displayName} v${minimumVersion} or newer.`,
+      message: t("agentInfra.backend.compat.unsupported", {
+        name: displayName,
+        version: inspection.version,
+        minimum: minimumVersion,
+      }),
     };
   }
   return { kind: "ready", source: inspection.source };
@@ -43,6 +48,6 @@ export function assertBinaryCompatible(
     throw new Error(
       "message" in state
         ? state.message
-        : `${displayName} is not installed. Configure an installation.`
+        : t("agentInfra.backend.compat.notInstalled", { name: displayName })
     );
 }

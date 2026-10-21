@@ -1,5 +1,6 @@
 import { logError } from "@/logger";
 import { App, Modal, Setting, TFile } from "obsidian";
+import { t } from "@/i18n";
 
 interface ChatSource {
   title: string;
@@ -20,7 +21,7 @@ export class SourcesModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    new Setting(contentEl).setName("Sources").setHeading();
+    new Setting(contentEl).setName(t("ui.sources.title")).setHeading();
 
     this.createSourceList(contentEl, this.sources);
   }
@@ -60,7 +61,7 @@ export class SourcesModal extends Modal {
           href: `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(source.path || source.title)}`,
           text: displayText,
         });
-        link.title = `${displayText} - drag to insert wikilink`;
+        link.title = t("ui.sources.dragHint", { title: displayText });
         link.draggable = true;
         link.addEventListener("dragstart", (e) => {
           const filePath = source.path || source.title;
@@ -89,7 +90,9 @@ export class SourcesModal extends Modal {
 
       if (typeof source.score === "number") {
         itemContainer.appendChild(
-          this.contentEl.doc.createTextNode(` - Relevance score: ${source.score.toFixed(4)}`)
+          this.contentEl.doc.createTextNode(
+            t("ui.sources.relevance", { score: source.score.toFixed(4) })
+          )
         );
       }
 
@@ -131,18 +134,29 @@ export class SourcesModal extends Modal {
       const fields = new Set(lexicalMatches.map((m) => m.field));
       const queries = new Set(lexicalMatches.map((m) => m.query));
       details.push(
-        `Lexical: matched "${Array.from(queries).join('", "')}" in ${Array.from(fields).join(", ")}`
+        t("ui.sources.lexical", {
+          queries: Array.from(queries).join('", "'),
+          fields: Array.from(fields).join(", "),
+        })
       );
     }
 
     if (exp.semanticScore !== undefined && (exp.semanticScore as number) > 0) {
-      details.push(`Semantic: ${((exp.semanticScore as number) * 100).toFixed(1)}% similarity`);
+      details.push(
+        t("ui.sources.semantic", {
+          percent: ((exp.semanticScore as number) * 100).toFixed(1),
+        })
+      );
     }
 
     if (exp.folderBoost) {
       const fb = exp.folderBoost as { boostFactor: number; documentCount: number; folder?: string };
       details.push(
-        `Folder boost: ${fb.boostFactor.toFixed(2)}x (${fb.documentCount} docs in ${fb.folder || "root"})`
+        t("ui.sources.folderBoost", {
+          factor: fb.boostFactor.toFixed(2),
+          count: fb.documentCount,
+          folder: fb.folder || t("ui.sources.root"),
+        })
       );
     }
 
@@ -154,25 +168,39 @@ export class SourcesModal extends Modal {
         score: number;
       };
       const connectionParts: string[] = [];
-      if (gc.backlinks > 0) connectionParts.push(`${gc.backlinks} backlinks`);
-      if (gc.coCitations > 0) connectionParts.push(`${gc.coCitations} co-citations`);
-      if (gc.sharedTags > 0) connectionParts.push(`${gc.sharedTags} shared tags`);
+      if (gc.backlinks > 0)
+        connectionParts.push(t("ui.sources.backlinks", { count: gc.backlinks }));
+      if (gc.coCitations > 0)
+        connectionParts.push(t("ui.sources.coCitations", { count: gc.coCitations }));
+      if (gc.sharedTags > 0)
+        connectionParts.push(t("ui.sources.sharedTags", { count: gc.sharedTags }));
 
       if (connectionParts.length > 0) {
         details.push(
-          `Graph connections: ${gc.score.toFixed(1)} score (${connectionParts.join(", ")})`
+          t("ui.sources.graphConnections", {
+            score: gc.score.toFixed(1),
+            parts: connectionParts.join(", "),
+          })
         );
       }
     }
 
     if (exp.graphBoost && !exp.graphConnections) {
       const gb = exp.graphBoost as { boostFactor: number; connections: number };
-      details.push(`Graph boost: ${gb.boostFactor.toFixed(2)}x (${gb.connections} connections)`);
+      details.push(
+        t("ui.sources.graphBoost", {
+          factor: gb.boostFactor.toFixed(2),
+          count: gb.connections,
+        })
+      );
     }
 
     if (exp.baseScore !== exp.finalScore) {
       details.push(
-        `Score: ${(exp.baseScore as number).toFixed(4)} → ${(exp.finalScore as number).toFixed(4)}`
+        t("ui.sources.score", {
+          base: (exp.baseScore as number).toFixed(4),
+          final: (exp.finalScore as number).toFixed(4),
+        })
       );
     }
 

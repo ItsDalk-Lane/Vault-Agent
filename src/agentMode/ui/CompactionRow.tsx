@@ -1,5 +1,6 @@
 import type { CompactionPart } from "@/agentMode/ui/agentTrail";
 import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndicator";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { FoldVertical } from "lucide-react";
 import React from "react";
@@ -9,8 +10,8 @@ interface CompactionRowProps {
 }
 
 const RUNNING_LABEL = {
-  manual: "Compacting conversation…",
-  auto: "Context is full, compacting…",
+  manual: "agentChat.compaction.runningManual",
+  auto: "agentChat.compaction.runningAuto",
 } as const;
 
 function formatTokens(count: number): string {
@@ -20,9 +21,16 @@ function formatTokens(count: number): string {
 // Not every backend reports both token counts, and an automatic compaction says so because the user didn't ask for it.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/633
 function completedText(part: CompactionPart): string {
-  const label = part.trigger === "auto" ? "Context compacted automatically" : "Context compacted";
+  const label =
+    part.trigger === "auto"
+      ? t("agentChat.compaction.completedAuto")
+      : t("agentChat.compaction.completed");
   return part.preTokens !== undefined && part.postTokens !== undefined
-    ? `${label} · ${formatTokens(part.preTokens)} → ${formatTokens(part.postTokens)} tokens`
+    ? t("agentChat.compaction.completedWithTokens", {
+        label,
+        before: formatTokens(part.preTokens),
+        after: formatTokens(part.postTokens),
+      })
     : label;
 }
 
@@ -48,7 +56,7 @@ export const CompactionRow: React.FC<CompactionRowProps> = ({ part }) => {
         <AgentTurnDurationIndicator
           status="running"
           startedAtMs={part.startedAtMs}
-          label={RUNNING_LABEL[part.trigger]}
+          label={t(RUNNING_LABEL[part.trigger])}
           icon={<CompactionIcon />}
           inline
         />
@@ -71,12 +79,16 @@ export const CompactionRow: React.FC<CompactionRowProps> = ({ part }) => {
           className="tw-flex tw-items-center tw-gap-1.5 tw-py-1 tw-pl-1 tw-text-ui-small tw-text-muted"
         >
           <CompactionIcon className="tw-text-warning" />
-          <span>{part.error ? `Couldn't compact: ${part.error}` : "Couldn't compact"}</span>
+          <span>
+            {part.error
+              ? t("agentChat.compaction.failed", { error: part.error })
+              : t("agentChat.compaction.failedNoError")}
+          </span>
         </div>
       );
     case "cancelled":
-      return <StatusLine>Compaction cancelled</StatusLine>;
+      return <StatusLine>{t("agentChat.compaction.cancelled")}</StatusLine>;
     case "skipped":
-      return <StatusLine>Nothing to compact yet</StatusLine>;
+      return <StatusLine>{t("agentChat.compaction.skipped")}</StatusLine>;
   }
 };

@@ -1,6 +1,7 @@
 import { EnvOverridesSetting } from "@/agentMode/backends/shared/EnvOverridesSetting";
 import { ClaudeAutoModePermissionSetting } from "@/agentMode/backends/claude/ui/ClaudeAutoModePermissionSetting";
 import { SettingItem } from "@/components/ui/setting-item";
+import { t } from "@/i18n";
 import type VaultAgentPlugin from "@/main";
 import { useSettingsValue } from "@/settings/model";
 import type { App } from "obsidian";
@@ -23,8 +24,8 @@ export const ClaudeSettingsPanel: React.FC<Props> = () => {
 
       <SettingItem
         type="switch"
-        title="Show extended thinking"
-        description="Stream the model's reasoning blocks during a turn. Increases token usage."
+        title={t("agentInfra.backend.claude.thinkingTitle")}
+        description={t("agentInfra.backend.claude.thinkingDescription")}
         checked={Boolean(settings.agentMode?.backends?.claude?.enableThinking)}
         onCheckedChange={(checked) => updateClaudeFields({ enableThinking: checked })}
       />

@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { logInfo } from "@/logger";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
@@ -112,7 +113,10 @@ export async function resolveOpencodeTarget(): Promise<ResolvedTarget> {
   const arch = mapNodeArch(process.arch);
   if (!platform || !arch) {
     throw new Error(
-      `Unsupported platform/arch: ${process.platform}/${process.arch}. Agent Mode requires darwin/linux/windows on x64/arm64.`
+      t("agentInfra.backend.download.unsupportedPlatform", {
+        platform: process.platform,
+        arch: process.arch,
+      })
     );
   }
   const [muslIsh, avx2] = await Promise.all([

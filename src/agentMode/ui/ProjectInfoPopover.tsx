@@ -5,6 +5,7 @@ import { AddProjectModal } from "@/components/modals/project/AddProjectModal";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isClaudeImportOnly, openAgentsFile } from "@/instructions/agentsFile";
+import { t } from "@/i18n";
 import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
@@ -41,7 +42,7 @@ function FileBadge({ ext }: { ext: string }) {
         BADGE_CLASSES[ext] ?? "tw-bg-secondary tw-text-muted"
       )}
     >
-      {ext.slice(0, 4) || "file"}
+      {ext.slice(0, 4) || t("agentChat.projectInfo.fileBadge")}
     </span>
   );
 }
@@ -56,7 +57,9 @@ function ProgressSection({ todoList }: ProgressSectionProps) {
   return (
     <div className="tw-px-3 tw-py-2.5">
       <div className="tw-mb-1.5 tw-flex tw-items-baseline tw-justify-between">
-        <span className="tw-text-ui-smaller tw-font-semibold tw-text-faint">Progress</span>
+        <span className="tw-text-ui-smaller tw-font-semibold tw-text-faint">
+          {t("agentChat.projectInfo.progress")}
+        </span>
         <span className="tw-text-ui-smaller tw-text-faint">
           {done}/{todoList.length}
         </span>
@@ -118,11 +121,13 @@ export function ProjectFilesList({
   return (
     <div className="tw-px-3 tw-py-2.5">
       <div className="tw-mb-1 tw-flex tw-items-center tw-justify-between">
-        <span className="tw-text-ui-smaller tw-font-semibold tw-text-faint">Project files</span>
+        <span className="tw-text-ui-smaller tw-font-semibold tw-text-faint">
+          {t("agentChat.projectInfo.projectFiles")}
+        </span>
         <Button
           variant="ghost2"
           size="icon"
-          aria-label="Reveal project files in vault"
+          aria-label={t("agentChat.projectInfo.revealFiles")}
           className="tw-size-5 tw-text-faint hover:tw-text-normal"
           onClick={onReveal}
         >
@@ -177,11 +182,15 @@ export function ProjectFilesList({
         ) : (
           <ChevronRight className="tw-size-3.5" aria-hidden="true" />
         )}
-        <span className="tw-text-ui-small tw-font-medium">Outputs</span>
+        <span className="tw-text-ui-small tw-font-medium">
+          {t("agentChat.projectInfo.outputs")}
+        </span>
         <span className="tw-text-ui-smaller tw-text-faint">(0)</span>
       </div>
       {outputsOpen && (
-        <div className="tw-py-1 tw-pl-6 tw-text-ui-smaller tw-text-faint">No outputs yet</div>
+        <div className="tw-py-1 tw-pl-6 tw-text-ui-smaller tw-text-faint">
+          {t("agentChat.projectInfo.noOutputs")}
+        </div>
       )}
     </div>
   );
@@ -249,7 +258,7 @@ function ProjectFilesSection({ app, project, onClose }: ProjectFilesSectionProps
       )
       .catch((error) => {
         logError("[ProjectInfoPopover] Failed to open project AGENTS.md", error);
-        new Notice("Failed to open project AGENTS.md.");
+        new Notice(t("agentChat.projectInfo.openAgentsFailed"));
       });
   };
 
@@ -299,7 +308,7 @@ export const ProjectInfoPopover = memo(
           <Button
             variant="ghost2"
             size="icon"
-            aria-label={`Project info for ${project.name}`}
+            aria-label={t("agentChat.projectInfo.aria", { name: project.name })}
             className="tw-size-7 tw-text-muted hover:tw-text-normal"
           >
             <List className="tw-size-4" />
@@ -321,7 +330,7 @@ export const ProjectInfoPopover = memo(
             <Button
               variant="ghost2"
               size="icon"
-              aria-label={`Edit project ${project.name}`}
+              aria-label={t("agentChat.project.editNamed", { name: project.name })}
               className="tw-size-6 tw-text-muted hover:tw-text-normal"
               onClick={handleEdit}
             >
@@ -330,7 +339,7 @@ export const ProjectInfoPopover = memo(
             <Button
               variant="ghost2"
               size="icon"
-              aria-label="Reveal project folder in vault"
+              aria-label={t("agentChat.projectInfo.revealFolder")}
               className="tw-size-6 tw-text-muted hover:tw-text-normal"
               onClick={() => {
                 setOpen(false);

@@ -3,6 +3,7 @@ import type {
   PermissionResult,
   PermissionUpdate,
 } from "@anthropic-ai/claude-agent-sdk";
+import { t } from "@/i18n";
 import type {
   AgentQuestion,
   AgentQuestionAnswers,
@@ -138,45 +139,57 @@ export class PermissionBridge {
 // suggests, so neither is offered when it would not hold.
 // https://github.com/logancyang/obsidian-copilot/issues/2889
 const STANDARD_OPTION_IDS = new Set<string>(PERMISSION_OPTION_KINDS);
-const ALLOW_ONCE: PermissionOption = {
-  optionId: "allow_once",
-  name: "Allow once",
-  kind: "allow_once",
-};
-const REJECT_ONCE: PermissionOption = {
-  optionId: "reject_once",
-  name: "Deny once",
-  kind: "reject_once",
-};
+
+function allowOnce(): PermissionOption {
+  return {
+    optionId: "allow_once",
+    name: t("agentInfra.sdk.permission.allowOnce"),
+    kind: "allow_once",
+  };
+}
+
+function rejectOnce(): PermissionOption {
+  return {
+    optionId: "reject_once",
+    name: t("agentInfra.sdk.permission.denyOnce"),
+    kind: "reject_once",
+  };
+}
 
 function permissionOptions(suggestions: PermissionUpdate[] | undefined): PermissionOption[] {
-  if (!suggestions?.length) return [ALLOW_ONCE, REJECT_ONCE];
+  if (!suggestions?.length) return [allowOnce(), rejectOnce()];
   const allowAlways: PermissionOption = {
     optionId: "allow_always",
-    name: "Allow always",
+    name: t("agentInfra.sdk.permission.allowAlways"),
     kind: "allow_always",
     description: describeSuggestionScope(suggestions),
   };
-  return [ALLOW_ONCE, allowAlways, REJECT_ONCE];
+  return [allowOnce(), allowAlways, rejectOnce()];
 }
 
-const CHAT_FOLDER = "the vault folder (for a project chat, the project note's folder)";
+function savedDestinations(): ReadonlyArray<[PermissionUpdate["destination"], string]> {
+  const chatFolder = t("agentInfra.sdk.permission.chatFolder");
+  return [
+    ["userSettings", t("agentInfra.sdk.permission.savedUserSettings")],
+    [
+      "projectSettings",
+      t("agentInfra.sdk.permission.savedProjectSettings", { folder: chatFolder }),
+    ],
+    ["localSettings", t("agentInfra.sdk.permission.savedLocalSettings", { folder: chatFolder })],
+  ];
+}
+
 // Most lasting first, so a mixed suggestion reports where it outlives the chat.
 // https://github.com/logancyang/obsidian-copilot/issues/2889
-const SAVED_DESTINATIONS: ReadonlyArray<[PermissionUpdate["destination"], string]> = [
-  [
-    "userSettings",
-    "settings.json in your Claude Code config folder (~/.claude by default), for all your Claude Code projects",
-  ],
-  ["projectSettings", `.claude/settings.json in ${CHAT_FOLDER}, for later chats there`],
-  ["localSettings", `.claude/settings.local.json in ${CHAT_FOLDER}, for later chats there`],
-];
-
 function describeSuggestionScope(suggestions: PermissionUpdate[]): string {
-  const covers = suggestions.flatMap(describeUpdate).join(", ") || "Claude Code's suggested rule";
-  const saved = SAVED_DESTINATIONS.find(([d]) => suggestions.some((s) => s.destination === d));
-  if (!saved) return `Covers ${covers} until this chat ends. Start a new chat to undo.`;
-  return `Covers ${covers}. Saved to ${saved[1]}. Remove it there to undo.`;
+  const covers =
+    suggestions.flatMap(describeUpdate).join(", ") || t("agentInfra.sdk.permission.suggestedRule");
+  const saved = savedDestinations().find(([d]) => suggestions.some((s) => s.destination === d));
+  if (!saved) return t("agentInfra.sdk.permission.coversUntilChatEnds", { covers });
+  return t("agentInfra.sdk.permission.coversSaved", {
+    covers,
+    destination: saved[1],
+  });
 }
 
 function describeUpdate(update: PermissionUpdate): string[] {
@@ -187,9 +200,13 @@ function describeUpdate(update: PermissionUpdate): string[] {
         r.ruleContent ? `${r.toolName}(${r.ruleContent})` : r.toolName
       );
     case "setMode":
-      return [update.mode === "acceptEdits" ? "all file edits" : `${update.mode} mode`];
+      return [
+        update.mode === "acceptEdits"
+          ? t("agentInfra.sdk.permission.allFileEdits")
+          : t("agentInfra.sdk.permission.modeName", { mode: update.mode }),
+      ];
     case "addDirectories":
-      return update.directories.map((d) => `access to ${d}`);
+      return update.directories.map((d) => t("agentInfra.sdk.permission.accessTo", { path: d }));
     case "removeRules":
     case "removeDirectories":
       return [];

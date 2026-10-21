@@ -6,6 +6,7 @@ import {
   type FanoutTurn,
 } from "@/agentMode/session/fanout/fanoutTypes";
 import type { AgentBrand, BackendId } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 
 export const FANOUT_SUMMARY_OPTION = "__summary__";
 
@@ -63,7 +64,7 @@ export function buildFanoutOptions(turn: FanoutTurn): FanoutOption[] {
   const backendIds = Object.keys(turn.answers);
   const options: FanoutOption[] = isDirectAnswerTurn(turn)
     ? []
-    : [{ value: FANOUT_SUMMARY_OPTION, label: "Summary" }];
+    : [{ value: FANOUT_SUMMARY_OPTION, label: t("agentChat.fanout.summary") }];
   for (const backendId of backendIds) {
     const answer = turn.answers[backendId];
     const { displayName, Icon } = brandFor(backendId);

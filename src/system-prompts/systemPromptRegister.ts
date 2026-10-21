@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { App, Notice, TAbstractFile, Vault } from "obsidian";
 import {
   isSystemPromptFile,
@@ -144,17 +145,13 @@ export class SystemPromptRegister {
       logInfo(
         `Cleared defaultSystemPromptTitle (not found in new folder): ${settings.defaultSystemPromptTitle}`
       );
-      new Notice(
-        `Default system prompt "${settings.defaultSystemPromptTitle}" not found in new folder. Cleared default selection.`
-      );
+      new Notice(t("notice.defaultSystemPromptGone", { title: settings.defaultSystemPromptTitle }));
     }
 
     if (selectedTitle && !availableTitles.has(selectedTitle)) {
       setSelectedPromptTitle("");
       logInfo(`Cleared selectedPromptTitle (not found in new folder): ${selectedTitle}`);
-      new Notice(
-        `Current system prompt "${selectedTitle}" not found in new folder. Cleared chat selection.`
-      );
+      new Notice(t("notice.currentSystemPromptGone", { title: selectedTitle }));
     }
   }
 
@@ -205,7 +202,7 @@ export class SystemPromptRegister {
 
       if (getSelectedPromptTitle() === file.basename) {
         setSelectedPromptTitle("");
-        new Notice(`System prompt "${file.basename}" was deleted. Cleared current chat selection.`);
+        new Notice(t("notice.systemPromptDeleted", { name: file.basename }));
       }
     } catch (error) {
       logError(`Error processing system prompt deletion: ${file.path}`, error);
@@ -249,12 +246,13 @@ export class SystemPromptRegister {
             setSelectedPromptTitle(nextTitle);
             if (promptFile) {
               new Notice(
-                `System prompt "${oldFilename}" was renamed to "${promptFile.basename}". Updated current chat selection.`
+                t("notice.systemPromptRenamed", {
+                  oldName: oldFilename,
+                  newName: promptFile.basename,
+                })
               );
             } else {
-              new Notice(
-                `System prompt "${oldFilename}" was moved out of the prompts folder. Cleared current chat selection.`
-              );
+              new Notice(t("notice.systemPromptMovedOut", { name: oldFilename }));
             }
           }
         }

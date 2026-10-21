@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { ENV_VAR_NAME_RE } from "@/settings/model";
 import { debounce } from "@/utils/debounce";
 import { Plus, Trash2 } from "lucide-react";
@@ -91,9 +92,15 @@ export const EnvOverridesSetting: React.FC<Props> = ({
   return (
     <div className="tw-flex tw-flex-col tw-gap-2 tw-py-4">
       <div className="tw-flex tw-flex-col tw-gap-1">
-        <div className="tw-text-sm tw-font-medium tw-leading-none">Environment variables</div>
+        <div className="tw-text-sm tw-font-medium tw-leading-none">
+          {t("agentInfra.backend.env.title")}
+        </div>
         <div className="tw-text-xs tw-text-muted">
-          Set values for {backendDisplayName}, like <code>{hintA}</code> or <code>{hintB}</code>.
+          {t("agentInfra.backend.env.description", {
+            backend: backendDisplayName,
+            a: hintA,
+            b: hintB,
+          })}
         </div>
       </div>
       <div className="tw-flex tw-w-full tw-flex-col tw-gap-2">
@@ -116,7 +123,7 @@ export const EnvOverridesSetting: React.FC<Props> = ({
                 />
                 <Input
                   type="text"
-                  placeholder="value"
+                  placeholder={t("agentInfra.backend.env.valuePlaceholder")}
                   value={row.value}
                   spellCheck={false}
                   autoCapitalize="off"
@@ -127,7 +134,7 @@ export const EnvOverridesSetting: React.FC<Props> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="Remove variable"
+                  aria-label={t("agentInfra.backend.env.removeAria")}
                   onClick={() => removeRow(row.id)}
                 >
                   <Trash2 className="tw-size-icon-s" />
@@ -135,8 +142,7 @@ export const EnvOverridesSetting: React.FC<Props> = ({
               </div>
               {nameInvalid && (
                 <div className="tw-text-xs tw-text-error">
-                  Name must start with a letter or underscore and contain only letters, digits, and
-                  underscores.
+                  {t("agentInfra.backend.env.invalidName")}
                 </div>
               )}
             </div>
@@ -144,7 +150,7 @@ export const EnvOverridesSetting: React.FC<Props> = ({
         })}
         <Button variant="ghost2" size="sm" className="tw-self-start" onClick={addRow}>
           <Plus className="tw-size-icon-xs" />
-          Add variable
+          {t("agentInfra.backend.env.add")}
         </Button>
       </div>
     </div>

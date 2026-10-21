@@ -1,5 +1,6 @@
 import { CustomModel } from "@/aiParams";
 import { DEFAULT_BUILTIN_PREFERENCES } from "@/builtinSkills/builtinSkills";
+import type { MessageKey } from "@/i18n";
 import { type VaultAgentSettings } from "@/settings/model";
 import { PromptSortStrategy } from "./types";
 
@@ -550,15 +551,15 @@ export const COMMAND_IDS = {
   PREVIOUS_DIFF_CHANGE: "turn-diff-previous-change",
 } as const;
 
-export const COMMAND_NAMES: Record<CommandId, string> = {
-  [COMMAND_IDS.NEW_AGENT_CHAT]: "New Agent Chat",
-  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: "Open Agent Chat Window",
-  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: "Toggle Agent Chat Window",
-  [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "Add new custom command",
-  [COMMAND_IDS.OPEN_LOG_FILE]: "Create log file",
-  [COMMAND_IDS.CLEAR_LOG_FILE]: "Clear log file",
-  [COMMAND_IDS.NEXT_DIFF_CHANGE]: "Go to next change in file diff",
-  [COMMAND_IDS.PREVIOUS_DIFF_CHANGE]: "Go to previous change in file diff",
+export const COMMAND_NAME_KEYS: Record<CommandId, MessageKey> = {
+  [COMMAND_IDS.NEW_AGENT_CHAT]: "command.newAgentChat",
+  [COMMAND_IDS.OPEN_AGENT_CHAT_WINDOW]: "command.openAgentChat",
+  [COMMAND_IDS.TOGGLE_AGENT_CHAT_WINDOW]: "command.toggleAgentChat",
+  [COMMAND_IDS.ADD_CUSTOM_COMMAND]: "command.addCustomCommand",
+  [COMMAND_IDS.OPEN_LOG_FILE]: "command.openLog",
+  [COMMAND_IDS.CLEAR_LOG_FILE]: "command.clearLog",
+  [COMMAND_IDS.NEXT_DIFF_CHANGE]: "command.nextDiff",
+  [COMMAND_IDS.PREVIOUS_DIFF_CHANGE]: "command.previousDiff",
 };
 
 export type CommandId = (typeof COMMAND_IDS)[keyof typeof COMMAND_IDS];
@@ -601,6 +602,7 @@ export const DEFAULT_SETTINGS: VaultAgentSettings = {
   autosaveChat: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,
+  language: "auto",
   qaExclusions: DEFAULT_QA_EXCLUSIONS_SETTING,
   qaInclusions: "",
   debug: false,

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import type { AgentSession, AgentSessionStatus } from "@/agentMode/session/AgentSession";
@@ -93,7 +94,7 @@ function useSessionDisplay(session: AgentSession) {
     label,
     needsAttention: session.getNeedsAttention(),
     descriptor,
-    displayLabel: label ?? descriptor?.displayName ?? "Session",
+    displayLabel: label ?? descriptor?.displayName ?? t("agentChat.tabStrip.session"),
   };
 }
 
@@ -190,13 +191,13 @@ export const AgentTabStrip: React.FC<Props> = ({ manager }) => {
             size="icon"
             onClick={handleNew}
             disabled={isCreating}
-            aria-label="New agent session"
+            aria-label={t("agentChat.tabStrip.newSession")}
             className="tw-my-1 tw-shrink-0"
           >
             <Plus className="tw-size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>New agent session</TooltipContent>
+        <TooltipContent>{t("agentChat.tabStrip.newSession")}</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -283,8 +284,8 @@ const SessionTab: React.FC<TabProps> = ({
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="tw-w-32">
-        <DropdownMenuItem onSelect={onStartRename}>Rename</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onClose}>Close</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onStartRename}>{t("agentChat.rename")}</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onClose}>{t("agentChat.close")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -366,7 +367,7 @@ const BrandIcon: React.FC<BrandIconProps> = ({
         <Button
           variant="ghost2"
           size="icon"
-          aria-label="Close session"
+          aria-label={t("agentChat.closeSession")}
           onClick={(e) => {
             e.stopPropagation();
             onCloseOnHover();
@@ -406,7 +407,11 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ sessions, activeId, onActiv
           variant="ghost2"
           size="icon"
           className="tw-my-1 tw-shrink-0"
-          aria-label={`Show ${sessions.length} more session${sessions.length === 1 ? "" : "s"}`}
+          aria-label={
+            sessions.length === 1
+              ? t("agentChat.tabStrip.moreSessions_one", { count: sessions.length })
+              : t("agentChat.tabStrip.moreSessions_many", { count: sessions.length })
+          }
         >
           <MoreHorizontal className="tw-size-4" />
         </Button>
@@ -459,7 +464,7 @@ const OverflowRow: React.FC<OverflowRowProps> = ({ session, isActive, onActivate
       <Button
         variant="ghost2"
         size="icon"
-        aria-label="Close session"
+        aria-label={t("agentChat.closeSession")}
         onClick={(e) => {
           e.stopPropagation();
           onClose();

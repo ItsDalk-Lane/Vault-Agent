@@ -228,7 +228,7 @@ describe("useAgentHistoryControls", () => {
 
         expect(Notice).toHaveBeenCalledTimes(1);
         expect(Notice).toHaveBeenCalledWith(
-          `Chat deleted from Copilot. ${agent} may keep its own copy.`
+          `Chat deleted from Vault Agent. ${agent} may keep its own copy.`
         );
       }
     );

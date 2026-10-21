@@ -3,6 +3,7 @@ import { SignInAction, type SignInActionProps } from "@/agentMode/backends/share
 import { CommandBlock } from "@/agentMode/backends/shared/ui/SetupSteps";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { AlertTriangle } from "lucide-react";
 import React from "react";
 
@@ -24,15 +25,15 @@ export const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({
   auth,
 }) => (
   <ConfigSection
-    title="Authentication"
+    title={t("agentInfra.backend.auth.title")}
     badge={
       ready && (
         <Badge variant={auth.status?.signedIn ? "success" : "outline"} role="status">
           {auth.status === null
-            ? "Checking…"
+            ? t("agentInfra.backend.auth.checking")
             : auth.status.signedIn
-              ? "Signed in"
-              : "Not signed in"}
+              ? t("agentInfra.backend.auth.signedIn")
+              : t("agentInfra.backend.auth.notSignedIn")}
         </Badge>
       )
     }
@@ -52,23 +53,29 @@ export const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({
         <div className="tw-flex tw-w-full tw-flex-wrap tw-items-center tw-gap-3">
           {auth.status.label && (
             <p className="tw-my-0 tw-min-w-0 tw-break-words tw-text-sm tw-text-muted">
-              Signed in as {auth.status.label}.
+              {t("agentInfra.backend.auth.signedInAs", { label: auth.status.label })}
             </p>
           )}
           <Button variant="secondary" onClick={auth.onSignOut} disabled={auth.signingOut}>
-            {auth.signingOut ? "Signing out…" : "Sign out"}
+            {auth.signingOut
+              ? t("agentInfra.backend.auth.signingOut")
+              : t("agentInfra.backend.auth.signOut")}
           </Button>
         </div>
         {auth.failed && (
-          <p className="tw-my-0 tw-text-sm tw-text-error">Sign-out didn't complete. Try again.</p>
+          <p className="tw-my-0 tw-text-sm tw-text-error">
+            {t("agentInfra.backend.auth.signOutIncomplete")}
+          </p>
         )}
       </div>
     ) : (
       <>
-        <SignInAction {...auth} signInLabel="Sign in with your browser" />
+        <SignInAction {...auth} signInLabel={t("agentInfra.backend.auth.signInBrowser")} />
         {auth.status?.signedIn === false && auth.terminalCommand && (
           <div className="tw-mt-2 tw-flex tw-flex-col tw-gap-2">
-            <p className="tw-my-0 tw-text-sm tw-font-medium">Sign in using a terminal instead</p>
+            <p className="tw-my-0 tw-text-sm tw-font-medium">
+              {t("agentInfra.backend.auth.signInTerminal")}
+            </p>
             <CommandBlock command={auth.terminalCommand} />
           </div>
         )}

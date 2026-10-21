@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ModelSelector, type ModelSelectorEntry } from "@/components/ui/ModelSelector";
 import { useSettingsValue } from "@/settings/model";
 import type { VaultAgentMode } from "@/agentMode";
+import { t } from "@/i18n";
 import {
   mergeWebTabContexts,
   normalizeUrlString,
@@ -51,9 +52,6 @@ import { $createAgentPillNode } from "./pills/AgentPillNode";
 
 const ACCENT_CIRCLE_BUTTON_CLASS =
   "tw-rounded-full tw-bg-interactive-accent tw-text-on-accent hover:tw-bg-interactive-accent-hover";
-
-const DEFAULT_PLACEHOLDER =
-  "Your AI assistant for Obsidian • @ to add context • / for custom prompts";
 
 export interface ChatInputProps {
   placeholder?: string;
@@ -157,7 +155,7 @@ export interface ChatInputHandle {
 
 const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput(
   {
-    placeholder = DEFAULT_PLACEHOLDER,
+    placeholder,
     inputMessage,
     setInputMessage,
     handleSendMessage,
@@ -634,7 +632,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
                     type="button"
                     className="remove-image-button"
                     onClick={() => setSelectedImages((prev) => prev.filter((_, i) => i !== index))}
-                    title="Remove image"
+                    title={t("ui.chat.removeImage")}
                   >
                     <X className="tw-size-4" />
                   </button>
@@ -663,7 +661,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
               onEditorReady={onEditorReady}
               onImagePaste={onAddImage}
               onTagSelected={onTagSelected}
-              placeholder={placeholder}
+              placeholder={placeholder ?? t("ui.chat.placeholder")}
               currentActiveFile={currentActiveNote}
               onEscape={onEscape}
               onShiftTab={onShiftTab}
@@ -715,7 +713,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
             <Button
               size="icon"
               className={cn(ACCENT_CIRCLE_BUTTON_CLASS)}
-              aria-label="Stop generating"
+              aria-label={t("ui.chat.stopGenerating")}
               onClick={() => onStopGenerating()}
             >
               <Square className="tw-size-3 tw-fill-current" />
@@ -729,7 +727,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
                   className="tw-text-muted"
                   onClick={onEditCancel}
                 >
-                  <span>cancel</span>
+                  <span>{t("ui.chat.cancelEdit")}</span>
                 </Button>
               )}
               {editMode ? (
@@ -740,7 +738,7 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
                   onClick={() => onSendMessage()}
                 >
                   <CornerDownLeft className="!tw-size-3" />
-                  <span>save</span>
+                  <span>{t("ui.chat.saveEdit")}</span>
                 </Button>
               ) : (
                 <ChatSendButton

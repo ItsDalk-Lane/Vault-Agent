@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { t, type MessageKey } from "@/i18n";
 import { logWarn } from "@/logger";
 import type { AgentChatBackend } from "@/agentMode/session/AgentChatBackend";
 import type {
@@ -11,8 +12,6 @@ import { Check, ClipboardList, FileText, Send, X as XIcon } from "lucide-react";
 import { App } from "obsidian";
 import React, { useEffect, useState } from "react";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
-
-const FEEDBACK_PLACEHOLDER = "Give feedback to redirect the plan…";
 
 interface PlanProposalCardProps {
   plan: CurrentPlan;
@@ -69,7 +68,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
         <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-2">
           <ClipboardList className="tw-size-4 tw-shrink-0 tw-text-accent" />
           <div className="tw-truncate tw-text-sm tw-font-medium">
-            {plan.title || "Plan proposed"}
+            {plan.title || t("agentChat.plan.proposed")}
           </div>
         </div>
         <DecisionChip decision={plan.decision} />
@@ -82,7 +81,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
       <div className="vault-agent-divider-t tw-flex tw-flex-wrap tw-items-center tw-justify-end tw-gap-2 tw-px-3 tw-py-2">
         <Button variant="secondary" size="sm" onClick={safeAsyncHandler(handleOpen)}>
           <FileText className="tw-size-4" />
-          Open
+          {t("agentChat.plan.open")}
         </Button>
         {isPending ? (
           <>
@@ -93,7 +92,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
               onClick={safeAsyncHandler(() => decide("reject"))}
             >
               <XIcon className="tw-size-4" />
-              Reject
+              {t("plan.reject")}
             </Button>
             <Button
               variant="success"
@@ -102,7 +101,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
               onClick={safeAsyncHandler(() => decide("approve"))}
             >
               <Check className="tw-size-4" />
-              Approve
+              {t("plan.approve")}
             </Button>
           </>
         ) : null}
@@ -112,7 +111,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
         <div className="vault-agent-divider-t tw-flex tw-items-stretch tw-gap-2 tw-px-3 tw-py-2">
           <textarea
             className="tw-min-h-9 tw-flex-1 tw-resize-y tw-rounded tw-border tw-border-solid tw-border-border tw-bg-primary tw-px-2 tw-py-1 tw-text-sm tw-text-normal tw-outline-none focus:tw-border-border-focus"
-            placeholder={FEEDBACK_PLACEHOLDER}
+            placeholder={t("agentChat.plan.feedbackPlaceholder")}
             value={feedback}
             disabled={busy}
             onChange={(e) => setFeedback(e.target.value)}
@@ -131,7 +130,7 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
             onClick={() => void handleFeedbackSubmit()}
           >
             <Send className="tw-size-4" />
-            Send
+            {t("agentChat.plan.send")}
           </Button>
         </div>
       ) : null}
@@ -139,16 +138,19 @@ export const PlanProposalCard: React.FC<PlanProposalCardProps> = ({ plan, app, c
   );
 };
 
-const DECISION_CHIP: Record<PlanProposalDecision, { label: string; cls: string }> = {
-  pending: { label: "Pending", cls: "tw-bg-modifier-message tw-text-muted" },
-  approved: { label: "Approved", cls: "tw-bg-success tw-text-success" },
-  rejected: { label: "Rejected", cls: "tw-bg-error tw-text-error" },
-  rejected_with_feedback: { label: "Feedback sent", cls: "tw-bg-error tw-text-error" },
+const DECISION_CHIP: Record<PlanProposalDecision, { label: MessageKey; cls: string }> = {
+  pending: { label: "agentChat.plan.pending", cls: "tw-bg-modifier-message tw-text-muted" },
+  approved: { label: "agentChat.plan.approved", cls: "tw-bg-success tw-text-success" },
+  rejected: { label: "agentChat.plan.rejected", cls: "tw-bg-error tw-text-error" },
+  rejected_with_feedback: {
+    label: "agentChat.plan.feedbackSent",
+    cls: "tw-bg-error tw-text-error",
+  },
 };
 
 const DecisionChip: React.FC<{ decision: PlanProposalDecision }> = ({ decision }) => {
   const { label, cls } = DECISION_CHIP[decision];
-  return <span className={`tw-rounded tw-px-2 tw-py-0.5 tw-text-xs ${cls}`}>{label}</span>;
+  return <span className={`tw-rounded tw-px-2 tw-py-0.5 tw-text-xs ${cls}`}>{t(label)}</span>;
 };
 
 const PlanTeaser: React.FC<{ plan: CurrentPlan }> = ({ plan }) => (

@@ -1,5 +1,6 @@
 import { isCompactCommand } from "@/commands/compactCommand";
 import { USER_SENDER } from "@/constants";
+import { t } from "@/i18n";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import { buildNativeChatId } from "@/utils/nativeChatId";
 import type { AgentSessionIndexEntry } from "./AgentSessionIndex";
@@ -11,9 +12,11 @@ export interface MarkdownChatEntry {
   sessionId?: string;
 }
 
-export const UNTITLED_NATIVE_CHAT = "Untitled chat";
-
 const MAX_DERIVED_TITLE_CHARS = 60;
+
+export function untitledNativeChat(): string {
+  return t("agentInfra.session.untitledChat");
+}
 
 export function deriveChatTitleFromMessages(messages: AgentChatMessage[]): string | null {
   // A /compact command says nothing about what the chat is about.
@@ -35,7 +38,7 @@ export function deriveChatTitleFromMessages(messages: AgentChatMessage[]): strin
             block.type === "image_url"
         )
     )
-      ? "Image attachment"
+      ? t("agentInfra.session.imageAttachment")
       : null;
   }
   const text = firstUser.message
@@ -78,7 +81,7 @@ export function mergeChatHistoryItems(
   for (const entry of nativeByKey.values()) {
     merged.push({
       id: buildNativeChatId(entry.backendId, entry.sessionId),
-      title: entry.title ?? UNTITLED_NATIVE_CHAT,
+      title: entry.title ?? untitledNativeChat(),
       createdAt: new Date(entry.createdAtMs),
       lastAccessedAt: new Date(entry.lastAccessedAtMs),
       backendId: entry.backendId,

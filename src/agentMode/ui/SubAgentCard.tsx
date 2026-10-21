@@ -11,6 +11,7 @@ import {
   lookupToolSummary,
 } from "@/agentMode/ui/toolSummaries";
 import { AgentActivityCard } from "@/components/chat-components/AgentActivityCard";
+import { t } from "@/i18n";
 
 interface SubAgentCardProps {
   parent: ToolCallPart;
@@ -57,7 +58,7 @@ export const SubAgentCard: React.FC<SubAgentCardProps> = ({
             onClick={() => setPromptOpen((v) => !v)}
             role="button"
           >
-            <span className="tw-flex-1 tw-truncate">Prompt</span>
+            <span className="tw-flex-1 tw-truncate">{t("agentChat.subAgent.prompt")}</span>
             {promptOpen ? (
               <ChevronDown className="tw-size-3" />
             ) : (
@@ -72,9 +73,7 @@ export const SubAgentCard: React.FC<SubAgentCardProps> = ({
         </div>
       ) : null}
       {truncated ? (
-        <div className="tw-text-xs tw-text-muted">
-          Nested sub-agent — expand the parent to drill in.
-        </div>
+        <div className="tw-text-xs tw-text-muted">{t("agentChat.subAgent.nestedHint")}</div>
       ) : (
         childNodes.map((c, i) => renderNode(c, i))
       )}
@@ -109,9 +108,21 @@ function countChildren(nodes: GroupedTrailNode[]): ChildCounts {
 }
 
 function describeCounts(c: ChildCounts, truncated?: boolean): string {
-  if (truncated) return "Nested";
+  if (truncated) return t("agentChat.subAgent.nested");
   const bits: string[] = [];
-  if (c.tools > 0) bits.push(`${c.tools} ${c.tools === 1 ? "tool" : "tools"}`);
-  if (c.reasoning > 0) bits.push(`${c.reasoning} reasoning`);
-  return bits.length > 0 ? bits.join(" · ") : "No activity";
+  if (c.tools > 0) {
+    bits.push(
+      c.tools === 1
+        ? t("agentChat.subAgent.tools_one", { count: c.tools })
+        : t("agentChat.subAgent.tools_many", { count: c.tools })
+    );
+  }
+  if (c.reasoning > 0) {
+    bits.push(
+      c.reasoning === 1
+        ? t("agentChat.subAgent.reasoning_one", { count: c.reasoning })
+        : t("agentChat.subAgent.reasoning_many", { count: c.reasoning })
+    );
+  }
+  return bits.length > 0 ? bits.join(" · ") : t("agentChat.subAgent.noActivity");
 }

@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import {
   createPatternSettingsValue,
   getFilePattern,
@@ -120,7 +121,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
         variant="ghost"
         size="fit"
         className="tw-text-muted hover:tw-bg-secondary"
-        title={`Add new ${title.toLowerCase()}`}
+        title={t("ui.project.addNewTitle", { title: title.toLowerCase() })}
         onClick={onAddClick}
       >
         <PlusCircle className={`tw-size-4 ${iconColorClassName}`} />
@@ -229,7 +230,9 @@ function ItemCard({ item, onDelete }: ItemCardProps) {
       </div>
       <div className="tw-flex tw-min-w-0 tw-flex-1 tw-flex-col">
         <TruncatedText className="tw-flex-1 tw-text-sm tw-font-medium">
-          {item.isIgnored && <span className="tw-text-sm tw-text-error"> (Ignored files)</span>}
+          {item.isIgnored && (
+            <span className="tw-text-sm tw-text-error">{t("ui.project.ignoredFilesSuffix")}</span>
+          )}
           {item.name}
         </TruncatedText>
         {item.id && (
@@ -752,7 +755,7 @@ function ContextManage({
           ? [
               {
                 id: "files:all",
-                name: "Files",
+                name: t("ui.project.files"),
                 type: "files",
                 count: groupList.notes.length,
               },
@@ -764,7 +767,7 @@ function ContextManage({
           ? [
               {
                 id: "ignoreFiles:all",
-                name: "Ignore Files",
+                name: t("ui.project.ignoreFiles"),
                 type: "ignoreFiles",
                 count: ignoreItems.files.size,
               },
@@ -774,7 +777,9 @@ function ContextManage({
       const webCount = contextUrls.urlItems.filter((u) => u.type === "web").length;
       const youtubeCount = contextUrls.urlItems.filter((u) => u.type === "youtube").length;
       const linkItems = [
-        ...(webCount > 0 ? [{ id: "web:all", name: "Web", type: "web", count: webCount }] : []),
+        ...(webCount > 0
+          ? [{ id: "web:all", name: t("ui.project.web"), type: "web", count: webCount }]
+          : []),
         ...(youtubeCount > 0
           ? [{ id: "youtube:all", name: "YouTube", type: "youtube", count: youtubeCount }]
           : []),
@@ -965,7 +970,7 @@ function ContextManage({
         },
 
         extension: () => {
-          new Notice("Adding extension is temporarily not supported.");
+          new Notice(t("ui.project.extensionNotice"));
           return;
         },
 
@@ -1045,28 +1050,30 @@ function ContextManage({
   );
 
   const getDisplayTitle = () => {
-    if (searchTerm) return `Search Results for: "${searchTerm}"`;
-    if (activeSection === "links") return "Links";
-    if (activeSection === "web") return "Web";
+    if (searchTerm) return t("ui.project.searchResultsFor", { term: searchTerm });
+    if (activeSection === "links") return t("ui.project.linkTitle");
+    if (activeSection === "web") return t("ui.project.web");
     if (activeSection === "youtube") return "YouTube";
     if (activeSection === "tags" && activeItem) {
-      return `Tag: ${activeItem}`;
+      return t("ui.project.tagTitle", { tag: activeItem });
     }
-    if (activeSection === "tags") return "Tags";
+    if (activeSection === "tags") return t("ui.project.tags");
     if (activeSection === "properties" && activeItem) {
-      return `Property: ${getBadgeLabel({ pattern: activeItem, type: "property" })}`;
+      return t("ui.project.propertyTitle", {
+        label: getBadgeLabel({ pattern: activeItem, type: "property" }),
+      });
     }
-    if (activeSection === "properties") return "Properties";
+    if (activeSection === "properties") return t("ui.project.properties");
     if (activeSection === "folders" && activeItem) {
-      return `Folder: ${activeItem}`;
+      return t("ui.project.folderTitle", { folder: activeItem });
     }
-    if (activeSection === "folders") return "Folders";
-    if (activeSection === "files") return "Files";
+    if (activeSection === "folders") return t("ui.project.folders");
+    if (activeSection === "files") return t("ui.project.files");
     if (activeSection === "extensions" && activeItem) {
-      return `Extension: ${activeItem}`;
+      return t("ui.project.extensionTitle", { extension: activeItem });
     }
-    if (activeSection === "ignoreFiles") return "Ignore Files";
-    return "All Categories";
+    if (activeSection === "ignoreFiles") return t("ui.project.ignoreFiles");
+    return t("ui.project.allCategories");
   };
 
   const showingCategoryItems =
@@ -1145,7 +1152,7 @@ function ContextManage({
         <ResizablePanel defaultSize={isMobile ? "35%" : "30%"} minSize="20%" maxSize="40%">
           <div className="tw-flex tw-h-full tw-flex-col">
             <div className="tw-border-b tw-p-4">
-              <h2 className="tw-text-lg tw-font-semibold">File Context</h2>
+              <h2 className="tw-text-lg tw-font-semibold">{t("ui.project.fileContext")}</h2>
             </div>
 
             <ScrollArea className="tw-max-h-[500px] tw-flex-1">
@@ -1162,7 +1169,7 @@ function ContextManage({
                 <Separator />
 
                 <SectionList
-                  title="Tags"
+                  title={t("ui.project.tags")}
                   IconComponent={TagIcon}
                   iconColorClassName="tw-text-context-manager-orange"
                   items={makeSectionItem(groupList.tags, (name) => name.slice(1))}
@@ -1173,14 +1180,14 @@ function ContextManage({
                   onItemClick={groupHandlers.click.tag}
                   onAddClick={groupHandlers.add.tag}
                   onDeleteItem={(e, item) => groupHandlers.delete.tag(e, item)}
-                  tooltip="must be in note property"
+                  tooltip={t("ui.project.tagTooltip")}
                   onSectionClick={() => setActiveState("tags", null)}
                 />
 
                 <Separator />
 
                 <SectionList
-                  title="Properties"
+                  title={t("ui.project.properties")}
                   IconComponent={SlidersHorizontal}
                   iconColorClassName="tw-text-context-manager-purple"
                   items={makeSectionItem(groupList.properties, (pattern) =>
@@ -1192,14 +1199,14 @@ function ContextManage({
                   onItemClick={groupHandlers.click.property}
                   onAddClick={groupHandlers.add.property}
                   onDeleteItem={(e, item) => groupHandlers.delete.property(e, item)}
-                  tooltip="Include notes by a frontmatter property, e.g. Topics: Physics"
+                  tooltip={t("ui.project.propertyTooltip")}
                   onSectionClick={() => setActiveState("properties", null)}
                 />
 
                 <Separator />
 
                 <SectionList
-                  title="Folders"
+                  title={t("ui.project.folders")}
                   IconComponent={FolderIcon}
                   iconColorClassName="tw-text-context-manager-yellow"
                   items={makeSectionItem(groupList.folders)}
@@ -1217,7 +1224,7 @@ function ContextManage({
                 <div>
                   <SectionHeader
                     IconComponent={FileText}
-                    title="Files"
+                    title={t("ui.project.files")}
                     iconColorClassName="tw-text-context-manager-blue"
                     onAddClick={groupHandlers.add.file}
                   />
@@ -1228,7 +1235,7 @@ function ContextManage({
                     )}
                     onClick={groupHandlers.click.files}
                   >
-                    Files ({groupList.notes.length})
+                    {t("ui.project.filesCount", { count: groupList.notes.length })}
                   </div>
                 </div>
 
@@ -1237,7 +1244,7 @@ function ContextManage({
                 <div>
                   <SectionHeader
                     IconComponent={XIcon}
-                    title="Ignore Files"
+                    title={t("ui.project.ignoreFiles")}
                     iconColorClassName="tw-text-context-manager-red"
                     onAddClick={groupHandlers.add.ignoreFile}
                   />
@@ -1248,7 +1255,7 @@ function ContextManage({
                     )}
                     onClick={groupHandlers.click.ignoreFiles}
                   >
-                    Files ({ignoreItems.files.size})
+                    {t("ui.project.filesCount", { count: ignoreItems.files.size })}
                   </div>
                 </div>
               </div>
@@ -1262,7 +1269,7 @@ function ContextManage({
           <div className="tw-flex tw-h-full tw-flex-col">
             <div className="tw-border-b tw-p-4">
               <SearchBar
-                placeholder="Custom search: title, #tag1, .jpg"
+                placeholder={t("ui.project.customSearch")}
                 value={searchTerm}
                 onChange={(v) => {
                   setSearchTerm(v);
@@ -1286,9 +1293,7 @@ function ContextManage({
                 />
               ) : getDisplayItems.length === 0 ? (
                 <div className="tw-mt-10 tw-text-center tw-text-muted">
-                  {activeSection
-                    ? "No items found."
-                    : "No categories found. Add tags, folders, or files using the sidebar."}
+                  {activeSection ? t("ui.project.noItems") : t("ui.project.noCategories")}
                 </div>
               ) : (
                 <div className="tw-space-y-2" style={{ display: "block" }}>
@@ -1337,9 +1342,9 @@ function ContextManage({
       </ResizablePanelGroup>
       <div className="tw-flex tw-justify-end tw-gap-2 tw-border-t tw-p-1">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
-        <Button onClick={handleSave}>Save</Button>
+        <Button onClick={handleSave}>{t("ui.common.save")}</Button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { extractDiffContents, formatAgentInput, renderDiff } from "@/agentMode/ui/diffRender";
+import { t } from "@/i18n";
 import type {
   PermissionOption,
   PermissionOptionKind,
@@ -27,11 +28,6 @@ const EMPTY_OPTION_NAMES: readonly string[] = Object.freeze([]);
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/618
 const QUOTED_CODE = /\s*`([^`\n]+)`/;
 
-// Every "always" grant says on hover what it covers and how long it lasts, even when the agent
-// does not. https://github.com/logancyang/obsidian-copilot/issues/2889
-const UNKNOWN_ALWAYS_SCOPE =
-  "The agent decides what this covers, and it may keep it for later chats. Undo it in the agent's own settings.";
-
 interface OptionLabel {
   text: string;
   code?: string;
@@ -53,7 +49,7 @@ export const ToolPermissionCard: React.FC<ToolPermissionCardProps> = ({
   );
   const diffContents = useMemo(() => extractDiffContents(toolCall.content), [toolCall.content]);
   const inputJson = useMemo(() => formatAgentInput(toolCall.rawInput), [toolCall.rawInput]);
-  const title = toolCall.title ?? "Tool call";
+  const title = toolCall.title ?? t("agentChat.toolCallFallback");
   const namedTool =
     toolName && !title.toLowerCase().includes(toolName.toLowerCase()) ? toolName : undefined;
 
@@ -67,24 +63,31 @@ export const ToolPermissionCard: React.FC<ToolPermissionCardProps> = ({
     <div className="tw-w-full tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-secondary">
       <div className="vault-agent-divider-b tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-2">
         <ShieldQuestion className="tw-size-4 tw-shrink-0 tw-text-accent" />
-        <div className="tw-truncate tw-text-sm tw-font-medium">Permission required</div>
+        <div className="tw-truncate tw-text-sm tw-font-medium">
+          {t("agentChat.permission.required")}
+        </div>
       </div>
 
       <div className="tw-flex tw-flex-col tw-gap-2 tw-px-3 tw-py-2">
         <p className="tw-m-0 tw-text-sm">
           {namedTool ? (
             <>
-              Agent Mode wants to use <strong>{namedTool}</strong>: {title}.
+              {t("agentChat.permission.wantsToUse")}
+              <strong>{namedTool}</strong>
+              {t("agentChat.permission.useSuffix", { title })}
             </>
           ) : (
             <>
-              Agent Mode wants to run <strong>{title}</strong>.
+              {t("agentChat.permission.wantsToRun")}
+              <strong>{title}</strong>
+              {t("agentChat.permission.runSuffix")}
             </>
           )}
         </p>
         {toolCall.kind ? (
           <p className="tw-m-0 tw-text-xs tw-text-muted">
-            Kind: <code>{toolCall.kind}</code>
+            {t("agentChat.permission.kind")}
+            <code>{toolCall.kind}</code>
           </p>
         ) : null}
 
@@ -105,7 +108,9 @@ export const ToolPermissionCard: React.FC<ToolPermissionCardProps> = ({
           </div>
         ) : inputJson ? (
           <details>
-            <summary className="tw-cursor-pointer tw-text-xs tw-text-muted">Show inputs</summary>
+            <summary className="tw-cursor-pointer tw-text-xs tw-text-muted">
+              {t("agentChat.permission.showInputs")}
+            </summary>
             <pre className="tw-mt-1 tw-max-h-48 tw-overflow-auto tw-rounded tw-bg-primary tw-p-2 tw-text-xs">
               {inputJson}
             </pre>
@@ -172,9 +177,12 @@ function sortOptions(options: PermissionOption[]): PermissionOption[] {
   );
 }
 
+// Every "always" grant says on hover what it covers and how long it lasts, even when the agent
+// does not. https://github.com/logancyang/obsidian-copilot/issues/2889
 function optionLabel(option: PermissionOption): OptionLabel {
   const description =
-    option.description ?? (option.kind === "allow_always" ? UNKNOWN_ALWAYS_SCOPE : undefined);
+    option.description ??
+    (option.kind === "allow_always" ? t("agentChat.permission.unknownAlwaysScope") : undefined);
   const match = QUOTED_CODE.exec(option.name);
   if (!match) return { text: option.name, description };
   return { text: option.name.replace(match[0], "…").trim(), code: match[1], description };

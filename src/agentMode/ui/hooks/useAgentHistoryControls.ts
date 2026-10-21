@@ -3,6 +3,7 @@ import { formatChatDeleteNotice } from "@/lib/chatDeleteText";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
+import { t, type MessageKey } from "@/i18n";
 import { logError } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { buildChatDeepLink, getSavedChatDeepLinkId } from "@/utils/chatDeepLink";
@@ -12,6 +13,20 @@ import { type App, Notice, TFile } from "obsidian";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const EMPTY_CHAT_HISTORY_ITEMS = Object.freeze([]) as unknown as ChatHistoryItem[];
+
+const NOTICE_ACTION_KEYS: Record<string, MessageKey> = {
+  "load chat history": "agentChat.history.action.loadChatHistory",
+  "load chat": "agentChat.history.action.loadChat",
+  "update chat title": "agentChat.history.action.updateChatTitle",
+  "delete chat": "agentChat.history.action.deleteChat",
+  "pin chat": "agentChat.history.action.pinChat",
+  "unpin chat": "agentChat.history.action.unpinChat",
+  "open chat source": "agentChat.history.action.openChatSource",
+  "read bookmarks": "agentChat.history.action.readBookmarks",
+  "bookmark chat": "agentChat.history.action.bookmarkChat",
+  "remove bookmark": "agentChat.history.action.removeBookmark",
+  "remove chat bookmark": "agentChat.history.action.removeChatBookmark",
+};
 
 export interface AgentHistoryControls {
   chatHistoryItems: ChatHistoryItem[];
@@ -66,7 +81,8 @@ export function useAgentHistoryControls(
         return await action();
       } catch (error) {
         logError(`[AgentMode] ${label} failed`, error);
-        new Notice(`Failed to ${label}.`);
+        const actionKey = NOTICE_ACTION_KEYS[label];
+        new Notice(t("agentChat.history.failed", { action: actionKey ? t(actionKey) : label }));
         if (rethrow) throw error;
       }
     },
@@ -218,10 +234,10 @@ export function useAgentHistoryControls(
         if (!link) throw new Error(`No chat link for "${notePath}".`);
         if (bookmarked) {
           bookmarks.add(link, title);
-          new Notice("Bookmarked.");
+          new Notice(t("agentChat.bookmarks.added"));
         } else {
           bookmarks.remove(link);
-          new Notice("Removed from bookmarks.");
+          new Notice(t("agentChat.bookmarks.removed"));
         }
         replaceChatRowId(id, notePath);
       });

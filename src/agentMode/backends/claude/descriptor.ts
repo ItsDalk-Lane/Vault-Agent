@@ -1,5 +1,6 @@
 import { resolveEffort } from "@/lib/model-effort";
 import type { ModelSelectionSession } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import { logWarn } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { requireNodeModule } from "@/utils/desktopRuntime";
@@ -201,8 +202,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
   Icon: ClaudeLogo,
   selfHostable: false,
   routesVaultAgentModels: false,
-  setupDescription:
-    "Anthropic models, billed to your Claude Code subscription. Runs the claude CLI already on your machine.",
+  setupDescription: "agentInfra.setup.claude",
   skillsProjectDir: ".claude/skills",
   crossDiscoveredAgents: [],
   restartOnManagedSkillsChange: false,
@@ -220,7 +220,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
     if (isEnabledFlag(env.CLAUDE_CODE_USE_VERTEX))
       return { kind: "cloud", label: "Google Vertex AI" };
     const baseUrl = typeof env.ANTHROPIC_BASE_URL === "string" ? env.ANTHROPIC_BASE_URL : "";
-    if (baseUrl) return urlDestination(baseUrl, "The server set in your Claude Code settings");
+    if (baseUrl) return urlDestination(baseUrl, t("agentInfra.backend.destination.claudeSettings"));
     return { kind: "cloud", label: "Anthropic" };
   },
 
@@ -329,8 +329,7 @@ export const ClaudeBackendDescriptor: ClaudeDescriptor = {
     const claudePath = resolveClaudeCliPath(getSettings());
     if (!claudePath) {
       throw new Error(
-        `Claude CLI not found. Install with: ${CLAUDE_INSTALL_COMMAND}, ` +
-          `or set agentMode.claudeCli.path in settings.`
+        t("agentInfra.backend.claude.cliNotFound", { command: CLAUDE_INSTALL_COMMAND })
       );
     }
     return new ClaudeSdkBackendProcess({

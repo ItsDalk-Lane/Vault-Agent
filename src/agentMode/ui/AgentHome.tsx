@@ -43,6 +43,7 @@ import { AppContext } from "@/context";
 import { ChatInputProvider } from "@/context/ChatInputContext";
 import { useChatFileDrop } from "@/hooks/useChatFileDrop";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
@@ -108,13 +109,13 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     try {
       const result = await manager.saveActiveSession();
       if (result) {
-        new Notice("Chat saved as note.");
+        new Notice(t("notice.savedAsNote"));
       } else {
-        new Notice("Nothing to save yet.");
+        new Notice(t("notice.nothingToSave"));
       }
     } catch (error) {
       logError("[AgentMode] manual save failed", error);
-      new Notice("Failed to save chat as note. Check console for details.");
+      new Notice(t("notice.saveFailed"));
     }
   }, [manager]);
 
@@ -128,7 +129,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
         await manager.replaceSessionInPlace(oldId, active.backendId);
       } catch (e) {
         logError("[AgentMode] new chat failed", e);
-        new Notice("Failed to start a new chat. Please try again.");
+        new Notice(t("notice.newChatFailed"));
       }
     })();
   }, [manager]);
@@ -189,7 +190,9 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       } catch (error) {
         logError("[AgentMode] close chat session failed", error);
         new Notice(
-          `Could not close session: ${error instanceof Error ? error.message : "Try again."}`
+          t("notice.closeFailed", {
+            error: error instanceof Error ? error.message : t("common.tryAgain"),
+          })
         );
       }
     },
@@ -205,7 +208,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   const handleExitProject = useCallback(() => {
     manager.exitProject().catch((e) => {
       logError("[AgentMode] exit project failed", e);
-      new Notice("Failed to leave project. Please try again.");
+      new Notice(t("notice.leaveProjectFailed"));
     });
   }, [manager]);
 
@@ -224,7 +227,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     (project: ProjectConfig) => {
       manager.enterProject(project.id).catch((e) => {
         logError("[AgentMode] enter project failed", e);
-        new Notice("Failed to open project. Please try again.");
+        new Notice(t("notice.openProjectFailed"));
       });
     },
     [manager]
@@ -255,7 +258,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isOrphanedProject) new Notice("This project no longer exists.");
+    if (isOrphanedProject) new Notice(t("notice.projectGone"));
   }, [isOrphanedProject]);
 
   const modelPickerOverride = useAgentModelPicker(manager, plugin);
@@ -363,7 +366,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       {
         id: "chats",
         icon: <MessageSquare className="tw-size-4" />,
-        title: "Recent Chats",
+        title: t("home.shelf.recent"),
         renderBody: () => (
           <GlobalRecentChatsSection
             items={chatHistoryItems}
@@ -388,7 +391,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       {
         id: "projects",
         icon: <Folder className="tw-size-4" />,
-        title: "Projects",
+        title: t("home.shelf.projects"),
         count: projects.length,
         renderBody: () => (
           <ProjectPickerList
@@ -435,7 +438,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       {
         id: "project-chats",
         icon: <MessageSquare className="tw-size-4" />,
-        title: "Recent Chats",
+        title: t("home.shelf.recent"),
         renderBody: () => (
           <GlobalRecentChatsSection
             items={chatHistoryItems}
@@ -460,7 +463,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       {
         id: "project-context",
         icon: <Files className="tw-size-4" />,
-        title: "Context",
+        title: t("home.shelf.context"),
         count: contextSummary.totalItems,
         renderBody: () => (
           <AgentContextSection app={app} projectId={activeProjectId} popoverContainer={rootEl} />
@@ -510,7 +513,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   );
 
   const showProjectHero = isProjectLanding && !isOrphanedProject;
-  const heroText = showProjectHero ? `Chat in ${projectName}` : greeting;
+  const heroText = showProjectHero ? t("home.hero.chatIn", { project: projectName }) : greeting;
   const hero = (
     <div className="tw-flex tw-min-w-0 tw-items-center tw-justify-center tw-gap-3">
       <VaultAgentBrandIcon className="tw-size-6 tw-shrink-0 tw-text-normal" />
@@ -586,7 +589,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
             <div className="tw-relative tw-flex tw-h-full tw-flex-col">
               {isDragActive && (
                 <div className="tw-pointer-events-none tw-absolute tw-inset-0 tw-z-modal tw-flex tw-items-center tw-justify-center tw-rounded-md tw-border tw-border-dashed tw-bg-primary tw-opacity-80">
-                  <span>Drop files here...</span>
+                  <span>{t("home.dropFiles")}</span>
                 </div>
               )}
               <div

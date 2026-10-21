@@ -1,5 +1,6 @@
 import { CustomModel, ProjectConfig } from "@/aiParams";
 import { ALL_MANAGED_SKILLS } from "@/builtinSkills/builtinSkills";
+import { isAppLanguage, t, type AppLanguage } from "@/i18n";
 import { getModelKeyFromModel } from "@/lib/model-key";
 import { atom, createStore, useAtomValue } from "jotai";
 
@@ -55,6 +56,7 @@ export interface VaultAgentSettings {
   chatHistorySortStrategy: SortStrategy;
   defaultOpenArea: DEFAULT_OPEN_AREA;
   defaultSendShortcut: SEND_SHORTCUT;
+  language: AppLanguage;
   defaultConversationNoteName: string;
   projectList: Array<ProjectConfig>;
   enableCustomPromptTemplating: boolean;
@@ -442,6 +444,10 @@ export function sanitizeSettings(settings: VaultAgentSettings): VaultAgentSettin
     sanitizedSettings.defaultSendShortcut = DEFAULT_SETTINGS.defaultSendShortcut;
   }
 
+  if (!isAppLanguage(sanitizedSettings.language)) {
+    sanitizedSettings.language = DEFAULT_SETTINGS.language;
+  }
+
   const vaultAgentFolderValidation = validateVaultAgentFolder(
     typeof settingsToSanitize.vaultAgentFolder === "string"
       ? toVisibleVaultAgentFolder(settingsToSanitize.vaultAgentFolder)
@@ -652,21 +658,21 @@ function validateSkillsFolder(
   const segments = cleaned.split("/");
   for (const segment of segments) {
     if (segment.length === 0) {
-      return { ok: false, reason: "Folder path cannot contain empty segments (//)." };
+      return { ok: false, reason: t("folder.emptySegment") };
     }
     if (segment === "..") {
-      return { ok: false, reason: 'Folder path cannot contain ".." segments.' };
+      return { ok: false, reason: t("folder.parent") };
     }
     if (segment === ".") {
       return { ok: false, reason: 'Folder path cannot contain "." segments.' };
     }
     if (CONTROL_CHAR_RE.test(segment)) {
-      return { ok: false, reason: "Folder path contains illegal control characters." };
+      return { ok: false, reason: t("folder.control") };
     }
     if (/[<>:"|?*]/.test(segment)) {
       return {
         ok: false,
-        reason: 'Folder path contains characters not allowed in folder names (< > : " | ? *).',
+        reason: t("folder.illegalChars"),
       };
     }
   }
@@ -683,15 +689,15 @@ export function validateVaultAgentFolder(
   configDir?: string
 ): { ok: true; folder: string } | { ok: false; reason: string } {
   if (typeof value !== "string" || value.trim().length === 0) {
-    return { ok: false, reason: "Folder name cannot be empty." };
+    return { ok: false, reason: t("folder.empty") };
   }
   const trimmed = value.trim();
   if (/^[/\\]/.test(trimmed) || /^[a-zA-Z]:/.test(trimmed)) {
-    return { ok: false, reason: "Folder path must be relative to the vault root." };
+    return { ok: false, reason: t("folder.relative") };
   }
   const cleaned = trimmed.replace(/\\/g, "/").replace(/\/+$/, "");
   if (cleaned.length === 0) {
-    return { ok: false, reason: "Folder name cannot be empty." };
+    return { ok: false, reason: t("folder.empty") };
   }
   const normalizedConfigDir = configDir
     ?.trim()
@@ -707,35 +713,35 @@ export function validateVaultAgentFolder(
   ) {
     return {
       ok: false,
-      reason: "Folder path cannot use the Obsidian config folder.",
+      reason: t("folder.configDir"),
     };
   }
   for (const segment of cleaned.split("/")) {
     if (segment.length === 0) {
-      return { ok: false, reason: "Folder path cannot contain empty segments (//)." };
+      return { ok: false, reason: t("folder.emptySegment") };
     }
     if (segment === "..") {
-      return { ok: false, reason: 'Folder path cannot contain ".." segments.' };
+      return { ok: false, reason: t("folder.parent") };
     }
     // Obsidian does not index dot folders, so every feature must see a visible root.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/712
     if (segment.startsWith(".")) {
-      return { ok: false, reason: "Folder names cannot start with a dot." };
+      return { ok: false, reason: t("folder.dot") };
     }
     if (CONTROL_CHAR_RE.test(segment)) {
-      return { ok: false, reason: "Folder path contains illegal control characters." };
+      return { ok: false, reason: t("folder.control") };
     }
     if (/[<>:"|?*]/.test(segment)) {
       return {
         ok: false,
-        reason: 'Folder path contains characters not allowed in folder names (< > : " | ? *).',
+        reason: t("folder.illegalChars"),
       };
     }
     if (/[. ]$/.test(segment)) {
-      return { ok: false, reason: "Folder names cannot end with a dot or space." };
+      return { ok: false, reason: t("folder.trailing") };
     }
     if (WINDOWS_RESERVED_NAME_RE.test(segment)) {
-      return { ok: false, reason: `"${segment}" is a name reserved by Windows.` };
+      return { ok: false, reason: t("folder.reserved", { segment }) };
     }
   }
   return { ok: true, folder: cleaned };

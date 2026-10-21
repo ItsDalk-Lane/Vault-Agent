@@ -9,6 +9,7 @@ import {
   type FanoutOptionValue,
 } from "@/agentMode/ui/fanoutDropdown";
 import { VaultAgentSpinner } from "@/components/chat-components/VaultAgentSpinner";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import { App } from "obsidian";
@@ -83,7 +84,11 @@ export const FanoutTurnView: React.FC<FanoutTurnViewProps> = memo(
 
     return (
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <div role="tablist" aria-label="Agent answers" className="tw-flex tw-flex-wrap tw-gap-1">
+        <div
+          role="tablist"
+          aria-label={t("agentChat.fanout.agentAnswers")}
+          className="tw-flex tw-flex-wrap tw-gap-1"
+        >
           {options.map((option) => (
             <FanoutTab
               key={option.value}
@@ -126,21 +131,33 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
     }
     switch (summaryDisplayState(turn)) {
       case "writing":
-        return <FanoutStatusLine icon={<ThinkingSpinner />} text="Writing summary…" shimmer />;
+        return (
+          <FanoutStatusLine
+            icon={<ThinkingSpinner />}
+            text={t("agentChat.fanout.writingSummary")}
+            shimmer
+          />
+        );
       case "waiting":
-        return <FanoutStatusLine icon={<ThinkingSpinner />} text="Waiting for answers…" shimmer />;
+        return (
+          <FanoutStatusLine
+            icon={<ThinkingSpinner />}
+            text={t("agentChat.fanout.waitingForAnswers")}
+            shimmer
+          />
+        );
       case "cancelled":
         return (
           <FanoutStatusLine
             icon={<CircleSlash className="tw-size-4 tw-text-muted" />}
-            text="Summary cancelled"
+            text={t("agentChat.fanout.summaryCancelled")}
           />
         );
       case "unavailable":
         return (
           <FanoutStatusLine
             icon={<AlertTriangle className="tw-size-4 tw-text-error" />}
-            text="Summary unavailable"
+            text={t("agentChat.fanout.summaryUnavailable")}
             tone="error"
           />
         );
@@ -162,7 +179,11 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
               <CircleSlash className="tw-size-4 tw-text-muted" />
             )
           }
-          text={isError ? answer.error?.trim() || "This agent failed to answer." : "Cancelled"}
+          text={
+            isError
+              ? answer.error?.trim() || t("agentChat.fanout.agentFailed")
+              : t("agentChat.fanout.cancelled")
+          }
           tone={isError ? "error" : undefined}
         />
       </FanoutTerminalState>
@@ -174,7 +195,11 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
       <div className="tw-flex tw-flex-col tw-gap-1">
         <FanoutSlotBody text={answer.text} app={app} />
         {answer.status === "running" ? (
-          <FanoutStatusLine icon={<ThinkingSpinner />} text="Streaming…" shimmer />
+          <FanoutStatusLine
+            icon={<ThinkingSpinner />}
+            text={t("agentChat.fanout.streaming")}
+            shimmer
+          />
         ) : null}
       </div>
     );
@@ -184,12 +209,14 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
     return (
       <FanoutStatusLine
         icon={<CircleSlash className="tw-size-4 tw-text-muted" />}
-        text="This agent did not answer."
+        text={t("agentChat.fanout.agentDidNotAnswer")}
       />
     );
   }
 
-  return <FanoutStatusLine icon={<ThinkingSpinner />} text="Thinking…" shimmer />;
+  return (
+    <FanoutStatusLine icon={<ThinkingSpinner />} text={t("agentChat.fanout.thinking")} shimmer />
+  );
 };
 
 interface FanoutSlotBodyProps {

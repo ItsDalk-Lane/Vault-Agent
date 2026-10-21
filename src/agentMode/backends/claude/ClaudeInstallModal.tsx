@@ -2,6 +2,7 @@ import { claudeSignInCommand } from "@/agentMode/backends/claude/cliSetup";
 import { ClaudeConfigView } from "@/agentMode/backends/claude/ui/ClaudeConfigView";
 import { useBackendAuthState } from "@/agentMode/session/useBackendAuthState";
 import { FullBleedReactModal } from "@/components/modals/ReactModal";
+import { t } from "@/i18n";
 import { getSettings, setSettings, useSettingsValue } from "@/settings/model";
 import { validateExecutableFile } from "@/utils/detectBinary";
 import { App, Notice } from "obsidian";
@@ -38,13 +39,13 @@ const ClaudeConfigContainer: React.FC<{
     if (err) return err;
     setSettings((cur) => ({ agentMode: { ...cur.agentMode, claudeCli: { path } } }));
     await refreshClaudeInstallState(getSettings(), true);
-    new Notice("Claude CLI path saved.");
+    new Notice(t("agentInfra.backend.claude.pathSaved"));
     return null;
   }, []);
 
   const onClearPath = React.useCallback((): void => {
     setSettings((cur) => ({ agentMode: { ...cur.agentMode, claudeCli: undefined } }));
-    new Notice("Claude CLI override cleared. Auto-detection will be used.");
+    new Notice(t("agentInfra.backend.claude.overrideCleared"));
   }, []);
 
   return (

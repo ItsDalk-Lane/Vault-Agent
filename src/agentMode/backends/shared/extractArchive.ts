@@ -1,5 +1,6 @@
-import { requireNodeModule } from "@/utils/desktopRuntime";
 import { ManagedInstallAbortError } from "@/agentMode/backends/shared/managedInstall";
+import { t } from "@/i18n";
+import { requireNodeModule } from "@/utils/desktopRuntime";
 
 interface ExtractionOptions {
   signal?: AbortSignal;
@@ -32,14 +33,19 @@ export async function extractArchive(
     proc.on("close", (code) => {
       if (options.signal?.aborted) reject(new ManagedInstallAbortError());
       else if (error?.code === "ENOENT")
+        reject(new Error(t("agentInfra.backend.download.tarMissing")));
+      else if (error)
+        reject(new Error(t("agentInfra.backend.download.tarLaunch", { error: error.message })));
+      else if (code === 0) resolve();
+      else
         reject(
           new Error(
-            "`tar` was not found on PATH. macOS/Linux ship it by default; on Windows you need 10 1803+ (which ships `tar.exe`/bsdtar) or to install bsdtar manually."
+            t("agentInfra.backend.download.tarExit", {
+              code: code ?? "",
+              stderr: stderr.slice(0, 500),
+            })
           )
         );
-      else if (error) reject(new Error(`Failed to launch tar: ${error.message}`));
-      else if (code === 0) resolve();
-      else reject(new Error(`tar exited with code ${code}: ${stderr.slice(0, 500)}`));
     });
   });
 }

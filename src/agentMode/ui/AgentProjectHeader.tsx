@@ -1,6 +1,7 @@
 import { TruncatedText } from "@/components/TruncatedText";
 import { Button } from "@/components/ui/button";
 import { ProjectFolderIcon } from "@/components/ui/ProjectFolderIcon";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import React, { memo } from "react";
@@ -26,8 +27,8 @@ export const AgentProjectHeader = memo(
         variant="ghost2"
         size="sm"
         onClick={onExit}
-        aria-label="Leave project"
-        title="Leave project"
+        aria-label={t("agentChat.project.leave")}
+        title={t("agentChat.project.leave")}
         className="tw-flex tw-shrink-0 tw-items-center tw-px-1.5 tw-text-muted hover:tw-text-normal"
       >
         <ChevronLeft className="tw-size-4" />
@@ -35,7 +36,7 @@ export const AgentProjectHeader = memo(
 
       {orphaned ? (
         <span className="tw-min-w-0 tw-flex-1 tw-text-ui-small tw-text-muted">
-          This project no longer exists
+          {t("agentChat.project.gone")}
         </span>
       ) : (
         <>

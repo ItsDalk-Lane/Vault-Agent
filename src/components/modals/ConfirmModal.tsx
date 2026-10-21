@@ -4,6 +4,7 @@ import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { App, Modal } from "obsidian";
 import React from "react";
 import { Root } from "react-dom/client";
+import { t } from "@/i18n";
 
 function ConfirmModalContent({
   content,
@@ -46,8 +47,8 @@ export class ConfirmModal extends Modal {
     private onConfirm: () => void | Promise<void>,
     private content: React.ReactNode,
     title: string,
-    private confirmButtonText: string = "Continue",
-    private cancelButtonText: string = "Cancel",
+    private confirmButtonText: string = t("ui.confirm.continue"),
+    private cancelButtonText: string = t("common.cancel"),
     private onCancel?: () => void | Promise<void>
   ) {
     super(app);

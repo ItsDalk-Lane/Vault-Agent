@@ -16,6 +16,7 @@ import {
   useBackendInstallStates,
   useSessionBackendDescriptor,
 } from "@/agentMode/ui/useBackendDescriptor";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import React from "react";
 import type VaultAgentPlugin from "@/main";
@@ -59,7 +60,7 @@ export function useAgentSelect(
           return {
             ...row,
             status: "signed-out" as const,
-            statusMessage: `${row.name} not signed in`,
+            statusMessage: t("agentChat.modeStatus.notSignedIn", { name: row.name }),
           };
         return row;
       }),
@@ -74,8 +75,8 @@ export function useAgentSelect(
     if (resolved.action === "start" && isStarting) {
       return {
         action: "wait",
-        label: "Starting…",
-        note: "Wait for the current agent launch to finish.",
+        label: t("agentChat.agentSelect.starting"),
+        note: t("agentChat.agentSelect.waitForLaunch"),
       };
     }
     return resolved;

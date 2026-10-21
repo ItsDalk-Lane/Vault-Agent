@@ -11,7 +11,7 @@ import type {
   SessionUpdateHandler,
 } from "@/agentMode/session/types";
 import { createFanoutTurn, FanoutOrchestrator, type FanoutHost } from "./FanoutOrchestrator";
-import { FANOUT_ALL_FAILED_SUMMARY, FANOUT_TRAILING_CHUNK_GRACE_MS } from "./fanoutTypes";
+import { fanoutAllFailedSummary, FANOUT_TRAILING_CHUNK_GRACE_MS } from "./fanoutTypes";
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -350,7 +350,7 @@ describe("FanoutOrchestrator", () => {
         const turn = await runPromise;
 
         expect(turn.summary.status).toBe("done");
-        expect(turn.summary.text).toBe(FANOUT_ALL_FAILED_SUMMARY);
+        expect(turn.summary.text).toBe(fanoutAllFailedSummary());
         expect(procs.get("claude")!.promptCount()).toBe(1);
         expect(procs.get("codex")!.promptCount()).toBe(1);
       });

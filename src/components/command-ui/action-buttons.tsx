@@ -2,6 +2,7 @@ import * as React from "react";
 import { Platform } from "obsidian";
 import { ArrowBigUp, Command, CornerDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 
 type ActionState = "idle" | "loading" | "result";
 
@@ -54,13 +55,18 @@ export function ActionButtons({
     <div className="tw-flex tw-items-center tw-gap-2">
       {state === "loading" && (
         <Button variant="secondary" size="sm" onClick={onStop}>
-          Stop
+          {t("ui.command.stop")}
         </Button>
       )}
 
       {state !== "loading" && onRunAgain && (
-        <Button size="sm" variant="secondary" onClick={onRunAgain} title="Run the prompt again">
-          Run again
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={onRunAgain}
+          title={t("ui.command.runAgainTitle")}
+        >
+          {t("ui.command.runAgain")}
         </Button>
       )}
 
@@ -70,17 +76,17 @@ export function ActionButtons({
             size="sm"
             variant="secondary"
             onClick={onInsert}
-            title={`Insert below selection (${Platform.isMacOS ? "⌘" : "Ctrl"}+Shift+Enter)`}
+            title={t("ui.command.insertTitle", { shortcut: Platform.isMacOS ? "⌘" : "Ctrl" })}
           >
-            Insert
+            {t("ui.command.insert")}
             <InsertShortcutHint />
           </Button>
           <Button
             size="sm"
             onClick={onReplace}
-            title={`Replace selection (${Platform.isMacOS ? "⌘" : "Ctrl"}+Enter)`}
+            title={t("ui.command.replaceTitle", { shortcut: Platform.isMacOS ? "⌘" : "Ctrl" })}
           >
-            Replace
+            {t("ui.command.replace")}
             <ReplaceShortcutHint />
           </Button>
         </>

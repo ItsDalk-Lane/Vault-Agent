@@ -209,7 +209,7 @@ describe("TurnDiffView", () => {
         await hydrate(view, {} as TurnDiffViewState);
 
         expect(detach).toHaveBeenCalledTimes(1);
-        expect(view.getDisplayText()).toBe("File diff");
+        expect(view.getDisplayText()).toBe("Vault Agent Turn Diff");
       });
 
       it("renders a non-markdown file as a whole-file line diff rather than as markdown", async () => {

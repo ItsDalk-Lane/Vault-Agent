@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import {
   DOMConversionMap,
   DOMConversionOutput,
@@ -99,7 +100,7 @@ function ActiveWebTabPillComponent(): JSX.Element {
             content="activeWebTab"
             openBracket="{"
             closeBracket="}"
-            tooltipContent={<div className="tw-text-left">Web Viewer not supported on mobile</div>}
+            tooltipContent={<div className="tw-text-left">{t("ui.chat.pill.webViewerMobile")}</div>}
           />
         </div>
       </PillBadge>
@@ -116,9 +117,7 @@ function ActiveWebTabPillComponent(): JSX.Element {
             openBracket="{"
             closeBracket="}"
             tooltipContent={
-              <div className="tw-text-left">
-                Will use the active web tab at the time the message is sent
-              </div>
+              <div className="tw-text-left">{t("ui.chat.pill.activeWebTabHint")}</div>
             }
           />
         </div>
@@ -131,9 +130,9 @@ function ActiveWebTabPillComponent(): JSX.Element {
       <div className="tw-flex tw-items-center tw-gap-1">
         <Globe className="tw-size-3" />
         <span className="tw-max-w-40 tw-truncate" title={activeWebTabForMentions.url}>
-          {activeWebTabForMentions.title ?? "Untitled"}
+          {activeWebTabForMentions.title ?? t("ui.chat.untitled")}
         </span>
-        <span className="tw-text-xs tw-text-faint">Current</span>
+        <span className="tw-text-xs tw-text-faint">{t("ui.chat.pill.current")}</span>
       </div>
     </PillBadge>
   );

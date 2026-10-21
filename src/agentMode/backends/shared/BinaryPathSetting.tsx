@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { detectionSearchDirs } from "@/utils/binaryPath";
 import { detectBinary } from "@/utils/detectBinary";
@@ -53,7 +54,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
   const apply = React.useCallback(async (): Promise<void> => {
     const trimmed = pathInput.trim();
     if (!trimmed) {
-      setError("Path is required.");
+      setError(t("agentInfra.backend.pathRequired"));
       return;
     }
     const err = await onSave(trimmed);
@@ -88,10 +89,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/398
       if (!mounted.current) return;
       if (!found) {
-        setError(
-          notFoundHint ??
-            `${binaryName} not found on PATH. Install it or paste a custom path manually.`
-        );
+        setError(notFoundHint ?? t("agentInfra.backend.notFoundOnPath", { binary: binaryName }));
         const dirs = searchedDirs ?? (detect ? undefined : detectionSearchDirs);
         setSearched(dirs?.() ?? []);
         return;
@@ -104,7 +102,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
           return;
         }
       }
-      new Notice(`Found ${binaryName} at ${found}`);
+      new Notice(t("agentInfra.backend.foundAt", { binary: binaryName, path: found }));
     } catch (e) {
       logError(`[AgentMode] auto-detect ${binaryName} failed`, e);
       setError(e instanceof Error ? e.message : String(e));
@@ -133,7 +131,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
           onClick={safeAsyncHandler(autoDetect)}
           disabled={busy}
         >
-          Auto-detect
+          {t("agentInfra.backend.autoDetect")}
         </Button>
         {showClear ? (
           <Button
@@ -142,7 +140,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
             onClick={safeAsyncHandler(clear)}
             disabled={busy}
           >
-            Clear
+            {t("agentInfra.backend.clear")}
           </Button>
         ) : showApply ? (
           <Button
@@ -151,7 +149,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
             onClick={safeAsyncHandler(apply)}
             disabled={busy}
           >
-            Apply
+            {t("common.apply")}
           </Button>
         ) : null}
       </div>
@@ -160,7 +158,7 @@ export const BinaryPathSetting: React.FC<Props> = ({
           <span>{error}</span>
           {searched.length > 0 && (
             <div className="tw-text-muted">
-              <span>Searched:</span>
+              <span>{t("agentInfra.backend.searched")}</span>
               <ul className="tw-my-0 tw-pl-4">
                 {searched.map((dir) => (
                   <li key={dir}>{dir}</li>

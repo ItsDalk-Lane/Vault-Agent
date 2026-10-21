@@ -6,8 +6,10 @@ import {
 } from "@/agentMode/ui/renderedDiff/ChangeScroller";
 import { RenderedDiff } from "@/agentMode/ui/renderedDiff/RenderedDiff";
 import { TurnDiffHeader } from "@/agentMode/ui/TurnDiffHeader";
-import { COMMAND_IDS, COMMAND_NAMES, TURN_DIFF_VIEW_TYPE } from "@/constants";
+import { COMMAND_IDS, COMMAND_NAME_KEYS, TURN_DIFF_VIEW_TYPE } from "@/constants";
 import { useApp } from "@/context";
+import { t } from "@/i18n";
+import { useLanguage } from "@/i18n/useLanguage";
 import { logError } from "@/logger";
 import { mountPluginViewRoot, type PluginViewRootHandle } from "@/utils/react/mountPluginViewRoot";
 import { App, ItemView, Notice, Plugin, TFile, Workspace, WorkspaceLeaf } from "obsidian";
@@ -27,7 +29,7 @@ export function registerTurnDiffCommands(plugin: Plugin): void {
   for (const [id, direction] of steps) {
     plugin.addCommand({
       id,
-      name: COMMAND_NAMES[id],
+      name: t(COMMAND_NAME_KEYS[id]),
       repeatable: true,
       checkCallback: (checking) =>
         plugin.app.workspace.getActiveViewOfType(TurnDiffView)?.stepChange(direction, checking) ??
@@ -58,7 +60,7 @@ export class TurnDiffView extends ItemView {
   }
 
   getDisplayText(): string {
-    return this.state ? basename(this.state.path) : "File diff";
+    return this.state ? basename(this.state.path) : t("app.view.turnDiffDisplay");
   }
 
   stepChange(direction: ChangeStep, checking: boolean): boolean {
@@ -117,6 +119,7 @@ interface TurnDiffPaneProps {
 }
 
 const TurnDiffPane: React.FC<TurnDiffPaneProps> = ({ state, onStepperChange }) => {
+  useLanguage();
   const app = useApp();
   const navigation = useChangeNavigation();
   const total = navigation.layout.ticks.length;
@@ -171,7 +174,7 @@ function openNote(app: App, path: string): void {
   // Opening a path whose file was renamed or deleted after the turn would create an empty note.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/348
   if (!(file instanceof TFile)) {
-    new Notice(`${path} no longer exists.`);
+    new Notice(t("notice.fileGone", { path }));
     return;
   }
   void app.workspace

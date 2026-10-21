@@ -2,6 +2,7 @@ import {
   ManagedBinaryConfigView,
   type ManagedBinaryConfigProps,
 } from "@/agentMode/backends/shared/ui/ManagedBinaryConfigView";
+import { t } from "@/i18n";
 import React from "react";
 
 export type {
@@ -16,16 +17,16 @@ export type OpencodeConfigViewProps = ManagedBinaryConfigProps;
 export const OpencodeConfigView: React.FC<OpencodeConfigViewProps> = (props) => (
   <ManagedBinaryConfigView
     {...props}
-    title="Configure opencode"
+    title={t("agentInfra.backend.opencode.configureTitle")}
     binaryName="opencode"
-    managedDescription="Let Copilot download and manage the official opencode binary."
-    customDescription="Point Agent Mode at a binary you already have on disk. Useful for self-builders or air-gapped machines."
+    managedDescription={t("agentInfra.backend.opencode.managedDescription")}
+    customDescription={t("agentInfra.backend.opencode.customDescription")}
     customPathPlaceholder="/absolute/path/to/opencode"
-    customPathNotFoundHint="opencode not found. Install it natively (`~/.opencode/bin/opencode[.exe]`), via bun/npm, or paste a custom path manually."
+    customPathNotFoundHint={t("agentInfra.backend.opencode.customPathNotFound")}
     upgradeLabel={
       props.activeSource === "custom"
-        ? "Run opencode upgrade"
-        : `Upgrade to v${props.managed.version}`
+        ? t("agentInfra.backend.opencode.upgradeRun")
+        : t("agentInfra.backend.opencode.upgradeTo", { version: props.managed.version })
     }
   />
 );

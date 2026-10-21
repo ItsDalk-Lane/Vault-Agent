@@ -2,6 +2,7 @@ import { parseVersionFromStdout, verifyOpencodeBinary } from "./OpencodeBinaryMa
 import { assertBinaryCompatible } from "@/agentMode/backends/shared/binaryCompatibility";
 import { OPENCODE_MIN_VERSION } from "./ui/opencodeVersion";
 import { ChatModelProviders } from "@/constants";
+import { t } from "@/i18n";
 import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import type { VaultAgentSettings } from "@/settings/model";
@@ -113,8 +114,7 @@ export class OpencodeBackend implements AcpBackend {
       );
       if (legacyKeys.length > 0) {
         throw new Error(
-          `opencode OPENCODE_CONFIG_CONTENT uses OpenCode 1 keys (${legacyKeys.join(", ")}); ` +
-            "Self-Host Mode requires the OpenCode 2 `permissions` and `agents` keys."
+          t("agentInfra.backend.opencode.legacyKeys", { keys: legacyKeys.join(", ") })
         );
       }
       overriddenConfig.permissions = appendNativeWebDenies(overriddenConfig.permissions);
@@ -128,7 +128,7 @@ export class OpencodeBackend implements AcpBackend {
         ? await this.#deps.getSelfHostWebSearchChannel?.()
         : undefined;
     if (settings.enableSelfHostMode === true && !selfHostSearchChannel) {
-      throw new Error("Copilot self-host web search channel is unavailable.");
+      throw new Error(t("agentInfra.backend.opencode.webSearchUnavailable"));
     }
 
     const builtinSkillEnv = await buildBuiltinSkillEnv(selfHostSearchChannel);

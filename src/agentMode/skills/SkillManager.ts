@@ -1,5 +1,6 @@
 import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
 import { ALL_MANAGED_SKILLS, isBuiltinSkillEnabledFor } from "@/builtinSkills/builtinSkills";
+import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
 import { getSettings, updateSetting } from "@/settings/model";
 import { getEffectiveSkillsFolder } from "@/settings/vaultAgentFolder";
@@ -345,7 +346,7 @@ export class SkillManager {
     const operation = this.builtinMutation.then(
       async (): Promise<SkillOperationResult<"fs-error">> => {
         if (!this.builtinRuntime || !ALL_MANAGED_SKILLS.some((skill) => skill.name === name))
-          return fsFailure("Unknown built-in skill.");
+          return fsFailure(t("agentInfra.skills.manager.unknownBuiltin"));
         try {
           await this.inFlight;
           await this.builtinRuntime.savePreferences((preferences) => ({
@@ -360,7 +361,7 @@ export class SkillManager {
             : fsFailure(
                 result.reconcileError ??
                   result.discoveryError ??
-                  "Could not update built-in skill files."
+                  t("agentInfra.skills.manager.builtinUpdateFailed")
               );
         } catch (error) {
           return fsFailure(error instanceof Error ? error.message : String(error));
@@ -416,8 +417,7 @@ export class SkillManager {
   }
 
   async deleteSkill(skill: Skill): Promise<DeleteSkillResult> {
-    if (skill.builtin)
-      return fsFailure("Built-in skills cannot be edited or deleted. Disable the skill instead.");
+    if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
       return noVaultPathFailure();
@@ -436,7 +436,9 @@ export class SkillManager {
     if (result.ok) {
       this.removeManagedSkill(skill);
     }
-    return result.ok ? { ok: true } : fsFailure(result.reason ?? "Unknown filesystem error.");
+    return result.ok
+      ? { ok: true }
+      : fsFailure(result.reason ?? t("agentInfra.skills.manager.fsUnknown"));
   }
 
   async saveProperties(
@@ -446,8 +448,7 @@ export class SkillManager {
       patch: Omit<SkillFrontmatterPatch, "name" | "enabledAgents">;
     }
   ): Promise<SavePropertiesResult> {
-    if (skill.builtin)
-      return fsFailure("Built-in skills cannot be edited or deleted. Disable the skill instead.");
+    if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
     const fs = createNodeReconcileFs();
     const newName =
       req.newName !== undefined && req.newName !== skill.name ? req.newName : undefined;
@@ -491,13 +492,17 @@ export class SkillManager {
 
       if (!renameResult.ok && renameResult.reason !== "eperm") {
         if (renameResult.reason === "invalid") {
-          return { ok: false, code: "invalid", message: "Skill name is invalid." };
+          return {
+            ok: false,
+            code: "invalid",
+            message: t("agentInfra.skills.manager.invalidName"),
+          };
         }
         if (renameResult.reason === "collision") {
           return {
             ok: false,
             code: "collision",
-            message: "A skill with that name already exists.",
+            message: t("agentInfra.skills.manager.nameCollision"),
           };
         }
         if (renameResult.mutated === true) {
@@ -558,16 +563,16 @@ export class SkillManager {
     action: "expandToNewAgent" | "disableLastAgent" | "consolidate"
   ): Promise<MigrateSkillResult> {
     if (skill.location.kind !== "project") {
-      return { ok: false, reason: "Skill is not project-managed." };
+      return { ok: false, reason: t("agentInfra.skills.manager.notProject") };
     }
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
-      return { ok: false, reason: "Vault has no on-disk path on this platform." };
+      return { ok: false, reason: t("agentInfra.skills.manager.noVaultPath") };
     }
     const folder = resolveSkillsFolder();
     const canonical = resolveAbsolutePath(this.app, folder);
     if (canonical === null) {
-      return { ok: false, reason: "Vault has no on-disk path on this platform." };
+      return { ok: false, reason: t("agentInfra.skills.manager.noVaultPath") };
     }
 
     const existingAgents = skill.location.agentDirs;
@@ -630,7 +635,7 @@ export class SkillManager {
     agent: BackendId
   ): Promise<SkillOperationResult<"no-vault-path" | "unknown-agent" | "fs-error">> {
     if (skill.location.kind !== "project") {
-      return { ok: false, code: "fs-error", message: "Skill is not project-managed." };
+      return { ok: false, code: "fs-error", message: t("agentInfra.skills.manager.notProject") };
     }
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
@@ -985,7 +990,7 @@ function noVaultPathFailure(): { ok: false; code: "no-vault-path"; message: stri
   return {
     ok: false,
     code: "no-vault-path",
-    message: "Vault has no on-disk path on this platform.",
+    message: t("agentInfra.skills.manager.noVaultPath"),
   };
 }
 
@@ -999,7 +1004,7 @@ function failureFromReason(reason: string): {
   message: string;
 } {
   if (reason === "eperm") {
-    return { ok: false, code: "eperm", message: "Permission denied while creating a skill link." };
+    return { ok: false, code: "eperm", message: t("agentInfra.skills.manager.eperm") };
   }
   return fsFailure(reason);
 }

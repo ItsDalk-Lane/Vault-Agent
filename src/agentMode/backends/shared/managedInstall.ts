@@ -1,5 +1,6 @@
 import type { ManagedInstallProgress } from "@/agentMode/backends/shared/installProgress";
 import { renameWithRetry } from "@/agentMode/skills/renameWithRetry";
+import { t } from "@/i18n";
 import { logError, logWarn } from "@/logger";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
@@ -12,7 +13,7 @@ export type ManagedInstallRuntimeState =
 
 export class ManagedInstallOperationInFlightError extends Error {
   constructor(displayName: string) {
-    super(`A ${displayName} setup operation is already running.`);
+    super(t("agentInfra.backend.install.inFlight", { name: displayName }));
     this.name = "ManagedInstallOperationInFlightError";
   }
 }

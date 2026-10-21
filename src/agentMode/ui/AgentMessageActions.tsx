@@ -2,6 +2,7 @@ import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndi
 import { CopyButton } from "@/components/chat-components/CopyButton";
 import { MessageActionButton } from "@/components/chat-components/MessageActionButton";
 import { AssistantResponseFooter } from "@/components/ui/AssistantResponseFooter";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { insertAtCursor } from "@/utils";
 import { TextCursorInput } from "lucide-react";
@@ -35,7 +36,7 @@ export const AgentMessageActions: React.FC<AgentMessageActionsProps> = ({
         })}
       >
         <MessageActionButton
-          label="Insert / Replace at cursor"
+          label={t("agentChat.messageActions.insertAtCursor")}
           icon={TextCursorInput}
           onClick={() => void insertAtCursor(app, text)}
         />

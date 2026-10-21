@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { Document, parseDocument, YAMLMap, isMap, isScalar, Scalar } from "yaml";
 import type { BackendId } from "./types";
 
@@ -6,7 +7,6 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/;
 export const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const NAME_MAX = 64;
 export const DESCRIPTION_MAX = 1024;
-const NAME_REPAIR_MESSAGE = "Use the same lowercase, hyphenated name in the file and folder.";
 
 export interface ParsedSkillFile {
   frontmatter: SkillFrontmatter;
@@ -29,9 +29,7 @@ export interface SkillFrontmatter {
 function splitFrontmatter(content: string): { yaml: string; body: string } {
   const m = FRONTMATTER_RE.exec(content);
   if (!m) {
-    throw new SkillFormatError(
-      "SKILL.md must begin with a YAML frontmatter block delimited by ---"
-    );
+    throw new SkillFormatError(t("agentInfra.skills.format.missingFrontmatter"));
   }
   return { yaml: m[1] ?? "", body: m[2] ?? "" };
 }
@@ -61,14 +59,14 @@ function yamlFormatError(
     );
     if (descriptionLine?.[1] !== undefined && descriptionLine[2] !== undefined) {
       return new SkillFormatError(
-        'The description contains ": " and must be quoted.',
+        t("agentInfra.skills.format.quotedDescription"),
         descriptionLine[1]
       );
     }
   }
 
   return new SkillFormatError(
-    `SKILL.md frontmatter YAML is invalid: ${error.message}`,
+    t("agentInfra.skills.format.invalidYaml", { error: error.message }),
     offendingText
   );
 }
@@ -114,18 +112,18 @@ export function parseSkillFile(content: string, parentDirName: string): ParsedSk
     throw yamlFormatError(yaml, doc.errors[0]);
   }
   if (!isMap(doc.contents)) {
-    throw new SkillFormatError("SKILL.md frontmatter must be a YAML mapping");
+    throw new SkillFormatError(t("agentInfra.skills.format.notMapping"));
   }
 
   const name = readString(doc, "name");
   if (name === undefined) {
     if (doc.has("name")) {
       throw new SkillFormatError(
-        "Skill `name` must be a string",
+        t("agentInfra.skills.format.nameMustBeString"),
         frontmatterLine(doc, yaml, "name")
       );
     }
-    throw new SkillFormatError("SKILL.md frontmatter is missing required field `name`");
+    throw new SkillFormatError(t("agentInfra.skills.format.missingName"));
   }
   validateName(name, parentDirName, frontmatterLine(doc, yaml, "name"));
 
@@ -133,11 +131,11 @@ export function parseSkillFile(content: string, parentDirName: string): ParsedSk
   if (description === undefined) {
     if (doc.has("description")) {
       throw new SkillFormatError(
-        "Skill `description` must be a string",
+        t("agentInfra.skills.format.descriptionMustBeString"),
         frontmatterLine(doc, yaml, "description")
       );
     }
-    throw new SkillFormatError("SKILL.md frontmatter is missing required field `description`");
+    throw new SkillFormatError(t("agentInfra.skills.format.missingDescription"));
   }
   validateDescription(description, frontmatterLine(doc, yaml, "description"));
 
@@ -158,29 +156,32 @@ export function parseSkillFile(content: string, parentDirName: string): ParsedSk
 
 export function validateName(name: string, parentDirName: string, offendingText?: string): void {
   if (typeof name !== "string" || name.length === 0) {
-    throw new SkillFormatError("Skill `name` must be a non-empty string", offendingText);
+    throw new SkillFormatError(t("agentInfra.skills.format.nameNonEmpty"), offendingText);
   }
   if (name.length > NAME_MAX) {
     throw new SkillFormatError(
-      `Skill \`name\` must be at most ${NAME_MAX} characters (got ${name.length})`,
+      t("agentInfra.skills.format.nameMax", { max: NAME_MAX, length: name.length }),
       offendingText
     );
   }
   if (!NAME_RE.test(name)) {
-    throw new SkillFormatError(NAME_REPAIR_MESSAGE, offendingText);
+    throw new SkillFormatError(t("agentInfra.skills.format.nameRepair"), offendingText);
   }
   if (name !== parentDirName) {
-    throw new SkillFormatError(NAME_REPAIR_MESSAGE, offendingText);
+    throw new SkillFormatError(t("agentInfra.skills.format.nameRepair"), offendingText);
   }
 }
 
 export function validateDescription(description: string, offendingText?: string): void {
   if (typeof description !== "string" || description.length === 0) {
-    throw new SkillFormatError("Skill `description` must be a non-empty string", offendingText);
+    throw new SkillFormatError(t("agentInfra.skills.format.descriptionNonEmpty"), offendingText);
   }
   if (description.length > DESCRIPTION_MAX) {
     throw new SkillFormatError(
-      `Skill \`description\` must be at most ${DESCRIPTION_MAX} characters (got ${description.length})`,
+      t("agentInfra.skills.format.descriptionMax", {
+        max: DESCRIPTION_MAX,
+        length: description.length,
+      }),
       offendingText
     );
   }

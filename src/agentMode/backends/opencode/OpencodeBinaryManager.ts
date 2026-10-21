@@ -3,6 +3,7 @@ import {
   assertBinaryCompatible,
 } from "@/agentMode/backends/shared/binaryCompatibility";
 import { downloadFile } from "@/agentMode/backends/shared/downloadFile";
+import { t } from "@/i18n";
 import {
   ManagedBinaryManager,
   type BinarySettings,
@@ -189,14 +190,11 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
   getDataDir(): string {
     const adapter = this.plugin.app.vault.adapter;
     if (!(adapter instanceof FileSystemAdapter)) {
-      throw new Error("Agent Mode requires desktop Obsidian (FileSystemAdapter).");
+      throw new Error(t("agentInfra.backend.opencode.desktopOnly"));
     }
     const home = requireNodeModule<typeof import("node:os")>("os").homedir();
     if (!home || !nodePath().isAbsolute(home) || nodePath().parse(home).root === home) {
-      throw new Error(
-        "Could not resolve your home directory to install the opencode runtime. " +
-          "Agent Mode installs it under ~/.vault-agent; check that your account has a valid home directory."
-      );
+      throw new Error(t("agentInfra.backend.opencode.homeDir"));
     }
     return opencodeManagedDataDir(home);
   }
@@ -247,8 +245,10 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
       await nodeFs().promises.mkdir(dataDir, { recursive: true });
     } catch (e) {
       throw new Error(
-        `Could not create the opencode install directory at ${dataDir}: ` +
-          `${e instanceof Error ? e.message : String(e)}. Check that it is writable.`
+        t("agentInfra.backend.opencode.mkdirFailed", {
+          path: dataDir,
+          error: e instanceof Error ? e.message : String(e),
+        })
       );
     }
     const randomBytes = requireNodeModule<typeof import("node:crypto")>("crypto").randomBytes;
@@ -298,7 +298,7 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
       opts.progress.verifying();
       const verified = await verifyOpencodeBinary(nodePath().join(stageBinDir, binName));
       if (parseVersionFromStdout(verified.stdout) !== version)
-        throw new Error(`The opencode download did not report version ${version}.`);
+        throw new Error(t("agentInfra.backend.opencode.versionMismatch", { version }));
       this.throwIfAborted(opts.signal);
       opts.progress.activating();
       await promoteManagedVersion(stageDir, versionDir, "opencode");
@@ -344,7 +344,7 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
     return this.runExclusive({ kind: "installing", progress: null }, async (signal) => {
       const s = readOpencodeSettings();
       if (s.binarySource !== "custom" || !s.binaryPath) {
-        throw new Error("No custom opencode binary is configured to upgrade.");
+        throw new Error(t("agentInfra.backend.opencode.noCustomToUpgrade"));
       }
       const binaryPath = s.binaryPath;
       try {
@@ -356,18 +356,25 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
       } catch (e) {
         this.throwIfAborted(signal);
         const err = e as NodeJS.ErrnoException;
-        throw new Error(`\`${binaryPath} upgrade\` failed: ${err.message ?? String(err)}`);
+        throw new Error(
+          t("agentInfra.backend.opencode.upgradeCommandFailed", {
+            path: binaryPath,
+            error: err.message ?? String(err),
+          })
+        );
       }
       const { stdout } = await verifyOpencodeBinary(binaryPath);
       this.throwIfAborted(signal);
       const version = parseVersionFromStdout(stdout);
       if (!version) {
-        throw new Error(`${binaryPath} --version didn't report a version after upgrade.`);
+        throw new Error(t("agentInfra.backend.opencode.upgradeNoVersion", { path: binaryPath }));
       }
       if (isOpencodeVersionOutdated(version)) {
         throw new Error(
-          `opencode upgrade did not reach the required version ${OPENCODE_MIN_VERSION}+ ` +
-            `(still v${version}).`
+          t("agentInfra.backend.opencode.upgradeTooOld", {
+            minimum: OPENCODE_MIN_VERSION,
+            version,
+          })
         );
       }
       updateOpencodeFields({ binaryVersion: version, binaryPath, binarySource: "custom" });
@@ -400,9 +407,7 @@ export class OpencodeBinaryManager extends ManagedBinaryManager<InstallOptions> 
     const { stdout } = await verifyOpencodeBinary(p);
     const version = parseVersionFromStdout(stdout);
     if (!version) {
-      throw new Error(
-        `${p} --version output didn't include a version number. Is this an opencode binary?`
-      );
+      throw new Error(t("agentInfra.backend.opencode.noVersion", { path: p }));
     }
     return { version, path: p };
   }
@@ -449,15 +454,21 @@ export async function verifyOpencodeBinary(p: string): Promise<{ stdout: string 
   } catch (e) {
     const err = e as NodeJS.ErrnoException & { signal?: string; code?: string | number };
     if (err.code === "ENOENT") {
-      throw new Error(`No file at ${p}`);
+      throw new Error(t("agentInfra.backend.opencode.noFile", { path: p }));
     }
     if (err.signal === "SIGTERM") {
       throw new Error(
-        `${p} did not respond to --version within ${VERIFY_BINARY_TIMEOUT_MS}ms. Is this an opencode binary?`
+        t("agentInfra.backend.opencode.versionTimeout", {
+          path: p,
+          ms: VERIFY_BINARY_TIMEOUT_MS,
+        })
       );
     }
     throw new Error(
-      `${p} --version failed: ${err.message ?? String(err)}. Is this an opencode binary?`
+      t("agentInfra.backend.opencode.versionFailed", {
+        path: p,
+        error: err.message ?? String(err),
+      })
     );
   }
 }

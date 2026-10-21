@@ -1,4 +1,5 @@
 import type { AgentToolKind, BackendId, PromptContent } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import { escapeXml } from "@/LLMProviders/chainRunner/utils/xmlParsing";
 
 export const FANOUT_READONLY_PREAMBLE =
@@ -31,7 +32,9 @@ export interface AgentAnswer {
 
 export const FANOUT_AGENT_TIMEOUT_MS = 5 * 60 * 1000;
 
-export const FANOUT_AGENT_TIMEOUT_ERROR = "Timed out waiting for this agent to answer.";
+export function fanoutAgentTimeoutError(): string {
+  return t("agentInfra.session.fanoutTimeout");
+}
 
 export const FANOUT_CANCEL_GRACE_MS = 3 * 1000;
 
@@ -113,8 +116,9 @@ export const FANOUT_SUMMARY_INSTRUCTION =
   "describe the approach only.\n\n" +
   "Do NOT modify any files or run write/shell tools.";
 
-export const FANOUT_ALL_FAILED_SUMMARY =
-  "All agents failed to answer; no summary could be generated.";
+export function fanoutAllFailedSummary(): string {
+  return t("agentInfra.session.fanoutAllFailed");
+}
 
 export interface PendingFanoutContext {
   question: string;

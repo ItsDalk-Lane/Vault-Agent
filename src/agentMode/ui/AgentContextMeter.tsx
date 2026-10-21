@@ -7,6 +7,7 @@ import { TokenCounter } from "@/components/chat-components/TokenCounter";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -63,15 +64,19 @@ function formatResetsIn(resetsAt: number | undefined, now: number): string | nul
   const ms = resetsAt - now;
   if (ms <= 0) return null;
   const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `resets in ${minutes}m`;
+  if (minutes < 60) return t("agentChat.contextMeter.resetsInMinutes", { minutes });
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
     const rest = minutes % 60;
-    return rest === 0 ? `resets in ${hours}h` : `resets in ${hours}h ${rest}m`;
+    return rest === 0
+      ? t("agentChat.contextMeter.resetsInHours", { hours })
+      : t("agentChat.contextMeter.resetsInHoursMinutes", { hours, minutes: rest });
   }
   const days = Math.floor(hours / 24);
   const restHours = hours % 24;
-  return restHours === 0 ? `resets in ${days}d` : `resets in ${days}d ${restHours}h`;
+  return restHours === 0
+    ? t("agentChat.contextMeter.resetsInDays", { days })
+    : t("agentChat.contextMeter.resetsInDaysHours", { days, hours: restHours });
 }
 
 function PlanUsageRows({ planUsage }: { planUsage: PlanUsage }) {
@@ -134,7 +139,7 @@ export function UsageMeter({ usage, contextWindow, planUsage }: UsageMeterProps)
           variant="ghost2"
           size="icon"
           className={cn(isWarning ? "tw-text-warning" : "tw-text-accent")}
-          aria-label="Usage"
+          aria-label={t("agentChat.contextMeter.usage")}
         >
           {!hasUsage || hasContext ? <ContextRing fraction={fraction} /> : formatTokens(used)}
         </Button>
@@ -144,7 +149,9 @@ export function UsageMeter({ usage, contextWindow, planUsage }: UsageMeterProps)
           {hasUsage && (
             <>
               <div className="tw-flex tw-items-center tw-justify-between tw-gap-3 tw-text-ui-smaller">
-                <span className="tw-whitespace-nowrap tw-text-muted">Context window</span>
+                <span className="tw-whitespace-nowrap tw-text-muted">
+                  {t("agentChat.contextMeter.contextWindow")}
+                </span>
                 <span
                   className={cn(
                     "tw-whitespace-nowrap tw-tabular-nums",

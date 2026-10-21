@@ -1,6 +1,7 @@
 import { prefetchConfigEfforts } from "@/agentMode/backends/shared/prefetchConfigEfforts";
 import { Notice } from "obsidian";
 import { resolveEffort } from "@/lib/model-effort";
+import { t } from "@/i18n";
 import { codexAuth } from "./codexAuth";
 import type VaultAgentPlugin from "@/main";
 import { requireNodeModule } from "@/utils/desktopRuntime";
@@ -93,8 +94,7 @@ export const CodexBackendDescriptor: BackendDescriptor = {
   Icon: CodexLogo,
   selfHostable: false,
   routesVaultAgentModels: false,
-  setupDescription:
-    "OpenAI models, billed to your ChatGPT subscription. Runs the codex-acp adapter on your machine.",
+  setupDescription: "agentInfra.setup.codex",
   skillsProjectDir: ".agents/skills",
   crossDiscoveredAgents: [],
   restartOnManagedSkillsChange: false,
@@ -120,14 +120,14 @@ export const CodexBackendDescriptor: BackendDescriptor = {
   dataDestination(settings: VaultAgentSettings): Destination {
     const overrides = settings.agentMode?.backends?.codex?.envOverrides;
     const baseUrl = overrides?.OPENAI_BASE_URL || process.env.OPENAI_BASE_URL;
-    if (baseUrl) return urlDestination(baseUrl, "The server set in OPENAI_BASE_URL");
+    if (baseUrl) return urlDestination(baseUrl, t("agentInfra.backend.destination.openaiBaseUrl"));
     return { kind: "cloud", label: "OpenAI" };
   },
 
   presentPermissionOption(option: PermissionOption, metadata: unknown): PermissionOption {
     const decision = codexPermissionDecision(metadata);
     if (decision === "acceptForSession" || CODEX_SESSION_OPTION_IDS.has(option.optionId)) {
-      return { ...option, description: CODEX_SESSION_SCOPE };
+      return { ...option, description: codexSessionScope() };
     }
     const isExecpolicyAmendment =
       decision === "acceptWithExecpolicyAmendment" && option.kind === "allow_always";
@@ -136,14 +136,18 @@ export const CodexBackendDescriptor: BackendDescriptor = {
       (option.kind === "allow_always" || option.kind === "reject_always");
     if (!isExecpolicyAmendment && !isNetworkPolicyAmendment) {
       return isCodexRulesOptionId(option.optionId)
-        ? { ...option, description: CODEX_RULES_SCOPE }
+        ? { ...option, description: codexRulesScope() }
         : option;
     }
 
     return {
       ...option,
-      name: option.kind === "reject_always" ? "Block Always" : "Allow Always",
-      description: `${option.name}\n${CODEX_RULES_SCOPE}`,
+      name: t(
+        option.kind === "reject_always"
+          ? "agentInfra.backend.permission.codex.blockAlways"
+          : "agentInfra.backend.permission.codex.allowAlways"
+      ),
+      description: `${option.name}\n${codexRulesScope()}`,
     };
   },
 
@@ -248,10 +252,13 @@ export const CodexBackendDescriptor: BackendDescriptor = {
 
 // Codex keeps session approvals in memory and appends policy amendments to its rules file.
 // https://github.com/logancyang/obsidian-copilot/issues/2889
-const CODEX_SESSION_SCOPE =
-  "Covers what this option names, until this chat ends. Start a new chat to undo.";
-const CODEX_RULES_SCOPE =
-  "Saved to rules/default.rules in your Codex home (~/.codex by default) for all later Codex chats. Delete it there to undo.";
+function codexSessionScope(): string {
+  return t("agentInfra.backend.permission.codex.sessionScope");
+}
+
+function codexRulesScope(): string {
+  return t("agentInfra.backend.permission.codex.rulesScope");
+}
 
 // codex-acp 2.x sends fixed option ids and no decision metadata.
 // https://github.com/logancyang/obsidian-copilot/issues/2889

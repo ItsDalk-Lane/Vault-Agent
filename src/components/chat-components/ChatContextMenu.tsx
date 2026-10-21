@@ -2,6 +2,7 @@ import { TFile, TFolder } from "obsidian";
 import React, { useRef, useState } from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import {
   ContextNoteBadge,
   ContextActiveNoteBadge,
@@ -122,7 +123,7 @@ export const ChatContextMenu: React.FC<ChatContextMenuProps> = ({
               >
                 <span className="tw-text-base tw-font-medium tw-leading-none">@</span>
                 {!hasContext && (
-                  <span className="tw-pr-1 tw-text-sm tw-leading-4">Add context</span>
+                  <span className="tw-pr-1 tw-text-sm tw-leading-4">{t("ui.chat.addContext")}</span>
                 )}
               </Button>
             </PopoverTrigger>

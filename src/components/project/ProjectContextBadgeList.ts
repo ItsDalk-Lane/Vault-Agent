@@ -4,6 +4,7 @@ import {
   getDecodedPatterns,
   parsePropertyPattern,
 } from "@/search/searchUtils";
+import { t } from "@/i18n";
 
 const PATTERN_TYPES = ["folder", "tag", "note", "extension", "property"] as const;
 
@@ -26,7 +27,7 @@ export function getBadgeLabel(item: BadgeItem): string {
   if (item.type !== "property") return item.pattern;
   const parsed = parsePropertyPattern(item.pattern);
   if (!parsed) return item.pattern;
-  return parsed.value ? `${parsed.key}: ${parsed.value}` : `${parsed.key}: (any)`;
+  return parsed.value ? `${parsed.key}: ${parsed.value}` : `${parsed.key}: ${t("ui.property.any")}`;
 }
 
 export function buildBadgeItems(value: string | undefined): BadgeItem[] {

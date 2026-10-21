@@ -1,4 +1,5 @@
 import { AgentProjectCreateForm } from "@/agentMode/ui/AgentProjectCreateForm";
+import { t } from "@/i18n";
 import { computeVerticalPlacement } from "@/utils/panelPlacement";
 import * as React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -83,13 +84,13 @@ export function CreateProjectPanel({
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="New project"
+      aria-label={t("agentChat.project.newProject")}
       className="tw-fixed tw-z-popover tw-w-[260px] tw-rounded-md tw-border tw-border-solid tw-border-border tw-bg-primary tw-p-3 tw-shadow-lg"
       style={{ top: position.top, left: position.left }}
     >
       <AgentProjectCreateForm
-        title="New project"
-        subtitle="Create a new project in your vault"
+        title={t("agentChat.project.newProject")}
+        subtitle={t("agentChat.project.createSubtitle")}
         onSave={onSave}
         onCancel={onClose}
       />

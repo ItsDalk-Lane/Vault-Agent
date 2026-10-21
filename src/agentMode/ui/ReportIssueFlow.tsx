@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/utils/formatBytes";
 import { type AttachmentResult, type ReportIssueDraft } from "@/utils/issueReport";
@@ -142,24 +143,24 @@ function DetailsPage({
   return (
     <>
       {error && (
-        <Callout tone="error" title="Could not prepare the report">
+        <Callout tone="error" title={t("report.prepareFailed")}>
           {error}
         </Callout>
       )}
 
       <div className="tw-flex tw-flex-col tw-gap-1">
-        <span className="tw-text-sm tw-font-medium">What went wrong?</span>
+        <span className="tw-text-sm tw-font-medium">{t("report.whatWrong")}</span>
         <Textarea
           autoFocus
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Describe what you were doing and what happened…"
+          placeholder={t("report.notePlaceholder")}
           className="tw-min-h-24"
         />
       </div>
 
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <span className="tw-text-sm tw-font-medium">Attachments — bundled into one zip</span>
+        <span className="tw-text-sm tw-font-medium">{t("report.attachments")}</span>
         {sources.map((source) => (
           <label key={source.id} className="tw-flex tw-items-start tw-gap-2 tw-text-sm">
             <Checkbox
@@ -177,18 +178,16 @@ function DetailsPage({
         ))}
       </div>
 
-      <Callout tone="warning" title="Before you open the issue">
-        The report is built and redacted on your device and never leaves it: the button below opens
-        a prefilled GitHub issue, and you attach the zip to that issue yourself. Review the zip
-        first; screenshots are not automatically redacted.
+      <Callout tone="warning" title={t("report.beforeOpenIssue")}>
+        {t("report.consent")}
       </Callout>
 
       <div className="tw-flex tw-justify-end tw-gap-2">
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("report.cancel")}
         </Button>
         <Button variant="default" onClick={onSubmit}>
-          Prepare report
+          {t("report.prepare")}
         </Button>
       </div>
     </>
@@ -239,7 +238,7 @@ function ReviewPage({ report, openIssuePage, revealFile, onCancel }: ReviewPageP
   return (
     <>
       <div className="tw-flex tw-flex-col tw-gap-2">
-        <span className="tw-text-sm tw-font-medium">Report contents</span>
+        <span className="tw-text-sm tw-font-medium">{t("report.contents")}</span>
         {report ? (
           <ul className="tw-m-0 tw-flex tw-list-none tw-flex-col tw-gap-1 tw-p-0 tw-text-sm">
             {report.attachments.map((attachment) => (
@@ -261,33 +260,32 @@ function ReviewPage({ report, openIssuePage, revealFile, onCancel }: ReviewPageP
           </ul>
         ) : (
           <span role="status" className="tw-text-sm tw-text-muted">
-            Preparing report…
+            {t("report.preparing")}
           </span>
         )}
       </div>
 
-      <Callout tone="warning" title="The zip stays on your machine">
-        Opening the issue does not send anything: attach the zip from{" "}
-        {report ? report.zipPath : "the temp folder"} to the issue yourself. Cancelling deletes it.
+      <Callout tone="warning" title={t("report.zipStays")}>
+        {t("report.zipStaysBody", { path: report ? report.zipPath : t("report.tempFolder") })}
       </Callout>
 
       <div className="tw-flex tw-flex-wrap tw-justify-end tw-gap-2">
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("report.cancel")}
         </Button>
         <Button
           variant="secondary"
           disabled={report === null}
           onClick={() => report && revealFile(report.zipPath)}
         >
-          Show zip
+          {t("report.showZip")}
         </Button>
         <Button
           variant="default"
           disabled={report === null}
           onClick={() => report && openIssuePage(report.manualIssueUrl)}
         >
-          Open GitHub issue
+          {t("report.openIssue")}
         </Button>
       </div>
     </>

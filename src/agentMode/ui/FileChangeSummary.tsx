@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { TurnFileChange } from "@/agentMode/session/types";
 
@@ -39,7 +40,9 @@ export const FileChangeStatusBadge: React.FC<FileChangeStatusBadgeProps> = ({ st
   if (status === "modified") return null;
   return (
     <span className="tw-shrink-0 tw-rounded-sm tw-border tw-border-solid tw-border-border tw-bg-secondary-alt tw-px-1 tw-text-xs tw-text-muted">
-      {status === "created" ? "new" : "deleted"}
+      {status === "created"
+        ? t("agentChat.fileChange.statusNew")
+        : t("agentChat.fileChange.statusDeleted")}
     </span>
   );
 };

@@ -11,12 +11,13 @@ import {
 import { SettingItem } from "@/components/ui/setting-item";
 import { playNotificationSound } from "@/utils/notificationSound";
 import {
-  NOTIFICATION_SOUND_OPTIONS,
+  getNotificationSoundOptions,
   isNotificationSoundId,
 } from "@/utils/notificationSoundCatalog";
 import { SettingSection } from "@/components/ui/setting-section";
 import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
 import { usePlugin } from "@/contexts/PluginContext";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { setSettings, useSettingsValue } from "@/settings/model";
 import { formatBinaryPathForDisplay } from "@/utils/binaryPath";
@@ -70,7 +71,11 @@ export const AgentSettings: React.FC = () => {
       icon: <d.Icon className="tw-size-4" />,
       label: d.displayName,
     })),
-    { id: QUICK_CHAT_TAB_ID, icon: <MessageCircle className="tw-size-4" />, label: "Quick Chat" },
+    {
+      id: QUICK_CHAT_TAB_ID,
+      icon: <MessageCircle className="tw-size-4" />,
+      label: t("settings.agents.quickChatTab"),
+    },
   ];
 
   const selectedTabId = tabs.some((tab) => tab.id === selectedTab) ? selectedTab : tabs[0].id;
@@ -83,11 +88,11 @@ export const AgentSettings: React.FC = () => {
 
   return (
     <section className="tw-space-y-4">
-      <SettingSection label="Agents">
+      <SettingSection label={t("settings.agents.section")}>
         <SettingItem
           type="select"
-          title="Default backend"
-          description="Used when you click + to start a new session and for auto-spawn on mount. Selecting a model from the model picker also updates this."
+          title={t("settings.agents.defaultBackend")}
+          description={t("settings.agents.defaultBackendDesc")}
           value={activeBackendValue}
           onChange={(value) =>
             setSettings((cur) => ({ agentMode: { ...cur.agentMode, activeBackend: value } }))
@@ -107,7 +112,7 @@ export const AgentSettings: React.FC = () => {
             playNotificationSound(value);
           }}
           soundId={settings.agentMode.notificationSoundId}
-          soundOptions={NOTIFICATION_SOUND_OPTIONS}
+          soundOptions={getNotificationSoundOptions()}
         />
       </SettingSection>
 
@@ -176,9 +181,8 @@ const BackendPanel: React.FC<{
         <div className="tw-flex tw-items-start tw-gap-2 tw-rounded-lg tw-border tw-border-solid tw-px-3 tw-py-2.5 tw-text-xs tw-text-normal tw-bg-warning/10 tw-border-warning/40">
           <AlertTriangle className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-warning" />
           <div className="tw-leading-relaxed">
-            <span className="tw-font-semibold">Cloud service.</span> Self-Host Mode is on, but{" "}
-            {descriptor.displayName} runs in the cloud — your prompts leave your machine for a third
-            party. It stays available; use it only if you're comfortable with that.
+            <span className="tw-font-semibold">{t("settings.agents.cloudService")}</span>{" "}
+            {t("settings.agents.cloudWarning", { backend: descriptor.displayName })}
           </div>
         </div>
       )}

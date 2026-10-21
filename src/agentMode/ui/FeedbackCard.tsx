@@ -2,6 +2,7 @@ import type { FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
 import type { AgentChatMessage } from "@/agentMode/session/types";
 import { Button } from "@/components/ui/button";
 import { USER_SENDER } from "@/constants";
+import { t } from "@/i18n";
 import { Check, MessageSquareWarning } from "lucide-react";
 import React from "react";
 
@@ -44,7 +45,7 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
           <MessageSquareWarning className="tw-size-4 tw-shrink-0 tw-text-accent" />
         )}
         <div className="tw-truncate tw-text-sm tw-font-medium">
-          {report ? "Issue page opened" : "Report this to the Copilot team?"}
+          {report ? t("agentChat.feedback.issueOpened") : t("agentChat.feedback.reportToTeam")}
         </div>
       </div>
 
@@ -52,30 +53,28 @@ export const FeedbackCard: React.FC<FeedbackCardProps> = ({
         <div className="tw-break-words">{draft.title}</div>
         {!report && draft.userSaid ? (
           <div className="tw-line-clamp-2 tw-break-words tw-text-muted">
-            You said: “{draft.userSaid}”
+            {t("agentChat.feedback.youSaid", { text: draft.userSaid })}
           </div>
         ) : null}
-        {report ? (
-          <div className="tw-text-muted">Attach the report zip to the issue to send it.</div>
-        ) : null}
+        {report ? <div className="tw-text-muted">{t("agentChat.feedback.attachZip")}</div> : null}
       </div>
 
       <div className="vault-agent-divider-t tw-flex tw-flex-wrap tw-items-center tw-gap-2 tw-px-3 tw-py-2">
         {report ? (
           <a href={report.issueUrl} className="tw-text-xs">
-            Open the GitHub issue
+            {t("agentChat.feedback.openGithubIssue")}
           </a>
         ) : (
           <>
             <Button variant="ghost2" size="sm" className="tw-px-0" onClick={onTurnOff}>
-              Don&apos;t offer again
+              {t("agentChat.feedback.dontOfferAgain")}
             </Button>
             <div className="tw-ml-auto tw-flex tw-gap-2">
               <Button variant="secondary" size="sm" onClick={onDismiss}>
-                Dismiss
+                {t("agentChat.feedback.dismiss")}
               </Button>
               <Button variant="default" size="sm" onClick={onReview}>
-                Review & report
+                {t("agentChat.feedback.reviewAndReport")}
               </Button>
             </div>
           </>

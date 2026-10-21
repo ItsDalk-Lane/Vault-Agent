@@ -10,6 +10,7 @@ import { frozenOr, sliceMemo, sliceMemoByKey } from "@/utils/sliceCache";
 import type { Provider, ProviderOrigin } from "@/modelManagement/types/persisted";
 import type { VerificationResult } from "@/modelManagement/types/runtime";
 import type { ProviderAdapterRegistry } from "./adapters/ProviderAdapterRegistry";
+import { t } from "@/i18n";
 
 const EMPTY_LIST: readonly Provider[] = Object.freeze([]);
 
@@ -206,7 +207,7 @@ export class ProviderRegistry {
       return {
         ok: false,
         code: "missing_api_key",
-        message: "API key is missing. Configure this provider to enter it again.",
+        message: t("ui.model.err.missingApiKey"),
         checkedAt: Date.now(),
       };
     }

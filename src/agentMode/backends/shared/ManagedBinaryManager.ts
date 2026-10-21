@@ -9,6 +9,7 @@ import {
   type ManagedInstallRuntimeState,
 } from "@/agentMode/backends/shared/managedInstall";
 import type { ManagedInstallActionState } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import { logWarn } from "@/logger";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { validateExecutableFile } from "@/utils/detectBinary";
@@ -65,14 +66,14 @@ export abstract class ManagedBinaryManager<
     if (state.kind === "installing") {
       return {
         kind: "running",
-        label: state.progress?.label ?? "Starting…",
+        label: state.progress?.label ?? t("agentInfra.backend.status.starting"),
         percent: state.progress?.percent ?? 0,
       };
     }
     // Path validation holds the same lock; other windows must not start a competing update.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/368
     if (state.kind === "busy" || state.kind === "detecting")
-      return { kind: "running", label: "Configuring…" };
+      return { kind: "running", label: t("agentInfra.backend.status.configuring") };
     if (state.kind === "error" && state.operation === "install")
       return { kind: "error", message: state.message };
     return IDLE_ACTION_STATE;
@@ -197,13 +198,12 @@ export abstract class ManagedBinaryManager<
           this.automaticSelection = null;
         }
       });
-      if (attempted) notify(`${this.displayName} updated to ${pin}.`);
+      if (attempted)
+        notify(t("agentInfra.backend.managed.updated", { name: this.displayName, version: pin }));
     } catch (error) {
       if (!attempted) return;
       logWarn(`[AgentMode] Automatic ${this.displayName} update failed: ${error}`);
-      notify(
-        `${this.displayName} could not update. Your runtime selection was kept; retry from Configure.`
-      );
+      notify(t("agentInfra.backend.managed.updateFailed", { name: this.displayName }));
     } finally {
       this.automaticSelection = null;
     }
@@ -298,7 +298,9 @@ export abstract class ManagedBinaryManager<
       await this.removeManagedDownloads();
     } catch (error) {
       throw new Error(
-        `Your own binary is now in use, but Copilot could not remove its managed downloads: ${error instanceof Error ? error.message : String(error)}`
+        t("agentInfra.backend.managed.cleanupFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
       );
     }
   }

@@ -1,4 +1,5 @@
 import type { BackendAuth, BackendAuthStatus, BackendDescriptor } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { useSettingsValue } from "@/settings/model";
 import { Notice } from "obsidian";
@@ -171,7 +172,8 @@ export function useBackendAuthState(
       operationController.current = controller;
       authControllers.set(auth, controller);
       updateAuthSnapshot(auth, { signingIn, signingOut: !signingIn, url: null, failed: false });
-      if (signingIn) new Notice(`Opening your browser to sign in to ${descriptor.displayName}…`);
+      if (signingIn)
+        new Notice(t("agentInfra.session.signInOpening", { agent: descriptor.displayName }));
       const pending = auth[action](settingsRef.current, {
         signal: controller.signal,
         onUrl: (url: string) => {
@@ -188,9 +190,18 @@ export function useBackendAuthState(
           new Notice(
             succeeded
               ? signingIn
-                ? `Signed in to ${descriptor.displayName}${s.label ? ` as ${s.label}` : ""}.`
-                : `Signed out of ${descriptor.displayName}.`
-              : `${signingIn ? "Sign-in" : "Sign-out"} didn't complete. Please try again.`
+                ? s.label
+                  ? t("agentInfra.session.signedInAs", {
+                      agent: descriptor.displayName,
+                      label: s.label,
+                    })
+                  : t("agentInfra.session.signedIn", { agent: descriptor.displayName })
+                : t("agentInfra.session.signedOut", { agent: descriptor.displayName })
+              : t(
+                  signingIn
+                    ? "agentInfra.session.signInIncomplete"
+                    : "agentInfra.session.signOutIncomplete"
+                )
           );
         })
         .catch((e) => {
@@ -198,7 +209,9 @@ export function useBackendAuthState(
           updateAuthSnapshot(auth, { failed: true });
           logError(`[AgentMode] ${action} failed`, e);
           new Notice(
-            `${signingIn ? "Sign-in" : "Sign-out"} for ${descriptor.displayName} failed. Please try again.`
+            t(signingIn ? "agentInfra.session.signInFailed" : "agentInfra.session.signOutFailed", {
+              agent: descriptor.displayName,
+            })
           );
         })
         .finally(() => {

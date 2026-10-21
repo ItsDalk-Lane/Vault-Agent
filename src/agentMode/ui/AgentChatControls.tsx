@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/i18n";
 import { useSettingsValue } from "@/settings/model";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 import {
@@ -42,7 +43,7 @@ const NeedsMessageMenuItem: React.FC<{ children: React.ReactNode }> = ({ childre
         <DropdownMenuItem disabled>{children}</DropdownMenuItem>
       </div>
     </TooltipTrigger>
-    <TooltipContent side="left">Send a message to the chat first.</TooltipContent>
+    <TooltipContent side="left">{t("controls.sendFirst")}</TooltipContent>
   </Tooltip>
 );
 
@@ -102,11 +103,16 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
         {onNewChat && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost2" size="icon" title="New Chat" onClick={onNewChat}>
+              <Button
+                variant="ghost2"
+                size="icon"
+                title={t("controls.newChat")}
+                onClick={onNewChat}
+              >
                 <MessageCirclePlus className="tw-size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>New Chat</TooltipContent>
+            <TooltipContent>{t("controls.newChat")}</TooltipContent>
           </Tooltip>
         )}
         {historyAvailable && (
@@ -127,7 +133,7 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                 <Button
                   variant="ghost2"
                   size="icon"
-                  title="Chat History"
+                  title={t("controls.history")}
                   onClick={() => {
                     void onLoadHistory?.();
                   }}
@@ -136,13 +142,18 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                 </Button>
               </TooltipTrigger>
             </ChatHistoryPopover>
-            <TooltipContent>Chat History</TooltipContent>
+            <TooltipContent>{t("controls.history")}</TooltipContent>
           </Tooltip>
         )}
         {onNewChat && (
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost2" size="icon" title="More Actions" ref={trackMoreActionsBody}>
+              <Button
+                variant="ghost2"
+                size="icon"
+                title={t("controls.moreActions")}
+                ref={trackMoreActionsBody}
+              >
                 <MoreHorizontal className="tw-size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -150,12 +161,12 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
               {onCopyChatLink ? (
                 <DropdownMenuItem onSelect={() => void onCopyChatLink()}>
                   <Link />
-                  Copy chat link
+                  {t("controls.copyChatLink")}
                 </DropdownMenuItem>
               ) : (
                 <NeedsMessageMenuItem>
                   <Link />
-                  Copy chat link
+                  {t("controls.copyChatLink")}
                 </NeedsMessageMenuItem>
               )}
               {onSetChatBookmarked &&
@@ -167,13 +178,13 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                 ) : (
                   <NeedsMessageMenuItem>
                     <Bookmark />
-                    Add to bookmarks
+                    {t("controls.addBookmark")}
                   </NeedsMessageMenuItem>
                 ))}
               {!settings.autosaveChat && onSaveAsNote && (
                 <DropdownMenuItem onSelect={() => void onSaveAsNote()}>
                   <Download />
-                  Save chat as note
+                  {t("controls.saveAsNote")}
                 </DropdownMenuItem>
               )}
               {/* A report from here names the chat's agent, model and session, so only a host with a chat offers it.
@@ -181,7 +192,7 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
               {onReportError && (
                 <DropdownMenuItem onSelect={onReportError}>
                   <Bug />
-                  Report error
+                  {t("controls.reportError")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

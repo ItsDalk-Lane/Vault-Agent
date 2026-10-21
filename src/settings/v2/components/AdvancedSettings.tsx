@@ -5,6 +5,7 @@ import { DebuggingSupportSection } from "@/settings/v2/components/DebuggingSuppo
 import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
 import { useApp } from "@/context";
 import { usePlugin } from "@/contexts/PluginContext";
+import { t } from "@/i18n";
 import { getVaultAgentSaveData } from "@/settings/vaultAgentSaveData";
 import { KeychainService } from "@/services/keychainService";
 import {
@@ -28,14 +29,14 @@ import React, { useCallback, useEffect, useState } from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 
-const DESKTOP_UNAVAILABLE_FRAME_LOG_PATH = "(Agent Mode frame logs are desktop-only)";
-
 export const AdvancedSettings: React.FC = () => {
   const app = useApp();
   const plugin = usePlugin();
   const settings = useSettingsValue();
   const [forgetting, setForgetting] = useState(false);
-  const [frameLogPath, setFrameLogPath] = useState(DESKTOP_UNAVAILABLE_FRAME_LOG_PATH);
+  const [frameLogPath, setFrameLogPath] = useState(() =>
+    t("settings.advanced.frameLogDesktopOnlyPath")
+  );
 
   useEffect(() => {
     if (!isDesktopRuntime()) return;
@@ -57,7 +58,7 @@ export const AdvancedSettings: React.FC = () => {
 
   const handleReportIssue = useCallback(() => {
     if (!isDesktopRuntime()) {
-      new Notice("Reporting an issue is available on desktop only.");
+      new Notice(t("report.desktopOnly"));
       return;
     }
     void (async () => {
@@ -72,7 +73,7 @@ export const AdvancedSettings: React.FC = () => {
 
   const handleOpenFrameLog = useCallback(async () => {
     if (!isDesktopRuntime()) {
-      new Notice("Agent Mode frame logs are available on desktop only.");
+      new Notice(t("settings.advanced.frameLogsDesktopOnly"));
       return;
     }
     try {
@@ -80,22 +81,22 @@ export const AdvancedSettings: React.FC = () => {
       await acpFrameSink.open();
       setFrameLogPath(acpFrameSink.getPath());
     } catch {
-      new Notice("Failed to open Agent Mode frame log.");
+      new Notice(t("settings.advanced.frameLogOpenFailed"));
     }
   }, []);
 
   const handleClearFrameLog = useCallback(async () => {
     if (!isDesktopRuntime()) {
-      new Notice("Agent Mode frame logs are available on desktop only.");
+      new Notice(t("settings.advanced.frameLogsDesktopOnly"));
       return;
     }
     try {
       const { acpFrameSink } = await import("@/agentMode");
       await acpFrameSink.clear();
       setFrameLogPath(acpFrameSink.getPath());
-      new Notice("Agent Mode frame log cleared.");
+      new Notice(t("settings.advanced.frameLogCleared"));
     } catch {
-      new Notice("Failed to clear Agent Mode frame log.");
+      new Notice(t("settings.advanced.frameLogClearFailed"));
     }
   }, []);
 
@@ -106,13 +107,10 @@ export const AdvancedSettings: React.FC = () => {
       new ConfirmModal(
         app,
         () => resolve(true),
-        "This will remove all API keys for this vault from the Obsidian Keychain, data.json, " +
-          "and memory. You will need to re-enter them. Any credential backup files written " +
-          "during the v4 upgrade are left in place — delete those yourself once you no longer " +
-          "need them.",
-        "\u26A0\uFE0F Forget All Secrets",
-        "Remove",
-        "Cancel",
+        t("settings.advanced.forgetSecretsBody"),
+        t("settings.advanced.forgetSecretsTitle"),
+        t("settings.advanced.remove"),
+        t("common.cancel"),
         () => resolve(false)
       ).open();
     });
@@ -138,7 +136,7 @@ export const AdvancedSettings: React.FC = () => {
       );
     } catch (error) {
       logError("Failed to forget secrets.", error);
-      new Notice("Failed to remove API keys. Please try again.");
+      new Notice(t("settings.advanced.forgetSecretsFailed"));
     } finally {
       setForgetting(false);
     }
@@ -148,28 +146,29 @@ export const AdvancedSettings: React.FC = () => {
     <div className="tw-space-y-4">
       <LegacyChatPromptsNotice />
 
-      <SettingSection label="Others">
+      <SettingSection label={t("settings.advanced.others")}>
         <SettingItem
           type="custom"
-          title="API Key Storage"
+          title={t("settings.advanced.apiKeyStorage")}
           description={
             !keychainAvailable ? (
               <>
-                Update Obsidian to <code>1.11.4+</code> to use the{" "}
-                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>. Keys
-                cannot be loaded or saved in this build.
+                {t("settings.advanced.keychainUpdatePrefix")} <code>1.11.4+</code>{" "}
+                {t("settings.advanced.keychainUpdateMid")}{" "}
+                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>
+                {t("settings.advanced.keychainUpdateSuffix")}
               </>
             ) : keychainAppearsEmpty ? (
               <span className="tw-text-warning">
-                No API keys found in this device&apos;s{" "}
-                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>.
-                Re-enter your API keys in the relevant settings sections — each device has a
-                separate Keychain.
+                {t("settings.advanced.keychainEmptyPrefix")}{" "}
+                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>
+                {t("settings.advanced.keychainEmptySuffix")}
               </span>
             ) : (
               <>
-                API keys are stored in this device&apos;s{" "}
-                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>.
+                {t("settings.advanced.keychainStoredPrefix")}{" "}
+                <strong className="tw-font-semibold tw-text-normal">Obsidian Keychain</strong>
+                {t("settings.advanced.keychainStoredSuffix")}
               </>
             )
           }
@@ -183,7 +182,7 @@ export const AdvancedSettings: React.FC = () => {
             ) : (
               <div className="tw-inline-flex tw-items-center tw-gap-1.5 tw-rounded-md tw-border tw-border-border tw-bg-secondary tw-px-3 tw-py-1 tw-text-smallest tw-font-semibold tw-text-muted">
                 <Info className="tw-size-4" />
-                Unavailable
+                {t("settings.advanced.unavailable")}
               </div>
             )}
             <Button
@@ -192,14 +191,12 @@ export const AdvancedSettings: React.FC = () => {
               onClick={safeAsyncHandler(handleForgetAllSecrets)}
               disabled={forgetting || !keychainAvailable}
               title={
-                keychainAvailable
-                  ? undefined
-                  : "Update Obsidian to 1.11.4+ to delete Keychain entries."
+                keychainAvailable ? undefined : t("settings.advanced.keychainUnavailableTitle")
               }
               className="tw-gap-1.5"
             >
               <Trash2 className="tw-size-4" />
-              {forgetting ? "Removing..." : "Delete All Keys"}
+              {forgetting ? t("settings.advanced.removing") : t("settings.advanced.deleteAllKeys")}
             </Button>
           </div>
         </SettingItem>

@@ -2,22 +2,31 @@ import type { BackendId } from "@/agentMode/session/types";
 import type { AgentSelectRow, AgentSelectStatus } from "@/agentMode/ui/agentSelectModel";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { t, type MessageKey } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Check, LoaderCircle, type LucideIcon } from "lucide-react";
 import React from "react";
 
 interface StatusBadgeSpec {
-  label: string;
+  labelKey: MessageKey;
   variant: BadgeProps["variant"];
   Icon: LucideIcon;
 }
 
 const STATUS_BADGES: Partial<Record<AgentSelectStatus, StatusBadgeSpec>> = {
-  checking: { label: "Checking…", variant: "secondary", Icon: LoaderCircle },
-  installed: { label: "Installed", variant: "success", Icon: Check },
-  outdated: { label: "Update required", variant: "destructive", Icon: AlertTriangle },
-  "signed-out": { label: "Sign in required", variant: "secondary", Icon: AlertTriangle },
-  error: { label: "Error", variant: "destructive", Icon: AlertTriangle },
+  checking: { labelKey: "select.status.checking", variant: "secondary", Icon: LoaderCircle },
+  installed: { labelKey: "select.status.installed", variant: "success", Icon: Check },
+  outdated: {
+    labelKey: "select.status.updateRequired",
+    variant: "destructive",
+    Icon: AlertTriangle,
+  },
+  "signed-out": {
+    labelKey: "select.status.signInRequired",
+    variant: "secondary",
+    Icon: AlertTriangle,
+  },
+  error: { labelKey: "select.status.error", variant: "destructive", Icon: AlertTriangle },
 };
 
 interface AgentSelectViewProps {
@@ -73,7 +82,7 @@ export const AgentSelectView: React.FC<AgentSelectViewProps> = ({
         id={headingId}
         className="tw-m-0 tw-text-ui-medium tw-font-semibold tw-leading-tight tw-text-normal"
       >
-        Select your agent
+        {t("select.title")}
       </h3>
 
       <div role="radiogroup" aria-labelledby={headingId} className="tw-flex tw-flex-col tw-gap-1">
@@ -122,10 +131,10 @@ export const AgentSelectView: React.FC<AgentSelectViewProps> = ({
                         aria-hidden
                         className={cn("tw-size-3", row.status === "checking" && "tw-animate-spin")}
                       />
-                      {status.label}
+                      {t(status.labelKey)}
                     </Badge>
                   )}
-                  {row.recommended && <Badge variant="accent">Recommended</Badge>}
+                  {row.recommended && <Badge variant="accent">{t("select.recommended")}</Badge>}
                 </span>
                 <span className="tw-break-words tw-text-ui-smaller tw-text-muted">
                   {row.description}

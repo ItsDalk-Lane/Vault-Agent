@@ -3,6 +3,7 @@ import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SettingItem } from "@/components/ui/setting-item";
 import { SettingSection } from "@/components/ui/setting-section";
 import { useTab } from "@/contexts/TabContext";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { updateSetting, useSettingsValue, type SelfHostSearchProvider } from "@/settings/model";
 import { SelfHostWebSearchSettings } from "@/settings/v2/components/ui/SelfHostWebSearchSettings";
@@ -26,19 +27,17 @@ export const SelfHostSettings: React.FC = () => {
   return (
     <div className="tw-space-y-4">
       <div className="tw-flex tw-items-start tw-gap-2.5 tw-text-sm tw-text-muted">
-        <span className="tw-max-w-[620px]">
-          Bring your own infrastructure — self-hosted search, web-search providers, and models.
-        </span>
+        <span className="tw-max-w-[620px]">{t("settings.selfHost.intro")}</span>
       </div>
 
       <SettingSection>
         <SettingItem
           type="switch"
-          title="Enable Self-Host Mode"
+          title={t("settings.selfHost.enable")}
           description={
             <span className="tw-inline-flex tw-items-center tw-gap-1.5">
-              Route LLMs, embeddings and document understanding through your own endpoints.
-              <HelpTooltip content="Use your own infrastructure for full control and offline use." />
+              {t("settings.selfHost.enableDesc")}
+              <HelpTooltip content={t("settings.selfHost.enableDescTooltip")} />
             </span>
           }
           checked={selfHostOn}
@@ -52,16 +51,14 @@ export const SelfHostSettings: React.FC = () => {
         >
           <ShieldCheck className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-accent" />
           <div className="tw-leading-relaxed">
-            <span className="tw-font-semibold">Privacy-first.</span> While Self-Host is on, cloud
-            options (Claude, Codex, and BYOK cloud providers) are flagged with a warning and sorted
-            below your local / self-hosted models. They stay selectable — you decide whether to use
-            them.
+            <span className="tw-font-semibold">{t("settings.selfHost.privacyTitle")}</span>{" "}
+            {t("settings.selfHost.privacyBody")}
           </div>
         </div>
       </SettingSection>
 
       <div className={cn("tw-space-y-4", !selfHostOn && "tw-pointer-events-none tw-opacity-40")}>
-        <SettingSection label="Web search providers">
+        <SettingSection label={t("settings.selfHost.webSearchProviders")}>
           <SelfHostWebSearchSettings
             apiKeys={{
               firecrawl: settings.firecrawlApiKey,
@@ -78,13 +75,11 @@ export const SelfHostSettings: React.FC = () => {
           />
         </SettingSection>
 
-        <SettingSection label="Self-hosted models">
+        <SettingSection label={t("settings.selfHost.selfHostedModels")}>
           <SettingItem
             type="custom"
-            title="LLM & embedding models"
-            description={
-              <span>Add local / self-hosted models as an OpenAI-compatible endpoint in BYOK.</span>
-            }
+            title={t("settings.selfHost.modelsTitle")}
+            description={<span>{t("settings.selfHost.modelsDesc")}</span>}
           >
             <Button
               variant="secondary"
@@ -92,7 +87,7 @@ export const SelfHostSettings: React.FC = () => {
               onClick={() => setSelectedTab(BYOK_TAB_ID)}
               disabled={!selfHostOn}
             >
-              Open BYOK
+              {t("settings.selfHost.openByok")}
             </Button>
           </SettingItem>
         </SettingSection>

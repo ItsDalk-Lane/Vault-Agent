@@ -8,6 +8,7 @@ import {
   AuthenticationSection,
   type AuthenticationState,
 } from "@/agentMode/backends/shared/ui/AuthenticationSection";
+import { t } from "@/i18n";
 import React from "react";
 
 export type {
@@ -24,22 +25,25 @@ export const CodexConfigView: React.FC<CodexConfigViewProps> = (props) => (
   <ManagedBinaryConfigView
     authStatus={props.auth.status}
     {...props}
-    title="Configure Codex"
+    title={t("agentInfra.backend.codex.configureTitle")}
     binaryName={CODEX_BINARY_NAME}
-    managedDescription="Let Copilot download and manage Codex."
+    managedDescription={t("agentInfra.backend.codex.managedDescription")}
     customDescription={
       <>
-        Copilot supports <code>@agentclientprotocol/codex-acp</code> {CODEX_MIN_VERSION} or newer.
-        You manage its upgrades; Auto-detect checks the usual npm locations and your PATH.
+        {t("agentInfra.backend.codex.customDescriptionPrefix")}{" "}
+        <code>@agentclientprotocol/codex-acp</code>{" "}
+        {t("agentInfra.backend.codex.customDescriptionSuffix", { minimum: CODEX_MIN_VERSION })}
       </>
     }
     customPathPlaceholder={codexBinaryPathPlaceholder(process.platform)}
-    customPathNotFoundHint={`A supported ${CODEX_BINARY_NAME} adapter was not found. Install your own adapter or choose Managed by Vault Agent.`}
-    upgradeLabel="Upgrade"
+    customPathNotFoundHint={t("agentInfra.backend.codex.customPathNotFound", {
+      binary: CODEX_BINARY_NAME,
+    })}
+    upgradeLabel={t("agentInfra.backend.codex.upgradeLabel")}
   >
     <AuthenticationSection
       ready={props.state.kind === "ready"}
-      unavailableMessage="Set up a supported Codex adapter above to enable sign-in."
+      unavailableMessage={t("agentInfra.backend.codex.unavailable")}
       auth={props.auth}
     />
   </ManagedBinaryConfigView>

@@ -1,4 +1,5 @@
 import { AI_SENDER, USER_SENDER, WEB_SELECTED_TEXT_TAG } from "@/constants";
+import { t } from "@/i18n";
 import { logInfo, logWarn } from "@/logger";
 import { AgentMessageStore } from "@/agentMode/session/AgentMessageStore";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
@@ -759,7 +760,9 @@ export class AgentSession {
         return this.refuseTurn(
           placeholderId,
           turnStartedAtMs,
-          `This chat's model isn't enabled for ${this.displayNameFor(this.backendId)}. Pick an enabled model to continue.`
+          t("agentInfra.session.modelNotEnabled", {
+            agent: this.displayNameFor(this.backendId),
+          })
         );
       }
       // Project context, its updates and fanout history ride the next normal turn.
@@ -1020,13 +1023,13 @@ export class AgentSession {
   async releaseBackendSession(): Promise<void> {
     const backendSessionId = this.backendSessionId;
     if (!backendSessionId || !this.backend.closeSession) {
-      throw new Error("This agent does not support closing individual sessions.");
+      throw new Error(t("agentInfra.session.closeUnsupported"));
     }
     try {
       await this.backend.closeSession({ sessionId: backendSessionId });
     } catch (error) {
       if (error instanceof MethodUnsupportedError) {
-        throw new Error("This agent does not support closing individual sessions.");
+        throw new Error(t("agentInfra.session.closeUnsupported"));
       }
       throw error;
     }
@@ -1230,10 +1233,12 @@ export class AgentSession {
       if (decision) {
         const summary =
           decision === "approve"
-            ? "Approved plan"
+            ? t("agentInfra.session.approvedPlan")
             : decision === "reject"
-              ? "Rejected plan"
-              : `Requested plan changes: ${feedbackText ?? "Feedback sent"}`;
+              ? t("agentInfra.session.rejectedPlan")
+              : t("agentInfra.session.requestedPlanChanges", {
+                  feedback: feedbackText ?? t("agentInfra.session.planFeedbackSent"),
+                });
         // ACP may report only a titleless completion after the user decides.
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/41
         this.recordUserResponse(this.currentPlan.pendingToolCallId, summary);
@@ -2138,7 +2143,7 @@ function derivePlanTitleFromMarkdown(md: string): string {
     if (!trimmed) continue;
     return trimmed.replace(/^#+\s*/, "").slice(0, 80);
   }
-  return "Plan proposal";
+  return t("agentInfra.session.planProposal");
 }
 
 function mergeToolCallUpdate(
@@ -2151,7 +2156,7 @@ function mergeToolCallUpdate(
       : {
           kind: "tool_call",
           id: upd.toolCallId,
-          title: upd.title ?? "Tool call",
+          title: upd.title ?? t("agentInfra.session.toolCall"),
           status: "pending",
         };
   if (base.kind !== "tool_call") return base;

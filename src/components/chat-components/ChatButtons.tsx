@@ -7,6 +7,7 @@ import { cleanMessageForCopy } from "@/utils";
 import { LibraryBig, PenSquare, RotateCw, TextCursorInput, Trash2 } from "lucide-react";
 import { Platform } from "obsidian";
 import React from "react";
+import { t } from "@/i18n";
 
 interface ChatButtonsProps {
   message: ChatMessage;
@@ -36,24 +37,38 @@ export const ChatButtons: React.FC<ChatButtonsProps> = ({
       {message.sender === USER_SENDER ? (
         <>
           <CopyButton text={cleanMessageForCopy(message.message)} />
-          {onEdit && <MessageActionButton label="Edit" icon={PenSquare} onClick={onEdit} />}
-          {onDelete && <MessageActionButton label="Delete" icon={Trash2} onClick={onDelete} />}
+          {onEdit && (
+            <MessageActionButton label={t("ui.chat.edit")} icon={PenSquare} onClick={onEdit} />
+          )}
+          {onDelete && (
+            <MessageActionButton label={t("ui.chat.delete")} icon={Trash2} onClick={onDelete} />
+          )}
         </>
       ) : (
         <>
           {hasSources && (
-            <MessageActionButton label="Show Sources" icon={LibraryBig} onClick={onShowSources} />
+            <MessageActionButton
+              label={t("ui.chat.showSources")}
+              icon={LibraryBig}
+              onClick={onShowSources}
+            />
           )}
           <MessageActionButton
-            label="Insert / Replace at cursor"
+            label={t("ui.chat.insertAtCursor")}
             icon={TextCursorInput}
             onClick={onInsertIntoEditor}
           />
           <CopyButton text={cleanMessageForCopy(message.message)} />
           {onRegenerate && (
-            <MessageActionButton label="Regenerate" icon={RotateCw} onClick={onRegenerate} />
+            <MessageActionButton
+              label={t("ui.chat.regenerate")}
+              icon={RotateCw}
+              onClick={onRegenerate}
+            />
           )}
-          {onDelete && <MessageActionButton label="Delete" icon={Trash2} onClick={onDelete} />}
+          {onDelete && (
+            <MessageActionButton label={t("ui.chat.delete")} icon={Trash2} onClick={onDelete} />
+          )}
         </>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { compareSemver } from "@/utils/semver";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
@@ -62,14 +63,14 @@ export async function probeClaudeVersion(
     }));
   } catch {
     throw new Error(
-      `Could not verify the installed Claude Code version. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
+      t("agentInfra.backend.compat.claudeVerifyFailed", { minimum: CLAUDE_MIN_VERSION })
     );
   }
 
   const version = parseClaudeVersionOutput(stdout);
   if (!version) {
     throw new Error(
-      `Could not read the installed Claude Code version. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`
+      t("agentInfra.backend.compat.claudeReadFailed", { minimum: CLAUDE_MIN_VERSION })
     );
   }
   if (compareSemver(version, CLAUDE_MIN_VERSION) < 0) {
@@ -77,7 +78,10 @@ export async function probeClaudeVersion(
       kind: "incompatible",
       currentVersion: version,
       minVersion: CLAUDE_MIN_VERSION,
-      message: `Claude Code ${version} is not supported. Vault Agent requires Claude Code ${CLAUDE_MIN_VERSION} or newer.`,
+      message: t("agentInfra.backend.compat.claudeUnsupported", {
+        version,
+        minimum: CLAUDE_MIN_VERSION,
+      }),
     };
   }
   return { kind: "supported", version };

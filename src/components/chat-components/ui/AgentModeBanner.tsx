@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import React from "react";
+import { t } from "@/i18n";
 
 export interface AgentModeBannerProps {
   onOpenAgent: () => void;
@@ -24,18 +25,18 @@ export function AgentModeBanner({ onOpenAgent }: AgentModeBannerProps) {
         "hover:tw-bg-interactive-hover hover:tw-text-normal",
         "tw-whitespace-normal"
       )}
-      title="Open Vault Agent Chat"
+      title={t("ui.chat.openAgentChat")}
       onClick={onOpenAgent}
     >
       <span className="tw-flex tw-w-full tw-flex-col tw-gap-2">
         <span className="tw-flex tw-items-center tw-gap-2">
           <VaultAgentBrandIcon className="tw-size-6 tw-shrink-0 tw-text-accent" />
           <span className="tw-text-ui-larger tw-font-semibold tw-leading-tight">
-            Open Vault Agent Chat
+            {t("ui.chat.openAgentChat")}
           </span>
         </span>
         <span className="tw-text-ui-smaller tw-leading-normal tw-text-muted">
-          Find and edit notes with an agent.
+          {t("ui.chat.findEditNotes")}
         </span>
       </span>
     </Button>

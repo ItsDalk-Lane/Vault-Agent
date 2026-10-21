@@ -5,6 +5,7 @@ import type {
   ModeMapping,
   RawModeState,
 } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 
 export function buildCodexModeMapping(): ModeMapping {
   return {
@@ -39,9 +40,9 @@ export function buildCodexModeState(
   return {
     current: CURRENT_MODE[`${modeState.currentModeId}/${collaboration.currentValue}`] ?? null,
     options: [
-      { value: "default", label: "Default" },
-      { value: "plan", label: "Plan" },
-      { value: "auto", label: "Auto" },
+      { value: "default", label: t("agentInfra.sdk.mode.default") },
+      { value: "plan", label: t("agentInfra.sdk.mode.plan") },
+      { value: "auto", label: t("agentInfra.sdk.mode.auto") },
     ],
     apply: {
       default: {

@@ -6,6 +6,7 @@ import {
 } from "@/constants";
 import {
   normalizeRootFolders,
+  sanitizeSettings,
   resetSettings,
   sanitizeEnvOverrides,
   sanitizeBuiltinPreferences,
@@ -19,6 +20,29 @@ import {
 import { CustomModel } from "@/aiParams";
 
 describe("model", () => {
+  describe("sanitizeSettings()", () => {
+    it("defaults a missing language to auto", () => {
+      const withoutLanguage: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+      delete withoutLanguage.language;
+      expect(sanitizeSettings(withoutLanguage as unknown as typeof DEFAULT_SETTINGS).language).toBe(
+        "auto"
+      );
+    });
+
+    it("keeps a supported language", () => {
+      expect(sanitizeSettings({ ...DEFAULT_SETTINGS, language: "zh-CN" }).language).toBe("zh-CN");
+    });
+
+    it("replaces an unsupported language with auto", () => {
+      expect(
+        sanitizeSettings({
+          ...DEFAULT_SETTINGS,
+          language: "fr" as (typeof DEFAULT_SETTINGS)["language"],
+        }).language
+      ).toBe("auto");
+    });
+  });
+
   describe("sanitizeQaExclusions()", () => {
     it("defaults to copilot root when value is not a string", () => {
       expect(sanitizeQaExclusions(undefined)).toBe(

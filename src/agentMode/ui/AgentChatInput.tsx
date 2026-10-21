@@ -19,6 +19,7 @@ import ChatInput, {
 import { useActiveWebTabState } from "@/components/chat-components/hooks/useActiveWebTabState";
 import { ACTIVE_WEB_TAB_MARKER, EVENT_NAMES } from "@/constants";
 import { EventTargetContext } from "@/context";
+import { t } from "@/i18n";
 import { logError, logWarn } from "@/logger";
 import {
   isFanout,
@@ -277,7 +278,7 @@ export const AgentChatInput = memo(function AgentChatInput({
         await turn;
       } catch (error) {
         logError("Error sending agent message:", error);
-        new Notice("Failed to send message. Please try again.");
+        new Notice(t("notice.sendFailed"));
       } finally {
         setLoading(false);
       }
@@ -325,9 +326,7 @@ export const AgentChatInput = memo(function AgentChatInput({
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/634
       const images = isCompactCommand(resolvedText) ? [] : selectedImages;
       if (images.length > 0 && unsupportedImageModelLabel) {
-        new Notice(
-          `${unsupportedImageModelLabel} doesn't support images. Switch to a vision-capable model to send images.`
-        );
+        new Notice(t("notice.imageModelUnsupported", { model: unsupportedImageModelLabel }));
         return;
       }
 
@@ -353,7 +352,7 @@ export const AgentChatInput = memo(function AgentChatInput({
       // Failed image reads must not turn an image-only message into an empty request.
       // https://github.com/logancyang/obsidian-copilot/issues/2850
       if (images.length > 0 && !resolvedText && content.length === 0) {
-        new Notice("Could not read the attached images. Please attach them again.");
+        new Notice(t("notice.imagesUnreadable"));
         return;
       }
 
@@ -450,7 +449,7 @@ export const AgentChatInput = memo(function AgentChatInput({
           ref={chatInputRef}
           key={chatInputId}
           isAgentMode
-          placeholder="Ask anything • @ to add context • / for commands"
+          placeholder={t("home.placeholder")}
           inputMessage={inputMessage}
           setInputMessage={setInputMessage}
           handleSendMessage={safeAsyncHandler((meta) => handleSendMessage(meta?.webTabs))}

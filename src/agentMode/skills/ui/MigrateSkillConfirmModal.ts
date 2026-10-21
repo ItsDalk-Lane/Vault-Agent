@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { App, Modal } from "obsidian";
 import type { BackendId, Skill } from "@/agentMode/skills/types";
@@ -65,15 +66,16 @@ export class MigrateSkillConfirmModal extends Modal {
     if (this.args.resolvedCanonicalName !== this.args.skill.name) {
       contentEl.createEl("p", {
         cls: "tw-m-0 tw-text-ui-smaller tw-text-warning",
-        text:
-          `The name "${this.args.skill.name}" is already taken in your shared folder. ` +
-          `The migrated skill will be named "${this.args.resolvedCanonicalName}".`,
+        text: t("agentInfra.skills.migrate.nameTaken", {
+          name: this.args.skill.name,
+          resolved: this.args.resolvedCanonicalName,
+        }),
       });
     }
 
     const willHeader = contentEl.createDiv({
       cls: "tw-text-ui-smaller tw-text-muted",
-      text: "Copilot will:",
+      text: t("agentInfra.skills.migrate.willDo"),
     });
     willHeader.setAttr("data-test-id", "migrate-confirm-will-header");
     const actionList = contentEl.createEl("ul", {
@@ -87,7 +89,7 @@ export class MigrateSkillConfirmModal extends Modal {
       const body = li.createSpan({ cls: "tw-flex-1" });
       body.createSpan({
         cls: "tw-inline-block tw-min-w-[64px] tw-text-muted",
-        text: line.verb,
+        text: verbLabel(line.verb),
       });
       body.createSpan({ text: ` ${line.detail}` });
       if (line.note !== undefined && line.note.length > 0) {
@@ -116,14 +118,14 @@ export class MigrateSkillConfirmModal extends Modal {
     checkbox.addEventListener("change", () => {
       this.suppressFuture = checkbox.checked;
     });
-    checkboxRow.createSpan({ text: "Don't ask again for future migrations" });
+    checkboxRow.createSpan({ text: t("agentInfra.skills.migrate.dontAsk") });
 
     const buttonRow = contentEl.createDiv({
       cls: "tw-flex tw-justify-end tw-gap-2 tw-pt-2",
     });
     const cancelBtn = buttonRow.createEl("button", {
       cls: "mod-secondary",
-      text: "Cancel",
+      text: t("common.cancel"),
     });
     cancelBtn.addEventListener("click", () => {
       this.close();
@@ -154,84 +156,96 @@ function buildTitle(args: MigrateSkillConfirmModalArgs): string {
   const name = args.skill.name;
   switch (args.variant) {
     case "project-single":
-      return `Move "${name}" to share with ${args.targetAgentDisplayName ?? "another agent"}?`;
+      return t("agentInfra.skills.migrate.title.projectSingle", {
+        name,
+        target: args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.anotherAgent"),
+      });
     case "project-mirrored":
-      return `Consolidate "${name}" and share with ${args.targetAgentDisplayName ?? "another agent"}?`;
+      return t("agentInfra.skills.migrate.title.projectMirrored", {
+        name,
+        target: args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.anotherAgent"),
+      });
     case "disable-last-agent":
-      return `Move "${name}" to your shared folder before disabling ${
-        args.targetAgentDisplayName ?? "this agent"
-      }?`;
+      return t("agentInfra.skills.migrate.title.disableLastAgent", {
+        name,
+        target: args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.thisAgent"),
+      });
     case "proactive-consolidate":
-      return `Consolidate "${name}" into your shared folder?`;
+      return t("agentInfra.skills.migrate.title.proactiveConsolidate", { name });
   }
 }
 
 function buildBody(args: MigrateSkillConfirmModalArgs): string {
-  const target = args.targetAgentDisplayName ?? "another agent";
+  const target = args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.anotherAgent");
   switch (args.variant) {
     case "project-single":
-      return (
-        `This skill currently lives only in your ${sourceAgentLabel(args)} project folder.\n` +
-        `To enable it for ${target}, Copilot needs to move it to a shared location\n` +
-        `so both agents stay in sync.`
-      );
+      return t("agentInfra.skills.migrate.body.projectSingle", {
+        source: sourceAgentLabel(args),
+        target,
+      });
     case "project-mirrored":
-      return `The same skill is currently duplicated in ${pluralFolders(args.sourceDuplicatePaths.length)}:`;
+      return t("agentInfra.skills.migrate.body.projectMirrored", {
+        folders: pluralFolders(args.sourceDuplicatePaths.length),
+      });
     case "disable-last-agent":
-      return `This skill currently lives only in:`;
+      return t("agentInfra.skills.migrate.body.disableLastAgent");
     case "proactive-consolidate":
-      return `The same skill is currently duplicated in:`;
+      return t("agentInfra.skills.migrate.body.proactiveConsolidate");
   }
 }
 
 function buildOutro(args: MigrateSkillConfirmModalArgs): string | null {
-  const source = args.targetAgentDisplayName ?? "this agent";
+  const source = args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.thisAgent");
   switch (args.variant) {
     case "project-single":
-      return (
-        `You can still edit the skill exactly as before — there's just one copy now,\n` +
-        `so changes are visible to both agents immediately.`
-      );
+      return t("agentInfra.skills.migrate.outro.projectSingle");
     case "project-mirrored":
-      return `After this, edits to the skill are visible to all ${args.actionLines.filter((l) => l.verb === "Create").length} agents.`;
+      return t("agentInfra.skills.migrate.outro.projectMirrored", {
+        count: args.actionLines.filter((l) => l.verb === "Create").length,
+      });
     case "disable-last-agent":
-      return (
-        `If you disable ${source}, the file has nowhere to live in its project folder.\n` +
-        `Copilot can preserve it by moving the skill to your shared skills folder with\n` +
-        `no agents enabled — you can toggle agents back on any time, or delete it later\n` +
-        `from the Skills tab.`
-      );
+      return t("agentInfra.skills.migrate.outro.disableLastAgent", { source });
     case "proactive-consolidate":
-      return (
-        `Editing, renaming, or deleting one copy would silently diverge from the others.\n` +
-        `Copilot can consolidate them into a single shared location, with a shortcut in\n` +
-        `each agent folder so all agents still see the skill.\n\n` +
-        `After this, your edits stay in sync across all agents automatically.`
-      );
+      return t("agentInfra.skills.migrate.outro.proactiveConsolidate");
   }
 }
 
 function buildConfirmLabel(args: MigrateSkillConfirmModalArgs): string {
-  const target = args.targetAgentDisplayName ?? "agent";
+  const target = args.targetAgentDisplayName ?? t("agentInfra.skills.migrate.agent");
   switch (args.variant) {
     case "project-single":
     case "project-mirrored":
-      return `Move and enable ${target}`;
+      return t("agentInfra.skills.migrate.confirmMoveEnable", { target });
     case "disable-last-agent":
-      return `Move and disable ${target}`;
+      return t("agentInfra.skills.migrate.confirmMoveDisable", { target });
     case "proactive-consolidate":
-      return "Consolidate";
+      return t("agentInfra.skills.migrate.confirmConsolidate");
   }
 }
 
 function sourceAgentLabel(args: MigrateSkillConfirmModalArgs): string {
-  if (args.skill.location.kind !== "project") return "agent";
+  if (args.skill.location.kind !== "project") return t("agentInfra.skills.migrate.agent");
   const [first] = args.skill.location.agentDirs;
-  return first ?? "agent";
+  return first ?? t("agentInfra.skills.migrate.agent");
 }
 
 function pluralFolders(n: number): string {
-  if (n === 2) return "two project folders";
-  if (n === 3) return "three project folders";
-  return `${n} project folders`;
+  if (n === 2) return t("agentInfra.skills.migrate.foldersTwo");
+  if (n === 3) return t("agentInfra.skills.migrate.foldersThree");
+  return t("agentInfra.skills.migrate.foldersMany", { count: n });
+}
+
+function verbLabel(verb: string): string {
+  switch (verb) {
+    case "Move":
+      return t("agentInfra.skills.migrate.verb.move");
+    case "Delete":
+      return t("agentInfra.skills.migrate.verb.delete");
+    case "Create":
+      return t("agentInfra.skills.migrate.verb.create");
+    case "Not create":
+      return t("agentInfra.skills.migrate.verb.notCreate");
+    default:
+      return verb;
+  }
 }

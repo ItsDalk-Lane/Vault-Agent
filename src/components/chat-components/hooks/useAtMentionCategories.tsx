@@ -4,6 +4,7 @@ import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { FileText, Folder, Globe, Image, Bot } from "lucide-react";
 import { TypeaheadOption } from "@/components/chat-components/TypeaheadMenuContent";
 import type { WebTabContext } from "@/types/message";
+import { t } from "@/i18n";
 
 export type AtMentionCategory =
   | "agents"
@@ -35,54 +36,58 @@ export interface CategoryOption extends TypeaheadOption {
   isAction?: boolean;
 }
 
-const AGENTS_CATEGORY: CategoryOption = {
-  key: "agents",
-  title: "Agents",
-  subtitle: "Ask another coding agent this turn",
-  category: "agents",
-  icon: <Bot className="tw-size-4" />,
-};
+function buildAgentsCategory(): CategoryOption {
+  return {
+    key: "agents",
+    title: t("ui.chat.agents"),
+    subtitle: t("ui.chat.agentsDesc"),
+    category: "agents",
+    icon: <Bot className="tw-size-4" />,
+  };
+}
 
-const CATEGORY_OPTIONS: CategoryOption[] = [
-  {
-    key: "notes",
-    title: "Notes",
-    subtitle: "Reference notes in your vault",
-    category: "notes",
-    icon: <FileText className="tw-size-4" />,
-  },
-  {
-    key: "webTabs",
-    title: "Web Tabs",
-    subtitle: "Reference open browser tabs",
-    category: "webTabs",
-    icon: <Globe className="tw-size-4" />,
-  },
-  {
-    key: "folders",
-    title: "Folders",
-    subtitle: "Reference vault folders",
-    category: "folders",
-    icon: <Folder className="tw-size-4" />,
-  },
-  {
-    key: "images",
-    title: "Images",
-    subtitle: "Attach image files",
-    category: "images",
-    icon: <Image className="tw-size-4" />,
-    isAction: true,
-  },
-];
+function buildCategoryOptions(): CategoryOption[] {
+  return [
+    {
+      key: "notes",
+      title: t("ui.chat.notes"),
+      subtitle: t("ui.chat.notesDesc"),
+      category: "notes",
+      icon: <FileText className="tw-size-4" />,
+    },
+    {
+      key: "webTabs",
+      title: t("ui.chat.webTabs"),
+      subtitle: t("ui.chat.webTabsDesc"),
+      category: "webTabs",
+      icon: <Globe className="tw-size-4" />,
+    },
+    {
+      key: "folders",
+      title: t("ui.chat.folders"),
+      subtitle: t("ui.chat.foldersDesc"),
+      category: "folders",
+      icon: <Folder className="tw-size-4" />,
+    },
+    {
+      key: "images",
+      title: t("ui.chat.images"),
+      subtitle: t("ui.chat.imagesDesc"),
+      category: "images",
+      icon: <Image className="tw-size-4" />,
+      isAction: true,
+    },
+  ];
+}
 
 export function useAtMentionCategories(showAgents: boolean = false): CategoryOption[] {
   return useMemo(() => {
-    const base = CATEGORY_OPTIONS.filter((cat) => {
+    const base = buildCategoryOptions().filter((cat) => {
       if (cat.category === "webTabs") {
         return isDesktopRuntime();
       }
       return true;
     });
-    return showAgents ? [AGENTS_CATEGORY, ...base] : base;
+    return showAgents ? [buildAgentsCategory(), ...base] : base;
   }, [showAgents]);
 }

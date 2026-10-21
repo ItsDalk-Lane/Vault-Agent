@@ -6,6 +6,7 @@ import {
   useSessionBackendDescriptor,
 } from "@/agentMode/ui/useBackendDescriptor";
 import { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
+import { t } from "@/i18n";
 import { logError } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { Notice } from "obsidian";
@@ -45,27 +46,36 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
   const handleUpgrade = React.useCallback(() => {
     const action = descriptor.managedInstall;
     if (!action || managedInstall.kind === "running") return;
-    new Notice(`Upgrading ${descriptor.displayName}…`);
+    new Notice(t("agentChat.modeStatus.upgradingNotice", { name: descriptor.displayName }));
     action
       .run(plugin)
-      .then(() => new Notice(`${descriptor.displayName} upgraded.`))
+      .then(
+        () => new Notice(t("agentChat.modeStatus.upgradedNotice", { name: descriptor.displayName }))
+      )
       .catch((e) => {
         logError("[AgentMode] upgrade failed", e);
-        new Notice(`Failed to upgrade ${descriptor.displayName}. See console for details.`);
+        new Notice(t("agentChat.modeStatus.upgradeFailed", { name: descriptor.displayName }));
       });
   }, [descriptor, plugin, managedInstall.kind]);
 
   if (installState.kind === "absent") {
     return (
       <AgentStatusCard
-        message={`${descriptor.displayName} not installed`}
-        action={{ label: `Install ${descriptor.displayName}`, onClick: onInstallClick }}
+        message={t("agentChat.modeStatus.notInstalled", { name: descriptor.displayName })}
+        action={{
+          label: t("agentChat.modeStatus.install", { name: descriptor.displayName }),
+          onClick: onInstallClick,
+        }}
       />
     );
   }
 
   if (installState.kind === "checking") {
-    return <AgentStatusCard message={`Checking ${descriptor.displayName} version…`} />;
+    return (
+      <AgentStatusCard
+        message={t("agentChat.modeStatus.checkingVersion", { name: descriptor.displayName })}
+      />
+    );
   }
 
   if (installState.kind === "incompatible") {
@@ -79,10 +89,10 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/410
         summary={
           upgrading
-            ? `Updating ${descriptor.displayName}…`
+            ? t("agentChat.modeStatus.updating", { name: descriptor.displayName })
             : failed
-              ? `${descriptor.displayName} update failed`
-              : `${descriptor.displayName} update required`
+              ? t("agentChat.modeStatus.updateFailed", { name: descriptor.displayName })
+              : t("agentChat.modeStatus.updateRequired", { name: descriptor.displayName })
         }
         message={
           upgrading ? managedInstall.label : failed ? managedInstall.message : installState.message
@@ -90,11 +100,11 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
         action={{
           label: canUpgrade
             ? upgrading
-              ? "Upgrading…"
+              ? t("agentChat.modeStatus.upgrading")
               : failed
-                ? "Retry"
-                : "Upgrade"
-            : `Configure ${descriptor.displayName}`,
+                ? t("agentChat.modeStatus.retry")
+                : t("agentChat.modeStatus.upgrade")
+            : t("agentChat.modeStatus.configure", { name: descriptor.displayName }),
           disabled: canUpgrade && upgrading,
           onClick: canUpgrade ? handleUpgrade : () => descriptor.openInstallUI(plugin),
         }}
@@ -106,10 +116,10 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
     return (
       <AgentStatusCard
         tone="error"
-        summary={`${descriptor.displayName} setup error`}
+        summary={t("agentChat.modeStatus.setupError", { name: descriptor.displayName })}
         message={installState.message}
         action={{
-          label: `Configure ${descriptor.displayName}`,
+          label: t("agentChat.modeStatus.configure", { name: descriptor.displayName }),
           onClick: () => descriptor.openInstallUI(plugin),
         }}
       />
@@ -121,15 +131,15 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
       <AgentStatusCard
         message={
           auth.signingIn
-            ? `Signing in to ${descriptor.displayName}…`
-            : `${descriptor.displayName} not signed in`
+            ? t("agentChat.modeStatus.signingIn", { name: descriptor.displayName })
+            : t("agentChat.modeStatus.notSignedIn", { name: descriptor.displayName })
         }
         action={
           auth.signingIn
             ? auth.url
-              ? { label: "Open sign-in page", href: auth.url }
+              ? { label: t("agentChat.modeStatus.openSignInPage"), href: auth.url }
               : undefined
-            : { label: "Sign in", onClick: auth.signIn }
+            : { label: t("agentChat.modeStatus.signIn"), onClick: auth.signIn }
         }
       />
     );
@@ -150,9 +160,9 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
     return (
       <AgentStatusCard
         layout="row"
-        message={`${descriptor.displayName} config has changed`}
+        message={t("agentChat.modeStatus.configChanged", { name: descriptor.displayName })}
         action={{
-          label: reloading ? "Reloading…" : "Reload",
+          label: reloading ? t("agentChat.modeStatus.reloading") : t("agentChat.modeStatus.reload"),
           disabled: reloading,
           onClick: handleReload,
         }}
@@ -175,9 +185,9 @@ export const AgentModeStatus: React.FC<Props> = ({ manager, plugin, onInstallCli
   return (
     <AgentStatusCard
       tone="error"
-      summary={`${descriptor.displayName} session error`}
+      summary={t("agentChat.modeStatus.sessionError", { name: descriptor.displayName })}
       message={bootError}
-      action={{ label: "Retry", onClick: handleRetry }}
+      action={{ label: t("agentChat.modeStatus.retry"), onClick: handleRetry }}
     />
   );
 };

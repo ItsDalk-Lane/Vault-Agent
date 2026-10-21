@@ -1,5 +1,6 @@
 import type { QueuedAgentMessage } from "@/agentMode/session/AgentInputDraftStore";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { Clock, X } from "lucide-react";
 import React from "react";
 
@@ -17,8 +18,8 @@ export const QueuedMessageList: React.FC<QueuedMessageListProps> = ({ messages, 
         const label =
           m.text ||
           (m.promptContent?.some((block) => block.type === "image")
-            ? "Image attachment"
-            : "Empty message");
+            ? t("agentChat.queuedMessage.imageAttachment")
+            : t("agentChat.queuedMessage.emptyMessage"));
         return (
           <div
             key={m.id}
@@ -34,7 +35,7 @@ export const QueuedMessageList: React.FC<QueuedMessageListProps> = ({ messages, 
               size="fit"
               className="tw-shrink-0 tw-text-muted hover:tw-text-error"
               onClick={() => onRemove(m.id)}
-              aria-label="Remove queued message"
+              aria-label={t("agentChat.queuedMessage.remove")}
             >
               <X className="tw-size-3" />
             </Button>

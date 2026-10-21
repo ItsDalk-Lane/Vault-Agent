@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import * as React from "react";
 
 type ChangeKind = "inserted" | "deleted" | "modified";
@@ -154,7 +155,10 @@ export function ChangeScroller({ navigation, children }: ChangeScrollerProps): R
               // eslint-disable-next-line @eslint-react/no-array-index-key -- ticks are rebuilt whole from the marks, so position is a tick identity
               key={index}
               type="button"
-              aria-label={`Go to change ${index + 1} of ${layout.ticks.length}`}
+              aria-label={t("agentChat.turnDiff.goToChange", {
+                index: index + 1,
+                total: layout.ticks.length,
+              })}
               aria-current={index === navigation.current ? "true" : undefined}
               className={cn(
                 "tw-absolute tw-m-0 tw-min-h-1 tw-cursor-pointer !tw-rounded-sm tw-border-none tw-p-0 !tw-shadow-none",

@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 export class MethodUnsupportedError extends Error {
   constructor(method: string) {
     super(`Agent does not implement ${method}`);
@@ -6,7 +8,7 @@ export class MethodUnsupportedError extends Error {
 }
 
 export class AuthRequiredError extends Error {
-  constructor(message = "Not signed in. Use the Sign in button above to continue.") {
+  constructor(message = t("agentInfra.session.notSignedIn")) {
     super(message);
     this.name = "AuthRequiredError";
   }

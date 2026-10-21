@@ -1,3 +1,5 @@
+import { t, type MessageKey } from "@/i18n";
+
 interface Strike {
   readonly hz: readonly number[];
   readonly at: number;
@@ -45,10 +47,19 @@ export type NotificationSoundId = keyof typeof NOTIFICATION_SOUNDS;
 
 export const DEFAULT_NOTIFICATION_SOUND_ID: NotificationSoundId = "piano";
 
-export const NOTIFICATION_SOUND_OPTIONS: ReadonlyArray<{ label: string; value: string }> =
-  Object.freeze(
-    Object.entries(NOTIFICATION_SOUNDS).map(([value, spec]) => ({ label: spec.label, value }))
-  );
+const NOTIFICATION_SOUND_LABEL_KEYS: Record<NotificationSoundId, MessageKey> = {
+  piano: "sound.piano",
+  marimba: "sound.marimba",
+  bell: "sound.bell",
+  doorbell: "sound.doorbell",
+};
+
+export function getNotificationSoundOptions(): ReadonlyArray<{ label: string; value: string }> {
+  return Object.entries(NOTIFICATION_SOUNDS).map(([value]) => ({
+    label: t(NOTIFICATION_SOUND_LABEL_KEYS[value as NotificationSoundId]),
+    value,
+  }));
+}
 
 export function isNotificationSoundId(value: unknown): value is NotificationSoundId {
   // Persisted ids are untrusted: Object.prototype names must not resolve as sounds.

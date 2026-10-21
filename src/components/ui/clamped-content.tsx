@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import React, { useId, useLayoutEffect, useRef, useState } from "react";
+import { t } from "@/i18n";
 
 const OVERFLOW_TOLERANCE_PX = 1;
 
@@ -61,7 +62,7 @@ export const ClampedContent: React.FC<ClampedContentProps> = ({ collapsedClassNa
             className="tw--ml-1 tw-py-1"
             onClick={() => setIsExpanded((expanded) => !expanded)}
           >
-            {isExpanded ? "Show less" : "Show more"}
+            {isExpanded ? t("ui.content.showLess") : t("ui.content.showMore")}
             {isExpanded ? (
               <ChevronUp className="tw-size-icon-xs" />
             ) : (

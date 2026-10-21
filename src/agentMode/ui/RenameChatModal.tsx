@@ -1,6 +1,7 @@
 import { ReactModal } from "@/components/modals/ReactModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 import { App } from "obsidian";
 import React, { useState } from "react";
@@ -28,7 +29,7 @@ export function RenameChatForm({
       }}
     >
       <Input
-        aria-label="Chat title"
+        aria-label={t("agentChat.renameChat.chatTitle")}
         value={title}
         autoFocus
         onFocus={(event) => event.currentTarget.select()}
@@ -36,10 +37,10 @@ export function RenameChatForm({
       />
       <div className="tw-flex tw-justify-end tw-gap-2">
         <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={!trimmedTitle}>
-          Save
+          {t("agentChat.save")}
         </Button>
       </div>
     </form>
@@ -52,7 +53,7 @@ export class RenameChatModal extends ReactModal {
     private readonly currentTitle: string,
     private readonly onRename: (title: string) => Promise<void>
   ) {
-    super(app, "Rename chat");
+    super(app, t("agentChat.renameChat.title"));
   }
 
   protected renderContent(close: () => void): React.ReactElement {

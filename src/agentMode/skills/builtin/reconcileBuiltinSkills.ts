@@ -1,4 +1,5 @@
 import type { InstallState } from "@/agentMode/session/types";
+import { t } from "@/i18n";
 import type { VaultAgentSettings } from "@/settings/model";
 import { joinPosix } from "@/utils/pathUtils";
 import {
@@ -29,7 +30,8 @@ export async function reconcileBuiltinSkills(options: ReconcileBuiltinOptions): 
   // Retired skills are removed regardless of user overrides so cleanup can retry. https://github.com/logancyang/obsidian-copilot/issues/3022
   for (const skill of RETIRED_BUILTIN_SKILLS) {
     const result = await removeSeededBuiltin(folder, skill.name, fs);
-    if (result === "failed") errors.push(`Could not remove retired built-in skill ${skill.name}.`);
+    if (result === "failed")
+      errors.push(t("agentInfra.skills.builtin.removeRetiredFailed", { name: skill.name }));
   }
   const enabledAgents: Record<string, string[]> = {};
   for (const skill of ALL_MANAGED_SKILLS) {
@@ -55,14 +57,15 @@ export async function reconcileBuiltinSkills(options: ReconcileBuiltinOptions): 
     if (!supportFilesPresent)
       errors.push(
         state === "collision"
-          ? `A user-owned skill occupies ${skill.name}.`
-          : `Could not install built-in skill ${skill.name}.`
+          ? t("agentInfra.skills.builtin.occupies", { name: skill.name })
+          : t("agentInfra.skills.builtin.installFailed", { name: skill.name })
       );
   }
   for (const skill of ALL_MANAGED_SKILLS) {
     if (enabledAgents[skill.name].length > 0) continue;
     const result = await removeSeededBuiltin(folder, skill.name, fs);
-    if (result === "failed") errors.push(`Could not remove disabled built-in skill ${skill.name}.`);
+    if (result === "failed")
+      errors.push(t("agentInfra.skills.builtin.removeDisabledFailed", { name: skill.name }));
   }
   if (errors.length > 0) throw new Error(errors.join(" "));
 }

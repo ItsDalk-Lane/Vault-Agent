@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { createUrlItem, normalizeUrl, resolveInputUrls, type UrlItem } from "@/utils/urlTagUtils";
 import { Link, Plus, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
+import { t } from "@/i18n";
 
 interface AddUrlPopoverProps {
   existingUrls: string[];
@@ -79,11 +80,11 @@ export function AddUrlPopover({ existingUrls, onAdd, container, trigger }: AddUr
       <PopoverContent align="start" container={container} className="tw-w-80 tw-p-0">
         <div className="tw-flex tw-items-center tw-gap-2 tw-border-x-0 tw-border-b tw-border-t-0 tw-border-solid tw-border-border tw-px-3.5 tw-pb-2.5 tw-pt-3 tw-text-sm tw-font-semibold tw-text-normal">
           <Link className="tw-size-3.5" />
-          Add URLs
+          {t("ui.project.addUrls")}
           <Button
             variant="ghost2"
             size="icon"
-            aria-label="Close"
+            aria-label={t("ui.common.close")}
             onClick={resetAndClose}
             className="tw-ml-auto"
           >
@@ -92,13 +93,17 @@ export function AddUrlPopover({ existingUrls, onAdd, container, trigger }: AddUr
         </div>
 
         <div className="tw-flex tw-flex-col tw-gap-2 tw-px-3.5 tw-py-3">
-          <UrlInputRow autoFocus onSubmit={stageFromText} placeholder="Enter a URL…" />
+          <UrlInputRow
+            autoFocus
+            onSubmit={stageFromText}
+            placeholder={t("ui.project.urlPlaceholder")}
+          />
 
           <div className="tw-flex tw-h-28 tw-flex-col tw-gap-1.5 tw-overflow-y-auto">
             {pending.length === 0 ? (
               <div className="tw-flex tw-flex-1 tw-flex-col tw-items-center tw-justify-center tw-gap-1 tw-text-center tw-text-xs tw-text-faint">
                 <Link className="tw-mb-1 tw-size-5" />
-                No URLs queued yet — type or paste above
+                {t("ui.project.noUrlsQueued")}
               </div>
             ) : (
               pending.map(({ item, duplicate }) => (
@@ -121,13 +126,13 @@ export function AddUrlPopover({ existingUrls, onAdd, container, trigger }: AddUr
                   </span>
                   {duplicate && (
                     <span className="tw-shrink-0 tw-rounded tw-border tw-border-solid tw-border-error tw-px-1 tw-font-mono tw-text-ui-smaller tw-text-error">
-                      Exists
+                      {t("ui.project.exists")}
                     </span>
                   )}
                   <Button
                     variant="ghost2"
                     size="icon"
-                    aria-label="Remove"
+                    aria-label={t("ui.common.remove")}
                     className="tw-shrink-0"
                     onClick={() => setPending((prev) => prev.filter((p) => p.item.id !== item.id))}
                   >
@@ -141,15 +146,17 @@ export function AddUrlPopover({ existingUrls, onAdd, container, trigger }: AddUr
 
         <div className="tw-flex tw-items-center tw-gap-2 tw-border-x-0 tw-border-b-0 tw-border-t tw-border-solid tw-border-border tw-px-3.5 tw-py-2.5">
           <span className="tw-text-xs tw-text-faint">
-            {validCount} to add
-            {dupCount > 0 && ` · ${dupCount} exist`}
+            {t("ui.project.toAdd", { count: validCount })}
+            {dupCount > 0 && t("ui.project.existsCount", { count: dupCount })}
           </span>
           <div className="tw-ml-auto tw-flex tw-gap-2">
             <Button variant="ghost" size="sm" onClick={resetAndClose}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button size="sm" disabled={validCount === 0} onClick={commit}>
-              Add{validCount > 0 ? ` ${validCount}` : ""}
+              {validCount > 0
+                ? t("ui.project.addCount", { count: validCount })
+                : t("ui.common.add")}
             </Button>
           </div>
         </div>

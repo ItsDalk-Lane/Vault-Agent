@@ -3,6 +3,7 @@ import { formatDuration } from "@/lib/duration";
 import { ReasoningStatus } from "@/LLMProviders/chainRunner/utils/AgentReasoningState";
 import { Brain } from "lucide-react";
 import React, { useState } from "react";
+import { t } from "@/i18n";
 
 interface AgentReasoningBlockProps {
   status: ReasoningStatus;
@@ -40,13 +41,13 @@ export const AgentReasoningBlock: React.FC<AgentReasoningBlockProps> = ({
           <span>
             {isActive ? (
               <>
-                Reasoning
+                {t("ui.chat.reasoning")}
                 <span className="vault-agent-shimmer-text" aria-hidden="true">
                   ...
                 </span>
               </>
             ) : (
-              "Thought for"
+              t("ui.chat.thoughtFor")
             )}
           </span>
           {!isActive ? (

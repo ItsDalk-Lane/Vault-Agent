@@ -1,4 +1,5 @@
 import { sortEffortOptions } from "@/lib/model-effort";
+import { t, type MessageKey } from "@/i18n";
 import { Notice } from "obsidian";
 import { logError } from "@/logger";
 import type { ModelCapability } from "@/constants";
@@ -24,15 +25,23 @@ import type { AgentModelPickerOverride } from "./useAgentModelPicker";
 
 export const EMPTY_EFFORT_OPTIONS = Object.freeze([]) as unknown as EffortOption[];
 
-export const MISSING_KEY_LABEL = "Add API key";
+export function missingKeyLabel(): string {
+  return t("agentChat.defaultModel.missingKey");
+}
+
+const PICKER_ACTION_KEYS: Record<"model" | "effort" | "mode", MessageKey> = {
+  model: "agentChat.picker.action.model",
+  effort: "agentChat.picker.action.effort",
+  mode: "agentChat.picker.action.mode",
+};
 
 export function handlePickerSwitchError(err: unknown, action: "model" | "effort" | "mode"): void {
   if (err instanceof MethodUnsupportedError) {
-    new Notice(`This agent doesn't support runtime ${action} switching.`);
+    new Notice(t("agentChat.picker.unsupportedRuntime", { action: t(PICKER_ACTION_KEYS[action]) }));
     return;
   }
   logError(`[AgentMode] ${action} apply failed`, err);
-  new Notice(`Failed to switch ${action}. See console for details.`);
+  new Notice(t("agentChat.picker.switchFailed", { action: t(PICKER_ACTION_KEYS[action]) }));
 }
 
 const AGENT_PROVIDER = "agent";
@@ -70,7 +79,7 @@ function appendEnabledFallbackEntries(
       enabled.isFree,
       enabled.capabilities
     );
-    if (enabled.credentialState === "missing_key") entry._disabledReason = MISSING_KEY_LABEL;
+    if (enabled.credentialState === "missing_key") entry._disabledReason = missingKeyLabel();
     entries.push(entry);
   }
 }
@@ -106,19 +115,19 @@ function credentialDisabledReason(
   state: EnabledModelCredentialState,
   reported: boolean
 ): string | undefined {
-  if (state === "missing_key") return MISSING_KEY_LABEL;
-  if (!reported) return "Not offered by agent";
+  if (state === "missing_key") return missingKeyLabel();
+  if (!reported) return t("agentChat.picker.notOffered");
   return undefined;
 }
 
 export function backendReadinessReason(state: InstallState): string | undefined {
   switch (state.kind) {
     case "absent":
-      return "Not set up";
+      return t("agentChat.picker.notSetUp");
     case "incompatible":
-      return "Update required";
+      return t("agentChat.picker.updateRequired");
     case "error":
-      return "Setup error";
+      return t("agentChat.picker.setupError");
     case "checking":
     case "ready":
       return undefined;
@@ -155,10 +164,10 @@ function synthesizePreloadPlaceholder(
   return {
     ...synthesizeAgentEntry(
       `__preload_${status}__`,
-      pending ? "Loading models…" : "Failed to load",
+      pending ? t("agentChat.picker.loadingModels") : t("agentChat.picker.failedToLoad"),
       descriptor
     ),
-    _disabledReason: pending ? "Loading…" : "Unavailable",
+    _disabledReason: pending ? t("agentChat.picker.loading") : t("agentChat.picker.unavailable"),
   };
 }
 
@@ -323,7 +332,7 @@ function runCrossBackendPick(
       manager.setDefaultBackend(targetBackendId);
     } catch (err) {
       logError("[AgentMode] cross-backend pick failed", err);
-      new Notice(`Failed to start ${targetDescriptor.displayName}. See console for details.`);
+      new Notice(t("agentChat.picker.startFailed", { name: targetDescriptor.displayName }));
     }
   })();
 }
@@ -349,7 +358,7 @@ export function buildModelOnChange(
     }
     const baseModelId = resolveBaseModelId(entry);
     if (!baseModelId) {
-      new Notice("Could not resolve a model id for this selection.");
+      new Notice(t("agentChat.picker.resolveModelFailed"));
       return;
     }
 
@@ -367,7 +376,11 @@ export function buildModelOnChange(
     }
     manager.setDefaultBackend(targetBackendId);
     if (activeChatUIState?.canSwitchModel() === false) {
-      new Notice("This agent doesn't support runtime model switching.");
+      new Notice(
+        t("agentChat.picker.unsupportedRuntime", {
+          action: t(PICKER_ACTION_KEYS.model),
+        })
+      );
       return;
     }
     manager.applySelection({ baseModelId }).catch((err) => {
@@ -437,7 +450,11 @@ function buildCommitSelection(
       return;
     }
     if (activeChatUIState?.canSwitchModel() === false) {
-      new Notice("This agent doesn't support runtime model switching.");
+      new Notice(
+        t("agentChat.picker.unsupportedRuntime", {
+          action: t(PICKER_ACTION_KEYS.model),
+        })
+      );
       return;
     }
     manager.applySelection({ baseModelId, effort }).catch((err) => {

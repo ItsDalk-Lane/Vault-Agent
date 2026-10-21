@@ -1,4 +1,5 @@
 import { assertBinaryCompatible } from "@/agentMode/backends/shared/binaryCompatibility";
+import { t } from "@/i18n";
 import { getSettings } from "@/settings/model";
 import { detectBinary } from "@/utils/detectBinary";
 import { AcpBackend, AcpSpawnDescriptor } from "@/agentMode/acp/types";
@@ -39,7 +40,7 @@ export class CodexBackend implements AcpBackend {
     const settings = getSettings();
     const descriptor = buildSimpleSpawnDescriptor(
       settings.agentMode?.backends?.codex?.binaryPath,
-      "Codex adapter path not configured. Open Agent Mode settings and install or detect @agentclientprotocol/codex-acp.",
+      t("agentInfra.backend.codex.pathNotConfigured"),
       sanitizeBuiltinSkillEnvOverrides(settings.agentMode?.backends?.codex?.envOverrides),
       {
         ...(await buildBuiltinSkillEnv()),

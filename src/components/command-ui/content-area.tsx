@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PencilLine, BookOpen, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "./markdown-preview";
+import { t } from "@/i18n";
 
 type ContentState =
   | { type: "idle" }
@@ -44,7 +45,7 @@ export function ContentArea({
       size="icon"
       className="tw-absolute tw-bottom-2 tw-right-2 tw-z-[1] tw-size-6 tw-opacity-60 hover:tw-opacity-100"
       onClick={onCopy}
-      title="Copy to clipboard"
+      title={t("ui.command.copyToClipboard")}
     >
       <Copy className="tw-size-3" />
     </Button>
@@ -72,7 +73,7 @@ export function ContentArea({
     displayValue = "";
     isDisabled = true;
   } else if (state.type === "loading") {
-    displayValue = "loading...";
+    displayValue = t("ui.command.loading");
     isDisabled = true;
   } else if (state.type === "result") {
     displayValue = editable && value !== undefined ? value : state.text;
@@ -98,7 +99,7 @@ export function ContentArea({
               size="icon"
               className="tw-absolute tw-right-2 tw-top-2 tw-size-6 tw-opacity-60 hover:tw-opacity-100"
               onClick={() => setIsEditMode(true)}
-              title="Edit content"
+              title={t("ui.command.editContent")}
             >
               <PencilLine className="tw-size-3" />
             </Button>
@@ -119,7 +120,7 @@ export function ContentArea({
             ref={textareaRef}
             value={displayValue}
             onChange={(e) => onChange?.(e.target.value)}
-            placeholder="Ready to generate..."
+            placeholder={t("ui.command.readyToGenerate")}
             disabled={isDisabled}
             className={cn(
               "tw-min-w-fit tw-overflow-auto tw-border-solid",
@@ -133,7 +134,7 @@ export function ContentArea({
               size="icon"
               className="tw-absolute tw-right-2 tw-top-2 tw-z-[1] tw-size-6 tw-opacity-60 hover:tw-opacity-100"
               onClick={() => setIsEditMode(false)}
-              title="Preview rendered content"
+              title={t("ui.command.previewRendered")}
             >
               <BookOpen className="tw-size-3" />
             </Button>
@@ -150,7 +151,7 @@ export function ContentArea({
         ref={textareaRef}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}
-        placeholder="Ready to generate..."
+        placeholder={t("ui.command.readyToGenerate")}
         disabled={isDisabled}
         className={cn(
           "tw-min-h-[120px] tw-resize-y",

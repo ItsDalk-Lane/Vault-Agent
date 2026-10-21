@@ -6,6 +6,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProjectContextSourceEditor } from "@/components/project/ProjectContextSourceEditor";
+import { t } from "@/i18n";
 import {
   agentsFileIsUninitialized,
   captureInstructionFiles,
@@ -145,7 +146,7 @@ export function AddProjectModalContent({
 
     if (!saveData.name) {
       setTouched((prev) => ({ ...prev, name: true }));
-      new Notice("Please fill in all required fields");
+      new Notice(t("ui.project.fillRequired"));
       return;
     }
 
@@ -184,22 +185,22 @@ export function AddProjectModalContent({
   return (
     <div className="tw-flex tw-h-full tw-flex-col">
       <div className="tw-shrink-0 tw-px-4 tw-pb-2 tw-pt-4">
-        <div className="tw-text-xl tw-font-bold tw-text-normal">Edit Project</div>
-        <p className="tw-mt-1 tw-text-sm tw-text-muted">
-          Configure your project settings and context sources
-        </p>
+        <div className="tw-text-xl tw-font-bold tw-text-normal">{t("ui.project.editTitle")}</div>
+        <p className="tw-mt-1 tw-text-sm tw-text-muted">{t("ui.project.editSubtitle")}</p>
       </div>
 
       <ScrollArea className="tw-min-h-0 tw-flex-1">
         <div className="tw-flex tw-flex-col tw-gap-6 tw-p-4">
           <div className="tw-rounded-lg tw-border tw-border-border tw-p-4 tw-bg-secondary/50">
-            <h3 className="tw-mb-3 tw-text-sm tw-font-medium tw-text-normal">Basic Info</h3>
+            <h3 className="tw-mb-3 tw-text-sm tw-font-medium tw-text-normal">
+              {t("ui.project.basicInfo")}
+            </h3>
             <div className="tw-flex tw-flex-col tw-gap-3">
               <FormField
-                label="Project Name"
+                label={t("ui.project.name")}
                 required
                 error={touched.name && !formData.name}
-                errorMessage="Project name is required"
+                errorMessage={t("ui.project.nameRequired")}
               >
                 <Input
                   type="text"
@@ -211,8 +212,8 @@ export function AddProjectModalContent({
               </FormField>
 
               <FormField
-                label="Description"
-                description="Briefly describe the purpose and goals of the project"
+                label={t("ui.project.description")}
+                description={t("ui.project.descriptionPlaceholder")}
               >
                 <Input
                   type="text"
@@ -229,7 +230,9 @@ export function AddProjectModalContent({
           </div>
 
           <div className="tw-rounded-lg tw-border tw-border-border tw-p-4 tw-bg-secondary/50">
-            <h3 className="tw-mb-3 tw-text-sm tw-font-medium tw-text-normal">Context Sources</h3>
+            <h3 className="tw-mb-3 tw-text-sm tw-font-medium tw-text-normal">
+              {t("ui.project.contextSources")}
+            </h3>
             <ProjectContextSourceEditor
               contextSource={formData.contextSource}
               onChange={handleContextChange}
@@ -246,10 +249,10 @@ export function AddProjectModalContent({
       <div className="tw-shrink-0 tw-border-t tw-border-border tw-px-4 tw-py-3">
         <div className="tw-flex tw-items-center tw-justify-end tw-gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={safeAsyncHandler(handleSave)} disabled={isSubmitting || !isFormValid()}>
-            {isSubmitting ? "Saving..." : "Save"}
+            {isSubmitting ? t("ui.project.saving") : t("ui.common.save")}
           </Button>
         </div>
       </div>

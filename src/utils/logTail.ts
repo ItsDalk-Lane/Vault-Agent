@@ -1,4 +1,5 @@
 import { formatBytes } from "@/utils/formatBytes";
+import { t } from "@/i18n";
 
 export const TRUNCATION_NOTE_RESERVE_BYTES = 256;
 export const MIN_LOG_TAIL_BYTES = 64 * 1024;
@@ -19,10 +20,7 @@ export function decodeTail(bytes: Uint8Array): string {
 }
 
 export function withTruncationNote(whole: string, totalBytes: number): string {
-  return (
-    "… earlier entries omitted: only the newest entries of the original " +
-    `${formatBytes(totalBytes)} log are included …\n${whole}`
-  );
+  return t("ui.notice.logTruncated", { size: formatBytes(totalBytes), whole });
 }
 
 export function headOfText(text: string, maxBytes: number): { text: string; totalBytes: number } {

@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { logError, logWarn } from "@/logger";
 import { joinPosix } from "@/utils/pathUtils";
 import { renameWithRetry } from "./renameWithRetry";
@@ -71,13 +72,19 @@ export async function migrateProjectSkill(
   try {
     await fs.mkdirRecursive(canonicalAbsRoot);
   } catch (err) {
-    return fail(`Could not create canonical folder: ${describe(err)}`);
+    return fail(t("agentInfra.skills.manager.mkdirFailed", { error: describe(err) }));
   }
 
   try {
     await renameWithRetry(sourceDirAbs, newDirPath);
   } catch (err) {
-    return fail(`Could not move ${sourceDirAbs} → ${newDirPath}: ${describe(err)}`);
+    return fail(
+      t("agentInfra.skills.manager.moveFailed", {
+        from: sourceDirAbs,
+        to: newDirPath,
+        error: describe(err),
+      })
+    );
   }
 
   let parsed: ParsedSkillFile;
@@ -115,7 +122,10 @@ export async function migrateProjectSkill(
         `[skills] migrateProjectSkill: rollback failed after serialize error: ${describe(restoreErr)}`
       );
     }
-    return { ok: false, reason: `Could not serialize SKILL.md: ${describe(err)}` };
+    return {
+      ok: false,
+      reason: t("agentInfra.skills.manager.serializeFailed", { error: describe(err) }),
+    };
   }
 
   try {
@@ -128,7 +138,10 @@ export async function migrateProjectSkill(
         `[skills] migrateProjectSkill: rollback failed after write error: ${describe(restoreErr)}`
       );
     }
-    return { ok: false, reason: `Could not write SKILL.md: ${describe(err)}` };
+    return {
+      ok: false,
+      reason: t("agentInfra.skills.manager.writeFailed", { error: describe(err) }),
+    };
   }
 
   for (const duplicateDir of duplicateSourceDirsAbs) {

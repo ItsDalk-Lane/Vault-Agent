@@ -2,6 +2,7 @@ import { ProjectConfig } from "@/aiParams";
 import { logError, logInfo, logWarn } from "@/logger";
 import { VAULT_AGENT_PROJECT_ID, PROJECTS_UNSUPPORTED_FOLDER_NAME } from "@/projects/constants";
 import { reconcileLegacyAgentsResidue } from "@/projects/legacyAgentsResidue";
+import { t } from "@/i18n";
 import {
   deriveProjectFolderName,
   getProjectAnchorFromConfigPath,
@@ -349,10 +350,13 @@ async function migrateProjectsFromSettingsToVault(app: App): Promise<StartupMigr
     );
     return {
       id: "projects",
-      title: "Projects",
+      title: t("ui.migration.title"),
       status: "success",
-      summary: `All ${successCount} project${successCount === 1 ? " was" : "s were"} migrated to note files.`,
-      details: [`Stored in ${projectsFolder}.`],
+      summary:
+        successCount === 1
+          ? t("ui.migration.allOne", { count: successCount })
+          : t("ui.migration.allMany", { count: successCount }),
+      details: [t("ui.migration.detailsStored", { folder: projectsFolder })],
     };
   } else if (successCount > 0) {
     logWarn(
@@ -360,22 +364,25 @@ async function migrateProjectsFromSettingsToVault(app: App): Promise<StartupMigr
     );
     return {
       id: "projects",
-      title: "Projects",
+      title: t("ui.migration.title"),
       status: "action-required",
-      summary: `${successCount} project${successCount === 1 ? " was" : "s were"} migrated; ${failedCount} could not be migrated.`,
+      summary:
+        successCount === 1
+          ? t("ui.migration.partialOne", { count: successCount, failed: failedCount })
+          : t("ui.migration.partialMany", { count: successCount, failed: failedCount }),
       details: [
-        `Migrated projects are in ${projectsFolder}.`,
-        `Recover the remaining projects from ${unsupportedFolder}.`,
+        t("ui.migration.detailsMigrated", { folder: projectsFolder }),
+        t("ui.migration.detailsRecover", { folder: unsupportedFolder }),
       ],
     };
   } else {
     logWarn("[Projects] Migration failed: no projects were migrated");
     return {
       id: "projects",
-      title: "Projects",
+      title: t("ui.migration.title"),
       status: "error",
-      summary: "No projects could be migrated, but recovery copies were created.",
-      details: [`Recover the projects from ${unsupportedFolder}.`],
+      summary: t("ui.migration.failed"),
+      details: [t("ui.migration.detailsRecoverAll", { folder: unsupportedFolder })],
     };
   }
 }
