@@ -21,7 +21,6 @@ import {
   findVaultAgentRootFileConflict,
 } from "@/settings/vaultAgentRootChange";
 import { updateSetting, useSettingsValue, validateVaultAgentFolder } from "@/settings/model";
-import { QuickChatPanel } from "@/settings/v2/components/QuickChatPanel";
 import { DesktopOnlySettingsPanel } from "@/settings/v2/components/DesktopOnlySettingsPanel";
 import { VaultAgentFolderChangeNotice } from "@/settings/v2/components/VaultAgentFolderChangeNotice";
 import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
@@ -41,14 +40,7 @@ const LazyAgentSettings = React.lazy(() =>
 
 const AgentsSection: React.FC = () => {
   if (!isDesktopRuntime()) {
-    // Quick Chat also runs on mobile; its settings must stay outside the desktop import gate.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/373
-    return (
-      <>
-        <DesktopOnlySettingsPanel message={t("settings.basic.agentsDesktopOnly")} />
-        <QuickChatPanel />
-      </>
-    );
+    return <DesktopOnlySettingsPanel message={t("settings.basic.agentsDesktopOnly")} />;
   }
   return (
     <React.Suspense fallback={null}>

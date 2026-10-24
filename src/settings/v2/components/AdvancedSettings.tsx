@@ -29,6 +29,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 
+const LazyAgentToolsSettings = React.lazy(() =>
+  import("@/agentMode").then((module) => ({ default: module.AgentToolsSettings }))
+);
+
 export const AdvancedSettings: React.FC = () => {
   const app = useApp();
   const plugin = usePlugin();
@@ -144,6 +148,12 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <div className="tw-space-y-4">
+      {/* 工具权限沿用原配置，只调整入口；唯一内置引擎无需安装或配置按钮。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1 */}
+      {isDesktopRuntime() && (
+        <React.Suspense fallback={null}>
+          <LazyAgentToolsSettings />
+        </React.Suspense>
+      )}
       <LegacyChatPromptsNotice />
 
       <SettingSection label={t("settings.advanced.others")}>

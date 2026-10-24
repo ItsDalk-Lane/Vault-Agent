@@ -1,7 +1,6 @@
 import {
-  opencodeOnlySubGroupLabel,
-  partitionCandidates,
-  partitionChatCandidates,
+  buildModelEnableGroups,
+  collectChatCandidates,
   rowMatches,
   toRow,
   type Candidate,
@@ -43,133 +42,25 @@ function model(configuredModelId: string, providerId: string, infoId: string): C
 }
 
 describe("configuredModelGrouping", () => {
-  describe("partitionCandidates()", () => {
-    const byok = byokProvider("byok-1", "Anthropic");
-    const ocAgent = agentProvider("oc-agent", "opencode", "opencode");
-    const codexAgent = agentProvider("codex-agent", "codex", "Codex");
-    const providers = {
-      [byok.providerId]: byok,
-      [ocAgent.providerId]: ocAgent,
-      [codexAgent.providerId]: codexAgent,
-    };
-    const models = [
-      model("m-byok", "byok-1", "claude-sonnet-4-5"),
-      model("m-oc", "oc-agent", "opencode/big-pickle"),
-      model("m-codex", "codex-agent", "gpt-5"),
-    ];
-
-    it("opencode: BYOK rows + opencode agent-origin rows; excludes other agents", () => {
-      const { byokPlusCandidates, agentOriginCandidates } = partitionCandidates(
-        models,
-        providers,
-        new Set(),
-        "opencode",
-        true
-      );
-      expect(byokPlusCandidates.map((c) => c.configuredModel.configuredModelId)).toEqual([
-        "m-byok",
-      ]);
-      expect(agentOriginCandidates.map((c) => c.configuredModel.configuredModelId)).toEqual([
-        "m-oc",
-      ]);
+  describe("collectChatCandidates()", () => {
+    it("hides disabled providers while preserving prior model switches when enabled again https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      const provider = { ...byokProvider("disabled", "Disabled"), enabled: false };
+      const models = [model("on", "disabled", "on"), model("off", "disabled", "off")];
+      const enabled = new Set(["on"]);
+      expect(collectChatCandidates(models, { disabled: provider }, enabled)).toEqual([]);
+      expect(
+        collectChatCandidates(models, { disabled: { ...provider, enabled: true } }, enabled).map(
+          (candidate) => candidate.enabled
+        )
+      ).toEqual([true, false]);
     });
 
-    it("codex: only this agent's agent-origin rows, no BYOK", () => {
-      const { byokPlusCandidates, agentOriginCandidates } = partitionCandidates(
-        models,
-        providers,
-        new Set(),
-        "codex",
-        false
-      );
-      expect(byokPlusCandidates).toHaveLength(0);
-      expect(agentOriginCandidates.map((c) => c.configuredModel.configuredModelId)).toEqual([
-        "m-codex",
-      ]);
-    });
-
-    it("reflects enabled state from the enabled-id set", () => {
-      const { agentOriginCandidates } = partitionCandidates(
-        models,
-        providers,
-        new Set(["m-codex"]),
-        "codex",
-        false
-      );
-      expect(agentOriginCandidates[0].enabled).toBe(true);
-    });
-
-    it("opencode: drops BYOK/Plus providers the routability predicate rejects (dead-toggle guard)", () => {
-      const unroutable: Provider = {
-        providerId: "byok-google",
-        providerType: "google",
-        displayName: "Google",
-        origin: { kind: "byok" },
-        addedAt: 0,
-      };
-      const withUnroutable = {
-        ...providers,
-        [unroutable.providerId]: unroutable,
-      };
-      const allModels = [...models, model("m-google", "byok-google", "gemini-3-flash")];
-      const isRoutable = (p: Provider): boolean =>
-        p.origin.kind === "byok" ? Boolean(p.origin.catalogProviderId) : true;
-      const { byokPlusCandidates } = partitionCandidates(
-        allModels,
-        withUnroutable,
-        new Set(),
-        "opencode",
-        true,
-        isRoutable
-      );
-      expect(byokPlusCandidates.map((c) => c.configuredModel.configuredModelId)).toEqual([
-        "m-byok",
-      ]);
-    });
-
-    it("opencode: keeps every BYOK/Plus provider when no routability predicate is given", () => {
-      const unroutable: Provider = {
-        providerId: "byok-google",
-        providerType: "google",
-        displayName: "Google",
-        origin: { kind: "byok" },
-        addedAt: 0,
-      };
-      const allModels = [...models, model("m-google", "byok-google", "gemini-3-flash")];
-      const { byokPlusCandidates } = partitionCandidates(
-        allModels,
-        { ...providers, [unroutable.providerId]: unroutable },
-        new Set(),
-        "opencode",
-        true
-      );
-      expect(byokPlusCandidates.map((c) => c.configuredModel.configuredModelId).sort()).toEqual([
-        "m-byok",
-        "m-google",
-      ]);
-    });
-
-    it("skips models whose provider row is missing", () => {
-      const orphan = [model("orphan", "missing-provider", "x")];
-      const { byokPlusCandidates, agentOriginCandidates } = partitionCandidates(
-        orphan,
-        providers,
-        new Set(),
-        "opencode",
-        true
-      );
-      expect(byokPlusCandidates).toHaveLength(0);
-      expect(agentOriginCandidates).toHaveLength(0);
-    });
-  });
-
-  describe("partitionChatCandidates()", () => {
     const agent = agentProvider("codex-agent", "codex", "Codex");
     const byok = byokProvider("byok-1", "Anthropic");
     const providers = { [byok.providerId]: byok, [agent.providerId]: agent };
 
     it("lists non-agent chat models with their enabled state and no agent-origin rows", () => {
-      const { byokPlusCandidates, agentOriginCandidates } = partitionChatCandidates(
+      const candidates = collectChatCandidates(
         [
           model("m-on", "byok-1", "claude-sonnet-4-5"),
           model("m-off", "byok-1", "claude-haiku-4-5"),
@@ -177,13 +68,10 @@ describe("configuredModelGrouping", () => {
         providers,
         new Set(["m-on"])
       );
-      expect(
-        byokPlusCandidates.map((c) => [c.configuredModel.configuredModelId, c.enabled])
-      ).toEqual([
+      expect(candidates.map((c) => [c.configuredModel.configuredModelId, c.enabled])).toEqual([
         ["m-on", true],
         ["m-off", false],
       ]);
-      expect(agentOriginCandidates).toEqual([]);
     });
 
     it("omits embedding models, agent-origin models, and models whose provider is missing", () => {
@@ -191,7 +79,7 @@ describe("configuredModelGrouping", () => {
         ...model("m-embed", "byok-1", "text-embedding-3-small"),
         info: { id: "text-embedding-3-small", displayName: "Embed", isEmbedding: true },
       };
-      const { byokPlusCandidates } = partitionChatCandidates(
+      const candidates = collectChatCandidates(
         [
           embedding,
           model("m-agent", "codex-agent", "gpt-5"),
@@ -201,28 +89,7 @@ describe("configuredModelGrouping", () => {
         providers,
         new Set()
       );
-      expect(byokPlusCandidates.map((c) => c.configuredModel.configuredModelId)).toEqual([
-        "m-chat",
-      ]);
-    });
-  });
-
-  describe("opencodeOnlySubGroupLabel()", () => {
-    const provider = agentProvider("oc-agent", "opencode", "opencode");
-
-    it("derives the label from the wire-id prefix (first /-segment)", () => {
-      expect(
-        opencodeOnlySubGroupLabel(model("a", "oc-agent", "opencode/big-pickle"), provider)
-      ).toBe("opencode");
-      expect(
-        opencodeOnlySubGroupLabel(model("b", "oc-agent", "openrouter/anthropic/claude"), provider)
-      ).toBe("openrouter");
-    });
-
-    it("falls back to the provider display name when the id has no prefix", () => {
-      expect(opencodeOnlySubGroupLabel(model("c", "oc-agent", "bare-model"), provider)).toBe(
-        "opencode"
-      );
+      expect(candidates.map((c) => c.configuredModel.configuredModelId)).toEqual(["m-chat"]);
     });
   });
 
@@ -253,7 +120,7 @@ describe("configuredModelGrouping", () => {
     });
 
     it("prefers the capability blurb over the wire id for the description line", () => {
-      const provider = agentProvider("claude", "claude", "Claude");
+      const provider = byokProvider("claude", "Anthropic");
       const candidate: Candidate = {
         configuredModel: {
           configuredModelId: "cm",
@@ -274,7 +141,7 @@ describe("configuredModelGrouping", () => {
     });
 
     it("derives the vision capability from info.modalities (for the row's icon)", () => {
-      const provider = agentProvider("claude", "claude", "Claude");
+      const provider = byokProvider("claude", "Anthropic");
       const visionRow = toRow({
         configuredModel: {
           configuredModelId: "cm",
@@ -293,7 +160,7 @@ describe("configuredModelGrouping", () => {
     });
 
     it("leaves capabilities undefined for an unknown snapshot, defined for a known one", () => {
-      const provider = agentProvider("claude", "claude", "Claude");
+      const provider = byokProvider("claude", "Anthropic");
       const unknownRow = toRow({
         configuredModel: {
           configuredModelId: "cm",
@@ -319,21 +186,37 @@ describe("configuredModelGrouping", () => {
       expect(knownNoVisionRow.capabilities).toBeDefined();
       expect(knownNoVisionRow.capabilities).not.toContain(ModelCapability.VISION);
     });
+  });
 
-    it("flags opencode Zen models (opencode/ wire id) as free, others not", () => {
-      const provider = agentProvider("oc", "opencode", "opencode");
-      const zen = toRow({
-        configuredModel: model("z", "oc", "opencode/big-pickle"),
-        provider,
-        enabled: false,
-      });
-      const lms = toRow({
-        configuredModel: model("l", "oc", "lmstudio/gpt-oss-20b"),
-        provider,
-        enabled: false,
-      });
-      expect(zen.isFree).toBe(true);
-      expect(lms.isFree).toBe(false);
+  describe("buildModelEnableGroups()", () => {
+    it("groups configured models under their providers and retains their enabled state", () => {
+      const provider = byokProvider("p", "Anthropic");
+      const candidates = collectChatCandidates(
+        [model("a", "p", "sonnet"), model("b", "p", "haiku")],
+        { p: provider },
+        new Set(["a"])
+      );
+      expect(buildModelEnableGroups(candidates, "")).toEqual([
+        expect.objectContaining({
+          key: "byok:p",
+          label: "Anthropic",
+          rows: [
+            expect.objectContaining({ id: "a", enabled: true }),
+            expect.objectContaining({ id: "b", enabled: false }),
+          ],
+        }),
+      ]);
+    });
+
+    it("searches case-insensitively and omits providers without matching models", () => {
+      const candidates = collectChatCandidates(
+        [model("a", "p", "sonnet"), model("b", "q", "gpt")],
+        { p: byokProvider("p", "Anthropic"), q: byokProvider("q", "OpenAI") },
+        new Set()
+      );
+      const groups = buildModelEnableGroups(candidates, " SONNET ");
+      expect(groups.map((group) => group.label)).toEqual(["Anthropic"]);
+      expect(groups[0].rows.map((row) => row.id)).toEqual(["a"]);
     });
   });
 

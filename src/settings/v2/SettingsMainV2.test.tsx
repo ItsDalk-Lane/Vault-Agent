@@ -1,12 +1,15 @@
 import type VaultAgentPlugin from "@/main";
 import SettingsMainV2 from "@/settings/v2/SettingsMainV2";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 jest.mock("@/settings/v2/components/BasicSettings", () => ({ BasicSettings: () => null }));
 jest.mock("@/settings/v2/components/SelfHostSettings", () => ({ SelfHostSettings: () => null }));
 jest.mock("@/settings/v2/components/CommandSettings", () => ({ CommandSettings: () => null }));
 jest.mock("@/settings/v2/components/AdvancedSettings", () => ({ AdvancedSettings: () => null }));
+jest.mock("@/settings/v2/components/McpSettingsPanel", () => ({
+  McpSettingsPanel: () => <div>Server configuration</div>,
+}));
 jest.mock("@/settings/v2/components/DesktopOnlySettingsPanel", () => ({
   DesktopOnlySettingsPanel: () => null,
 }));
@@ -46,10 +49,21 @@ describe("SettingsMainV2", () => {
         "Basic",
         "BYOK",
         "Skills",
+        "MCP Servers",
         "Command",
         "Self-Host",
         "Advanced",
       ]);
+    });
+
+    it("opens the independent MCP page and unmounts it when another tab is selected https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      render(<SettingsMainV2 plugin={plugin} />);
+      expect(screen.queryByText("Server configuration")).toBeNull();
+      fireEvent.click(screen.getByRole("tab", { name: "MCP Servers" }));
+      expect(screen.getByText("Server configuration")).not.toBeNull();
+      expect(screen.getByRole("tabpanel").getAttribute("id")).toBe("tabpanel-mcp");
+      fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
+      expect(screen.queryByText("Server configuration")).toBeNull();
     });
 
     it("marks the Skills tab while a skill failed to load for https://github.com/Brevilabs/obsidian-copilot-private/issues/166", () => {

@@ -16,45 +16,21 @@ function omitKeys<T extends object>(obj: T, keys: readonly string[]): T {
   return out as T;
 }
 
-const CODEX_DEVICE_KEYS = ["binaryPath", "binaryVersion", "binarySource", "envOverrides"] as const;
+const CODEX_DEVICE_KEYS = ["envOverrides"] as const;
 const CLAUDE_DEVICE_KEYS = ["envOverrides"] as const;
-const OPENCODE_DEVICE_KEYS = [
-  "binaryPath",
-  "binaryVersion",
-  "binarySource",
-  "probeSessionId",
-  "envOverrides",
-] as const;
+const OPENCODE_DEVICE_KEYS = ["envOverrides"] as const;
 
 function buildProfileFromFlat(agentMode: AgentMode): DeviceAgentProfile {
   const profile: DeviceAgentProfile = {};
 
-  const claudeCliPath = agentMode.claudeCli?.path;
-  if (claudeCliPath) profile.claudeCliPath = claudeCliPath;
-
   const codexSrc = agentMode.backends?.codex;
-  if (codexSrc) {
-    const codex: NonNullable<DeviceAgentProfile["codex"]> = {};
-    if (codexSrc.binaryPath) codex.binaryPath = codexSrc.binaryPath;
-    if (codexSrc.binaryVersion) codex.binaryVersion = codexSrc.binaryVersion;
-    if (codexSrc.binaryPath && codexSrc.binarySource) {
-      codex.binarySource = codexSrc.binarySource;
-    }
-    if (codexSrc.envOverrides) codex.envOverrides = codexSrc.envOverrides;
-    if (hasOwnKeys(codex)) profile.codex = codex;
+  if (codexSrc?.envOverrides) {
+    profile.codex = { envOverrides: codexSrc.envOverrides };
   }
 
   const opencodeSrc = agentMode.backends?.opencode;
-  if (opencodeSrc) {
-    const opencode: NonNullable<DeviceAgentProfile["opencode"]> = {};
-    if (opencodeSrc.binaryPath) opencode.binaryPath = opencodeSrc.binaryPath;
-    if (opencodeSrc.binaryVersion) opencode.binaryVersion = opencodeSrc.binaryVersion;
-    if (opencodeSrc.binaryPath && opencodeSrc.binarySource) {
-      opencode.binarySource = opencodeSrc.binarySource;
-    }
-    if (opencodeSrc.probeSessionId) opencode.probeSessionId = opencodeSrc.probeSessionId;
-    if (opencodeSrc.envOverrides) opencode.envOverrides = opencodeSrc.envOverrides;
-    if (hasOwnKeys(opencode)) profile.opencode = opencode;
+  if (opencodeSrc?.envOverrides) {
+    profile.opencode = { envOverrides: opencodeSrc.envOverrides };
   }
 
   const claudeSrc = agentMode.backends?.claude;
@@ -68,6 +44,7 @@ function buildProfileFromFlat(agentMode: AgentMode): DeviceAgentProfile {
 function stripDeviceFieldsFromBackends(backends: Backends | undefined): Backends {
   const out: Backends = {};
   if (!backends) return out;
+  if (backends.pi) out.pi = backends.pi;
 
   if (backends.codex) {
     const synced = omitKeys(backends.codex, CODEX_DEVICE_KEYS);
@@ -98,7 +75,6 @@ export function dehydrateDeviceProfile(
 
   const nextAgentMode: AgentMode = {
     ...agentMode,
-    claudeCli: undefined,
     backends: stripDeviceFieldsFromBackends(agentMode.backends),
     deviceProfiles: hasOwnKeys(deviceProfiles) ? deviceProfiles : undefined,
   };
@@ -121,7 +97,6 @@ export function hydrateDeviceProfile(
   const nextAgentMode: AgentMode = {
     ...agentMode,
     backends: nextBackends,
-    claudeCli: profile?.claudeCliPath ? { path: profile.claudeCliPath } : undefined,
   };
   return { ...settings, agentMode: nextAgentMode };
 }

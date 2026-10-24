@@ -2,6 +2,7 @@ export const VAULT_AGENT_SETTINGS_TAB_IDS = [
   "basic",
   "byok",
   "skills",
+  "mcp",
   "command",
   "selfhost",
   "advanced",

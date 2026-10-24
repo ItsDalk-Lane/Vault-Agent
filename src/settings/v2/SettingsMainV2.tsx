@@ -14,13 +14,14 @@ import {
 import { useSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { useLanguage } from "@/i18n/useLanguage";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
-import { Cog, Command, Cpu, ShieldCheck, Sparkle, Wrench } from "lucide-react";
+import { Cog, Command, Cpu, Plug, ShieldCheck, Sparkle, Wrench } from "lucide-react";
 import React from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { AdvancedSettings } from "./components/AdvancedSettings";
 import { BasicSettings } from "./components/BasicSettings";
 import { DesktopOnlySettingsPanel } from "./components/DesktopOnlySettingsPanel";
 import { SelfHostSettings } from "./components/SelfHostSettings";
+import { McpSettingsPanel } from "./components/McpSettingsPanel";
 
 const LazySkillsSettings = React.lazy(() =>
   import("@/agentMode").then((module) => ({ default: module.SkillsSettings }))
@@ -43,6 +44,7 @@ const icons: Record<VaultAgentSettingsTabId, JSX.Element> = {
   selfhost: <ShieldCheck className="tw-size-5" />,
   command: <Command className="tw-size-5" />,
   skills: <Sparkle className="tw-size-5" />,
+  mcp: <Plug className="tw-size-5" />,
   advanced: <Wrench className="tw-size-5" />,
 };
 
@@ -52,6 +54,7 @@ const components: Record<VaultAgentSettingsTabId, React.FC> = {
   selfhost: () => <SelfHostSettings />,
   command: () => <CommandSettings />,
   skills: SkillsSettingsPanel,
+  mcp: McpSettingsPanel,
   advanced: () => <AdvancedSettings />,
 };
 
@@ -61,6 +64,7 @@ const TAB_LABEL_KEYS: Record<VaultAgentSettingsTabId, MessageKey> = {
   selfhost: "settings.tab.selfhost",
   command: "settings.tab.command",
   skills: "settings.tab.skills",
+  mcp: "settings.tab.mcp",
   advanced: "settings.tab.advanced",
 };
 
