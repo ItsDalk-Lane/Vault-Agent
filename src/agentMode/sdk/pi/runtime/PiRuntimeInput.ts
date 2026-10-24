@@ -162,7 +162,6 @@ export async function preparePiRuntimeInput(
     projectInstructions: projectInstructions?.instructions,
     instructionNotices: projectInstructions?.notices,
     userInput,
-    durableHoldsHistory: true,
     contextWindowTokens: options.contextWindowTokens ?? undefined,
     materials: options.input.context?.materials,
     ...(options.input.context?.project
@@ -338,7 +337,6 @@ export async function preparePiRuntimeInput(
     materialBudgetBytes: built.materialBudgetBytes,
     materialDigest: built.materialDigest,
     omittedMaterials: built.omittedMaterials,
-    historyEnvelopeDropped: built.historyEnvelopeDropped,
     notices: built.notices,
   };
   return {

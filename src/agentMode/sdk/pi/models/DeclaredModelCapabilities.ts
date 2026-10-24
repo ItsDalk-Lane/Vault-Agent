@@ -8,20 +8,12 @@ interface DeclaredModelCapabilities {
   capabilities?: { structuredOutput?: boolean; midConversationSystemMessages?: boolean };
 }
 
-const PROVIDER_ALIASES: Readonly<Record<string, string>> = Object.freeze({
-  togetherai: "together",
-  vercel: "vercel-ai-gateway",
-});
-
 export function lookupDeclaredPiModel(
   providerId: string,
   modelId: string
 ): DeclaredPiModelFact | undefined {
-  const builtinId = Object.hasOwn(PROVIDER_ALIASES, providerId)
-    ? PROVIDER_ALIASES[providerId]
-    : providerId;
-  const provider = Object.hasOwn(DECLARED_PI_MODEL_FACTS, builtinId)
-    ? DECLARED_PI_MODEL_FACTS[builtinId]
+  const provider = Object.hasOwn(DECLARED_PI_MODEL_FACTS, providerId)
+    ? DECLARED_PI_MODEL_FACTS[providerId]
     : undefined;
   // 目录缺项不能凭供应商名称猜测模型能力。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
   if (!provider) return undefined;

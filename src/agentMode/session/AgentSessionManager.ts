@@ -1,6 +1,7 @@
+import { saveChatExport } from "@/services/saveChatExport";
 import type { CommandDraftContext } from "@/types/commandDraft";
 import { configuredFanoutModels } from "@/agentMode/session/fanout/answerers";
-import type { AgentChatMessage, AgentMcpServer, BackendState } from "@/agentMode/session/types";
+import type { AgentMcpServer, BackendState } from "@/agentMode/session/types";
 import type { FeedbackMcpServer } from "@/agentMode/session/feedback/feedbackMcpServer";
 import { resolveEffort } from "@/lib/model-effort";
 import { t } from "@/i18n";
@@ -15,38 +16,18 @@ import {
   type VaultAgentSettings,
 } from "@/settings/model";
 import { buildProjectContext } from "@/context/manifestBuilder";
-import { ensureFolderExists, err2String } from "@/utils";
-import { sha256 } from "@/utils/hash";
-import { joinPosix } from "@/utils/pathUtils";
-import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
-import { createHistoryBackend } from "@/agentMode/session/legacy/historyBackend";
-import { isHistoricalBackendId } from "@/agentMode/session/legacy/historicalBackends";
-import { readLegacyNativeHistory } from "@/agentMode/session/legacy/LegacyNativeReader";
-import {
-  LegacyHistoryReader,
-  type LegacyChatEntry,
-} from "@/agentMode/session/legacy/LegacyHistoryReader";
+import { err2String } from "@/utils";
+
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
-import {
-  fileToHistoryItem,
-  parseChatPinnedAt,
-  readChatPathProjectId,
-} from "@/utils/chatHistoryUtils";
-import { readFrontmatterViaAdapter } from "@/utils/vaultAdapterUtils";
+
 import { App, FileSystemAdapter, Notice, Platform, TFile } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
-import { AgentSession, ATTENTION_TRIGGER_STATUSES, DEFAULT_TITLE_PREFIX } from "./AgentSession";
-import type { AgentChatPersistenceManager } from "./AgentChatPersistenceManager";
+import { AgentSession, ATTENTION_TRIGGER_STATUSES } from "./AgentSession";
 import type { AgentModelPreloader } from "./AgentModelPreloader";
 import { buildNativeChatId, parseNativeChatId } from "@/utils/nativeChatId";
-import { AI_SENDER, CHAT_AGENT_VIEWTYPE, USER_SENDER } from "@/constants";
+import { CHAT_AGENT_VIEWTYPE } from "@/constants";
 import { playNotificationSound } from "@/utils/notificationSound";
-import type { AgentSessionIndex, AgentSessionIndexEntry } from "./AgentSessionIndex";
-import {
-  deriveChatTitleFromMessages,
-  mergeChatHistoryItems,
-  type MarkdownChatEntry,
-} from "./chatHistoryMerge";
+import { deriveChatTitleFromMessages } from "./chatHistoryMerge";
 import { MethodUnsupportedError } from "./errors";
 import { replayPersistedMode } from "./replayPersistedMode";
 import { applyModeSpec } from "./modeApply";
@@ -58,12 +39,7 @@ import {
 import type { FanoutTurn } from "./fanout/fanoutTypes";
 import { modelCatalogSignature } from "./translateBackendState";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "./scope";
-import {
-  OrphanedProjectError,
-  pickScopeNeighbor,
-  resolveProjectIdForCwd,
-  resolveScopeCwd,
-} from "./sessionScope";
+import { OrphanedProjectError, pickScopeNeighbor, resolveScopeCwd } from "./sessionScope";
 import {
   getCachedProjectRecordById,
   getCachedProjectRecords,
@@ -76,9 +52,7 @@ import {
 } from "@/projects/projectContextSignature";
 import { ProjectContentTracker } from "@/context/projectContentTracker";
 import { buildProjectContextUpdatesBlock } from "@/context/contextUpdatesBlockBuilder";
-import { ensureAgentsFileForDiscovery } from "@/instructions/agentsFile";
-import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
-import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
+
 import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import type {
   AgentQuestionAnswers,
@@ -88,6 +62,7 @@ import type {
   BackendModelCatalog,
   BackendProcess,
   VaultAgentMode,
+  ListedSessionInfo,
   LoadSessionOutput,
   ModeApplySpec,
   ModelSelection,
@@ -97,40 +72,7 @@ import type {
 } from "./types";
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
-const LIST_SESSIONS_TIMEOUT_MS = 1_500;
-
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return new Promise<T>((resolve) => {
-    const timer = window.setTimeout(() => resolve(fallback), ms);
-    promise.then(
-      (value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      () => {
-        window.clearTimeout(timer);
-        resolve(fallback);
-      }
-    );
-  });
-}
-
-function sessionRefFromFrontmatter(
-  frontmatter: Record<string, unknown> | undefined
-): { backendId: BackendId; sessionId: string } | null {
-  const backendId = typeof frontmatter?.backendId === "string" ? frontmatter.backendId.trim() : "";
-  const sessionId = typeof frontmatter?.sessionId === "string" ? frontmatter.sessionId.trim() : "";
-  if (!backendId || !sessionId) return null;
-  return { backendId, sessionId };
-}
-
-function isSameCwd(a: string, b: string): boolean {
-  const norm = (p: string) => p.replace(/[/\\]+$/, "");
-  return norm(a) === norm(b);
-}
-
 const EMPTY_SESSIONS = Object.freeze([]) as unknown as AgentSession[];
-const EMPTY_HISTORY_ITEMS = Object.freeze([]) as unknown as ChatHistoryItem[];
 const EMPTY_RECENT_CHAT_IDS: ReadonlySet<string> = new Set();
 const EMPTY_CHAT_INPUT_IDS: readonly string[] = Object.freeze([]);
 const EMPTY_MCP_SERVERS: ReadonlyArray<AgentMcpServer> = Object.freeze([]);
@@ -159,8 +101,6 @@ export interface AgentSessionManagerOptions {
   resolveDescriptor: DescriptorResolver;
   modelPreloader: AgentModelPreloader;
   beforeBackendStart?: (id: BackendId) => Promise<void>;
-  persistenceManager?: AgentChatPersistenceManager;
-  sessionIndex?: AgentSessionIndex;
   feedbackServer?: FeedbackMcpServer;
 }
 
@@ -218,12 +158,9 @@ export class AgentSessionManager {
   private readonly sessionState = new Map<
     string,
     {
-      source?: { path: string };
-      timer?: number;
       saving?: Promise<unknown>;
       indexTimer?: number;
       unsub?: () => void;
-      signature?: string;
       attentionUnsub?: () => void;
     }
   >();
@@ -331,8 +268,8 @@ export class AgentSessionManager {
         this.readOnlyFanoutSessions.add(sessionId);
         return () => this.readOnlyFanoutSessions.delete(sessionId);
       },
-      excludeSubSessionFromHistory: (backendId, sessionId) => {
-        void this.opts.sessionIndex?.deleteSession(backendId, sessionId);
+      excludeSubSessionFromHistory: (_backendId, sessionId) => {
+        this.readOnlyFanoutSessions.add(sessionId);
       },
     };
   }
@@ -387,77 +324,28 @@ export class AgentSessionManager {
   }
 
   async getChatHistoryItems(scope?: ProjectScopeId): Promise<ChatHistoryItem[]> {
-    const persistence = this.opts.persistenceManager;
-    const index = this.opts.sessionIndex;
-    if (!persistence && !index) return EMPTY_HISTORY_ITEMS;
-
-    const liveAttentionPaths = this.collectLiveAttentionPaths();
-
-    let files: TFile[] = [];
-    let markdownEntries: MarkdownChatEntry[] = [];
-    if (persistence) {
-      files = await persistence.getAgentChatHistoryFiles();
-      const tracker = this.plugin.getChatHistoryLastAccessedAtManager();
-      markdownEntries = await Promise.all(
-        files.map(async (file) => {
-          const frontmatter = await this.readChatFrontmatter(file.path);
-          const ref = sessionRefFromFrontmatter(frontmatter);
-          const item = fileToHistoryItem(this.app, file, tracker);
-          return {
-            item: {
-              ...item,
-              pinnedAt: parseChatPinnedAt(frontmatter?.pinnedAt),
-              ...(liveAttentionPaths.has(item.id) ? { needsAttention: true } : {}),
-            },
-            backendId: ref?.backendId,
-            sessionId: ref?.sessionId,
-          };
-        })
-      );
-    }
-
-    if (scope && scope !== GLOBAL_SCOPE) {
-      const resolved = await Promise.all(
-        files.map(async (file, i) => {
-          const projectId =
-            (await readChatPathProjectId(this.app, file.path))?.trim() || GLOBAL_SCOPE;
-          return projectId === scope ? markdownEntries[i] : null;
-        })
-      );
-      const scopedMarkdown = resolved.filter((entry): entry is MarkdownChatEntry => entry !== null);
-      await this.pruneMissingNativeTwins(scopedMarkdown);
-      if (!index) {
-        const items = scopedMarkdown.map((e) => e.item);
-        return items.length === 0 ? EMPTY_HISTORY_ITEMS : items;
-      }
-      await this.refreshNativeSessionsFromBackends();
-      const scopedNative = (await index.getEntries()).filter((e) => e.projectId === scope);
-      const merged = mergeChatHistoryItems(scopedMarkdown, scopedNative);
-      return merged.length === 0 ? EMPTY_HISTORY_ITEMS : merged;
-    }
-
-    await this.pruneMissingNativeTwins(markdownEntries);
-    if (!index) return markdownEntries.map((e) => e.item);
-
-    await this.refreshNativeSessionsFromBackends();
-    const nativeEntries = await index.getEntries();
-    return mergeChatHistoryItems(markdownEntries, nativeEntries);
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    const { sessions } = await backend.listSessions({ cwd: this.resolveSessionCwd(GLOBAL_SCOPE) });
+    return sessions
+      .filter((session) => !scope || scope === GLOBAL_SCOPE || session.projectId === scope)
+      .map((session) => ({
+        id: buildNativeChatId("pi", session.sessionId),
+        title: session.title || t("agentInfra.session.untitledChat"),
+        createdAt: new Date(
+          session.createdAtMs ?? (Date.parse(session.updatedAt ?? "") || Date.now())
+        ),
+        lastAccessedAt: new Date(
+          session.lastAccessedAtMs ?? (Date.parse(session.updatedAt ?? "") || Date.now())
+        ),
+        pinnedAt: session.pinnedAt ?? undefined,
+        projectId: session.projectId,
+        backendId: "pi",
+        needsAttention: this.findLiveSession("pi", session.sessionId)?.getNeedsAttention(),
+      }));
   }
 
-  private collectLiveAttentionPaths(): Set<string> {
-    const paths = new Set<string>();
-    for (const [internalId, session] of this.sessions) {
-      if (!session.getNeedsAttention()) continue;
-      const path = this.sessionState.get(internalId)?.source?.path;
-      if (path) paths.add(path);
-    }
-    return paths;
-  }
-
-  private recentChatIdsForSession(internalId: string, session: AgentSession): string[] {
+  private recentChatIdsForSession(_internalId: string, session: AgentSession): string[] {
     const ids: string[] = [];
-    const path = this.sessionState.get(internalId)?.source?.path;
-    if (path) ids.push(path);
     const backendSessionId = session.getBackendSessionId();
     if (backendSessionId) ids.push(buildNativeChatId(session.backendId, backendSessionId));
     return ids;
@@ -529,93 +417,71 @@ export class AgentSessionManager {
     return ids.size === 0 ? EMPTY_RECENT_CHAT_IDS : ids;
   }
 
-  async updateChatTitle(fileId: string, newTitle: string): Promise<void> {
-    const native = parseNativeChatId(fileId);
-    if (native) {
-      const index = this.opts.sessionIndex;
-      if (!index) throw new Error("Agent session index is not configured.");
-      await index.setTitle(native.backendId, native.sessionId, newTitle);
-      this.findLiveSession(native.backendId, native.sessionId)?.setLabel(newTitle);
-      return;
-    }
-    const persistence = this.opts.persistenceManager;
-    if (!persistence) throw new Error("Agent chat persistence is not configured.");
-    await persistence.updateTopic(fileId, newTitle);
+  async updateChatTitle(id: string, title: string): Promise<void> {
+    const ref = parseNativeChatId(id);
+    if (!ref) throw new Error(t("notice.linkNotFound"));
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    await backend.updateSessionMetadata!({ sessionId: ref.sessionId, title, titleSource: "user" });
+    this.findLiveSession("pi", ref.sessionId)?.setLabel(title);
+    this.notify();
   }
 
   async setChatPinned(id: string, pinned: boolean): Promise<PinnedChat> {
-    const persistence = this.opts.persistenceManager;
-    if (!persistence) throw new Error("Agent chat persistence is not configured.");
-    // The pin lives in the chat's note, so a chat that has none is saved as one first.
-    // https://github.com/logancyang/obsidian-copilot/issues/3195
-    const path = await this.ensureChatNote(id);
+    const ref = parseNativeChatId(id);
+    if (!ref) throw new Error(t("notice.linkNotFound"));
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
     const pinnedAt = pinned ? Date.now() : null;
-    await persistence.setPinnedAt(path, pinnedAt);
-    return { id: path, pinnedAt: pinnedAt ?? undefined };
+    await backend.updateSessionMetadata!({ sessionId: ref.sessionId, pinnedAt });
+    this.notify();
+    return { id, pinnedAt: pinnedAt ?? undefined };
   }
 
-  async ensureChatNote(id: string): Promise<string> {
-    const native = parseNativeChatId(id);
-    return native ? this.saveNativeChatAsNote(native.backendId, native.sessionId) : id;
+  async forkChat(id: string, atEntryId?: string): Promise<AgentSession> {
+    const ref = parseNativeChatId(id);
+    if (!ref) throw new Error(t("notice.linkNotFound"));
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    const fork = await backend.forkSession!({ sessionId: ref.sessionId, atEntryId });
+    return this.loadNativeSessionFromHistory("pi", fork.sessionId);
   }
 
-  private async saveNativeChatAsNote(backendId: BackendId, sessionId: string): Promise<string> {
-    const live = this.findLiveSession(backendId, sessionId);
-    if (live) return this.saveAsNote(live, sessionId);
-    // Pinning or bookmarking a closed chat must not open it, so it is resumed off-screen and closed
-    // once saved, unless the user opened it meanwhile. https://github.com/logancyang/obsidian-copilot/issues/3195
-    const { entry, projectId } = await this.readNativeChatEntry(backendId, sessionId);
-    const session = await this.resumeNativeChat(backendId, sessionId, entry, projectId);
+  private readonly deletingSessions = new Set<string>();
+
+  isDeletingSession(internalId: string): boolean {
+    const id = this.sessions.get(internalId)?.getBackendSessionId();
+    return id !== undefined && id !== null && this.deletingSessions.has(id);
+  }
+
+  async deleteChatHistory(id: string): Promise<void> {
+    const ref = parseNativeChatId(id);
+    if (!ref) throw new Error(t("notice.linkNotFound"));
+    if (this.deletingSessions.has(ref.sessionId)) throw new Error(t("localData.sessionBusy"));
+    this.deletingSessions.add(ref.sessionId);
+    this.cancelPendingIndexTouch("pi", ref.sessionId);
+    this.notify();
+    let failure: Error | undefined;
     try {
-      return await this.saveAsNote(session, sessionId);
+      const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+      try {
+        await backend.deleteSession!({ sessionId: ref.sessionId });
+      } catch (error) {
+        const removed =
+          (error as { code?: string }).code === "SESSION_DELETE_INCOMPLETE" ||
+          (backend.sessionExistsLocally &&
+            !(await backend.sessionExistsLocally({
+              sessionId: ref.sessionId,
+              cwd: this.resolveSessionCwd(GLOBAL_SCOPE),
+            })));
+        if (!removed) throw error;
+        failure = error instanceof Error ? error : new Error(String(error));
+      }
+      for (const [internalId, session] of Array.from(this.sessions)) {
+        if (session.getBackendSessionId() === ref.sessionId) await this.closeSession(internalId);
+      }
+      if (failure) throw failure;
     } finally {
-      if (this.activeSessionId !== session.internalId) await this.closeSession(session.internalId);
+      this.deletingSessions.delete(ref.sessionId);
+      this.notify();
     }
-  }
-
-  private async saveAsNote(session: AgentSession, sessionId: string): Promise<string> {
-    const saved = await this.saveSessionNow(session);
-    if (!saved) throw new Error(t("agentInfra.session.saveNoteFailed", { id: sessionId }));
-    return saved.path;
-  }
-
-  async deleteChatHistory(fileId: string): Promise<void> {
-    const index = this.opts.sessionIndex;
-    const persistence = this.opts.persistenceManager;
-    const native = parseNativeChatId(fileId);
-    if (native && !index) throw new Error("Agent session index is not configured.");
-    if (!native && !persistence) throw new Error("Agent chat persistence is not configured.");
-
-    const ref = native ?? (await this.readSessionRefFromFile(fileId));
-
-    const savedPaths = await this.closeOpenChatForDelete(fileId);
-
-    // Keep the note recoverable when the history write fails. https://github.com/logancyang/obsidian-copilot/issues/2888
-    if (ref && index) {
-      this.cancelPendingIndexTouch(ref.backendId, ref.sessionId);
-      await index.deleteSession(ref.backendId, ref.sessionId);
-      await index.flushOrThrow();
-    }
-    const notePaths = new Set(native ? savedPaths : [fileId, ...savedPaths]);
-    if (persistence) {
-      for (const path of notePaths) await persistence.deleteFile(path);
-    }
-  }
-
-  // An open chat must be gone before its files are, or autosave writes the note again. Delete never
-  // saves: it stops new autosaves first, and only waits for a save that is already writing, so this
-  // returns the notes the closed chats already have. State stays so that running save is awaited.
-  // https://github.com/logancyang/obsidian-copilot/issues/2888
-  private async closeOpenChatForDelete(historyId: string): Promise<string[]> {
-    const savedPaths: string[] = [];
-    for (const [internalId, session] of Array.from(this.sessions)) {
-      if (!this.recentChatIdsForSession(internalId, session).includes(historyId)) continue;
-      const state = this.sessionState.get(internalId);
-      if (state) this.stopAutoSave(state);
-      await this.closeSession(internalId);
-      if (state?.source?.path) savedPaths.push(state.source.path);
-    }
-    return savedPaths;
   }
 
   private cancelPendingIndexTouch(backendId: BackendId, sessionId: string): void {
@@ -628,131 +494,6 @@ export class AgentSessionManager {
         state.indexTimer = undefined;
       }
     }
-  }
-
-  private async readSessionRefFromFile(
-    fileId: string
-  ): Promise<{ backendId: BackendId; sessionId: string } | null> {
-    return sessionRefFromFrontmatter(await this.readChatFrontmatter(fileId));
-  }
-
-  private async readChatFrontmatter(fileId: string): Promise<Record<string, unknown> | undefined> {
-    const file = this.app.vault.getAbstractFileByPath(fileId);
-    const cached =
-      file instanceof TFile ? this.app.metadataCache.getFileCache(file)?.frontmatter : undefined;
-    if (cached) return cached;
-    try {
-      return (await readFrontmatterViaAdapter(this.app, fileId)) ?? undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private async refreshNativeSessionsFromBackends(): Promise<void> {
-    const index = this.opts.sessionIndex;
-    if (!index) return;
-    const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof FileSystemAdapter)) return;
-    const vaultBasePath = adapter.getBasePath();
-    const procs = this.getRunningProcsByBackend();
-    if (procs.size === 0) return;
-    const sweeps = Array.from(procs, ([backendId, proc]) =>
-      this.sweepNativeSessions(backendId, proc, vaultBasePath)
-    );
-    await withTimeout(
-      Promise.allSettled(sweeps).then(() => undefined),
-      LIST_SESSIONS_TIMEOUT_MS,
-      undefined
-    );
-  }
-
-  private getRunningProcsByBackend(): Map<BackendId, BackendProcess> {
-    const procs = new Map<BackendId, BackendProcess>();
-    for (const { backendId, proc } of this.preloader.getWarmProcs()) {
-      if (proc.isRunning()) procs.set(backendId, proc);
-    }
-    for (const [backendId, proc] of this.backends) {
-      if (proc.isRunning()) procs.set(backendId, proc);
-    }
-    return procs;
-  }
-
-  private async pruneMissingNativeTwins(entries: MarkdownChatEntry[]): Promise<void> {
-    const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof FileSystemAdapter)) return;
-    const vaultRoot = adapter.getBasePath();
-    const procs = this.getRunningProcsByBackend();
-    const keep = await Promise.all(
-      entries.map(async (entry) => {
-        if (!entry.backendId || !entry.sessionId) return true;
-        const proc = procs.get(entry.backendId);
-        if (!proc?.sessionExistsLocally) return true;
-        let cwd: string;
-        try {
-          const projectId =
-            (await readChatPathProjectId(this.app, entry.item.id))?.trim() || GLOBAL_SCOPE;
-          cwd = resolveScopeCwd(vaultRoot, projectId);
-        } catch {
-          return true;
-        }
-        try {
-          return await proc.sessionExistsLocally({ sessionId: entry.sessionId, cwd });
-        } catch {
-          return true;
-        }
-      })
-    );
-    const index = this.opts.sessionIndex;
-    if (index) {
-      await Promise.all(
-        entries.map(async (entry, i) => {
-          if (keep[i] || !entry.backendId || !entry.sessionId) return;
-          this.cancelPendingIndexTouch(entry.backendId, entry.sessionId);
-          await index.deleteSession(entry.backendId, entry.sessionId);
-        })
-      );
-    }
-  }
-
-  private async sweepNativeSessions(
-    backendId: BackendId,
-    proc: BackendProcess,
-    vaultBasePath: string
-  ): Promise<void> {
-    const index = this.opts.sessionIndex;
-    if (!index) return;
-    const descriptor = this.opts.resolveDescriptor(backendId);
-    if (!descriptor?.summarizesSessionTitle) return;
-    let sessions;
-    try {
-      ({ sessions } = await proc.listSessions({ cwd: vaultBasePath }));
-    } catch (err) {
-      if (!(err instanceof MethodUnsupportedError)) {
-        logWarn(`[AgentMode] listSessions sweep failed for ${backendId}`, err);
-      }
-      return;
-    }
-    const now = Date.now();
-    const discovered = [];
-    for (const s of sessions) {
-      const inVaultRoot = isSameCwd(s.cwd, vaultBasePath);
-      const projectId = inVaultRoot ? undefined : resolveProjectIdForCwd(vaultBasePath, s.cwd);
-      if (!inVaultRoot && !projectId) continue;
-      if (this.readOnlyFanoutSessions.has(s.sessionId)) continue;
-      const title = s.title?.trim();
-      if (!title || title.startsWith(DEFAULT_TITLE_PREFIX)) continue;
-      const updatedAtMs = s.updatedAt ? Date.parse(s.updatedAt) : NaN;
-      const timestamp = Number.isFinite(updatedAtMs) && updatedAtMs > 0 ? updatedAtMs : now;
-      discovered.push({
-        backendId,
-        sessionId: s.sessionId,
-        title,
-        createdAtMs: timestamp,
-        lastAccessedAtMs: timestamp,
-        projectId,
-      });
-    }
-    if (discovered.length > 0) await index.mergeDiscoveredSessions(discovered);
   }
 
   async getOrCreateActiveSession(): Promise<AgentSession> {
@@ -787,7 +528,7 @@ export class AgentSessionManager {
 
     const requestedId = backendId ?? getSettings().agentMode?.activeBackend ?? "pi";
     const requested = this.opts.resolveDescriptor(requestedId);
-    const resolvedId = requested && !isHistoricalBackendId(requestedId) ? requestedId : "pi";
+    const resolvedId = requested ? requestedId : "pi";
     const errorSeqAtStart = this.lastErrorSeq;
     const descriptor = this.resolveDescriptor(resolvedId);
     const resolvedSeed = seedSelection ?? this.getSeedSelection(resolvedId) ?? undefined;
@@ -800,8 +541,6 @@ export class AgentSessionManager {
 
     const projectRecord =
       projectId === GLOBAL_SCOPE ? undefined : getCachedProjectRecordById(projectId);
-
-    await this.ensureScopeInstructions(projectId, projectRecord);
 
     const landingCaptureSignature = projectRecord
       ? getProjectLandingCaptureSignature(this.app, projectRecord)
@@ -1068,23 +807,6 @@ export class AgentSessionManager {
     if (projectId === GLOBAL_SCOPE) return null;
     const record = getCachedProjectRecordById(projectId);
     return record ? getProjectLandingCaptureSignature(this.app, record) : null;
-  }
-
-  private async ensureScopeInstructions(
-    projectId: ProjectScopeId,
-    record: ProjectFileRecord | undefined
-  ): Promise<void> {
-    if (projectId === GLOBAL_SCOPE) {
-      await ensureAgentsFileForDiscovery(this.app, "");
-      return;
-    }
-    if (!record) return;
-    await ensureAgentsFileForDiscovery(this.app, "");
-    await moveProjectPromptToAgentsFile(this.app, record);
-    await ensureAgentsFileForDiscovery(
-      this.app,
-      getProjectAnchorFromConfigPath(record.filePath).projectFolderPath
-    );
   }
 
   private touchProjectUsage(projectId: ProjectScopeId): void {
@@ -1409,7 +1131,7 @@ export class AgentSessionManager {
 
   private canStartBackend(backendId: BackendId): boolean {
     const descriptor = this.opts.resolveDescriptor(backendId);
-    return !isHistoricalBackendId(backendId) && descriptor !== undefined;
+    return descriptor !== undefined;
   }
 
   getCachedModelCatalog(backendId: BackendId): BackendModelCatalog | null {
@@ -1465,35 +1187,38 @@ export class AgentSessionManager {
     const scopeIdsBefore = this.getSessionIdsForScope(closedScope);
     const closedIdx = scopeIdsBefore.indexOf(id);
     const supportsPause = !!this.backends.get(session.backendId)?.pauseSession;
-    if (supportsPause) {
+    const deleting = this.deletingSessions.has(session.getBackendSessionId() ?? "");
+    if (!deleting && supportsPause) {
       const status = session.getStatus();
       const alreadyPaused = session.getRunState()?.status.startsWith("paused_") === true;
       // 关闭标签只保存可继续的工作；必须等暂停落盘后释放，不能把已暂停的待答事项再次终结。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
       if (!alreadyPaused && (status === "running" || status === "awaiting_permission"))
         await session.pause();
     }
-    // 显式释放仍阻止关闭后的新发送；重启后端时保留原有内部拆卸入口。https://github.com/Brevilabs/obsidian-copilot-private/issues/429
-    if (options?.releaseBackend) {
-      await session.releaseBackendSession();
-    } else {
-      if (!supportsPause) {
-        try {
-          await session.cancel();
-        } catch (e) {
-          logWarn(`[AgentMode] cancel during closeSession failed`, e);
+    if (!deleting) {
+      // 显式释放仍阻止关闭后的新发送；重启后端时保留原有内部拆卸入口。https://github.com/Brevilabs/obsidian-copilot-private/issues/429
+      if (options?.releaseBackend) {
+        await session.releaseBackendSession();
+      } else {
+        if (!supportsPause) {
+          try {
+            await session.cancel();
+          } catch (e) {
+            logWarn(`[AgentMode] cancel during closeSession failed`, e);
+          }
         }
-      }
-      // 关闭聊天时释放运行会话，避免重开后继续使用已经撤销的反馈连接。
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-      if (session.getBackendSessionId() && !this.restartingBackends.has(session.backendId)) {
-        try {
-          await session.releaseBackendSession();
-        } catch (e) {
-          logWarn(`[AgentMode] releasing the backend session during closeSession failed`, e);
+        // 关闭聊天时释放运行会话，避免重开后继续使用已经撤销的反馈连接。
+        // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
+        if (session.getBackendSessionId() && !this.restartingBackends.has(session.backendId)) {
+          try {
+            await session.releaseBackendSession();
+          } catch (e) {
+            logWarn(`[AgentMode] releasing the backend session during closeSession failed`, e);
+          }
         }
       }
     }
-    await this.drainAutoSave(session);
+    if (!deleting) await this.drainAutoSave(session);
     try {
       await session.dispose();
     } catch (e) {
@@ -1533,6 +1258,13 @@ export class AgentSessionManager {
     this.activeSessionId = id;
     this.lastActiveByScope.set(session.projectId, id);
     session.clearNeedsAttention();
+    const sessionId = session.getBackendSessionId();
+    const backend = this.backends.get(session.backendId);
+    if (sessionId && !this.deletingSessions.has(sessionId) && backend?.updateSessionMetadata) {
+      void backend
+        .updateSessionMetadata({ sessionId, lastAccessedAtMs: Date.now() })
+        .catch((error) => logWarn("[AgentMode] visit metadata failed", error));
+    }
     this.notify();
   }
 
@@ -1762,149 +1494,14 @@ export class AgentSessionManager {
       })
     );
     this.backends.clear();
+    for (const unsubscribe of this.backendStorageUnsubscribers.values()) unsubscribe();
+    this.backendStorageUnsubscribers.clear();
+    this.storageListeners.clear();
     this.starting.clear();
     this.startingBackendId = null;
     this.listeners.clear();
     this.preloadStatus.clear();
     this.preloader.shutdown();
-    await this.opts.sessionIndex?.flush();
-  }
-
-  async loadSessionFromHistory(file: TFile): Promise<AgentSession> {
-    if (!this.opts.persistenceManager) {
-      throw new Error("Agent chat persistence is not configured.");
-    }
-    if (this.disposed) {
-      throw new Error("AgentSessionManager has been shut down");
-    }
-    const requestId = ++this.latestHistoryLoadRequestId;
-
-    for (const [internalId, state] of this.sessionState.entries()) {
-      if (this.getSessionSourcePath(internalId) !== file.path) continue;
-      const existing = this.sessions.get(internalId);
-      if (existing && existing.getStatus() !== "closed") {
-        if (!existing.isHistoricalOnly()) {
-          state.source = undefined;
-          state.signature = undefined;
-          const id = existing.getBackendSessionId();
-          if (
-            id &&
-            (await this.opts.persistenceManager.writableSessionPath(file, existing.backendId, id))
-          )
-            state.source = file;
-        }
-        this.setActiveSession(internalId);
-        return existing;
-      }
-      state.source = undefined;
-    }
-
-    const previousActiveId = this.activeSessionId;
-
-    const loaded = await this.opts.persistenceManager.loadFile(file);
-    const projectId = loaded.projectId;
-    if (projectId !== GLOBAL_SCOPE && !getCachedProjectRecordById(projectId)) {
-      new Notice(t("agentInfra.session.chatProjectGone"));
-      throw new OrphanedProjectError(projectId);
-    }
-    const previousActiveProjectId = this.activeProjectId;
-    const scopeSeq = this.setActiveScope(projectId);
-
-    let session: AgentSession;
-    let resumed: AgentSession | null;
-    let importedHistory = false;
-    try {
-      resumed = isHistoricalBackendId(loaded.backendId)
-        ? this.createHistorySession({
-            backendId: loaded.backendId,
-            sessionId: loaded.sessionId ?? `note:${file.path}`,
-            projectId,
-            messages: loaded.messages,
-          })
-        : loaded.sessionId
-          ? await this.tryResumeSessionFromHistory(loaded.backendId, loaded.sessionId, projectId)
-          : null;
-      if (!resumed) {
-        const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
-        if (loaded.sessionId) {
-          if (
-            !backend.sessionExistsLocally ||
-            (await backend.sessionExistsLocally({
-              sessionId: loaded.sessionId,
-              cwd: this.resolveSessionCwd(projectId),
-            }))
-          )
-            throw new Error("原始记录暂时无法打开，已保留；请排查后重新打开，不能用空白会话替代。");
-        }
-        if (!backend.importLegacySession) throw new MethodUnsupportedError("importLegacySession");
-        const messages = loaded.messages
-          .filter(
-            (message) =>
-              message.isVisible && (message.sender === USER_SENDER || message.sender === AI_SENDER)
-          )
-          .map((message) => ({
-            role: message.sender === USER_SENDER ? ("user" as const) : ("assistant" as const),
-            text: message.message,
-          }));
-        const imported = await backend.importLegacySession({
-          cwd: this.resolveSessionCwd(projectId),
-          entry: {
-            backendId: loaded.backendId,
-            sessionId: loaded.sessionId ?? `note:${file.path}`,
-            title: loaded.topic ?? loaded.label ?? null,
-            createdAtMs: loaded.messages[0]?.timestamp?.epoch ?? 0,
-            lastAccessedAtMs: loaded.messages.at(-1)?.timestamp?.epoch ?? 0,
-            ...(projectId === GLOBAL_SCOPE ? {} : { projectId }),
-            sourcePath: file.path,
-            sourceHash: sha256(
-              JSON.stringify({
-                sourcePath: file.path,
-                content: await this.app.vault.read(file),
-                messages,
-              })
-            ),
-            messages,
-            unknownFields: {},
-            importMode: "text_only",
-          },
-        });
-        resumed = await this.tryResumeSessionFromHistory("pi", imported.sessionId, projectId);
-        if (!resumed) throw new Error("聊天文字已保存，但未能打开。请从历史记录重新打开。");
-        importedHistory = true;
-      }
-      session = resumed;
-    } catch (err) {
-      this.rollbackOptimisticScopeSwitch(previousActiveProjectId, scopeSeq);
-      throw err;
-    }
-
-    // 未标记的旧备份保留原件，只有同根且正文校验完整的正式副本可以作为后续保存目标。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    const state = this.getSessionState(session.internalId);
-    state.source = undefined;
-    state.signature = undefined;
-    if (isHistoricalBackendId(loaded.backendId)) state.source = file;
-    else if (!importedHistory) {
-      const id = session.getBackendSessionId();
-      const writable = id
-        ? await this.opts.persistenceManager.writableSessionPath(file, session.backendId, id)
-        : undefined;
-      if (writable) state.source = file;
-    }
-    // Markdown 是备份而非第二份执行事实；其中嵌套的角色标记不能覆盖 Durable 的真实投影。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    session.store.fillMissingTimestamps(loaded.messages);
-    session.seedSessionUsage(loaded.usage);
-    const restoredLabel = loaded.topic ?? loaded.label;
-    if (restoredLabel) session.setLabel(restoredLabel);
-    const backendSessionId = session.getBackendSessionId();
-    if (backendSessionId) {
-      void this.opts.sessionIndex?.touch(session.backendId, backendSessionId);
-    }
-    if (requestId === this.latestHistoryLoadRequestId) {
-      this.setActiveSession(session.internalId);
-      this.absorbIntoEmptyActiveTab(session, previousActiveId);
-      this.notify();
-    }
-    return session;
   }
 
   private absorbIntoEmptyActiveTab(loaded: AgentSession, previousActiveId: string | null): void {
@@ -1931,6 +1528,8 @@ export class AgentSessionManager {
     const requestId = ++this.latestHistoryLoadRequestId;
     const existing = this.findLiveSession(backendId, sessionId);
     if (existing) {
+      const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+      await backend.updateSessionMetadata!({ sessionId, lastAccessedAtMs: Date.now() });
       this.setActiveSession(existing.internalId);
       return existing;
     }
@@ -1945,7 +1544,8 @@ export class AgentSessionManager {
       this.rollbackOptimisticScopeSwitch(previousActiveProjectId, scopeSeq);
       throw err;
     }
-    await this.opts.sessionIndex?.touch(backendId, sessionId);
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    await backend.updateSessionMetadata!({ sessionId, lastAccessedAtMs: Date.now() });
     if (requestId === this.latestHistoryLoadRequestId) {
       this.setActiveSession(session.internalId);
       this.absorbIntoEmptyActiveTab(session, previousActiveId);
@@ -1957,9 +1557,13 @@ export class AgentSessionManager {
   private async readNativeChatEntry(
     backendId: BackendId,
     sessionId: SessionId
-  ): Promise<{ entry: AgentSessionIndexEntry | null; projectId: ProjectScopeId }> {
-    const index = this.opts.sessionIndex;
-    const entry = index ? await index.getEntry(backendId, sessionId) : null;
+  ): Promise<{ entry: ListedSessionInfo | null; projectId: ProjectScopeId }> {
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    const { sessions } = await backend.listSessions({ cwd: this.resolveSessionCwd(GLOBAL_SCOPE) });
+    const stored = sessions.find((item) => item.sessionId === sessionId);
+    if (!stored)
+      throw Object.assign(new Error(t("localData.sessionMissing")), { code: "SESSION_NOT_FOUND" });
+    const entry = stored;
     const projectId: ProjectScopeId = entry?.projectId ?? GLOBAL_SCOPE;
     if (projectId !== GLOBAL_SCOPE && !getCachedProjectRecordById(projectId)) {
       new Notice(t("agentInfra.session.chatProjectGone"));
@@ -1971,7 +1575,7 @@ export class AgentSessionManager {
   private async resumeNativeChat(
     backendId: BackendId,
     sessionId: SessionId,
-    entry: AgentSessionIndexEntry | null,
+    entry: ListedSessionInfo | null,
     projectId: ProjectScopeId
   ): Promise<AgentSession> {
     const session = await this.tryResumeSessionFromHistory(backendId, sessionId, projectId);
@@ -2020,23 +1624,6 @@ export class AgentSessionManager {
     chatInputId?: string,
     seedSelection?: ModelSelection
   ): Promise<AgentSession | null> {
-    if (isHistoricalBackendId(backendId)) {
-      const cwd = this.resolveSessionCwd(projectId);
-      const history = await readLegacyNativeHistory({ backendId, sessionId, cwd });
-      const session = this.createHistorySession({
-        backendId,
-        sessionId,
-        projectId,
-        messages: history.messages,
-        chatInputId,
-      });
-      if (history.messages.length === 0) new Notice(history.notice);
-      return session;
-    }
-    await this.ensureScopeInstructions(
-      projectId,
-      projectId === GLOBAL_SCOPE ? undefined : getCachedProjectRecordById(projectId)
-    );
     const cwd = this.resolveSessionCwd(projectId);
     const descriptor = this.resolveDescriptor(backendId);
 
@@ -2158,12 +1745,7 @@ export class AgentSessionManager {
   }
 
   private attachAutoSave(session: AgentSession): void {
-    const persistence = this.opts.persistenceManager;
-    const index = this.opts.sessionIndex;
-    if (!persistence && !index) return;
-
     const trigger = () => {
-      this.scheduleAutoSave(session);
       this.scheduleIndexTouch(session);
     };
     const unsubscribe = session.subscribe({
@@ -2172,95 +1754,6 @@ export class AgentSessionManager {
       onLabelChanged: trigger,
     });
     this.getSessionState(session.internalId).unsub = unsubscribe;
-  }
-
-  private createHistorySession(input: {
-    backendId: BackendId;
-    sessionId: string;
-    projectId: ProjectScopeId;
-    messages: readonly AgentChatMessage[];
-    chatInputId?: string;
-  }): AgentSession {
-    const session = new AgentSession({
-      backend: createHistoryBackend(),
-      backendSessionId: input.sessionId,
-      internalId: uuidv4(),
-      chatInputId: input.chatInputId,
-      backendId: input.backendId,
-      projectId: input.projectId,
-      cwd: this.resolveSessionCwd(input.projectId),
-      getDescriptor: () => this.opts.resolveDescriptor(input.backendId),
-    });
-    session.completeResume({ model: null, mode: null, readOnly: true });
-    session.loadDisplayMessages([...input.messages]);
-    this.sessions.set(session.internalId, session);
-    this.chatUIStates.set(session.internalId, new AgentChatUIState(session));
-    this.detachedFromTabIds.delete(session.internalId);
-    this.attachAttentionTracking(session);
-    this.lastError = null;
-    return session;
-  }
-
-  private async historicalEntry(session: AgentSession): Promise<LegacyChatEntry> {
-    const source = this.getSessionSourcePath(session.internalId);
-    if (source) {
-      const file = this.app.vault.getAbstractFileByPath(source);
-      if (file instanceof TFile) {
-        const reader = new LegacyHistoryReader({
-          ports: { listFiles: async () => [], isTombstoned: async () => false },
-        });
-        const parsed = reader.parse(source, await this.app.vault.read(file));
-        if (parsed) return parsed;
-      }
-    }
-    const sessionId = session.getBackendSessionId();
-    if (!sessionId) throw new Error("旧聊天缺少可识别的会话编号。");
-    const displayed = session.store.getDisplayMessages();
-    const messages = displayed
-      .filter(
-        (message) =>
-          !message.isAuxiliary && (message.sender === USER_SENDER || message.sender === AI_SENDER)
-      )
-      .map((message) => ({
-        role: message.sender === USER_SENDER ? ("user" as const) : ("assistant" as const),
-        text: message.message,
-      }));
-    if (messages.length === 0) throw new Error("没有可导入的旧聊天文字；原记录保持不变。");
-    const sourcePath = source || buildNativeChatId(session.backendId, sessionId);
-    return {
-      backendId: session.backendId,
-      sessionId,
-      title: session.getLabel(),
-      createdAtMs: displayed[0]?.timestamp?.epoch ?? 0,
-      lastAccessedAtMs: displayed[displayed.length - 1]?.timestamp?.epoch ?? 0,
-      ...(session.projectId === GLOBAL_SCOPE ? {} : { projectId: session.projectId }),
-      sourcePath,
-      sourceHash: sha256(JSON.stringify({ sourcePath, messages })),
-      messages,
-      unknownFields: {},
-      importMode: "text_only",
-    };
-  }
-
-  async importActiveLegacySession(): Promise<AgentSession> {
-    const source = this.getActiveSession();
-    if (!source?.isHistoricalOnly()) throw new Error("当前聊天不是待导入的旧聊天。");
-    const descriptor = this.resolveDescriptor("pi");
-    const backend = await this.ensureBackend("pi", descriptor);
-    if (!backend.importLegacySession) throw new MethodUnsupportedError("importLegacySession");
-    const imported = await backend.importLegacySession({
-      cwd: this.resolveSessionCwd(source.projectId),
-      entry: await this.historicalEntry(source),
-    });
-    const session = await this.tryResumeSessionFromHistory(
-      "pi",
-      imported.sessionId,
-      source.projectId
-    );
-    if (!session) throw new Error("导入已保存，但新聊天未能打开。请从历史记录重新打开。");
-    this.setActiveSession(session.internalId);
-    this.notify();
-    return session;
   }
 
   async rolloverSession(internalId: string): Promise<AgentSession> {
@@ -2274,60 +1767,24 @@ export class AgentSessionManager {
     return next;
   }
 
-  async importSessionBackup(content: string): Promise<AgentSession> {
-    const projectId = this.getActiveSession()?.projectId ?? GLOBAL_SCOPE;
-    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
-    if (!backend.importSessionBackup) throw new MethodUnsupportedError("importSessionBackup");
-    const imported = await backend.importSessionBackup({
-      cwd: this.resolveSessionCwd(projectId),
-      content,
-    });
-    const session = await this.tryResumeSessionFromHistory("pi", imported.sessionId, projectId);
-    if (!session) throw new Error("备份已导入，但未能打开。请从历史记录重新打开。");
-    this.setActiveSession(session.internalId);
-    this.notify();
-    return session;
-  }
-
-  async exportActiveSession(format: "json" | "markdown" = "json"): Promise<{ path: string }> {
+  async exportActiveSession(
+    format: "json" | "markdown" = "json"
+  ): Promise<{ path: string } | null> {
     const session = this.getActiveSession();
-    if (!session?.getBackendSessionId()) throw new Error("没有可导出的聊天。");
+    if (!session?.getBackendSessionId()) throw new Error(t("localData.noChatToExport"));
     const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
     if (!backend.exportSession) throw new MethodUnsupportedError("exportSession");
     const exported = await backend.exportSession({
       sessionId: session.getBackendSessionId()!,
       format,
-      ...(isHistoricalBackendId(session.backendId)
-        ? { legacy: await this.historicalEntry(session) }
-        : {}),
     });
     const name = exported.suggestedName.replace(/[\\/:]/g, "_").replace(/^\.+/, "");
     if (!name || !name.endsWith(format === "json" ? ".json" : ".md"))
-      throw new Error("导出文件名无效。");
-    const folder = getEffectiveConversationsFolder();
-    await ensureFolderExists(this.app.vault, folder);
-    const path = joinPosix(folder, `${uuidv4()}-${name}`);
-    const file = await this.app.vault.create(path, exported.content);
-    if (format === "markdown") await this.app.workspace.getLeaf(false).openFile(file);
-    return { path };
-  }
-
-  private scheduleAutoSave(session: AgentSession): void {
-    const state = this.getSessionState(session.internalId);
-    // Manual Save opts this chat into keeping its note current.
-    // https://github.com/logancyang/obsidian-copilot/issues/3225
-    if (!getSettings().autosaveChat && !state.source) return;
-    if (state.timer) window.clearTimeout(state.timer);
-    state.timer = window.setTimeout(() => {
-      state.timer = undefined;
-      this.flushAutoSave(session).catch((e) =>
-        logWarn(`[AgentMode] auto-save failed for ${session.internalId}`, e)
-      );
-    }, AUTOSAVE_DEBOUNCE_MS);
+      throw new Error(t("localData.exportNameInvalid"));
+    return saveChatExport(name, exported.content, exported.attachments);
   }
 
   private scheduleIndexTouch(session: AgentSession): void {
-    if (!this.opts.sessionIndex) return;
     const state = this.getSessionState(session.internalId);
     if (state.indexTimer) window.clearTimeout(state.indexTimer);
     state.indexTimer = window.setTimeout(() => {
@@ -2339,108 +1796,33 @@ export class AgentSessionManager {
   }
 
   private async flushIndexTouch(session: AgentSession): Promise<void> {
-    const index = this.opts.sessionIndex;
-    if (!index) return;
     if (!this.sessions.has(session.internalId)) return;
     const sessionId = session.getBackendSessionId();
-    if (!sessionId) return;
-    const messages = session.store.getDisplayMessages();
-    if (messages.length === 0) return;
-    const now = Date.now();
-    const label = session.getLabel();
-    const title = label ?? deriveChatTitleFromMessages(messages);
-    const titleSource: "user" | "agent" | undefined = !title
-      ? undefined
-      : label && session.getLabelSource() === "user"
-        ? "user"
-        : "agent";
-    await index.recordSession({
-      backendId: session.backendId,
+    const backend = this.backends.get("pi");
+    if (!sessionId || !backend?.updateSessionMetadata) return;
+    const saving = backend.updateSessionMetadata({
       sessionId,
-      title,
-      titleSource,
-      createdAtMs: messages[0]?.timestamp?.epoch ?? now,
-      lastAccessedAtMs: now,
-      projectId: session.projectId === GLOBAL_SCOPE ? undefined : session.projectId,
+      lastAccessedAtMs: Date.now(),
+      title:
+        session.getLabel() ??
+        deriveChatTitleFromMessages(session.store.getDisplayMessages()) ??
+        undefined,
+      titleSource: session.getLabelSource() === "user" ? "user" : "agent",
     });
+    this.getSessionState(session.internalId).saving = saving.catch(() => undefined);
+    await saving;
   }
 
-  saveActiveSession(): Promise<{ path: string } | null> {
-    const session = this.getActiveSession();
-    if (session?.isHistoricalOnly?.()) return this.exportActiveSession("markdown");
-    return session ? this.saveSessionNow(session) : Promise.resolve(null);
+  async getLocalDataBackend(): Promise<BackendProcess> {
+    return this.ensureBackend("pi", this.resolveDescriptor("pi"));
   }
 
-  private async saveSessionNow(session: AgentSession): Promise<{ path: string } | null> {
-    const state = this.sessionState.get(session.internalId);
-    if (state?.timer) {
-      window.clearTimeout(state.timer);
-      state.timer = undefined;
-    }
-    const result = await this.flushAutoSave(session);
-    this.scheduleAutoSave(session);
-    return result;
-  }
+  private readonly storageListeners = new Set<() => void>();
+  private readonly backendStorageUnsubscribers = new Map<BackendId, () => void>();
 
-  getSessionSourcePath(internalId: string): string {
-    const state = this.sessionState.get(internalId);
-    return state?.source?.path ?? "";
-  }
-
-  // One save chain per chat: each save runs after the previous one, and state.saving holds the
-  // tail so close and delete wait for every save that already started.
-  // https://github.com/logancyang/obsidian-copilot/issues/2888
-  private flushAutoSave(session: AgentSession): Promise<{ path: string } | null> {
-    const state = this.getSessionState(session.internalId);
-    const previous = state.saving;
-    const run = previous
-      ? previous.then(() => this.writeSession(session))
-      : this.writeSession(session);
-    state.saving = run.catch(() => {});
-    return run;
-  }
-
-  private async writeSession(session: AgentSession): Promise<{ path: string } | null> {
-    const persistence = this.opts.persistenceManager;
-    if (!persistence) return null;
-    if (!this.sessions.has(session.internalId)) return null;
-
-    const messages = session.store.getDisplayMessages();
-    if (messages.length === 0) return null;
-
-    const label = session.getLabel();
-    const sessionId = session.getBackendSessionId();
-    const usage = session.getSessionUsage();
-    const last = messages[messages.length - 1];
-    const fanoutSig = last?.fanout
-      ? Object.values(last.fanout.answers)
-          .map((a) => `${a.status}:${a.text.length}`)
-          .join(",") + `|${last.fanout.summary.status}:${last.fanout.summary.text.length}`
-      : "";
-    const signature = `${label ?? ""}-${sessionId ?? ""}-${messages.length}-${
-      last?.message ?? ""
-    }-${fanoutSig}-${usage?.updatedAt ?? ""}`;
-    const state = this.getSessionState(session.internalId);
-    if (state.signature === signature) {
-      return state.source ?? null;
-    }
-
-    const previousSourcePath = this.getSessionSourcePath(session.internalId);
-    const result = await persistence.saveSession(messages, session.backendId, {
-      label,
-      existingPath: this.getSessionSourcePath(session.internalId) || undefined,
-      sessionId,
-      projectId: session.projectId,
-      usage: usage ?? undefined,
-    });
-    if (result) {
-      state.source = this.app.vault.getAbstractFileByPath(result.path) ?? result;
-      state.signature = signature;
-      // The first successful save changes relative-link resolution in the mounted chat.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/539
-      if (previousSourcePath !== result.path) this.notify();
-    }
-    return result;
+  subscribeStorageChanges(listener: () => void): () => void {
+    this.storageListeners.add(listener);
+    return () => this.storageListeners.delete(listener);
   }
 
   private async drainAutoSave(session: AgentSession): Promise<void> {
@@ -2457,14 +1839,6 @@ export class AgentSessionManager {
     // A save that already started is in neither timer; closing must still wait for it.
     // https://github.com/logancyang/obsidian-copilot/issues/2888
     await state?.saving;
-    if (!state?.timer) return;
-    window.clearTimeout(state.timer);
-    state.timer = undefined;
-    try {
-      await this.flushAutoSave(session);
-    } catch (e) {
-      logWarn(`[AgentMode] drain auto-save failed for ${session.internalId}`, e);
-    }
   }
 
   private detachAutoSave(internalId: string): void {
@@ -2475,9 +1849,7 @@ export class AgentSessionManager {
     this.sessionState.delete(internalId);
   }
 
-  private stopAutoSave(state: { timer?: number; indexTimer?: number; unsub?: () => void }): void {
-    window.clearTimeout(state.timer);
-    state.timer = undefined;
+  private stopAutoSave(state: { indexTimer?: number; unsub?: () => void }): void {
     window.clearTimeout(state.indexTimer);
     state.indexTimer = undefined;
     state.unsub?.();
@@ -2532,6 +1904,19 @@ export class AgentSessionManager {
   }
 
   private wireProcessCallbacks(backendId: BackendId, proc: BackendProcess): void {
+    // 更换引擎后页面仍须收到删除与写入通知，不能把订阅留在已关闭的实例上。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    this.backendStorageUnsubscribers.get(backendId)?.();
+    const unsubscribe = proc.subscribeStorageChanges?.(() => {
+      for (const listener of this.storageListeners) {
+        try {
+          listener();
+        } catch (error) {
+          logWarn("[AgentMode] storage listener failed", error);
+        }
+      }
+    });
+    if (unsubscribe) this.backendStorageUnsubscribers.set(backendId, unsubscribe);
+    else this.backendStorageUnsubscribers.delete(backendId);
     proc.setPermissionPrompter(this.opts.permissionPrompter);
     proc.setUnhealthyHandler?.(() => {
       if (this.disposed || this.backends.get(backendId) !== proc) return;
@@ -2692,28 +2077,9 @@ export class AgentSessionManager {
         this.setActiveSession(resumed.internalId);
         return resumed;
       }
-      // 已知根恢复失败时只保留只读入口和原输入所有权，不能静默创建可运行的新根。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
       const message = t("agentChat.history.restoreUnavailable");
-      const unavailable = this.createHistorySession({
-        backendId,
-        sessionId: resumableSessionId,
-        projectId,
-        chatInputId,
-        messages: [
-          {
-            id: `${resumableSessionId}:restore-unavailable`,
-            sender: AI_SENDER,
-            timestamp: null,
-            isVisible: true,
-            isAuxiliary: true,
-            isErrorMessage: true,
-            message,
-          },
-        ],
-      });
-      if (label) unavailable.restoreLabel(label, labelSource ?? "agent");
       this.setLastError(message);
-      return unavailable;
+      throw new Error(message);
     }
     return this.createSession(backendId, projectId, seedSelection, chatInputId);
   }

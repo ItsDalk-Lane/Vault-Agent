@@ -390,7 +390,7 @@ export class McpToolAdapter {
       operationId,
       caller,
       mode: "default",
-      scope: { vaultRoot: "", externalRoots: [], readOnly: false },
+      scope: { vaultRoot: "", readOnly: false },
       scopeVersion: 1,
       policyVersion: 1,
       targets: [{ kind: "operation", value: `mcp:${this.#serverId}/${tool.toolName}` }],

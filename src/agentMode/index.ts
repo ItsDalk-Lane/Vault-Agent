@@ -1,20 +1,19 @@
 import type { App } from "obsidian";
 import type VaultAgentPlugin from "@/main";
 import { logError } from "@/logger";
+import { logFileManager } from "@/logFileManager";
+import { t } from "@/i18n";
 import { getSettings, subscribeToSettingsChange, type VaultAgentSettings } from "@/settings/model";
 import { deriveSkillsFolder } from "@/settings/vaultAgentFolder";
-import { vaultAgentAppDataDir, getVaultId } from "@/utils/appPaths";
-import { requireNodeModule } from "@/utils/desktopRuntime";
+
 import {
   backendRegistry,
   CREATABLE_BACKEND_IDS,
   listBackendDescriptors,
 } from "./backends/registry";
 import type { BackendId } from "./session/types";
-import { AgentChatPersistenceManager } from "./session/AgentChatPersistenceManager";
 import { AgentModelPreloader } from "./session/AgentModelPreloader";
-import { AgentSessionIndex } from "./session/AgentSessionIndex";
-import { createNodeFileStorage } from "./session/nodeFileStorage";
+
 import { AgentSessionManager } from "./session/AgentSessionManager";
 import { createFeedbackMcpServer } from "@/agentMode/session/feedback/feedbackMcpServer";
 import { seedVaultAgentDefaultModel } from "./session/vaultAgentDefaultModel";
@@ -44,14 +43,12 @@ export {
   getActiveBackendDescriptor,
   creatableBackendDescriptors,
   describeBackendForHistory,
-  historicalBackendDescriptors,
-  isHistoricalBackendId,
   listBackendDescriptors,
 } from "./backends/registry";
-export { frameSink as acpFrameSink, setFrameSinkVaultBasePath } from "./session/debugSink";
+export { frameSink as acpFrameSink } from "./session/debugSink";
+import { setFrameSinkLogsRoot } from "./session/debugSink";
 export { getManagedSkills, SkillManager, SkillsSettings } from "./skills";
 export type { Skill } from "./skills";
-export { migratePiSettingsAtStartup } from "./backends/pi/settingsMigration";
 export function applyVaultAgentDefaultModel(configuredModelId: string): BackendId[] {
   return seedVaultAgentDefaultModel(listBackendDescriptors(), configuredModelId);
 }
@@ -64,7 +61,7 @@ function spawnModelConfigKey(
   return settings.configuredModels
     .filter((model) => {
       const provider = settings.providers[model.providerId];
-      return enabled.has(model.configuredModelId) && provider && provider.origin.kind !== "agent";
+      return enabled.has(model.configuredModelId) && provider && provider.origin.kind === "byok";
     })
     .map((model) =>
       JSON.stringify([
@@ -82,8 +79,6 @@ function spawnModelConfigKey(
 }
 
 export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): AgentSessionManager {
-  const os = requireNodeModule<typeof import("node:os")>("os");
-  const path = requireNodeModule<typeof import("node:path")>("path");
   const availableSkillAgents = (): readonly string[] => CREATABLE_BACKEND_IDS;
   const saveSkillPreferences = (update: BuiltinPreferencesUpdate) =>
     saveBuiltinPreferences(update, (data) => plugin.saveData(data));
@@ -111,15 +106,6 @@ export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): A
     (id) => backendRegistry[id],
     beforeBackendStart
   );
-  const persistenceManager = new AgentChatPersistenceManager(app);
-  const vaultId = getVaultId(app);
-  const indexPath = path.join(
-    vaultAgentAppDataDir(os.homedir()),
-    "vaults",
-    vaultId,
-    "agent-chat-index.json"
-  );
-  const sessionIndex = new AgentSessionIndex(createNodeFileStorage(), indexPath);
   let managerRef: AgentSessionManager | null = null;
   const prompter = createDefaultPermissionPrompter(
     (id) => managerRef?.getSessionByBackendId(id) ?? null,
@@ -134,11 +120,18 @@ export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): A
     resolveDescriptor: (id) => backendRegistry[id],
     modelPreloader: preloader,
     beforeBackendStart,
-    persistenceManager,
-    sessionIndex,
     feedbackServer: createFeedbackMcpServer(),
   });
   managerRef = manager;
+  // 日志和报告复用后端给出的目录，避免与状态页形成两套存储位置。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  const resolveLocalPaths = async () => {
+    const backend = await manager.getLocalDataBackend();
+    const paths = backend.getLocalStoragePaths?.();
+    if (!paths) throw new Error(t("localData.storageUnavailable"));
+    setFrameSinkLogsRoot(paths.logsRoot);
+    return paths;
+  };
+  logFileManager.setStoragePaths(resolveLocalPaths);
   for (const descriptor of listBackendDescriptors()) {
     if (!descriptor.restartOnProviderConfigChange) continue;
     const backendId = descriptor.id as keyof VaultAgentSettings["backends"];
@@ -156,7 +149,7 @@ export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): A
       // 未启用的提供商不会改变当前会话，已启用提供商的密钥更新仍需生效。https://github.com/Brevilabs/obsidian-copilot-private/issues/475
       if (
         provider &&
-        provider.origin.kind !== "agent" &&
+        provider.origin.kind === "byok" &&
         settings.configuredModels.some(
           (model) => model.providerId === providerId && enabled.has(model.configuredModelId)
         )
@@ -182,16 +175,16 @@ export function createAgentSessionManager(app: App, plugin: VaultAgentPlugin): A
     }
   });
   for (const descriptor of listBackendDescriptors()) {
-    manager.registerPreload(
-      descriptor.id,
-      initialSkillsReady.then(() => manager.preloadModels(descriptor.id))
-    );
+    const preload = initialSkillsReady.then(() => manager.preloadModels(descriptor.id));
+    manager.registerPreload(descriptor.id, preload);
+    void preload
+      .then(resolveLocalPaths)
+      .catch((error) => logError("[LocalData] Could not initialize log paths", error));
   }
 
   return manager;
 }
 
-export { PiSettingsPanel as AgentToolsSettings } from "./backends/pi/PiSettingsPanel";
 export { PiMcpSettingsPanel as AgentMcpSettings } from "./backends/pi/PiMcpSettingsPanel";
 
 export { lookupDeclaredModelCapabilities } from "./sdk/pi/models/DeclaredModelCapabilities";

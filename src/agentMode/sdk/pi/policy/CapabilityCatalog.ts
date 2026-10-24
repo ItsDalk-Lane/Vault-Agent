@@ -14,7 +14,6 @@ export interface CapabilityContext {
   readonly caller: PolicyCaller;
   readonly mode: VaultAgentMode;
   readonly readOnly?: boolean;
-  readonly trustedHost?: boolean;
   readonly scope?: PolicyScope;
   readonly allowedToolNames?: readonly string[];
 }
@@ -73,10 +72,8 @@ export class CapabilityCatalog {
       targets: [],
       caller: context.caller,
       mode: context.mode,
-      trustedHost: context.trustedHost,
       scope: {
         vaultRoot: context.scope?.vaultRoot ?? "",
-        externalRoots: context.scope?.externalRoots ?? EMPTY_TOOLS,
         readOnly:
           context.readOnly === true ||
           context.caller === "fanout" ||

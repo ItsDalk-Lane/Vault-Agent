@@ -1,4 +1,5 @@
 import { logWarn } from "@/logger";
+import { t } from "@/i18n";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 
 export interface FrameRecord {
@@ -11,13 +12,9 @@ export interface FrameRecord {
   payload: unknown;
 }
 
-const LOG_FILE_NAME = "acp-frames.ndjson";
-const ROTATED_FILE_NAME = "acp-frames.old.ndjson";
-const DESKTOP_UNAVAILABLE_PATH = "(Agent Mode frame logs are desktop-only)";
-const LOG_DIR_PREFIX = ["vault-agent", "acp-frames"] as const;
-// Owner-only modes: the log holds full prompt/tool/note content in plaintext,
-// and on Linux os.tmpdir() can be a world-readable shared /tmp.
-// https://github.com/logancyang/obsidian-copilot-preview/issues/250
+const LOG_FILE_NAME = "runtime.ndjson";
+const ROTATED_FILE_NAME = "runtime.old.ndjson";
+// 日志可能含完整提示词和笔记内容，库外目录仍须只允许当前用户访问。https://github.com/logancyang/obsidian-copilot-preview/issues/250
 const LOG_DIR_MODE = 0o700;
 const LOG_FILE_MODE = 0o600;
 const ROTATE_BYTES = 50 * 1024 * 1024;
@@ -41,7 +38,6 @@ export interface RuntimeLstat {
 }
 
 export interface NodeRuntime {
-  tmpdir: () => string;
   join: (...parts: string[]) => string;
   dirname: (path: string) => string;
   mkdir: (path: string, opts: { recursive: boolean; mode: number }) => Promise<void>;
@@ -66,14 +62,14 @@ export interface NodeRuntime {
 }
 
 export interface FrameSinkOptions {
-  vaultBasePath?: string | null;
+  logsRoot?: string | null;
   runtime?: NodeRuntime | null;
 }
 
-let seededVaultBasePath: string | null = null;
+let seededLogsRoot: string | null = null;
 
-export function setFrameSinkVaultBasePath(basePath: string | null): void {
-  seededVaultBasePath = basePath;
+export function setFrameSinkLogsRoot(logsRoot: string | null): void {
+  seededLogsRoot = logsRoot;
 }
 
 export class FrameSink {
@@ -87,7 +83,7 @@ export class FrameSink {
   constructor(private readonly options: FrameSinkOptions = {}) {}
 
   getPath(): string {
-    return this.resolvePaths()?.logPath ?? DESKTOP_UNAVAILABLE_PATH;
+    return this.resolvePaths()?.logPath ?? t("localData.storageUnavailable");
   }
 
   append(record: FrameRecord): void {
@@ -165,7 +161,7 @@ export class FrameSink {
       runtime.showItemInFolder(paths.logPath);
       return;
     }
-    throw new Error("No OS file opener is available.");
+    throw new Error(t("localData.locationUnavailable"));
   }
 
   async flush(): Promise<void> {
@@ -174,7 +170,7 @@ export class FrameSink {
 
   /**
    * Runs the owner and mode checks of `ensureFolder()` so a reader cannot be handed a path
-   * another account planted on a shared temp root; null when the path cannot be vouched for.
+   * another account planted in local storage; null when the path cannot be vouched for.
    * https://github.com/logancyang/obsidian-copilot-preview/issues/250
    */
   async getValidatedPath(): Promise<string | null> {
@@ -191,51 +187,25 @@ export class FrameSink {
     return settled;
   }
 
-  /**
-   * Narrows logs an older build left world-readable even when logging is now off, without
-   * creating the directory chain for users who never log.
-   * https://github.com/logancyang/obsidian-copilot-preview/issues/250
-   */
-  async narrowLegacyLogs(): Promise<void> {
-    const task = this.writeChain.then(async () => {
-      const paths = this.resolvePaths();
-      const runtime = this.getRuntime();
-      if (!paths || !runtime) return;
-      for (const target of [paths.logPath, paths.rotatedPath]) {
-        try {
-          await narrowExistingFile(runtime, target, getPosixOwnerUid(runtime));
-        } catch (error) {
-          logWarn("[AgentMode] Could not narrow debug log permissions", error);
-        }
-      }
-    });
-    this.writeChain = task;
-    return task;
-  }
-
   private resolvePaths(): FrameLogPaths | null {
     const runtime = this.getRuntime();
     if (!runtime) return null;
-    const vaultBasePath = this.options.vaultBasePath ?? seededVaultBasePath;
-    if (!vaultBasePath) return null;
-    return getFrameLogPaths(vaultBasePath, runtime);
+    const logsRoot = this.options.logsRoot ?? seededLogsRoot;
+    if (!logsRoot) return null;
+    return getFrameLogPaths(logsRoot, runtime);
   }
 
   private getRuntime(): NodeRuntime | null {
     return this.options.runtime ?? getNodeRuntime();
   }
 
-  /**
-   * Validates every level of the temp-path chain top-down; the sticky-bit parent only protects
-   * the first level. Throws when the location cannot be made safe.
-   * https://github.com/logancyang/obsidian-copilot-preview/issues/250
-   */
+  // 逐级校验库外日志目录，防止符号链接和其他用户占用把内容写到错误位置。https://github.com/logancyang/obsidian-copilot-preview/issues/250
   private async ensureFolder(runtime: NodeRuntime, paths: FrameLogPaths): Promise<void> {
     if (this.ensuredDirPath === paths.dirPath) return;
 
-    await validateTempRoot(runtime);
     const framesRoot = runtime.dirname(paths.dirPath);
     const appRoot = runtime.dirname(framesRoot);
+    await validateStorageRoot(runtime, runtime.dirname(appRoot));
     const ownerUid = getPosixOwnerUid(runtime);
     for (const level of [appRoot, framesRoot, paths.dirPath]) {
       await ensurePrivateDirectory(runtime, level, ownerUid);
@@ -334,9 +304,9 @@ export class FrameSink {
   }
 }
 
-export function getFrameLogPaths(vaultBasePath: string, runtime: NodeRuntime): FrameLogPaths {
-  const vaultHash = stableHash(vaultBasePath);
-  const dirPath = runtime.join(runtime.tmpdir(), ...LOG_DIR_PREFIX, vaultHash);
+export function getFrameLogPaths(logsRoot: string, runtime: NodeRuntime): FrameLogPaths {
+  // 调试日志直接使用后端给出的库外目录，不再扫描系统临时目录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  const dirPath = runtime.join(logsRoot, "runtime");
   return {
     dirPath,
     logPath: runtime.join(dirPath, LOG_FILE_NAME),
@@ -347,7 +317,6 @@ export function getFrameLogPaths(vaultBasePath: string, runtime: NodeRuntime): F
 function getNodeRuntime(): NodeRuntime | null {
   try {
     const fs = requireNodeModule<typeof import("node:fs/promises")>("fs/promises");
-    const os = requireNodeModule<typeof import("node:os")>("os");
     const path = requireNodeModule<typeof import("node:path")>("path");
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- Electron shell support is optional and resolved with the same lazy desktop boundary
     const electron = require("electron") as {
@@ -364,7 +333,6 @@ function getNodeRuntime(): NodeRuntime | null {
     };
     const shell = electron.shell ?? electron.remote?.shell;
     return {
-      tmpdir: () => os.tmpdir(),
       join: (...segs: string[]) => path.join(...segs),
       dirname: (p: string) => path.dirname(p),
       mkdir: async (dirPath, opts) => {
@@ -409,7 +377,7 @@ async function ensureFileExists(runtime: NodeRuntime, path: string): Promise<voi
 }
 
 /**
- * `null` on win32, where per-user %TEMP% already isolates; a POSIX runtime that cannot
+ * `null` on win32, where the per-user data root already isolates; a POSIX runtime that cannot
  * report its uid fails closed.
  * https://github.com/logancyang/obsidian-copilot-preview/issues/250
  */
@@ -423,27 +391,26 @@ function getPosixOwnerUid(runtime: NodeRuntime): number | null {
 }
 
 /**
- * Best-effort: protects against symlink squatting and world-readable temp roots, not against
- * the same account, a shared TMPDIR without sticky bit, or NFS/FUSE uid spoofing.
+ * Best-effort: protects against symlink squatting and writable storage roots, not against
+ * the same account or NFS/FUSE uid spoofing.
  * https://github.com/logancyang/obsidian-copilot-preview/issues/250
  */
-async function validateTempRoot(runtime: NodeRuntime): Promise<void> {
+async function validateStorageRoot(runtime: NodeRuntime, root: string): Promise<void> {
   if (process.platform === "win32") return;
 
-  const tmpRoot = runtime.tmpdir();
-  const entry = await runtime.lstat(tmpRoot);
+  const entry = await runtime.lstat(root);
   if (entry.isSymbolicLink || !entry.isDirectory) {
-    throw new Error("Frame log temp root must be a real directory.");
+    throw new Error("Frame log storage root must be a real directory.");
   }
 
   const ownerUid = getPosixOwnerUid(runtime);
   if (ownerUid !== null && entry.uid !== ownerUid && entry.uid !== 0) {
-    throw new Error("Frame log temp root is owned by another user.");
+    throw new Error("Frame log storage root is owned by another user.");
   }
 
   const sharedWritable = (entry.mode & 0o022) !== 0;
   if (sharedWritable && (entry.mode & 0o1000) === 0) {
-    throw new Error("Frame log temp root is group/world-writable without a sticky bit.");
+    throw new Error("Frame log storage root is group/world-writable without a sticky bit.");
   }
 }
 
@@ -479,11 +446,7 @@ async function ensurePrivateDirectory(
     }
   }
   if (ownerUid === null) return;
-  // On a shared temp root, only the first local account to run the plugin gets
-  // a frame log: it creates `<tmp>/vault-agent` owner-only, and every
-  // later account stops here. Frame logging is opt-in diagnostics, so those
-  // accounts lose a debug aid rather than a feature.
-  // https://github.com/logancyang/obsidian-copilot-preview/issues/250
+  // 不使用其他用户占用的日志目录，避免泄露提示词和笔记内容。https://github.com/logancyang/obsidian-copilot-preview/issues/250
   if (entry.uid !== ownerUid) {
     throw new Error("Frame log directory is owned by another user.");
   }
@@ -539,15 +502,6 @@ async function removeIfExists(runtime: NodeRuntime, path: string): Promise<void>
   } catch (error) {
     logWarn("[AgentMode] Could not remove a debug log file", error);
   }
-}
-
-function stableHash(value: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function summarizePayload(payload: unknown): string {

@@ -424,13 +424,9 @@ export class PiMcpService {
           });
           return handle.transport;
         }
-        if (
-          this.options.getMode() === "plan" ||
-          this.options.getSettings().agentMode.backends.pi?.hostExecutionMode !== "trusted_host"
-        )
-          throw new Error(
-            "Enable trusted host execution outside plan mode before starting a local MCP server."
-          );
+        // 本地服务器不再要求 trusted_host 预置开关；计划模式限制与逐次启动审批保留。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+        if (this.options.getMode() === "plan")
+          throw new Error("Local MCP servers cannot start in plan mode.");
         const approved = await this.options.requestPermission?.({
           sessionId: this.options.sessionId,
           toolCall: {
@@ -488,7 +484,6 @@ export class PiMcpService {
           await factory.create({
             serverId: config.serverId,
             config: config.transport,
-            mode: "trusted_host",
             riskAuthorized: true,
           })
         ).transport;

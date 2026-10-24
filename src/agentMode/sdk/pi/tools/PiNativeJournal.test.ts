@@ -5,7 +5,7 @@ import * as path from "node:path";
 
 describe("PiNativeJournal", () => {
   describe("createPiNativeHostTools()", () => {
-    it("imports old evidence once and keeps file and command lifecycle in the shared durable document after a cold reopen https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    it("ignores old files and keeps current file and command lifecycle in the durable document after a cold reopen https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       const directory = fs.mkdtempSync(path.join(os.tmpdir(), "pi-native-journal-"));
       try {
         const source = String.raw`
@@ -21,8 +21,8 @@ describe("PiNativeJournal", () => {
             const base=process.argv[2], vault=path.join(base,"vault"), external=path.join(base,"external"), privateDir=path.join(base,"private"), receipts=path.join(privateDir,"native-mutations");
             await fs.mkdir(vault,{recursive:true}); await fs.mkdir(external,{recursive:true});await fs.mkdir(receipts,{recursive:true});
             const target=path.join(external,"note.md");await fs.writeFile(target,"already applied");
-            const legacy=JSON.stringify({state:"prepared",intent:{operationId:"native-import",path:target,before:"before",after:"already applied"}});
-            const oldPath=path.join(receipts,"native-import.json");await fs.writeFile(oldPath,legacy);
+            const legacy="unread malformed old mutation";
+            const oldPath=path.join(receipts,"native-import.json"),oldCommand=path.join(privateDir,"command-intent-old.json");await fs.writeFile(oldPath,legacy);await fs.writeFile(oldCommand,"unread old command");
             const options={vaultRoot:vault,privateDir,sessionId:"native",getMode:()=>"default",getExecutionMode:()=>"trusted_host",getExternalScopes:()=>[{root:external,permissions:["read","write"]}],requestPermission:async()=>({outcome:{outcome:"selected",optionId:"allow_once"}})};
             let storageChecks=0;options.beforeOperation=async()=>{storageChecks++;};
             const provider=fauxProvider(),models=createModels();models.setProvider(provider.provider);const model=provider.getModel();
@@ -32,25 +32,24 @@ describe("PiNativeJournal", () => {
               const root=await harness.root(context,{agent:{model:{provider:model.provider,modelId:model.id}}});
               const journal=await createDurableNativeMutationJournal({harness,conversation:root});await native.bindMutationJournal(journal);await assert.rejects(native.bindMutationJournal(journal),/已绑定/);return {native,harness,root,journal};
             }
-            let current=await open();assert.equal((await fs.readFile(oldPath,"utf8")),legacy);
-            const imported=await current.journal.load();assert.equal(imported.records["native-import"].state,"committed");assert.equal(Object.keys(imported.imports).length,1);
+            const readdir=fs.readdir;fs.readdir=async(target,...args)=>{if(target===receipts||target===privateDir)throw new Error("Old data must not be scanned");return readdir(target,...args);};
+            let current;try{current=await open();}finally{fs.readdir=readdir;}assert.equal(await fs.readFile(oldPath,"utf8"),legacy);assert.equal(await fs.readFile(oldCommand,"utf8"),"unread old command");
+            assert.deepEqual(await current.journal.load(),{version:1,records:{}});assert.deepEqual(current.native.recovery.decisions,[]);
             const vaultJournal=await createDurableMutationJournal({harness:current.harness,conversation:current.root});await vaultJournal.save({version:1,mutations:{},reverts:{}});
             let requestSequence=0;async function run(name,args,expectedError=false) {let observed;provider.setResponses([fauxAssistantMessage([fauxToolCall(name,args)],{stopReason:"toolUse"}),input=>{observed=input.messages.findLast(message=>message.role==="toolResult");return fauxAssistantMessage("done");}]);await (await current.root.submit({type:"input",requestId:name+"-"+(++requestSequence),content:name},context)).wait(context);assert.equal(observed.isError,expectedError);return observed;}
             const written=await run("write",{path:target,content:"new content"});assert.equal(written.details.outcome.effect,"applied");assert.deepEqual(written.details.outcome.receipts,[written.details.outcome.data.receipt.operationId]);assert.equal(written.details.receipt,undefined);
             const missing=await run("read",{path:path.join(external,"missing.md")},true);assert.equal(missing.details.outcome.effect,"not_applied");assert.ok(missing.details.outcome.error.code);assert.deepEqual(missing.details.outcome.nextActions,["revise_request"]);
             await run("bash",{command:"printf native-durable",timeout:2});
             const failedCommand=await run("bash",{command:"printf expected-failure; exit 1",timeout:2},true);assert.equal(failedCommand.details.outcome.effect,"applied");assert.equal(failedCommand.details.outcome.error.code,"NONZERO_EXIT");assert.deepEqual(failedCommand.details.outcome.nextActions,["revise_request"]);assert.equal(failedCommand.details.outcome.receipts.length,1);const failedReceipt=(await current.journal.load()).records[failedCommand.details.outcome.receipts[0]];assert.equal(failedReceipt.started,true);assert.equal(failedReceipt.exited,true);assert.equal(failedReceipt.result.exitCode,1);
-            assert.ok(storageChecks>=4,"native file and program effects must pass actual host capacity gates");
-            const saved=await current.journal.load();assert.equal(Object.keys(saved.records).length,4);assert.ok(Object.values(saved.records).some(record=>record.state==="command_settled"&&record.result.status==="completed"));
-            assert.deepEqual(await fs.readdir(receipts),["native-import.json"]);assert.equal((await fs.readdir(privateDir)).some(file=>file.startsWith("command-intent-")),false);
+            assert.ok(storageChecks>=4,"native file and program effects must pass actual host operation gates");
+            const saved=await current.journal.load();assert.equal(Object.keys(saved.records).length,3);assert.ok(Object.values(saved.records).some(record=>record.state==="command_settled"&&record.result.status==="completed"));
+            assert.deepEqual(await fs.readdir(receipts),["native-import.json"]);assert.deepEqual((await fs.readdir(privateDir)).filter(file=>file.startsWith("command-intent-")),["command-intent-old.json"]);assert.equal(await fs.readFile(oldCommand,"utf8"),"unread old command");
             assert.equal(await fs.readFile(oldPath,"utf8"),legacy);await current.native.dispose();await current.harness.close(context);
             await fs.writeFile(oldPath,"corrupted backup must not become authority");current=await open();
             assert.deepEqual(await current.journal.load(),saved);assert.equal(provider.state.callCount,8);assert.equal(current.native.recovery.decisions.length,0);assert.equal((await current.harness.inspect(context)).tasks.length,0);
-            let gateCount=0;options.beforeOperation=async()=>{if(++gateCount===2)throw new Error("capacity gate");};
+            let gateCount=0;options.beforeOperation=async()=>{if(++gateCount===2)throw new Error("operation gate");};
             const uncertain=await run("write",{path:target,content:"must not reach filesystem"},true);assert.equal(uncertain.details.outcome.effect,"unknown");assert.equal(uncertain.details.outcome.error.code,"EFFECT_UNKNOWN");assert.deepEqual(uncertain.details.outcome.nextActions,["read","reconcile"]);assert.equal(await fs.readFile(target,"utf8"),"new content");const checked=await current.native.reconcile();assert.ok(checked.decisions.some(item=>item.canReapprove&&item.canContinue));
             await current.native.dispose();await current.harness.close(context);
-            const unknownDir=path.join(base,"unresolved"), unknownRecords=path.join(unknownDir,"native-mutations");await fs.mkdir(unknownRecords,{recursive:true});await fs.writeFile(path.join(unknownRecords,"broken.json"),"malformed");await fs.writeFile(path.join(unknownDir,"command-intent-legacy.json"),JSON.stringify({command:"old command"}));
-            let persisted=null;const unresolved=await createPiNativeHostTools({...options,privateDir:unknownDir});await unresolved.bindMutationJournal({load:async()=>persisted,save:async value=>{persisted=JSON.parse(JSON.stringify(value));}});assert.equal(unresolved.recovery.decisions.filter(item=>!item.canContinue).length,2);assert.equal(Object.keys(persisted.imports).length,2);assert.equal(await fs.readFile(path.join(unknownRecords,"broken.json"),"utf8"),"malformed");await unresolved.dispose();
             process.stdout.write(JSON.stringify({status:"passed"}));
           }main().catch(error=>{process.stderr.write(String(error.stack??error));process.exitCode=1;});
         `;

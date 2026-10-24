@@ -122,7 +122,7 @@ describe("DelegateTool", () => {
           properties: {
             profileId: {
               type: "string",
-              enum: ["researcher", "reviewer"],
+              enum: ["researcher", "reviewer", "writer"],
               description: expect.stringContaining("Read-only"),
             },
           },
@@ -255,7 +255,8 @@ describe("DelegateTool", () => {
       it("rejects an invalid profile as a tool failure instead of throwing", async () => {
         const session = new FakeSession();
 
-        const result = await tool(session).executeTool({ ...request, profileId: "writer" });
+        // writer 已常开，用未知 profile 验证拒绝路径。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+        const result = await tool(session).executeTool({ ...request, profileId: "unknown-role" });
 
         expect(result.isError).toBe(true);
         expect(result.details.errorCode).toBe("SUBAGENT_PROFILE_INVALID");

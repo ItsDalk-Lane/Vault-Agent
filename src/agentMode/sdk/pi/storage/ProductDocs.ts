@@ -27,10 +27,8 @@ export interface ProductDocBase {
 }
 
 export interface SessionSource {
-  readonly legacyBackendId: string;
-  readonly legacySessionId?: string;
-  readonly sourcePath?: string;
-  readonly importHash: string;
+  readonly sessionId: string;
+  readonly summaryEntryId?: string;
 }
 
 export interface SessionDoc extends ProductDocBase {
@@ -329,10 +327,9 @@ function isBase(value: Record<string, unknown>): boolean {
 function isValidSession(value: Record<string, unknown>): boolean {
   if (!isBase(value) || !isString(value.rootId)) return false;
   if (value.source !== null) {
-    if (!isRecord(value.source) || !isString(value.source.legacyBackendId)) return false;
-    if (!isNullableString(value.source.legacySessionId)) return false;
-    if (!isNullableString(value.source.sourcePath)) return false;
-    if (!isString(value.source.importHash)) return false;
+    if (!isRecord(value.source) || !isString(value.source.sessionId)) return false;
+    if (value.source.summaryEntryId !== undefined && !isString(value.source.summaryEntryId))
+      return false;
   }
   return (
     isNullableString(value.projectId) &&

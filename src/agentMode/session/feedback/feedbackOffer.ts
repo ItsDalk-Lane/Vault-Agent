@@ -7,7 +7,7 @@ export interface FeedbackEvidence {
   model: string | null;
   sessionId: string | null;
   raisedAt: string;
-  source?: "pi" | "legacy";
+  source?: "pi";
   runId?: string | null;
   errorCodes?: readonly string[];
 }

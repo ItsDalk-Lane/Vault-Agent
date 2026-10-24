@@ -6,6 +6,7 @@ import type { BuiltinSkillRuntime } from "./skills/SkillManager";
 import { applyVaultAgentDefaultModel, createAgentSessionManager } from "./index";
 import { reconcileBuiltinSkills } from "./skills/builtin/reconcileBuiltinSkills";
 import { AgentModelPreloader } from "./session/AgentModelPreloader";
+import { logFileManager } from "@/logFileManager";
 import { seedVaultAgentDefaultModel } from "./session/vaultAgentDefaultModel";
 
 jest.mock("@/agentMode/sdk/pi/models/DeclaredModelCapabilities", () => ({
@@ -13,6 +14,7 @@ jest.mock("@/agentMode/sdk/pi/models/DeclaredModelCapabilities", () => ({
 }));
 jest.mock("@/constants", () => ({}));
 jest.mock("@/logger", () => ({ logError: jest.fn() }));
+jest.mock("@/logFileManager", () => ({ logFileManager: { setStoragePaths: jest.fn() } }));
 jest.mock("@/settings/model", () => ({
   getSettings: () => mockSettings,
   subscribeToSettingsChange: (callback: SettingsSubscriber) => {
@@ -37,12 +39,7 @@ jest.mock("./backends/registry", () => ({
   CREATABLE_BACKEND_IDS: Object.freeze(["pi"]),
   listBackendDescriptors: () => mockDescriptors,
 }));
-jest.mock("./session/AgentChatPersistenceManager", () => ({
-  AgentChatPersistenceManager: jest.fn(),
-}));
 jest.mock("./session/AgentModelPreloader", () => ({ AgentModelPreloader: jest.fn() }));
-jest.mock("./session/AgentSessionIndex", () => ({ AgentSessionIndex: jest.fn() }));
-jest.mock("./session/nodeFileStorage", () => ({ createNodeFileStorage: jest.fn() }));
 jest.mock("./session/AgentSessionManager", () => ({
   AgentSessionManager: jest.fn(() => mockManager),
 }));
@@ -66,8 +63,7 @@ jest.mock("./ui/VaultAgentView", () => ({}));
 jest.mock("@/components/ui/ModelEnableList", () => ({}));
 jest.mock("./ui/PlanPreviewView", () => ({}));
 jest.mock("./ui/ReportIssueModal", () => ({}));
-jest.mock("./session/debugSink", () => ({}));
-jest.mock("./backends/pi/PiSettingsPanel", () => ({}));
+jest.mock("./session/debugSink", () => ({ setFrameSinkLogsRoot: jest.fn() }));
 jest.mock("./backends/pi/PiMcpSettingsPanel", () => ({}));
 
 const ISSUE = "https://github.com/ItsDalk-Lane/Vault-Agent/issues/1";
@@ -82,6 +78,9 @@ const mockDescriptor = {
 const mockDescriptors = Object.freeze([mockDescriptor]);
 const mockRefresh = jest.fn<Promise<unknown>, unknown[]>();
 const mockManager = {
+  getLocalDataBackend: jest.fn().mockResolvedValue({
+    getLocalStoragePaths: () => ({ logsRoot: "/private/logs", tempRoot: "/private/tmp" }),
+  }),
   preloadModels: jest.fn(async () => {}),
   restartBackend: jest.fn(async (_id: string, _reason: string) => {}),
   noteSpawnConfigChanged: jest.fn(async (_id: string, _reason: string) => {}),
@@ -145,6 +144,27 @@ describe("agentMode", () => {
   });
 
   describe("createAgentSessionManager()", () => {
+    it(`resolves log and report paths from the same backend on demand ${ISSUE}`, async () => {
+      createAgentSessionManager({} as App, plugin);
+      expect(mockManager.getLocalDataBackend).not.toHaveBeenCalled();
+      const resolve = jest.mocked(logFileManager.setStoragePaths).mock.calls[0][0];
+      await expect(resolve()).resolves.toEqual({
+        logsRoot: "/private/logs",
+        tempRoot: "/private/tmp",
+      });
+    });
+
+    it(`reports unavailable storage paths instead of falling back to an old log location ${ISSUE}`, async () => {
+      const gate = deferred();
+      reconcile.mockReturnValueOnce(gate.promise);
+      createAgentSessionManager({} as App, plugin);
+      mockManager.getLocalDataBackend.mockResolvedValueOnce({});
+      const resolve = jest.mocked(logFileManager.setStoragePaths).mock.calls[0][0];
+      await expect(resolve()).rejects.toThrow("Local storage is unavailable.");
+      gate.resolve();
+      await mockManager.registerPreload.mock.calls[0][1];
+    });
+
     it(`waits for canonical skills before preloading the bundled engine ${ISSUE}`, async () => {
       const gate = deferred();
       reconcile.mockReturnValueOnce(gate.promise);
@@ -226,22 +246,39 @@ describe("agentMode", () => {
       }
     );
 
-    it(`ignores display metadata and stored settings of removed agents ${ISSUE}`, () => {
+    it(`ignores display-only model metadata ${ISSUE}`, () => {
       createAgentSessionManager({} as App, plugin);
       emitSettingsChange(
         settingsWith({ description: "Before" }),
         settingsWith({ description: "After" })
       );
-      emitSettingsChange(mockSettings, {
-        ...mockSettings,
-        agentMode: {
-          ...mockSettings.agentMode,
-          backends: { claude: { envOverrides: { CLAUDE_CONFIG_DIR: "/old" } } },
-        },
-      });
       expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
       expect(mockManager.restartBackend).not.toHaveBeenCalled();
     });
+
+    it.each(["agent", "retired"])(
+      `ignores model and provider changes from a loaded %s source ${ISSUE}`,
+      (kind) => {
+        const old = {
+          ...mockSettings.providers.byok,
+          origin: { kind },
+        } as unknown as VaultAgentSettings["providers"][string];
+        mockSettings = { ...mockSettings, providers: { byok: old } };
+        createAgentSessionManager({} as App, plugin);
+        const subscriber = jest.mocked(plugin.modelManagement.providerRegistry.subscribe).mock
+          .calls[0][0];
+        subscriber("byok");
+        emitSettingsChange(mockSettings, {
+          ...mockSettings,
+          configuredModels: mockSettings.configuredModels.map((model) => ({
+            ...model,
+            info: { ...model.info, reasoning: false },
+          })),
+        });
+        expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
+        expect(mockSettings.providers.byok).toBe(old);
+      }
+    );
 
     it.each(["preferences", "folder"])(
       `refreshes canonical skills when their %s change ${ISSUE}`,

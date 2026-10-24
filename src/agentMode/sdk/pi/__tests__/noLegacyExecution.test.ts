@@ -2,12 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { SkillsCatalog } from "@/agentMode/sdk/pi/features/SkillsCatalog";
-import { LegacyHistoryReader } from "@/agentMode/session/legacy/LegacyHistoryReader";
 
-// The generic ACP runtime and the legacy skill distribution are gone: Pi is the only execution entry,
-// skills live in the canonical store (no agent-directory symlinks, no backend restart detection), the
-// legacy history reader can only parse files, and the boundary scanner enforces all of it:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// 唯一执行入口和标准技能目录不能重新依赖旧执行桥。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const projectRoot = path.resolve(__dirname, "../../../../..");
 const SELF = __filename;
 const DELETED_PATHS = [
@@ -138,34 +134,6 @@ describe("noLegacyExecution", () => {
       expect(snapshot.entries[0]).toMatchObject({ name: "Summarize", enabled: true });
       expect(catalog.enabledEntries().map((entry) => entry.name)).toEqual(["Summarize"]);
       expect(fs.existsSync(path.join(projectRoot, "src/agentMode/skills/symlinks.ts"))).toBe(false);
-    });
-  });
-
-  describe("legacy history reader", () => {
-    it("only parses files and exposes no process capability", async () => {
-      const markdown = [
-        "---",
-        "backendId: claude",
-        "sessionId: old-1",
-        "title: Old chat",
-        "createdAtMs: 1700000000000",
-        "---",
-        "",
-        "**user**: hello",
-        "",
-      ].join("\n");
-      const reader = new LegacyHistoryReader({
-        ports: {
-          listFiles: async () => [{ path: "chats/old-1.md", content: markdown }],
-          isTombstoned: async () => false,
-        },
-      });
-
-      const result = await reader.readAll();
-
-      expect(result.entries).toHaveLength(1);
-      expect(result.entries[0]?.messages).toEqual([{ role: "user", text: "hello" }]);
-      expect(Object.keys(reader).join(",")).not.toMatch(/spawn|exec|process/i);
     });
   });
 });

@@ -96,7 +96,6 @@ export async function runMcpStdioRuntimeScenario(directory: string) {
     });
   const serviceConfig = config(serviceReceipt);
   const localPolicy = {
-    hostExecutionMode: "strict" as "strict" | "trusted_host",
     mcpServers: [serviceConfig],
   };
   const settings = {
@@ -176,10 +175,7 @@ export async function runMcpStdioRuntimeScenario(directory: string) {
     });
   };
   try {
-    await assert.rejects(service.connect(serviceConfig.serverId), /Enable trusted host/);
-    await assert.rejects(fs.access(`${serviceReceipt}.started`), { code: "ENOENT" });
-    assert.equal(approvals, 0);
-    localPolicy.hostExecutionMode = "trusted_host";
+    // 本地服务器启动不再有 trusted_host 预置门槛；首连审批仍是唯一确认。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
     const catalog = await service.connect(serviceConfig.serverId);
     assert.deepEqual(
       catalog.snapshot.tools.map((tool) => tool.toolName),
@@ -232,7 +228,6 @@ export async function runMcpStdioRuntimeScenario(directory: string) {
     const handle = await factory.create({
       serverId: directConfig.serverId,
       config: directConfig.transport,
-      mode: "trusted_host",
       riskAuthorized: true,
     });
     directClient = new sdk.McpClient({

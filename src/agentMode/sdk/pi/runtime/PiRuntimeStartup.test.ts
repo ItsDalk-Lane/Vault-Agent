@@ -3,7 +3,7 @@ import * as path from "node:path";
 
 describe("PiRuntimeStartup", () => {
   describe("production session lifecycle", () => {
-    it("isolates one creation failure without restarting other chats, releases its lease and retries without model calls https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    it("preloads without session files, then isolates one explicit creation failure and retries without model calls https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       const output = execFileSync(process.execPath, ["scripts/test-pi-runtime.mjs", "startup"], {
         cwd: path.resolve(__dirname, "../../../../.."),
         encoding: "utf8",
@@ -12,6 +12,7 @@ describe("PiRuntimeStartup", () => {
       expect(JSON.parse(output)).toEqual({
         status: "passed",
         checks: [
+          "preload_without_session_files",
           "no_ghost_index",
           "individual_creation_failure_does_not_restart_runtime",
           "other_chat_remains_usable",

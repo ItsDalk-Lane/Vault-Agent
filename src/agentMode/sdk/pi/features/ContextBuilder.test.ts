@@ -5,11 +5,6 @@ import {
 } from "@/agentMode/sdk/pi/features/ContextBuilder";
 import { sha256 } from "@/utils/hash";
 
-// Context assembly keeps one fixed section order, marks user-selected skills apart from external
-// materials, drops the legacy history envelope when the runtime already holds the conversation, tags
-// every material with origin/path/hash, keeps materials untrusted so a malicious note never becomes a
-// system instruction, and lists what exceeded the budget instead of silently uploading everything:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 function input(overrides: Partial<ContextBuilderInput> = {}): ContextBuilderInput {
   return {
     base: "You are Vault Agent.",
@@ -18,7 +13,6 @@ function input(overrides: Partial<ContextBuilderInput> = {}): ContextBuilderInpu
     project: { text: "Project rules: cite notes.", path: "projects/demo/AGENTS.md" },
     skills: [{ skillId: "canonical:summarize", text: "Summarize in bullets.", trust: "user" }],
     userInput: "Summarize my note.",
-    durableHoldsHistory: true,
     contextWindowTokens: 200_000,
     ...overrides,
   };
@@ -103,42 +97,6 @@ describe("ContextBuilder", () => {
         injectedAsSystem: true,
       });
       expect(built.sections.every((section) => section.text.trim().length > 0)).toBe(true);
-    });
-
-    it("drops the legacy history envelope and never sends history twice", () => {
-      const built = buildContext(
-        input({
-          legacyHistoryEnvelope: '<turn role="user">old turn</turn>',
-          durableHoldsHistory: true,
-          materials: [
-            {
-              origin: "legacy_session",
-              text: "imported old transcript",
-              sourcePath: "legacy/session.json",
-            },
-          ],
-        })
-      );
-
-      expect(built.historyEnvelopeDropped).toBe(true);
-      expect(JSON.stringify(built.sections)).not.toContain("old turn");
-      expect(built.sections.filter((section) => section.kind === "material")).toHaveLength(0);
-      expect(built.materialDigest[0]).toMatchObject({ origin: "legacy_session", included: false });
-      expect(built.notices.join(" ")).toContain("legacy history envelope was dropped");
-
-      const imported = buildContext(
-        input({
-          materials: [
-            {
-              origin: "legacy_session",
-              text: "explicitly imported transcript",
-              sourcePath: "legacy/session.json",
-              explicitlyImported: true,
-            },
-          ],
-        })
-      );
-      expect(imported.sections.filter((section) => section.kind === "material")).toHaveLength(1);
     });
 
     it("references the selected note with its path and hash as untrusted material", () => {

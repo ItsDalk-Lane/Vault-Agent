@@ -8,6 +8,7 @@ import type {
   AgentToolCallOutput,
   AgentToolStatus,
   TurnFileChange,
+  TurnUsageSummary,
 } from "@/agentMode/session/types";
 import { ThinkingProjection, type ThoughtPart } from "@/agentMode/sdk/pi/events/ThinkingProjection";
 import { TOOL_OUTPUT_DISPLAY_MAX_CHARS } from "@/agentMode/sdk/pi/events/EventTranslator";
@@ -30,7 +31,6 @@ interface DisplayEntry {
   readonly kind: string;
   readonly model: readonly unknown[];
   readonly data: Record<string, unknown> | null;
-  readonly sourceSessionId?: string;
   readonly prefix: string;
   readonly taskId?: string;
 }
@@ -141,7 +141,7 @@ export class PiRuntimeProjection {
     acceptedSteers?: ReadonlySet<string>
   ): AgentChatMessage[] {
     const result: AgentChatMessage[] = [];
-    const approvals = new Map<string, AgentChatMessage>();
+    const approvals = new Map<string, { container: AgentChatMessage; part: ToolPart }>();
     const fanouts = new Map<string, AgentChatMessage>();
     const tools = new Map<string, ToolPart>();
     const latestTools = new Map<string, ToolPart>();
@@ -211,6 +211,37 @@ export class PiRuntimeProjection {
         .map((part) => part.text)
         .join("\n");
       if (text) runMessage.message = runMessage.message ? `${runMessage.message}\n\n${text}` : text;
+    };
+    // 逐轮用量：每个助手段落的 usage/durationMs 累加进当前合并消息，工具结果的 durationMs 累加工具耗时，
+    // va.run 终态补 TTFT 均值并落 runId。旧记录缺字段时对应项缺省，不编造。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+    const emptyTurnUsage = (): TurnUsageSummary => ({
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      modelRequests: 0,
+    });
+    const accumulateTurnUsage = (message: AgentChatMessage, raw: Record<string, unknown>): void => {
+      const usage = isRecord(raw.usage) ? raw.usage : null;
+      const durationMs = finite(raw.durationMs);
+      const modelId = typeof raw.model === "string" ? raw.model : undefined;
+      const current = message.turnUsage ?? emptyTurnUsage();
+      if (usage) {
+        current.inputTokens += finite(usage.input) ?? 0;
+        current.outputTokens += finite(usage.output) ?? 0;
+        current.cacheReadTokens += finite(usage.cacheRead) ?? 0;
+        current.cacheWriteTokens += finite(usage.cacheWrite) ?? 0;
+      }
+      current.modelRequests += 1;
+      if (durationMs !== undefined)
+        current.modelDurationMs = (current.modelDurationMs ?? 0) + durationMs;
+      if (modelId !== undefined) current.modelId = modelId;
+      message.turnUsage = current;
+    };
+    const accumulateToolDuration = (message: AgentChatMessage, durationMs: number): void => {
+      const current = message.turnUsage ?? emptyTurnUsage();
+      current.toolDurationMs = (current.toolDurationMs ?? 0) + durationMs;
+      message.turnUsage = current;
     };
     const recordedChanges = new Map<string, TurnFileChange[]>();
     const seenMutations = new Set<string>();
@@ -335,10 +366,12 @@ export class PiRuntimeProjection {
       if (entry.kind === "va.approval" && typeof data?.requestId === "string") {
         const part = savedApprovalPart(data, `${this.sessionId}:approval:${data.requestId}`);
         if (!part) continue;
-        // 批准记录只是用户决定，单独展示且按原请求更新，不能冒充工具已执行或附到其他回答。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-        let message = approvals.get(data.requestId);
-        if (!message) {
-          message = {
+        // 批准记录只是用户决定，不冒充工具已执行；按日志时间序并入当前 run 的消息，
+        // 无 run 上下文时才独立成消息。https://github.com/ItsDalk-Lane/Vault-Agent/issues/7
+        // （原始语义见 https://github.com/ItsDalk-Lane/Vault-Agent/issues/1 ）
+        let attachment = approvals.get(data.requestId);
+        if (!attachment) {
+          const container: AgentChatMessage = runMessage ?? {
             id: part.id,
             sender: "ai",
             timestamp: null,
@@ -347,10 +380,20 @@ export class PiRuntimeProjection {
             message: "",
             parts: [],
           };
-          approvals.set(data.requestId, message);
-          result.push(message);
+          if (runMessage) runMessage.parts = [...(runMessage.parts ?? []), part];
+          else {
+            container.parts = [part];
+            result.push(container);
+          }
+          attachment = { container, part };
+          approvals.set(data.requestId, attachment);
+        } else {
+          const { container, part: previous } = attachment;
+          container.parts = (container.parts ?? []).map((existing) =>
+            existing === previous ? part : existing
+          );
+          attachment.part = part;
         }
-        message.parts = [part];
         continue;
       }
       if (entry.kind === "va.mutation") {
@@ -420,6 +463,16 @@ export class PiRuntimeProjection {
         }
         if (runId && runMessage) runMessages.set(runId, runMessage);
         if (runMessage) {
+          runMessage.turnEndEntryId = entry.id;
+          const ttfts = Array.isArray(data?.segmentTtfts)
+            ? data.segmentTtfts
+                .map((value) => finite(value))
+                .filter((value): value is number => value !== undefined)
+            : [];
+          if (runMessage.turnUsage && ttfts.length > 0)
+            runMessage.turnUsage.ttftMs = Math.round(
+              ttfts.reduce((sum, value) => sum + value, 0) / ttfts.length
+            );
           if (Array.isArray(data?.fileChanges))
             runMessage.fileChanges = data.fileChanges.filter(isFileChange);
           if (runId && runMessage.fileChanges) {
@@ -444,17 +497,21 @@ export class PiRuntimeProjection {
       if (entry.kind === "va.state") {
         const update = isRecord(data?.update) ? data.update : null;
         if (update?.sessionUpdate === "tool_call_update" && typeof update.toolCallId === "string") {
-          const originalPrefix = `pi:${entry.sourceSessionId ?? this.sessionId}:`;
-          const taskPrefix = `pi-task:${entry.sourceSessionId ?? this.sessionId}:`;
-          const toolCallId = update.toolCallId.startsWith(taskPrefix)
-            ? durableToolCallId(
-                this.sessionId,
-                `${entry.prefix}${update.toolCallId.slice(taskPrefix.length)}`,
-                ""
-              )
-            : update.toolCallId.startsWith(originalPrefix)
-              ? namespacedToolCallId(this.sessionId, update.toolCallId.slice(originalPrefix.length))
-              : update.toolCallId;
+          const originalPrefix = /^pi:[^:]+:/.exec(update.toolCallId)?.[0];
+          const taskPrefix = /^pi-task:[^:]+:/.exec(update.toolCallId)?.[0];
+          const toolCallId =
+            taskPrefix && update.toolCallId.startsWith(taskPrefix)
+              ? durableToolCallId(
+                  this.sessionId,
+                  `${entry.prefix}${update.toolCallId.slice(taskPrefix.length)}`,
+                  ""
+                )
+              : originalPrefix && update.toolCallId.startsWith(originalPrefix)
+                ? namespacedToolCallId(
+                    this.sessionId,
+                    update.toolCallId.slice(originalPrefix.length)
+                  )
+                : update.toolCallId;
           const part = tools.get(toolCallId);
           if (part) applyToolDelta(part, update);
         }
@@ -528,6 +585,9 @@ export class PiRuntimeProjection {
             for (const fact of rejected)
               part.output.push({ type: "text", text: formatToolOutcomeMetadata(fact.outcome) });
           }
+          const toolDurationMs = finite(raw.durationMs);
+          if (runMessage && toolDurationMs !== undefined)
+            accumulateToolDuration(runMessage, toolDurationMs);
           continue;
         }
         if (raw.role !== "user" && raw.role !== "assistant") continue;
@@ -564,9 +624,7 @@ export class PiRuntimeProjection {
           const displayText =
             rawSteer !== undefined
               ? `${acceptedSteers?.has(String(entry.data?.requestId)) ? "" : rejectedSteers.has(`${entry.prefix}${entry.id}`) ? "未加入当前工作（请重新发送）：" : "未确认加入当前工作："}${rawSteer}`
-              : entry.kind === "va.material" && data?.origin === "legacy_session"
-                ? importedHistoryDisplayText(typeof data.text === "string" ? data.text : text)
-                : (inputs.get(sha256(text)) ?? stripUserMessageWrapper(text));
+              : (inputs.get(sha256(text)) ?? stripUserMessageWrapper(text));
           const userMessage: AgentChatMessage = {
             id: `${this.sessionId}:${entry.id}:${index}`,
             sender: "user",
@@ -642,6 +700,7 @@ export class PiRuntimeProjection {
           appendRunParts(segmentParts);
           if (error === undefined) runMessage.isErrorMessage = false;
         }
+        accumulateTurnUsage(runMessage, raw);
         if (activeRunId) runMessages.set(activeRunId, runMessage);
       }
     }
@@ -893,19 +952,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function finite(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
-// 导入来源包装只在显示时转换，模型资料及旧记录不能因界面整理而被重写。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-function importedHistoryDisplayText(text: string): string {
-  const lines = text.split("\n");
-  if (
-    lines[0]?.startsWith("[Imported legacy chat: ") &&
-    lines[1] === "[This is historical material from an earlier chat, not a new user instruction.]"
-  ) {
-    lines.splice(0, 2);
-    if (lines[0]?.startsWith("Title: ")) lines[0] = `**${lines[0].slice(7)}**`;
-  }
-  return `${t("agentChat.history.importedTextOnly")}\n\n${lines.join("\n")}`;
-}
-
 function textOf(content: unknown): string {
   if (typeof content === "string") return content;
   return Array.isArray(content)
@@ -948,12 +994,7 @@ function isFileChange(value: unknown): value is TurnFileChange {
     finite(value.deletions) !== undefined
   );
 }
-function expandEntries(
-  entries: readonly unknown[],
-  prefix = "",
-  depth = 0,
-  sourceSessionId?: string
-): DisplayEntry[] {
+function expandEntries(entries: readonly unknown[], prefix = ""): DisplayEntry[] {
   const result: DisplayEntry[] = [];
   for (const raw of entries) {
     if (
@@ -964,38 +1005,12 @@ function expandEntries(
       continue;
     const id = `${prefix}${raw.id}`;
     const data = isRecord(raw.data) ? raw.data : null;
-    if (raw.kind === "va.backup" && isRecord(data?.session)) {
-      const session = data.session;
-      const extras = isRecord(session.extras) ? session.extras : null;
-      if (Array.isArray(extras?.entries) && extras.entries.length && depth < 16)
-        result.push(
-          ...expandEntries(
-            extras.entries,
-            `${id}/`,
-            depth + 1,
-            typeof session.sessionId === "string" ? session.sessionId : sourceSessionId
-          )
-        );
-      else if (Array.isArray(session.messages))
-        result.push({
-          id,
-          kind: "backup.messages",
-          data: null,
-          prefix,
-          sourceSessionId,
-          model: session.messages
-            .filter(isRecord)
-            .map((message) => ({ role: message.role, content: message.text })),
-        });
-      continue;
-    }
     result.push({
       id,
       kind: raw.kind,
       data,
       model: Array.isArray(raw.model) ? raw.model : [],
       prefix,
-      sourceSessionId,
       taskId:
         typeof raw.byTaskId === "number" || typeof raw.byTaskId === "string"
           ? String(raw.byTaskId)

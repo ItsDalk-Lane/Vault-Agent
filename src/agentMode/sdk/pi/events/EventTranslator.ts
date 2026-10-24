@@ -75,6 +75,8 @@ export type TranslatedEvent =
       readonly error?: string;
     }
   | { readonly kind: "task_failed"; readonly kindName: string; readonly message: string }
+  // 首个流式变更距请求开始的耗时（TTFT）；请求无任何变更时不发出，不编造数字。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+  | { readonly kind: "message_timing"; readonly entryId: string; readonly ttftMs: number }
   | { readonly kind: "deferred"; readonly pollAt: number };
 
 export type EventTranslatorErrorCode = "UNKNOWN_EVENT";
@@ -153,17 +155,20 @@ export class EventTranslator {
   private readonly sessionId: string;
   private readonly emitEvent: (event: TranslatedEvent) => void;
   private readonly mcpServerFor: ((toolName: string) => string | undefined) | undefined;
+  private readonly clock: () => number;
   private readonly blocks = new Map<number, BlockState>();
   private readonly tools = new Map<string, ToolCallState>();
   private runInputs: readonly string[] = Object.freeze([]);
   private runFailed = false;
   private message: AssistantMessage | null = null;
+  private messageStartAtMs: number | null = null;
+  private messageTtftMs: number | null = null;
 
   constructor(options: EventTranslatorOptions) {
     this.sessionId = options.sessionId;
     this.emitEvent = options.emit;
     this.mcpServerFor = options.mcpServerFor;
-    void options.now;
+    this.clock = options.now ?? (() => Date.now());
   }
 
   translate(event: AgentEvent): void {
@@ -295,9 +300,13 @@ export class EventTranslator {
     this.tools.clear();
     if (!isAssistantMessage(message)) {
       this.message = null;
+      this.messageStartAtMs = null;
+      this.messageTtftMs = null;
       return;
     }
     this.message = message;
+    this.messageStartAtMs = this.clock();
+    this.messageTtftMs = null;
     message.content.forEach((block, index) => {
       this.initializeBlock(index, block);
     });
@@ -322,6 +331,10 @@ export class EventTranslator {
   }
 
   private applyChanges(changes: readonly MessageChange[]): void {
+    // 首个流式变更即首 token 到达时刻；只在该消息内记一次。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+    if (this.messageStartAtMs !== null && this.messageTtftMs === null && changes.length > 0) {
+      this.messageTtftMs = Math.max(0, this.clock() - this.messageStartAtMs);
+    }
     for (const change of changes) {
       switch (change.type) {
         case "text_start":
@@ -455,6 +468,10 @@ export class EventTranslator {
   ): void {
     const assistant = model?.find(isAssistantMessage);
     if (assistant) this.replaceWholeMessage(assistant);
+    const ttftMs = this.messageTtftMs;
+    if (assistant && ttftMs !== null) this.emit({ kind: "message_timing", entryId, ttftMs });
+    this.messageStartAtMs = null;
+    this.messageTtftMs = null;
     this.emit({ kind: "entry", entryId, entryKind });
   }
 

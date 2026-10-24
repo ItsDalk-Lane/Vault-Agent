@@ -34,37 +34,22 @@ function createLocator(overrides: LocatorOverrides = {}): StoreLocator {
 
 describe("StoreLocator", () => {
   describe("resolveDataRoot()", () => {
-    it("uses the fixed macOS Application Support root", () => {
-      expect(resolveDataRoot({ platform: "darwin", homeDir: "/Users/me", env: {} })).toBe(
-        path.posix.join("/Users/me", "Library", "Application Support", "VaultAgent")
-      );
-    });
-
-    it("uses LOCALAPPDATA on Windows and falls back to the home AppData path", () => {
-      expect(
-        resolveDataRoot({
-          platform: "win32",
-          homeDir: "C:\\Users\\me",
-          env: { LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local" },
-        })
-      ).toBe(path.win32.join("C:\\Users\\me\\AppData\\Local", "VaultAgent"));
-      expect(resolveDataRoot({ platform: "win32", homeDir: "C:\\Users\\me", env: {} })).toBe(
-        path.win32.join("C:\\Users\\me", "AppData", "Local", "VaultAgent")
-      );
-    });
-
-    it("uses XDG_STATE_HOME on Linux and falls back to ~/.local/state", () => {
-      expect(
-        resolveDataRoot({
-          platform: "linux",
-          homeDir: "/home/me",
-          env: { XDG_STATE_HOME: "/state" },
-        })
-      ).toBe(path.posix.join("/state", "vault-agent"));
-      expect(resolveDataRoot({ platform: "linux", homeDir: "/home/me", env: {} })).toBe(
-        path.posix.join("/home/me", ".local", "state", "vault-agent")
-      );
-    });
+    it.each([
+      ["darwin", "/Users/me", "/Users/me/.vault-agent/v2"],
+      ["linux", "/home/me", "/home/me/.vault-agent/v2"],
+      ["win32", "C:\\Users\\me", "C:\\Users\\me\\.vault-agent\\v2"],
+    ])(
+      "uses one versioned home directory on %s https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      (platform, homeDir, expected) => {
+        expect(
+          resolveDataRoot({
+            platform: platform as NodeJS.Platform,
+            homeDir,
+            env: { XDG_STATE_HOME: "/ignored", LOCALAPPDATA: "ignored" },
+          })
+        ).toBe(expected);
+      }
+    );
 
     it("keeps the private root outside the Vault and refuses a Vault that contains it", () => {
       const locator = createLocator();
@@ -172,17 +157,17 @@ describe("StoreLocator", () => {
   });
 
   describe("sessionStorePaths()", () => {
-    it("lays out v1/vaults/<vaultKey>/sessions/<rootId>/ with store, meta, lease and attachments", () => {
+    it("keeps the transcript and sidecars together and the writer lease outside the session https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       const locator = createLocator();
       const rootId = "root-0190f3e2-1111-2222-3333-444455556666";
       const paths = locator.sessionStorePaths(rootId);
-      const vaultRoot = path.posix.join(locator.dataRoot, "v1", "vaults", locator.vaultKey ?? "");
+      const vaultRoot = path.posix.join(locator.dataRoot, "vaults", locator.vaultKey ?? "");
       const sessionRoot = path.posix.join(vaultRoot, "sessions", rootId);
 
       expect(paths).toEqual({
-        storeDir: path.posix.join(sessionRoot, "store"),
+        storeDir: sessionRoot,
         metaPath: path.posix.join(sessionRoot, "meta.json"),
-        leaseDir: path.posix.join(sessionRoot, "lease"),
+        leaseDir: path.posix.join(vaultRoot, "locks", rootId),
         attachmentsDir: path.posix.join(sessionRoot, "attachments"),
       });
       expect(locator.vaultStoreRoot).toBe(vaultRoot);

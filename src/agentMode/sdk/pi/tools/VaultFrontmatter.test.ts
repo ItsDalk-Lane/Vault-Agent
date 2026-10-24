@@ -262,7 +262,7 @@ describe("VaultFrontmatter", () => {
         {
           caller: "root",
           mode: "default",
-          scope: { vaultRoot: "/vault", externalRoots: [], readOnly: false },
+          scope: { vaultRoot: "/vault", readOnly: false },
           scopeVersion: 1,
           policyVersion: 1,
           targets: [{ kind: "vault_path", value: "/vault/Notes/a.md", insideScope: true }],

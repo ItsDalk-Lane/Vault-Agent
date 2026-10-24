@@ -7,7 +7,6 @@ import type {
 } from "@earendil-works/pi-durable/env";
 import * as path from "node:path";
 
-import { ExternalScopes } from "@/agentMode/sdk/pi/policy/ExternalScopes";
 import {
   GuardedExternalEnv,
   type GuardedCommandGate,
@@ -189,7 +188,6 @@ interface Harness {
   readonly raw: FakeRawEnv;
   readonly inspector: FakeInspector;
   readonly gate: FakeCommandGate;
-  readonly scopes: ExternalScopes;
 }
 
 function createHarness({
@@ -200,15 +198,8 @@ function createHarness({
   const raw = new FakeRawEnv();
   const inspector = new FakeInspector();
   const gate = new FakeCommandGate();
-  const scopes = new ExternalScopes({
-    fileSystem: { realpath: async (target) => inspector.realpath(target) },
-    path,
-    protectedRoots: ["/vault", "/home/user/.config", "/home/user/.vault-agent"],
-    now: () => now,
-  });
   const env = new GuardedExternalEnv({
     raw: raw as unknown as ExecutionEnv,
-    scopes,
     inspector,
     path,
     protectedRoots: ["/vault", "/home/user/.config", "/home/user/.vault-agent"],
@@ -218,15 +209,7 @@ function createHarness({
     executionError: (code, message) => new FakeExecutionError(code, message),
     privateTempPrefix: "vault-agent-pi",
   });
-  return { env, raw, inspector, gate, scopes };
-}
-
-async function authorizeRoot(
-  harnessed: Harness,
-  root = "/home/user/docs"
-): Promise<ExternalScopes> {
-  await harnessed.scopes.createScope({ root, permissions: ["read", "write"], createdBy: "user" });
-  return harnessed.scopes;
+  return { env, raw, inspector, gate };
 }
 
 describe("GuardedExternalEnv", () => {
@@ -236,7 +219,6 @@ describe("GuardedExternalEnv", () => {
       async (operation) => {
         let current = true;
         const fixture = createHarness({ isAccessCurrent: () => current });
-        await authorizeRoot(fixture);
         const target = "/home/user/docs/note.md";
         fixture.inspector.entries.set(target, { kind: "file" });
         fixture.raw.files.set(target, "original");
@@ -257,13 +239,13 @@ describe("GuardedExternalEnv", () => {
         expect(fixture.raw.files.get(target)).toBe("original");
       }
     );
-    it("does not confuse a different Windows directory with its private temporary root https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+    it("reads a case-aliased sibling directory that is a genuinely different directory (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const raw = {
         cwd: "C:\\Private",
         id: "fixture",
         createTempDir: jest.fn(async () => ({ ok: true, value: "C:\\Private" })),
         createDir: jest.fn(async () => ({ ok: true, value: undefined })),
-        readTextFile: jest.fn(async () => ({ ok: true, value: "must remain unread" })),
+        readTextFile: jest.fn(async () => ({ ok: true, value: "different directory" })),
       };
       const inspector = {
         realpath: async (target: string) => target,
@@ -273,26 +255,19 @@ describe("GuardedExternalEnv", () => {
           ino: target === "C:\\Private" ? 2 : target === "C:\\PRIVATE" ? 3 : 1,
         }),
       };
-      const scopes = new ExternalScopes({
-        fileSystem: inspector,
-        path: path.win32,
-        protectedRoots: [],
-      });
       const env = new GuardedExternalEnv({
         raw: raw as unknown as ExecutionEnv,
         inspector,
         path: path.win32,
-        scopes,
         protectedRoots: [],
       });
       expect((await env.createTempDir("fixture", {} as never)).ok).toBe(true);
-      const result = await env.readTextFile("C:\\PRIVATE\\secret", {} as never);
-      expect(result.ok).toBe(false);
-      expect(raw.readTextFile).not.toHaveBeenCalled();
+      const aliased = await env.readTextFile("C:\\PRIVATE\\secret", {} as never);
+      // 单层权限模型下另一个真实目录不再因缺少预授权被拒：https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+      expect(aliased).toMatchObject({ ok: true, value: "different directory" });
     });
-    it("rejects an indirect stat/read that escapes through a symlink", async () => {
+    it("rejects an indirect stat/read that escapes into a protected root through a symlink (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const harnessed = createHarness();
-      await authorizeRoot(harnessed);
       harnessed.inspector.entries.set("/home/user/docs/link", {
         kind: "symlink",
         realpath: "/vault/notes",
@@ -305,16 +280,15 @@ describe("GuardedExternalEnv", () => {
 
       expect(read.ok).toBe(false);
       expect(stat.ok).toBe(false);
-      if (!read.ok) expect(read.error.message).toContain("EXTERNAL_PATH_DENIED");
-      if (!stat.ok) expect(stat.error.message).toContain("EXTERNAL_PATH_DENIED");
+      if (!read.ok) expect(read.error.message).toContain("PROTECTED_PATH_DENIED");
+      if (!stat.ok) expect(stat.error.message).toContain("PROTECTED_PATH_DENIED");
       expect(harnessed.raw.files.get("/vault/notes/secret.md")).toBe("vault secret");
     });
   });
 
   describe("write guards", () => {
-    it("rejects a new file under a symlinked parent that points outside the scope", async () => {
+    it("rejects a new file under a symlinked parent that points into a protected root (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const harnessed = createHarness();
-      await authorizeRoot(harnessed);
       harnessed.inspector.entries.set("/home/user/docs/out", {
         kind: "symlink",
         realpath: "/vault/notes",
@@ -327,13 +301,12 @@ describe("GuardedExternalEnv", () => {
       );
 
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error.message).toContain("EXTERNAL_PATH_DENIED");
+      if (!result.ok) expect(result.error.message).toContain("PROTECTED_PATH_DENIED");
       expect(harnessed.raw.written).toEqual([]);
     });
 
     it("rejects an external write to a hard-linked file", async () => {
       const harnessed = createHarness();
-      await authorizeRoot(harnessed);
       harnessed.inspector.entries.set("/home/user/docs/hard.md", { kind: "file", nlink: 2 });
       harnessed.raw.files.set("/home/user/docs/hard.md", "shared");
 
@@ -348,9 +321,8 @@ describe("GuardedExternalEnv", () => {
       expect(harnessed.raw.files.get("/home/user/docs/hard.md")).toBe("shared");
     });
 
-    it("allows a normal read/write inside the authorized root", async () => {
+    it("allows a normal read/write on an unprotected external path (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const harnessed = createHarness();
-      await authorizeRoot(harnessed);
       harnessed.inspector.entries.set("/home/user/docs/note.md", { kind: "file" });
       harnessed.raw.files.set("/home/user/docs/note.md", "hello");
 
@@ -396,9 +368,8 @@ describe("GuardedExternalEnv", () => {
   });
 
   describe("exec gate", () => {
-    it("denies opaque execution by default without spawning", async () => {
+    it("denies execution without an injected command gate", async () => {
       const harnessed = createHarness({ withGate: false });
-      await authorizeRoot(harnessed);
       harnessed.env.cwd = "/home/user/docs";
 
       const result = await harnessed.env.exec("echo hi", undefined, {} as never);
@@ -410,7 +381,6 @@ describe("GuardedExternalEnv", () => {
 
     it("runs only through an allowed command gate with sanitized env and inheritEnv false", async () => {
       const harnessed = createHarness();
-      await authorizeRoot(harnessed);
       harnessed.env.cwd = "/home/user/docs";
 
       const result = await harnessed.env.exec(

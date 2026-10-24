@@ -38,7 +38,6 @@ export interface GatewayExecuteContext {
   readonly rules?: readonly PolicyRule[];
   readonly signal?: AbortSignal;
   readonly nested?: boolean;
-  readonly trustedHost?: boolean;
   /** Model-supplied hints only; never consulted as permission.
    * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
    */
@@ -321,7 +320,6 @@ export class ToolGateway {
         caller: context.caller,
         scope: context.scope,
         rules: context.rules,
-        trustedHost: context.trustedHost,
       });
       if (decision.decision === "deny") {
         return deny(decision.code, decision.message);

@@ -1,14 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-
-import {
-  backendDisplayOrder,
-  backendRegistry,
-  describeBackendForHistory,
-} from "@/agentMode/backends/registry";
 import { sanitizeSettings } from "@/settings/model";
 import type { VaultAgentSettings } from "@/settings/model";
-import { LegacyHistoryReader } from "@/agentMode/session/legacy/LegacyHistoryReader";
 
 // 旧 OpenCode 不再参与运行与模型发现，自定义 API 模型及旧聊天继续保留。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const projectRoot = path.resolve(__dirname, "../../../../..");
@@ -68,22 +61,6 @@ function sourceFiles(dir: string): string[] {
   return files;
 }
 
-function legacyMarkdown(): string {
-  return [
-    "---",
-    "backendId: opencode",
-    "sessionId: old-opencode-1",
-    "title: Old opencode chat",
-    "createdAtMs: 1700000000000",
-    "---",
-    "",
-    "**user**: refactor my note",
-    "",
-    "**ai**: here is the plan",
-    "",
-  ].join("\n");
-}
-
 describe("noOpenCodeExecution", () => {
   describe("source tree", () => {
     it("keeps every removed opencode execution and install module deleted", () => {
@@ -138,49 +115,6 @@ describe("noOpenCodeExecution", () => {
       }
 
       expect(offenders).toEqual([]);
-    });
-  });
-
-  describe("historical backend identity", () => {
-    it("keeps the old identity outside every runtime and model-discovery registration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      expect(backendRegistry.opencode).toBeUndefined();
-      expect(Object.keys(backendRegistry)).toEqual(["pi"]);
-      expect(backendDisplayOrder().map((descriptor) => descriptor.id)).toEqual(["pi"]);
-      const history = describeBackendForHistory("opencode");
-      expect(history).toMatchObject({
-        id: "opencode",
-        label: "opencode",
-      });
-      expect(
-        Object.values(history).some(
-          (value) => typeof value === "function" && value !== history.Icon
-        )
-      ).toBe(false);
-      expect(history).not.toHaveProperty("createBackendProcess");
-      expect(history).not.toHaveProperty("getEnabledModelEntries");
-      expect(history).not.toHaveProperty("getInstallState");
-    });
-    it("opens an old opencode chat without asking for an install", async () => {
-      const reader = new LegacyHistoryReader({
-        ports: {
-          listFiles: async () => [{ path: "chats/old-opencode-1.md", content: legacyMarkdown() }],
-          isTombstoned: async () => false,
-        },
-      });
-
-      const result = await reader.readAll();
-
-      expect(result.entries).toHaveLength(1);
-      expect(result.entries[0]).toMatchObject({
-        backendId: "opencode",
-        sessionId: "old-opencode-1",
-        title: "Old opencode chat",
-        importMode: "text_only",
-      });
-      expect(result.entries[0]?.messages.map((message) => message.text)).toEqual([
-        "refactor my note",
-        "here is the plan",
-      ]);
     });
   });
 

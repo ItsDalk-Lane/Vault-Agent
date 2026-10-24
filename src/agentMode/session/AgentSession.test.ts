@@ -1,4 +1,5 @@
 import { AI_SENDER, USER_SENDER } from "@/constants";
+import { t } from "@/i18n";
 import {
   AgentSession,
   buildPromptContext,
@@ -871,7 +872,7 @@ describe("AgentSession", () => {
       emit({ sessionUpdate: "state_changed", state: { model: null, mode: null, readOnly: true } });
       await expect(
         session.revertFileChange({ ...change, mutationOperationIds: ["write-1"] })
-      ).rejects.toThrow("只读");
+      ).rejects.toThrow(t("localData.readOnly"));
       expect(backend.revertFileChange).not.toHaveBeenCalled();
     });
   });
@@ -1126,6 +1127,30 @@ describe("AgentSession", () => {
       expect(session.canSteer()).toBe(false);
       await expect(session.steerPrompt("已结束")).rejects.toThrow("补充");
     });
+    it("carries a queued message's attachments and note materials into the running turn https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", async () => {
+      const { session, backend, completeTurn } = createHarness();
+      backend.steerSession = jest.fn(async () => undefined);
+      const sent = session.sendPrompt("原工作");
+      const note = { path: "Research.md" } as never;
+      await session.steerPrompt("结合这段选区继续", { notes: [note], urls: [] }, [
+        { type: "image", mimeType: "image/png", data: "AQID" },
+      ]);
+      expect(backend.steerSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "结合这段选区继续",
+          prompt: [
+            { type: "text", text: "结合这段选区继续" },
+            { type: "image", mimeType: "image/png", data: "AQID" },
+          ],
+        })
+      );
+      const context = jest.mocked(backend.steerSession).mock.calls[0][0].context;
+      expect(context?.materials).toEqual([
+        { origin: "note", text: expect.stringContaining("Research.md"), sourcePath: "Research.md" },
+      ]);
+      completeTurn();
+      await sent.turn;
+    });
   });
 
   describe("sendPrompt()", () => {
@@ -1354,11 +1379,11 @@ describe("AgentSession", () => {
       completeTurn();
       await turn;
     });
-    it("refuses a read-only imported backup before creating a user message or contacting a provider https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    it("refuses a read-only session before creating a user message or contacting a provider https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       const { session, backend } = createHarness({ resume: false });
       session.completeResume({ model: null, mode: null, readOnly: true });
       expect(session.isHistoricalOnly()).toBe(true);
-      expect(() => session.sendPrompt("继续执行")).toThrow("仅供只读查看");
+      expect(() => session.sendPrompt("继续执行")).toThrow("read-only");
       expect(session.store.getDisplayMessages()).toEqual([]);
       expect(backend.prompt).not.toHaveBeenCalled();
     });

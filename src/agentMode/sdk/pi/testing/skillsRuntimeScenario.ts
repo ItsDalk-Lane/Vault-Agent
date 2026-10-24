@@ -25,10 +25,8 @@ export async function runSkillsRuntimeScenario(directory: string) {
   await fs.symlink(path.join(externalRoot, "secret.md"), path.join(skillRoot, "refs/escape.md"));
   let body = "Only compare the supplied facts.";
   await fs.writeFile(path.join(skillRoot, "SKILL.md"), body);
-  const nativeSettings = {
-    hostExecutionMode: "strict" as "strict" | "trusted_host",
-    externalScopes: [{ root: externalRoot, permissions: ["read", "write"] }],
-  };
+  // 单层权限模型：技能脚本不再有 strict/trusted 预置门槛，逐次审批即全部授权。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+  const nativeSettings = {};
   const settings = {
     providers: {
       fixture: {
@@ -207,16 +205,7 @@ export async function runSkillsRuntimeScenario(directory: string) {
     const marker = path.join(externalRoot, "skill-output.txt");
     const quote = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
     const command = `printf skill-ok > ${quote(marker)}`;
-    await run(
-      { skillId: "canonical:review", script: { command } },
-      "strict-script",
-      true,
-      "CAPABILITY_UNAVAILABLE"
-    );
-    await assert.rejects(fs.access(marker));
-    assert.equal(approvals, 0);
-    nativeSettings.hostExecutionMode = "trusted_host";
-    await run({ skillId: "canonical:review", script: { command } }, "trusted-script", false);
+    await run({ skillId: "canonical:review", script: { command } }, "script-run", false);
     assert.equal(await fs.readFile(marker, "utf8"), "skill-ok");
     assert.equal(approvals, 1);
     let release!: (decision: PermissionDecision) => void;

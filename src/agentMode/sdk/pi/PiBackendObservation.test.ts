@@ -5,6 +5,7 @@ import type { BackendProcess } from "@/agentMode/session/types";
 
 jest.mock("./runtime/PiRuntime", () => ({
   PiRuntime: jest.fn().mockImplementation(() => ({
+    initialize: jest.fn(async () => undefined),
     observe: jest.fn(),
     replay: jest.fn(async () => undefined),
     shutdown: jest.fn(async () => undefined),

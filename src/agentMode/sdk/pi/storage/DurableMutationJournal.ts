@@ -1,4 +1,3 @@
-import { requireNodeModule } from "@/utils/desktopRuntime";
 import type { JsonValue } from "@earendil-works/chord";
 import type {
   Conversation,
@@ -89,86 +88,6 @@ export async function createDurableMutationJournal(input: {
     import("@earendil-works/chord/context"),
   ]);
   return {
-    migrateOperationIdentities: async (journal) => {
-      if (journal.operationIdentityVersion === 2) {
-        if (!journal.ambiguousLegacyTasks?.length) return journal;
-        const pending = new Set(
-          (await input.harness.inspect(BACKGROUND_CONTEXT)).tasks.map((task) =>
-            String(task.record.id)
-          )
-        );
-        const unresolved = journal.ambiguousLegacyTasks.filter((id) => pending.has(id));
-        return unresolved.length === journal.ambiguousLegacyTasks.length
-          ? journal
-          : { ...journal, ambiguousLegacyTasks: unresolved };
-      }
-      const { isDeepStrictEqual } = requireNodeModule<typeof import("node:util")>("node:util");
-      const legacyTaskOperations: NonNullable<MutationJournal["legacyTaskOperations"]> = {};
-      const ambiguousLegacyTasks: string[] = [];
-      // 迁移只能关联升级时已存在且来源唯一的SDK任务，重复供应商ID或参数不一致必须保留证据并停止，不能猜测后重做。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      for (const { record } of (await input.harness.inspect(BACKGROUND_CONTEXT)).tasks) {
-        if (record.kind !== "pi.tool") continue;
-        const original = recordValue(record.input);
-        const nestedCall = recordValue(original?.call);
-        const callId = original?.kind === "model" ? original.callId : nestedCall?.id;
-        if (typeof callId !== "string") continue;
-        const legacyIds = Object.keys(journal.mutations).filter(
-          (id) =>
-            !id.startsWith("vault-task:") && id.endsWith(`:${record.conversationId}:${callId}`)
-        );
-        if (!legacyIds.length) continue;
-        const taskId = String(record.id);
-        const checkpoint = recordValue(recordValue(record.state)?.checkpoint);
-        const conversation = await input.harness.conversation(
-          record.conversationId,
-          BACKGROUND_CONTEXT
-        );
-        const calls: { assistantId: string; name: string; arguments: unknown }[] = [];
-        if (conversation) {
-          let cursor: import("@earendil-works/pi-durable").Cursor | undefined;
-          do {
-            const page = await conversation.entries(
-              { order: "ascending" },
-              100,
-              cursor,
-              BACKGROUND_CONTEXT
-            );
-            for (const entry of page.items)
-              for (const message of entry.model ?? []) {
-                if (message.role !== "assistant") continue;
-                for (const block of message.content)
-                  if (block.type === "toolCall" && block.id === callId)
-                    calls.push({
-                      assistantId: String(entry.id),
-                      name: block.name,
-                      arguments: block.arguments,
-                    });
-              }
-            cursor = page.next;
-          } while (cursor);
-        }
-        if (
-          legacyIds.length === 1 &&
-          original?.kind === "model" &&
-          calls.length === 1 &&
-          calls[0].assistantId === String(original.assistant) &&
-          checkpoint?.phase === "execute" &&
-          isDeepStrictEqual(checkpoint.arguments, calls[0].arguments)
-        )
-          legacyTaskOperations[taskId] = {
-            operationId: legacyIds[0],
-            toolId: calls[0].name,
-            arguments: checkpoint.arguments,
-          };
-        else ambiguousLegacyTasks.push(taskId);
-      }
-      return {
-        ...journal,
-        operationIdentityVersion: 2,
-        legacyTaskOperations,
-        ambiguousLegacyTasks,
-      };
-    },
     load: async () => {
       const document = await input.harness.snapshot(
         token,
@@ -189,10 +108,4 @@ export async function createDurableMutationJournal(input: {
       }, BACKGROUND_CONTEXT);
     },
   };
-}
-
-function recordValue(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }

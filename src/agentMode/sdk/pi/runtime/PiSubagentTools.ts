@@ -95,6 +95,7 @@ export interface PiSubagentToolsOptions {
   }) => Promise<{ readonly delivered: boolean; readonly reason?: string }>;
   readonly emit: (update: SessionUpdate) => void;
   readonly isPathInScope?: (path: string) => boolean;
+  readonly hostChildReadOnly?: (conversationId: string) => boolean;
   readonly enabledProfiles?: () => readonly string[];
   readonly capabilities?: CapabilityCatalog;
   readonly canCommunicate?: (senderTaskId: string, recipientTaskId: string) => boolean;
@@ -490,6 +491,8 @@ export async function createPiSubagentTools(
   });
   const getReadOnly = (id: string): boolean => {
     if (id === rootId) return options.getMode() === "plan";
+    // 宿主可在运行中把子会话置为只读（等价旧 profile 撤销），最终宿主入口与快照同源。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+    if (options.hostChildReadOnly?.(id) === true) return true;
     const child = children.get(id);
     // 已创建任务不能保留被撤销的写作资格；下一模型快照与最终宿主入口都读取同一实时角色上限。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     if (

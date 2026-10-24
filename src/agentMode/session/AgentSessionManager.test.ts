@@ -1,14 +1,10 @@
-import { FileSystemAdapter, App, Notice, TFile } from "obsidian";
+import { FileSystemAdapter, App, Notice } from "obsidian";
 import { mockTFile } from "@/__tests__/mockObsidian";
-import { join } from "node:path";
 import { waitFor } from "@testing-library/react";
 import { AgentSession } from "./AgentSession";
 import { buildNativeChatId } from "@/utils/nativeChatId";
 import { AI_SENDER, CHAT_AGENT_VIEWTYPE, USER_SENDER } from "@/constants";
-import { serializeFanoutComposite } from "@/agentMode/session/fanout/fanoutTypes";
-import { formatDateTime } from "@/utils";
 import { playNotificationSound } from "@/utils/notificationSound";
-import { AgentSessionIndex } from "./AgentSessionIndex";
 import { AgentSessionManager } from "./AgentSessionManager";
 import { GLOBAL_SCOPE } from "./scope";
 import {
@@ -21,6 +17,7 @@ import { ProjectFileManager } from "@/projects/ProjectFileManager";
 import { type ProjectConfig } from "@/aiParams";
 import type { ProjectFileRecord } from "@/projects/type";
 import { t } from "@/i18n";
+import { saveChatExport } from "@/services/saveChatExport";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
 import type {
   AgentChatMessage,
@@ -30,6 +27,8 @@ import type {
   BackendModelCatalog,
   BackendState,
   ModelSelection,
+  ListedSessionInfo,
+  UpdateSessionMetadataInput,
   SessionEvent,
 } from "./types";
 
@@ -37,6 +36,8 @@ const mockBuildProjectContext = buildProjectContext as jest.Mock;
 const getSettingsMock = mockedGetSettings as jest.Mock;
 const setSettingsMock = mockedSetSettings as jest.Mock;
 const noticeMock = Notice as unknown as jest.Mock;
+
+jest.mock("@/services/saveChatExport", () => ({ saveChatExport: jest.fn() }));
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -47,13 +48,6 @@ jest.mock("@/logger", () => ({
 const settingsChangeCallbacks = new Set<
   (prev: { agentMode: unknown }, next: { agentMode: unknown }) => void
 >();
-
-const ensureAgentsFileForDiscoverySpy = jest.fn<Promise<void>, unknown[]>(async () => undefined);
-jest.mock("@/instructions/agentsFile", () => ({
-  ...jest.requireActual("@/instructions/agentsFile"),
-  ensureAgentsFileForDiscovery: (...a: unknown[]): Promise<void> =>
-    ensureAgentsFileForDiscoverySpy(...a),
-}));
 
 const mockTouchProjectLastUsed = jest.fn(async () => undefined);
 jest.mock("@/projects/ProjectFileManager", () => ({
@@ -128,8 +122,55 @@ const mockBackendExitListeners = new Set<() => void>();
 const mockSetPermissionPrompter = jest.fn();
 let mockUnhealthyHandler: (() => void) | null = null;
 
+const storedChats = new Map<string, ListedSessionInfo>();
+
+function storeChat(
+  sessionId: string,
+  metadata: Partial<ListedSessionInfo> = {}
+): ListedSessionInfo {
+  const stored = {
+    sessionId,
+    cwd: "/vault",
+    createdAtMs: 1000,
+    lastAccessedAtMs: 2000,
+    ...metadata,
+  };
+  storedChats.set(sessionId, stored);
+  return stored;
+}
+
 function makeMockBackendProcess() {
   return {
+    loadSession: jest.fn(async ({ sessionId }: { sessionId: string }) => ({
+      sessionId,
+      state: { model: null, mode: null },
+    })),
+    resumeSession: jest.fn(async ({ sessionId }: { sessionId: string }) => ({
+      sessionId,
+      state: { model: null, mode: null },
+    })),
+    listSessions: jest.fn(async () => ({ sessions: [...storedChats.values()] })),
+    updateSessionMetadata: jest.fn(
+      async ({ sessionId, ...metadata }: UpdateSessionMetadataInput) => {
+        const stored = storedChats.get(sessionId);
+        if (!stored) throw new Error("Session not found");
+        const updated = {
+          ...stored,
+          ...metadata,
+          pinnedAt: metadata.pinnedAt === null ? undefined : (metadata.pinnedAt ?? stored.pinnedAt),
+        };
+        storedChats.set(sessionId, updated);
+        return updated;
+      }
+    ),
+    forkSession: jest.fn(async ({ sessionId }: { sessionId: string }) => {
+      const source = storedChats.get(sessionId)!;
+      const copy = storeChat(`${sessionId}-fork`, { ...source, sessionId: `${sessionId}-fork` });
+      return { sessionId: copy.sessionId, state: { model: null, mode: null } };
+    }),
+    deleteSession: jest.fn(async ({ sessionId }: { sessionId: string }) => {
+      storedChats.delete(sessionId);
+    }),
     start: mockBackendStart,
     setPermissionPrompter: mockSetPermissionPrompter,
     setUnhealthyHandler: (handler: () => void) => {
@@ -183,7 +224,8 @@ function makeMockSession(overrides: {
   ready?: Promise<void>;
   label?: string;
 }): AgentSession {
-  const sessionId = overrides.backendSessionId ?? `backend-${nextBackendSessionId++}`;
+  const sessionId = overrides.backendSessionId ?? `root-backend-${nextBackendSessionId++}`;
+  storeChat(sessionId, { projectId: overrides.projectId });
   let label: string | null = overrides.label ?? null;
   let labelSource: "user" | "agent" | null = overrides.label ? "agent" : null;
   let status: MockSessionStatus = "idle";
@@ -383,8 +425,6 @@ interface ManagerOptions {
   descriptor?: BackendDescriptor;
   resolveDescriptor?: ManagerDeps["resolveDescriptor"];
   preloader?: Record<string, unknown>;
-  persistence?: unknown;
-  sessionIndex?: AgentSessionIndex;
   beforeBackendStart?: ManagerDeps["beforeBackendStart"];
   feedbackServer?: ManagerDeps["feedbackServer"];
 }
@@ -413,13 +453,6 @@ function buildManager(options: ManagerOptions = {}): AgentSessionManager {
         getWarmProcs: jest.fn(() => []),
         ...options.preloader,
       } as unknown as ManagerDeps["modelPreloader"],
-      persistenceManager: options.persistence
-        ? ({
-            writableSessionPath: jest.fn().mockResolvedValue(undefined),
-            ...options.persistence,
-          } as unknown as ManagerDeps["persistenceManager"])
-        : undefined,
-      sessionIndex: options.sessionIndex,
       beforeBackendStart: options.beforeBackendStart,
       feedbackServer: options.feedbackServer,
     }
@@ -617,18 +650,6 @@ function readPersistedDefault(
   return backends[backendId]?.defaultModel;
 }
 
-function savedNoteFixture(autosave = false) {
-  jest.useFakeTimers();
-  getSettingsMock.mockReturnValue({ ...getSettingsMock(), autosaveChat: autosave });
-  const saveSession = jest.fn(async () => ({ path: "chats/saved.md" }));
-  const setPinnedAt = jest.fn(async () => undefined);
-  return {
-    mgr: buildManager({ persistence: { saveSession, setPinnedAt } }),
-    saveSession,
-    setPinnedAt,
-  };
-}
-
 beforeEach(() => {
   mockBackendIsRunning = true;
   mockNotificationSound = true;
@@ -649,7 +670,7 @@ beforeEach(() => {
   noticeMock.mockClear();
   mockBuildProjectContext.mockClear();
   mockTouchProjectLastUsed.mockClear();
-  ensureAgentsFileForDiscoverySpy.mockClear();
+  storedChats.clear();
   projectsState.updateCachedProjectRecords([]);
 });
 
@@ -659,126 +680,26 @@ afterEach(async () => {
   projectsState.updateCachedProjectRecords([]);
 });
 
-const MockTFile = TFile as unknown as new (path: string) => TFile & {
-  stat: { ctime: number; mtime: number };
-};
-
-interface FakeFrontmatter {
-  epoch?: number;
-  topic?: string;
-  backendId?: string;
-  sessionId?: string;
-  lastAccessedAt?: number;
-  projectId?: string;
-  pinnedAt?: number;
-}
-
-function makeIndexStorage() {
-  const files = new Map<string, string>();
-  return {
-    exists: async (p: string) => files.has(p),
-    read: async (p: string) => {
-      const content = files.get(p);
-      if (content === undefined) throw new Error(`ENOENT: ${p}`);
-      return content;
-    },
-    write: async (p: string, c: string) => {
-      files.set(p, c);
-    },
-  };
-}
-
-function buildHistoryHarness(opts?: {
-  files?: Record<string, FakeFrontmatter>;
-  hiddenFiles?: Record<string, string>;
-  listSessions?: jest.Mock;
-  warmListSessions?: jest.Mock;
-  warmSessionExistsLocally?: jest.Mock;
-  indexStorage?: ReturnType<typeof makeIndexStorage>;
-  summarizesSessionTitle?: boolean;
-  backendId?: BackendId;
-  createBackendProcess?: jest.Mock;
-}) {
-  const frontmatterByPath = opts?.files ?? {};
-  const hiddenByPath = opts?.hiddenFiles ?? {};
-  const tfiles = [...Object.keys(frontmatterByPath), ...Object.keys(hiddenByPath)].map((p) => {
-    const f = new MockTFile(p);
-    f.stat = { ctime: 1_000, mtime: 1_000, size: 0 };
-    return f;
-  });
-  const adapter = new (FileSystemAdapter as unknown as new (basePath: string) => unknown)(
-    "/vault"
-  ) as { read: jest.Mock };
-  adapter.read.mockImplementation(async (p: string) => {
-    const content = hiddenByPath[p];
-    if (content === undefined) throw new Error(`ENOENT: ${p}`);
-    return content;
-  });
-  const app = {
-    vault: {
-      adapter,
-      getAbstractFileByPath: (p: string) =>
-        tfiles.find((f: { path: string }) => f.path === p) ?? null,
-      on: jest.fn(() => ({}) as never),
-      offref: jest.fn(),
-    },
-    metadataCache: {
-      getFileCache: (file: { path: string }) => {
-        const fm = frontmatterByPath[file.path];
-        return fm ? { frontmatter: fm } : null;
-      },
-      on: jest.fn(() => ({}) as never),
-      offref: jest.fn(),
-    },
-  } as unknown as App;
-  const plugin = {
-    manifest: { version: "1.0.0" },
-    getChatHistoryLastAccessedAtManager: () => ({
-      getEffectiveLastUsedAt: (_path: string, fallback: number) => fallback,
-    }),
-  };
-  const persistence = {
-    getAgentChatHistoryFiles: jest.fn(async () => tfiles),
-    updateTopic: jest.fn(async () => undefined),
-    deleteFile: jest.fn(async () => undefined),
-    saveSession: jest.fn(async () => ({ path: "chats/agent__saved.md" })),
-    setPinnedAt: jest.fn(async () => undefined),
-  };
-  const indexStorage = opts?.indexStorage ?? makeIndexStorage();
-  const index = new AgentSessionIndex(indexStorage, "plugins/vault-agent/index.json");
-  const backendId = opts?.backendId ?? "pi";
+function buildHistoryHarness(
+  opts: {
+    sessions?: ListedSessionInfo[];
+    listSessions?: jest.Mock;
+    backendId?: BackendId;
+    createBackendProcess?: jest.Mock;
+  } = {}
+) {
+  for (const entry of opts.sessions ?? [{ sessionId: "root-saved-chat", cwd: "/vault" }]) {
+    storeChat(entry.sessionId, entry);
+  }
+  const backend = opts.createBackendProcess?.() ?? makeMockBackendProcess();
+  if (opts.listSessions) backend.listSessions = opts.listSessions;
   const descriptor = buildDescriptor({
-    id: backendId,
-    summarizesSessionTitle: opts?.summarizesSessionTitle ?? true,
-    ...(opts?.createBackendProcess
-      ? { createBackendProcess: opts.createBackendProcess }
-      : opts?.listSessions
-        ? {
-            createBackendProcess: jest.fn(() => ({
-              ...makeMockBackendProcess(),
-              listSessions: opts.listSessions,
-            })),
-          }
-        : {}),
+    id: opts.backendId ?? "pi",
+    createBackendProcess: jest.fn(() => backend),
   });
-  const manager = buildManager({
-    app,
-    plugin,
-    descriptor,
-    persistence,
-    sessionIndex: index,
-    preloader: {
-      getWarmProcs: jest.fn(() => {
-        if (!opts?.warmListSessions && !opts?.warmSessionExistsLocally) return [];
-        const proc: Record<string, unknown> = { ...makeMockBackendProcess() };
-        if (opts.warmListSessions) proc.listSessions = opts.warmListSessions;
-        if (opts.warmSessionExistsLocally)
-          proc.sessionExistsLocally = opts.warmSessionExistsLocally;
-        return [{ backendId, proc }];
-      }),
-    },
-  });
-  return { manager, index, persistence, descriptor };
+  const app = buildApp();
+  const manager = buildManager({ app, descriptor });
+  return { manager, descriptor, backend, app };
 }
 
 const HISTORY_PROJECT_ID = "proj-1";
@@ -903,25 +824,6 @@ describe("AgentSessionManager", () => {
     });
 
     describe("createSession()", () => {
-      it("routes an explicit historical backend request to Pi without starting the removed engine https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const historical = buildDescriptor({
-          id: "claude",
-          createBackendProcess: jest.fn(() => {
-            throw new Error("removed engine must never start");
-          }),
-        });
-        const pi = buildDescriptor({ id: "pi", displayName: "Pi" });
-        const manager = buildManager({
-          descriptor: pi,
-          resolveDescriptor: (id) => (id === "claude" ? historical : id === "pi" ? pi : undefined),
-        });
-
-        const session = await manager.createSession("claude");
-
-        expect(session.backendId).toBe("pi");
-        expect(pi.createBackendProcess).toHaveBeenCalledTimes(1);
-        expect(historical.createBackendProcess).not.toHaveBeenCalled();
-      });
       it("creates a session and sets it as the active one", async () => {
         const mgr = buildManager();
         const session = await mgr.createSession();
@@ -1322,21 +1224,6 @@ describe("AgentSessionManager", () => {
         expect(playNotificationSound).not.toHaveBeenCalled();
         expect(background.getNeedsAttention()).toBe(false);
       });
-
-      it("autosaves a new chat's turn as a note when autosave is on (https://github.com/logancyang/obsidian-copilot/issues/3225)", async () => {
-        const { mgr, saveSession } = savedNoteFixture(true);
-        const session = await mgr.createSession();
-        const messages = [{ message: "Automatically saved turn" }];
-        getSessionTestHandle(session).setMessages(messages, true);
-        await jest.advanceTimersByTimeAsync(2000);
-        expect(saveSession).toHaveBeenCalledTimes(1);
-        expect(saveSession).toHaveBeenCalledWith(
-          messages,
-          session.backendId,
-          expect.objectContaining({ existingPath: undefined })
-        );
-        await mgr.shutdown();
-      });
     });
 
     describe("createGlobalSessionWithDraft()", () => {
@@ -1405,28 +1292,29 @@ describe("AgentSessionManager", () => {
 
       it("does not roll back across newer ABA scope navigation for https://github.com/Brevilabs/obsidian-copilot-private/issues/166", async () => {
         seedProjects("project-a", "project-b");
-        const mgr = buildManager();
+        offerFeedbackCards(true);
+        const feedbackServer = buildFeedbackServer();
+        const mgr = buildManager({ feedbackServer });
         const globalSession = await mgr.createSession(undefined, GLOBAL_SCOPE);
         const projectBSession = await mgr.createSession(undefined, "project-b");
         const projectASession = await mgr.createSession(undefined, "project-a");
         mgr.setActiveSession(projectASession.internalId);
-
-        let releaseInstructionEnsure: (() => void) | undefined;
-        ensureAgentsFileForDiscoverySpy.mockImplementationOnce(
-          () =>
-            new Promise<void>((resolve) => {
-              releaseInstructionEnsure = resolve;
-            })
-        );
+        const entered = deferred();
+        const release = deferred();
+        feedbackServer.connect.mockImplementationOnce(async () => {
+          entered.resolve();
+          await release.promise;
+          return FEEDBACK_CHANNEL;
+        });
         sessionCreateSpy.mockImplementationOnce(() => {
           throw new Error("session creation failed");
         });
 
         const pendingDraft = mgr.createGlobalSessionWithDraft("Review this repair");
-        await waitFor(() => expect(releaseInstructionEnsure).toBeDefined());
+        await entered.promise;
         mgr.setActiveSession(projectBSession.internalId);
         mgr.setActiveSession(globalSession.internalId);
-        releaseInstructionEnsure?.();
+        release.resolve();
 
         await expect(pendingDraft).rejects.toThrow("session creation failed");
         expect(mgr.getActiveProjectId()).toBe(GLOBAL_SCOPE);
@@ -1496,6 +1384,46 @@ describe("AgentSessionManager", () => {
         expect(second.setIsActive).toHaveBeenLastCalledWith(false);
         expect(third.setIsActive).toHaveBeenLastCalledWith(false);
         expect(mgr.getSessions()).toHaveLength(3);
+      });
+
+      it("persists the latest visit when switching between already open chats https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager } = buildHistoryHarness({ sessions: [] });
+        const first = await manager.createSession();
+        const second = await manager.createSession();
+        const firstId = first.getBackendSessionId()!;
+        const secondId = second.getBackendSessionId()!;
+        const now = jest.spyOn(Date, "now").mockReturnValue(3000);
+        try {
+          manager.setActiveSession(first.internalId);
+          await waitFor(() => expect(storedChats.get(firstId)?.lastAccessedAtMs).toBe(3000));
+          now.mockReturnValue(4000);
+          manager.setActiveSession(second.internalId);
+          await waitFor(() => expect(storedChats.get(secondId)?.lastAccessedAtMs).toBe(4000));
+          const history = await manager.getChatHistoryItems();
+          expect(history.find((item) => item.id === firstId)?.lastAccessedAt.getTime()).toBe(3000);
+          expect(history.find((item) => item.id === secondId)?.lastAccessedAt.getTime()).toBe(4000);
+        } finally {
+          now.mockRestore();
+        }
+      });
+
+      it("does not write visit metadata while the selected chat is being deleted https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const first = await manager.createSession();
+        await manager.createSession();
+        const entered = deferred();
+        const release = deferred();
+        backend.deleteSession.mockImplementationOnce(async () => {
+          entered.resolve();
+          await release.promise;
+        });
+        const deleting = manager.deleteChatHistory(nativeIdOf(first));
+        await entered.promise;
+        backend.updateSessionMetadata.mockClear();
+        manager.setActiveSession(first.internalId);
+        expect(backend.updateSessionMetadata).not.toHaveBeenCalled();
+        release.resolve();
+        await deleting;
       });
 
       it("moves the active pointer to the given id", async () => {
@@ -1677,16 +1605,6 @@ describe("AgentSessionManager", () => {
 
         expect(mgr.getActiveSession()).not.toBe(old);
       });
-
-      it("never writes an unsaved chat with autosave off for https://github.com/logancyang/obsidian-copilot/issues/3225", async () => {
-        const { mgr, saveSession } = savedNoteFixture();
-        const session = await mgr.createSession();
-        getSessionTestHandle(session).setMessages([{ message: "Unsaved turn" }], true);
-        await jest.advanceTimersByTimeAsync(2000);
-        await mgr.closeSession(session.internalId);
-        expect(saveSession).not.toHaveBeenCalled();
-        await mgr.shutdown();
-      });
     });
 
     describe("replaceSessionInPlace()", () => {
@@ -1804,38 +1722,6 @@ describe("AgentSessionManager", () => {
           })
         );
         expect(mgr.getSessions()).toEqual([thirdReplacement]);
-      });
-
-      it("updates the manually saved file and drains later turns on New Chat with autosave off for https://github.com/logancyang/obsidian-copilot/issues/3225", async () => {
-        const { mgr, saveSession } = savedNoteFixture();
-        const session = await mgr.createSession();
-        const handle = getSessionTestHandle(session);
-        const first = [
-          { message: "Image question\n\n![](/image.png)" },
-          { message: "Image answer" },
-        ];
-        handle.setMessages(first, true);
-        await mgr.saveActiveSession();
-        const later = [...first, { message: "Later question" }, { message: "Later answer" }];
-        handle.setMessages(later, true);
-        await jest.advanceTimersByTimeAsync(2000);
-        expect(saveSession).toHaveBeenCalledTimes(2);
-        expect(saveSession).toHaveBeenLastCalledWith(
-          later,
-          session.backendId,
-          expect.objectContaining({ existingPath: "chats/saved.md" })
-        );
-        const final = [...later, { message: "Final question" }, { message: "Final answer" }];
-        handle.setMessages(final, true);
-        await mgr.replaceSessionInPlace(session.internalId);
-        await jest.advanceTimersByTimeAsync(0);
-        expect(saveSession).toHaveBeenCalledTimes(3);
-        expect(saveSession).toHaveBeenLastCalledWith(
-          final,
-          session.backendId,
-          expect.objectContaining({ existingPath: "chats/saved.md" })
-        );
-        await mgr.shutdown();
       });
     });
 
@@ -2007,32 +1893,6 @@ describe("AgentSessionManager", () => {
     });
 
     describe("closeChatSession()", () => {
-      it.each([
-        ["saved note path", false],
-        ["stale native id", true],
-      ])(
-        "closes by %s and retains the saved transcript for https://github.com/Brevilabs/obsidian-copilot-private/issues/429",
-        async (_label, useNativeId) => {
-          const saved = new Map<string, unknown>();
-          const saveSession = jest.fn(async (messages: unknown) => {
-            saved.set("chats/research.md", messages);
-            return { path: "chats/research.md" };
-          });
-          const mgr = buildManager({ persistence: { saveSession } });
-          const session = await mgr.createSession();
-          getSessionTestHandle(session).setMessages([{ message: "Initial answer" }]);
-          await mgr.saveActiveSession();
-          const nativeId = nativeIdOf(session);
-          expect(mgr.getOpenChatIds()).toEqual(new Set([nativeId, "chats/research.md"]));
-
-          await mgr.closeChatSession(useNativeId ? nativeId : "chats/research.md");
-
-          expect(saved.get("chats/research.md")).toEqual([{ message: "Initial answer" }]);
-          expect(mgr.getOpenChatIds().size).toBe(0);
-          expect(mgr.getSessions()).toEqual([]);
-        }
-      );
-
       it("releases only the selected backend session while preserving another active chat for https://github.com/Brevilabs/obsidian-copilot-private/issues/429", async () => {
         const mgr = buildManager();
         const selected = await mgr.createSession();
@@ -2054,36 +1914,6 @@ describe("AgentSessionManager", () => {
         const a = await mgr.createSession();
         getSessionTestHandle(a).setStatus("running");
         expect(mgr.getRunningChatIds().has(nativeIdOf(a))).toBe(true);
-      });
-
-      it("keys a running saved session by its markdown path", async () => {
-        const mgr = buildManager({
-          persistence: { saveSession: jest.fn(async () => ({ path: "chats/agent__saved.md" })) },
-        });
-        const a = await mgr.createSession();
-        getSessionTestHandle(a).setMessages([{ message: "hi" }]);
-        await mgr.saveActiveSession();
-        getSessionTestHandle(a).setStatus("running");
-        expect(mgr.getRunningChatIds().has("chats/agent__saved.md")).toBe(true);
-      });
-
-      it("keeps both ids when a running session's first save re-keys it", async () => {
-        const mgr = buildManager({
-          persistence: { saveSession: jest.fn(async () => ({ path: "chats/agent__saved.md" })) },
-        });
-        const a = await mgr.createSession();
-        getSessionTestHandle(a).setMessages([{ message: "hi" }]);
-        getSessionTestHandle(a).setStatus("running");
-        expect(mgr.getRunningChatIds().has(nativeIdOf(a))).toBe(true);
-
-        const listener = jest.fn();
-        mgr.subscribe(listener);
-        await mgr.saveActiveSession();
-
-        expect(listener).toHaveBeenCalledTimes(1);
-        const ids = mgr.getRunningChatIds();
-        expect(ids.has("chats/agent__saved.md")).toBe(true);
-        expect(ids.has(nativeIdOf(a))).toBe(true);
       });
 
       it("excludes a starting session while including a running one", async () => {
@@ -2486,7 +2316,7 @@ describe("AgentSessionManager", () => {
 
       it.each([
         ["resumes each tab's conversation in place", false],
-        ["keeps unavailable original tabs read-only", true],
+        ["reports unavailable original tabs", true],
       ] as const)(
         "preserves each tab's model and effort when the restart %s (https://github.com/logancyang/obsidian-copilot/issues/3319)",
         async (_case, unsupported) => {
@@ -2525,16 +2355,16 @@ describe("AgentSessionManager", () => {
             .mockReturnValue(state("copilot-plus/reasoning", "medium"));
           sessionCreateSpy.mockClear();
 
-          await mgr.restartBackend("pi", "config changed");
-
           if (unsupported) {
+            await expect(mgr.restartBackend("pi", "config changed")).rejects.toThrow(
+              t("agentChat.history.restoreUnavailable")
+            );
             expect(sessionCreateSpy).not.toHaveBeenCalled();
-            expect(mgr.getSessions().map((session) => session.getBackendSessionId())).toEqual([
-              flash.getBackendSessionId(),
-              reasoning.getBackendSessionId(),
-            ]);
-            expect(mgr.getSessions().every((session) => session.isHistoricalOnly())).toBe(true);
+            expect(mgr.getSessions()).toEqual([]);
+            expect(storedChats.has(flash.getBackendSessionId()!)).toBe(true);
+            expect(storedChats.has(reasoning.getBackendSessionId()!)).toBe(true);
           } else {
+            await mgr.restartBackend("pi", "config changed");
             expect(mgr.getSessions().map((session) => session.getState()?.model?.current)).toEqual([
               { baseModelId: "copilot-plus/flash", effort: "high" },
               { baseModelId: "copilot-plus/reasoning", effort: "medium" },
@@ -2546,7 +2376,7 @@ describe("AgentSessionManager", () => {
 
       it.each([
         ["resumes the tab's conversation in place", false],
-        ["keeps the unavailable original tab read-only", true],
+        ["reports the unavailable original tab", true],
       ] as const)(
         "replaces a disabled tab model with the enabled default when the restart %s (https://github.com/logancyang/obsidian-copilot/issues/3319)",
         async (_case, unsupported) => {
@@ -2605,15 +2435,15 @@ describe("AgentSessionManager", () => {
             });
             sessionCreateSpy.mockClear();
 
-            await mgr.restartBackend("pi", "enabled models changed");
-
             if (unsupported) {
-              expect(sessionCreateSpy).not.toHaveBeenCalled();
-              expect(mgr.getActiveSession()?.getBackendSessionId()).toBe(
-                first.getBackendSessionId()
+              await expect(mgr.restartBackend("pi", "enabled models changed")).rejects.toThrow(
+                t("agentChat.history.restoreUnavailable")
               );
-              expect(mgr.getActiveSession()?.isHistoricalOnly()).toBe(true);
+              expect(sessionCreateSpy).not.toHaveBeenCalled();
+              expect(mgr.getActiveSession()).toBeNull();
+              expect(storedChats.has(first.getBackendSessionId()!)).toBe(true);
             } else {
+              await mgr.restartBackend("pi", "enabled models changed");
               expect(mgr.getActiveSession()?.getState()?.model?.current).toEqual(saved);
             }
           } finally {
@@ -2740,7 +2570,9 @@ describe("AgentSessionManager", () => {
         );
         await mgr.createSession();
 
-        await mgr.restartBackend("pi", "managed skills changed");
+        await expect(mgr.restartBackend("pi", "managed skills changed")).rejects.toThrow(
+          t("agentChat.history.restoreUnavailable")
+        );
 
         const reloadKey = feedbackServer.connect.mock.calls[1][0];
         expect(feedbackServer.disconnect).toHaveBeenCalledWith(reloadKey);
@@ -2822,49 +2654,31 @@ describe("AgentSessionManager", () => {
         expect(mgr.getActiveSession()?.getLabel()).toBe("Refactor the importer");
       });
 
-      it("keeps an unavailable original root read-only with its draft and explicit notice even when another restored tab clears the global error https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        let failedSessionId: string | null = null;
-        const importLegacySession = jest.fn();
+      it("reports failed restoration without creating a new root and permits retrying the stored session https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        let unavailable = true;
         const manager = buildManagerWithReplay({
-          importLegacySession,
           loadSession: jest.fn(async ({ sessionId }: { sessionId: string }) => {
-            if (sessionId === failedSessionId)
-              throw new Error("private storage temporarily unavailable");
+            if (unavailable) throw new Error("private storage temporarily unavailable");
             return { sessionId, state: { model: null, mode: null } };
           }),
         });
-        const failed = await manager.createSession();
-        const healthy = await manager.createSession();
-        failedSessionId = failed.getBackendSessionId();
-        manager.drafts.update(failed.chatInputId, (draft) => ({
-          ...draft,
-          input: "保留原始未发送内容",
-        }));
+        const original = await manager.createSession();
         sessionCreateSpy.mockClear();
-        await manager.restartBackend("pi", "configuration changed");
-        const preserved = manager
-          .getSessions()
-          .find((session) => session.getBackendSessionId() === failedSessionId);
-        expect(preserved).toBeDefined();
-        expect(preserved?.isHistoricalOnly()).toBe(true);
-        expect(preserved?.chatInputId).toBe(failed.chatInputId);
-        expect(preserved?.store.getDisplayMessages()).toMatchObject([
-          {
-            isAuxiliary: true,
-            isErrorMessage: true,
-            message: t("agentChat.history.restoreUnavailable"),
-          },
-        ]);
-        expect(manager.drafts.get(failed.chatInputId)?.input).toBe("保留原始未发送内容");
-        expect(
-          manager
-            .getSessions()
-            .some((session) => session.getBackendSessionId() === healthy.getBackendSessionId())
-        ).toBe(true);
+        await expect(manager.restartBackend("pi", "configuration changed")).rejects.toThrow(
+          t("agentChat.history.restoreUnavailable")
+        );
+        expect(manager.getLastError()).toBe(t("agentChat.history.restoreUnavailable"));
+        expect(manager.getSessions()).toEqual([]);
+        expect(storedChats.has(original.getBackendSessionId()!)).toBe(true);
         expect(sessionCreateSpy).not.toHaveBeenCalled();
-        manager.setActiveSession(preserved!.internalId);
-        await expect(manager.importActiveLegacySession()).rejects.toThrow("没有可导入");
-        expect(importLegacySession).not.toHaveBeenCalled();
+
+        unavailable = false;
+        const restored = await manager.loadNativeSessionFromHistory(
+          "pi",
+          original.getBackendSessionId()!
+        );
+        expect(restored.getBackendSessionId()).toBe(original.getBackendSessionId());
+        expect(manager.getActiveSession()).toBe(restored);
       });
 
       it("defers restart until an active turn leaves running", async () => {
@@ -3034,24 +2848,23 @@ describe("AgentSessionManager", () => {
         expect(mgr.getActiveSession()?.store.getDisplayMessages()).toEqual([]);
       });
 
-      it("preserves a failed original root read-only without claiming its old uncommitted display snapshot was restored https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const mgr = buildManager();
+      it("reports an unavailable session after a background restart without presenting an unsaved display snapshot as restored https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const mgr = buildManagerWithReplay({
+          loadSession: jest.fn(async () => {
+            throw new Error("storage unavailable");
+          }),
+        });
         const first = await mgr.createSession();
         const handle = getSessionTestHandle(first);
         handle.setStatus("running");
         mockUnhealthyHandler?.();
-        handle.setMessages([
-          { message: "Unsaved prompt" },
-          { message: "OpenCode's internal service stopped. Please try again." },
-        ]);
+        handle.setMessages([{ message: "Unsaved prompt" }]);
         handle.setStatus("error");
-        await flushTimers();
-
-        expect(mgr.getActiveSession()?.getBackendSessionId()).toBe(first.getBackendSessionId());
-        expect(mgr.getActiveSession()?.isHistoricalOnly()).toBe(true);
-        expect(mgr.getActiveSession()?.store.getDisplayMessages()).toMatchObject([
-          { isAuxiliary: true, message: t("agentChat.history.restoreUnavailable") },
-        ]);
+        await waitFor(() =>
+          expect(mgr.getLastError()).toBe(t("agentChat.history.restoreUnavailable"))
+        );
+        expect(mgr.getActiveSession()).toBeNull();
+        expect(storedChats.has(first.getBackendSessionId()!)).toBe(true);
       });
     });
 
@@ -3469,1429 +3282,234 @@ describe("AgentSessionManager", () => {
       });
     });
 
-    describe("saveActiveSession()", () => {
-      it("persists the active chat's messages and returns the saved note path", async () => {
-        const { mgr, saveSession } = savedNoteFixture();
-        const session = await mgr.createSession();
-        const messages = [{ message: "Question" }, { message: "Answer" }];
-        getSessionTestHandle(session).setMessages(messages);
-
-        await expect(mgr.saveActiveSession()).resolves.toEqual({ path: "chats/saved.md" });
-
-        expect(saveSession).toHaveBeenCalledWith(messages, session.backendId, expect.anything());
-      });
-
-      it("persists changes during the first manual save for https://github.com/logancyang/obsidian-copilot/issues/3225", async () => {
-        const { mgr, saveSession } = savedNoteFixture();
-        let finishSave!: (result: { path: string }) => void;
-        saveSession.mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              finishSave = resolve;
-            })
-        );
-        const session = await mgr.createSession();
-        const handle = getSessionTestHandle(session);
-        handle.setMessages([{ message: "Question" }, { message: "Partial answer" }], true);
-        const saving = mgr.saveActiveSession();
-        await jest.advanceTimersByTimeAsync(0);
-        expect(saveSession).toHaveBeenCalledTimes(1);
-        const completed = [{ message: "Question" }, { message: "Completed answer" }];
-        handle.setMessages(completed, true);
-        finishSave({ path: "chats/saved.md" });
-        await saving;
-        await jest.advanceTimersByTimeAsync(2000);
-        expect(saveSession).toHaveBeenCalledTimes(2);
-        expect(saveSession).toHaveBeenLastCalledWith(
-          completed,
-          session.backendId,
-          expect.objectContaining({ existingPath: "chats/saved.md" })
-        );
-        await mgr.shutdown();
-      });
-    });
-
-    describe("getSessionSourcePath()", () => {
-      it("keeps unsaved sessions independent of a saved session and follows its file rename https://github.com/Brevilabs/obsidian-copilot-private/issues/539", async () => {
-        const file = mockTFile({ path: "chat/Conversation.md" });
-        const app = buildApp();
-        jest.mocked(app.vault.getAbstractFileByPath).mockReturnValue(file);
-        const saveSession = jest.fn().mockResolvedValue({ path: file.path });
-        const mgr = buildManager({ app, persistence: { saveSession } });
-        const first = await mgr.createSession();
-        expect(mgr.getSessionSourcePath(first.internalId)).toBe("");
-        getSessionTestHandle(first).setMessages([{ message: "Hello" }]);
-        const listener = jest.fn();
-        mgr.subscribe(listener);
-        await mgr.saveActiveSession();
-        expect(listener).toHaveBeenCalledTimes(1);
-        expect(mgr.getSessionSourcePath(first.internalId)).toBe(file.path);
-        file.path = "archive/Conversation.md";
-        expect(mgr.getSessionSourcePath(first.internalId)).toBe(file.path);
-        expect(await mgr.saveActiveSession()).toEqual({ path: file.path });
-        const second = await mgr.createSession();
-        expect(mgr.getSessionSourcePath(second.internalId)).toBe("");
-        mgr.setActiveSession(first.internalId);
-        getSessionTestHandle(first).setMessages([{ message: "Changed" }]);
-        saveSession.mockResolvedValue(null);
-        await mgr.saveActiveSession();
-        expect(mgr.getSessionSourcePath(first.internalId)).toBe(file.path);
-        expect(saveSession).toHaveBeenLastCalledWith(
-          expect.anything(),
-          first.backendId,
-          expect.objectContaining({ existingPath: file.path })
-        );
-      });
-
-      it("uses the loaded conversation file before any save https://github.com/Brevilabs/obsidian-copilot-private/issues/539", async () => {
-        const file = mockTFile({ path: "chat/Loaded.md" });
-        const loadFile = jest.fn().mockResolvedValue({
-          backendId: "pi",
-          sessionId: "native-loaded",
-          projectId: GLOBAL_SCOPE,
-          messages: [{ message: "Loaded" }],
-        });
-        const replay = buildReplayingBackend();
-        const mgr = buildManager({
-          persistence: { loadFile, writableSessionPath: jest.fn(async () => file.path) },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        });
-        const loaded = await mgr.loadSessionFromHistory(file);
-        expect(mgr.getSessionSourcePath(loaded.internalId)).toBe(file.path);
-        file.path = "archive/Loaded.md";
-        expect(mgr.getSessionSourcePath(loaded.internalId)).toBe(file.path);
-      });
-    });
-
     describe("getChatHistoryItems()", () => {
-      it("merges markdown and native entries, de-duplicated on backend session id", async () => {
-        const { manager, index } = buildHistoryHarness({
-          files: {
-            "chats/agent__a.md": {
-              epoch: 1_000,
-              topic: "Saved chat",
-              backendId: "pi",
-              sessionId: "s1",
-              lastAccessedAt: 2_000,
+      it("lists titles, pin times and visit times directly from session records without reading vault notes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend, app } = buildHistoryHarness({
+          sessions: [
+            {
+              sessionId: "root-stored-chat",
+              cwd: "/vault",
+              title: "Stored title",
+              createdAtMs: 1000,
+              lastAccessedAtMs: 5000,
+              pinnedAt: 6000,
             },
-          },
-        });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Saved chat",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 5_000,
-        });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s2",
-          title: "Native only chat",
-          createdAtMs: 3_000,
-          lastAccessedAtMs: 4_000,
-        });
-
-        const items = await manager.getChatHistoryItems();
-        expect(items).toHaveLength(2);
-        const markdown = items.find((i) => i.id === "chats/agent__a.md");
-        expect(markdown).toBeDefined();
-        expect(markdown?.lastAccessedAt.getTime()).toBe(5_000);
-        const native = items.find((i) => i.id !== "chats/agent__a.md");
-        expect(native?.id).toBe(buildNativeChatId("pi", "s2"));
-        expect(native?.title).toBe("Native only chat");
-        expect(native?.backendId).toBe("pi");
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 reports when saved chats were pinned, including notes in hidden folders outside the metadata cache", async () => {
-        const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__pinned.md": { epoch: 1_000, backendId: "pi", pinnedAt: 4_000 },
-            "chats/agent__unpinned.md": { epoch: 1_000, backendId: "pi" },
-          },
-          hiddenFiles: {
-            ".vault-agent/chats/agent__hidden.md":
-              "---\nepoch: 1000\nmode: agent\nbackendId: pi\npinnedAt: 5000\n---\n\n**user**: hi",
-          },
-        });
-
-        const items = await manager.getChatHistoryItems();
-
-        expect(Object.fromEntries(items.map((item) => [item.id, item.pinnedAt]))).toEqual({
-          "chats/agent__pinned.md": 4_000,
-          "chats/agent__unpinned.md": undefined,
-          ".vault-agent/chats/agent__hidden.md": 5_000,
-        });
-      });
-
-      it("de-duplicates hidden-folder chats via the adapter frontmatter fallback", async () => {
-        const { manager, index } = buildHistoryHarness({
-          hiddenFiles: {
-            ".vault-agent/chats/agent__hidden.md":
-              '---\nepoch: 1000\nmode: agent\nbackendId: pi\nsessionId: "s1"\n---\n\n**user**: hi',
-          },
-        });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Hidden twin",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
+          ],
         });
         const items = await manager.getChatHistoryItems();
-        expect(items).toHaveLength(1);
-        expect(items[0]?.id).toBe(".vault-agent/chats/agent__hidden.md");
+        expect(items).toEqual([
+          expect.objectContaining({
+            id: buildNativeChatId("pi", "root-stored-chat"),
+            title: "Stored title",
+            pinnedAt: 6000,
+            createdAt: new Date(1000),
+            lastAccessedAt: new Date(5000),
+            backendId: "pi",
+          }),
+        ]);
+        expect(backend.listSessions).toHaveBeenCalledWith({ cwd: "/vault" });
+        expect(app.vault.getFiles).not.toHaveBeenCalled();
+        expect(app.vault.read).not.toHaveBeenCalled();
       });
 
-      it("scopes a project view's native entries by the index's recorded projectId", async () => {
-        const { manager, index } = buildHistoryHarness();
-        await index.recordSession({
-          backendId: "codex",
-          sessionId: "in-project",
-          title: "Project chat",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-          projectId: HISTORY_PROJECT_ID,
-        });
-        await index.recordSession({
-          backendId: "codex",
-          sessionId: "global-chat",
-          title: "Global chat",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-
-        const projectItems = await manager.getChatHistoryItems(HISTORY_PROJECT_ID);
-        expect(projectItems).toHaveLength(1);
-        expect(projectItems[0]?.id).toBe(buildNativeChatId("codex", "in-project"));
-
-        expect(await manager.getChatHistoryItems()).toHaveLength(2);
-      });
-
-      it("keeps markdown chats when no running backend can confirm the session is absent", async () => {
+      it("uses each session record's project id to filter project history https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__a.md": {
-              epoch: 1_000,
-              topic: "Unknowable",
-              backendId: "pi",
-              sessionId: "s1",
-            },
-          },
-        });
-        const titles = (await manager.getChatHistoryItems()).map((i) => i.title);
-        expect(titles).toContain("Unknowable");
-      });
-
-      it("keeps a Pi text backup selectable when its private session is absent on this device https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const sessionExistsLocally = jest.fn(
-          async ({ sessionId }: { sessionId: string }) => sessionId === "local"
-        );
-        const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__local.md": {
-              epoch: 2_000,
-              topic: "Made here",
-              backendId: "pi",
-              sessionId: "local",
-            },
-            "chats/agent__foreign.md": {
-              epoch: 1_000,
-              topic: "Made elsewhere",
-              backendId: "pi",
-              sessionId: "foreign",
-            },
-          },
-          warmSessionExistsLocally: sessionExistsLocally,
-        });
-
-        const titles = (await manager.getChatHistoryItems()).map((i) => i.title);
-        expect(titles).toContain("Made here");
-        expect(titles).toContain("Made elsewhere");
-        expect(sessionExistsLocally).toHaveBeenCalledWith({ sessionId: "foreign", cwd: "/vault" });
-      });
-
-      it("removes the invalid native index twin while keeping its existing text backup selectable https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const { manager, index } = buildHistoryHarness({
-          files: {
-            "chats/agent__foreign.md": {
-              epoch: 1_000,
-              topic: "Made elsewhere",
-              backendId: "pi",
-              sessionId: "foreign",
-            },
-          },
-          warmSessionExistsLocally: jest.fn(async () => false),
-        });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "foreign",
-          title: "Made elsewhere",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-
-        const items = await manager.getChatHistoryItems();
-        expect(items.map((item) => item.id)).toEqual(["chats/agent__foreign.md"]);
-        expect(await index.isTombstoned("pi", "foreign")).toBe(true);
-      });
-
-      it("keeps project text backups scoped and selectable when their private sessions are unavailable https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        seedProjects(HISTORY_PROJECT_ID);
-        const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__project.md": {
-              epoch: 2000,
-              topic: "Project text backup",
-              backendId: "pi",
-              sessionId: "missing-project",
+          sessions: [
+            {
+              sessionId: "root-project-chat",
+              cwd: "/vault",
               projectId: HISTORY_PROJECT_ID,
+              title: "Project",
             },
-            "chats/agent__global.md": {
-              epoch: 1000,
-              topic: "Global backup",
-              backendId: "pi",
-              sessionId: "missing-global",
-            },
-          },
-          warmSessionExistsLocally: jest.fn(async () => false),
+            { sessionId: "root-global-chat", cwd: "/vault", title: "Global" },
+          ],
         });
         expect(
           (await manager.getChatHistoryItems(HISTORY_PROJECT_ID)).map((item) => item.id)
-        ).toEqual(["chats/agent__project.md"]);
-      });
-
-      it("probes a project chat's resumability with its project cwd, not the vault root", async () => {
-        seedProjects(HISTORY_PROJECT_ID);
-        const sessionExistsLocally = jest.fn(
-          async ({ cwd }: { cwd: string }) => cwd === join("/vault", "Projects", "proj-1")
-        );
-        const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__p.md": {
-              epoch: 2_000,
-              topic: "Project chat",
-              backendId: "pi",
-              sessionId: "proj-sess",
-              projectId: HISTORY_PROJECT_ID,
-            },
-          },
-          warmSessionExistsLocally: sessionExistsLocally,
-        });
-
-        const titles = (await manager.getChatHistoryItems(HISTORY_PROJECT_ID)).map((i) => i.title);
-        expect(titles).toContain("Project chat");
-        expect(sessionExistsLocally).toHaveBeenCalledWith({
-          sessionId: "proj-sess",
-          cwd: join("/vault", "Projects", "proj-1"),
-        });
-      });
-
-      it("probes each chat with its own scope cwd in the global flat view", async () => {
-        seedProjects(HISTORY_PROJECT_ID);
-        const sessionExistsLocally = jest.fn(async () => true);
-        const { manager } = buildHistoryHarness({
-          files: {
-            "chats/agent__g.md": {
-              epoch: 2_000,
-              topic: "Global chat",
-              backendId: "pi",
-              sessionId: "g-sess",
-            },
-            "chats/agent__p.md": {
-              epoch: 1_000,
-              topic: "Project chat",
-              backendId: "pi",
-              sessionId: "p-sess",
-              projectId: HISTORY_PROJECT_ID,
-            },
-          },
-          warmSessionExistsLocally: sessionExistsLocally,
-        });
-
-        const titles = (await manager.getChatHistoryItems()).map((i) => i.title);
-        expect(titles).toEqual(expect.arrayContaining(["Global chat", "Project chat"]));
-        expect(sessionExistsLocally).toHaveBeenCalledWith({ sessionId: "g-sess", cwd: "/vault" });
-        expect(sessionExistsLocally).toHaveBeenCalledWith({
-          sessionId: "p-sess",
-          cwd: join("/vault", "Projects", "proj-1"),
-        });
-      });
-
-      it("sweeps the preloader's warm probe procs before any chat starts a backend", async () => {
-        const warmListSessions = jest.fn(async () => ({
-          sessions: [
-            {
-              sessionId: "pre-existing",
-              cwd: "/vault",
-              title: "Chat from before this app session",
-              updatedAt: new Date(6_000).toISOString(),
-            },
-          ],
-        }));
-        const { manager } = buildHistoryHarness({ warmListSessions });
-        const items = await manager.getChatHistoryItems();
-        expect(warmListSessions).toHaveBeenCalledWith({ cwd: "/vault" });
-        expect(items).toHaveLength(1);
-        expect(items[0]?.id).toBe(buildNativeChatId("pi", "pre-existing"));
-      });
-
-      it("sweeps running backends' listSessions into history, scoped to the vault cwd", async () => {
-        const listSessions = jest.fn(async () => ({
-          sessions: [
-            {
-              sessionId: "in-vault",
-              cwd: "/vault",
-              title: "Real chat",
-              updatedAt: new Date(7_000).toISOString(),
-            },
-            {
-              sessionId: "other-vault",
-              cwd: "/elsewhere",
-              title: "Foreign chat",
-              updatedAt: null,
-            },
-            { sessionId: "untitled", cwd: "/vault", title: null, updatedAt: null },
-            {
-              sessionId: "placeholder",
-              cwd: "/vault",
-              title: "New session - 1",
-              updatedAt: null,
-            },
-          ],
-        }));
-        const { manager } = buildHistoryHarness({ listSessions });
-        await manager.createSession("pi");
-
-        const items = await manager.getChatHistoryItems();
-        expect(listSessions).toHaveBeenCalledWith({ cwd: "/vault" });
-        const native = items.filter((i) => i.id.startsWith("copilot-agent-session://"));
-        expect(native).toHaveLength(1);
-        expect(native[0]?.id).toBe(buildNativeChatId("pi", "in-vault"));
-        expect(native[0]?.title).toBe("Real chat");
-        expect(native[0]?.lastAccessedAt.getTime()).toBe(7_000);
-      });
-
-      it("skips native title discovery for non-summarizing backends (codex)", async () => {
-        const listSessions = jest.fn(async () => ({
-          sessions: [
-            {
-              sessionId: "ctx-leak",
-              cwd: "/vault",
-              title: "<vault-agent-context> The user attached the following vault items",
-              updatedAt: null,
-            },
-          ],
-        }));
-        const { manager } = buildHistoryHarness({ listSessions, summarizesSessionTitle: false });
-        await manager.createSession("pi");
-
-        const items = await manager.getChatHistoryItems();
-        expect(listSessions).not.toHaveBeenCalled();
-        expect(items.filter((i) => i.id.startsWith("copilot-agent-session://"))).toHaveLength(0);
+        ).toEqual([buildNativeChatId("pi", "root-project-chat")]);
+        expect(await manager.getChatHistoryItems()).toHaveLength(2);
       });
     });
 
     describe("deleteChatHistory()", () => {
-      it("tombstones a native entry without touching persistence", async () => {
-        const { manager, index, persistence } = buildHistoryHarness();
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Doomed",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
+      it("removes the stored session and closes its open tab https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        const id = nativeIdOf(session);
+        await manager.deleteChatHistory(id);
+        expect(backend.deleteSession).toHaveBeenCalledWith({
+          sessionId: session.getBackendSessionId(),
         });
-        await manager.deleteChatHistory(buildNativeChatId("pi", "s1"));
-        expect(await manager.getChatHistoryItems()).toHaveLength(0);
-        expect(await index.isTombstoned("pi", "s1")).toBe(true);
-        expect(persistence.deleteFile).not.toHaveBeenCalled();
+        expect(await manager.getChatHistoryItems()).toEqual([]);
+        expect(manager.getSessions()).toEqual([]);
+        expect(manager.getOpenChatIds().has(id)).toBe(false);
       });
 
-      it("deletes a markdown chat and also tombstones its native twin", async () => {
-        const { manager, index, persistence } = buildHistoryHarness({
-          files: {
-            "chats/agent__a.md": {
-              epoch: 1_000,
-              backendId: "pi",
-              sessionId: "s1",
-            },
-          },
-        });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Twin",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-        await manager.deleteChatHistory("chats/agent__a.md");
-        expect(persistence.deleteFile).toHaveBeenCalledWith("chats/agent__a.md");
-        expect(await index.isTombstoned("pi", "s1")).toBe(true);
+      it("closes a deleted running tab without pausing or releasing its removed backend session https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        backend.pauseSession = jest.fn().mockRejectedValue(new Error("Session not found"));
+        const session = await manager.createSession();
+        getSessionTestHandle(session).setStatus("running");
+        await manager.deleteChatHistory(nativeIdOf(session));
+        expect(backend.pauseSession).not.toHaveBeenCalled();
+        expect(backend.closeSession).not.toHaveBeenCalled();
+        expect(manager.getSessions()).toEqual([]);
+        expect(manager.getOpenChatIds().size).toBe(0);
+        expect(await manager.getChatHistoryItems()).toEqual([]);
       });
 
-      it("https://github.com/logancyang/obsidian-copilot/issues/2888 touches only Copilot's own copy of the chat", async () => {
-        const { manager, index, persistence } = buildHistoryHarness({
-          files: { "chats/agent__a.md": { epoch: 1_000, backendId: "pi", sessionId: "s1" } },
+      it("locks deletion before backend loading and keeps it locked after duplicate attempts https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        const entered = deferred();
+        const release = deferred();
+        backend.deleteSession.mockImplementationOnce(async () => {
+          entered.resolve();
+          await release.promise;
         });
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Doomed",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-
-        await manager.deleteChatHistory("chats/agent__a.md");
-
-        expect(persistence.deleteFile).toHaveBeenCalledTimes(1);
-        expect(persistence.deleteFile).toHaveBeenCalledWith("chats/agent__a.md");
-        expect(await index.getEntry("pi", "s1")).toBeNull();
+        const id = nativeIdOf(session);
+        const deleting = manager.deleteChatHistory(id);
+        expect(manager.isDeletingSession(session.internalId)).toBe(true);
+        await expect(manager.deleteChatHistory(id)).rejects.toThrow(t("localData.sessionBusy"));
+        await entered.promise;
+        expect(manager.isDeletingSession(session.internalId)).toBe(true);
+        await expect(manager.deleteChatHistory(id)).rejects.toThrow(t("localData.sessionBusy"));
+        expect(manager.isDeletingSession(session.internalId)).toBe(true);
+        expect(backend.deleteSession).toHaveBeenCalledTimes(1);
+        release.resolve();
+        await deleting;
+        expect(manager.isDeletingSession(session.internalId)).toBe(false);
       });
 
-      async function persistedNoteFixture() {
-        const notePath = "chats/agent__a.md";
-        const content = "---\nbackendId: pi\nsessionId: s1\nepoch: 1000\n---\nSaved conversation";
-        const notes: Record<string, string> = { [notePath]: content };
-        const indexStorage = makeIndexStorage();
-        const reload = () => {
-          const harness = buildHistoryHarness({ hiddenFiles: notes, indexStorage });
-          harness.persistence.deleteFile.mockImplementation(async () => {
-            delete notes[notePath];
-            harness.persistence.getAgentChatHistoryFiles.mockResolvedValue([]);
-            return undefined;
-          });
-          return harness;
-        };
-        const harness = reload();
-        await harness.index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Saved conversation",
-          createdAtMs: 1000,
-          lastAccessedAtMs: 2000,
+      it("closes the removed session even when sidecar cleanup is incomplete https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        const failure = Object.assign(new Error("sidecar cleanup failed"), {
+          code: "SESSION_DELETE_INCOMPLETE",
         });
-        await harness.index.flushOrThrow();
-        return { ...harness, notePath, content, notes, indexStorage, reload };
-      }
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/2888 preserves the note while the index write is pending or fails, keeps it visible after reload, and allows retry", async () => {
-        const { manager, persistence, notePath, content, notes, indexStorage, reload } =
-          await persistedNoteFixture();
-        let rejectWrite!: (error: Error) => void;
-        let signalWriteStarted!: () => void;
-        const writeStarted = new Promise<void>((resolve) => {
-          signalWriteStarted = resolve;
-        });
-        jest.spyOn(indexStorage, "write").mockImplementationOnce(() => {
-          signalWriteStarted();
-          return new Promise<void>((_resolve, reject) => {
-            rejectWrite = reject;
-          });
-        });
-
-        const deleting = manager.deleteChatHistory(notePath);
-        const failed = expect(deleting).rejects.toThrow("disk full");
-        await writeStarted;
-        try {
-          expect(persistence.deleteFile).not.toHaveBeenCalled();
-          expect(notes[notePath]).toBe(content);
-        } finally {
-          rejectWrite(new Error("disk full"));
-          await failed;
-        }
-        expect(persistence.deleteFile).not.toHaveBeenCalled();
-        expect(notes[notePath]).toBe(content);
-        expect((await manager.getChatHistoryItems()).map((item) => item.id)).toContain(notePath);
-
-        const reloaded = reload();
-        expect(await reloaded.index.isTombstoned("pi", "s1")).toBe(false);
-        expect((await reloaded.manager.getChatHistoryItems()).map((item) => item.id)).toContain(
-          notePath
-        );
-        await reloaded.manager.deleteChatHistory(notePath);
-        expect(notes[notePath]).toBeUndefined();
-        expect(await reload().manager.getChatHistoryItems()).toEqual([]);
-        expect(await reload().index.isTombstoned("pi", "s1")).toBe(true);
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/2888 keeps a note visible after file-removal failure and reload despite its persisted marker, and allows retry", async () => {
-        const { manager, persistence, notePath, content, notes, reload } =
-          await persistedNoteFixture();
-        persistence.deleteFile.mockRejectedValueOnce(new Error("locked"));
-
-        await expect(manager.deleteChatHistory(notePath)).rejects.toThrow("locked");
-        expect(notes[notePath]).toBe(content);
-        expect((await manager.getChatHistoryItems()).map((item) => item.id)).toContain(notePath);
-        const reloaded = reload();
-        expect(await reloaded.index.isTombstoned("pi", "s1")).toBe(true);
-        expect((await reloaded.manager.getChatHistoryItems()).map((item) => item.id)).toContain(
-          notePath
-        );
-
-        await reloaded.manager.deleteChatHistory(notePath);
-        expect(notes[notePath]).toBeUndefined();
-        expect(await reload().manager.getChatHistoryItems()).toEqual([]);
-      });
-
-      describe("when the chat is open", () => {
-        const issue = "https://github.com/logancyang/obsidian-copilot/issues/2888";
-
-        async function openChat() {
-          const harness = buildHistoryHarness();
-          const session = await harness.manager.createSession("pi");
-          const sessionId = session.getBackendSessionId()!;
-          await harness.index.recordSession({
-            backendId: "pi",
-            sessionId,
-            title: "Open",
-            createdAtMs: 1_000,
-            lastAccessedAtMs: 2_000,
-          });
-          return {
-            ...harness,
-            session,
-            sessionId,
-            chatId: buildNativeChatId("pi", sessionId),
-          };
-        }
-
-        it(`${issue} closes the live session before it deletes the history entry`, async () => {
-          const { manager, index, sessionId, chatId } = await openChat();
-
-          await manager.deleteChatHistory(chatId);
-
-          expect(manager.getSessions()).toEqual([]);
-          expect(await index.isTombstoned("pi", sessionId)).toBe(true);
-        });
-
-        it.each(["a held autosave", "a held earlier autosave", "a held manual save"])(
-          `${issue} deletes the note %s writes after delete starts`,
-          async (scenario) => {
-            // Resolving in the same turn lets the save finish before delete reads the path, so the test would pass without the fix. https://github.com/logancyang/obsidian-copilot/issues/2888
-            const { setImmediate: nextLoopTurn } =
-              jest.requireActual<typeof import("timers")>("timers");
-            jest.useFakeTimers();
-            getSettingsMock.mockReturnValue({ ...getSettingsMock(), autosaveChat: true });
-            const { manager, persistence, session, chatId } = await openChat();
-            let finishSave!: (saved: { path: string }) => void;
-            let heldSaveDone = false;
-            persistence.saveSession.mockImplementationOnce(
-              () => new Promise((resolve) => (finishSave = resolve))
-            );
-            getSessionTestHandle(session).setMessages([{ message: "First turn" }], true);
-            let manualSave: Promise<unknown> | undefined;
-            if (scenario === "a held manual save") {
-              manualSave = manager.saveActiveSession();
-            } else {
-              await jest.advanceTimersByTimeAsync(2000);
-              if (scenario === "a held earlier autosave") {
-                persistence.saveSession.mockResolvedValueOnce({ path: "chats/new.md" });
-                getSessionTestHandle(session).setMessages([{ message: "Second turn" }], true);
-                await jest.advanceTimersByTimeAsync(2000);
-              }
-            }
-            let heldSaveDoneAtDelete: boolean | undefined;
-            persistence.deleteFile.mockImplementationOnce(async () => {
-              heldSaveDoneAtDelete = heldSaveDone;
-            });
-
-            const deleting = manager.deleteChatHistory(chatId);
-            nextLoopTurn(() => {
-              heldSaveDone = true;
-              finishSave({ path: "chats/new.md" });
-            });
-            await deleting;
-            await manualSave;
-
-            expect(persistence.deleteFile).toHaveBeenCalledWith("chats/new.md");
-            expect(heldSaveDoneAtDelete).toBe(true);
+        backend.deleteSession.mockImplementationOnce(
+          async ({ sessionId }: { sessionId: string }) => {
+            storedChats.delete(sessionId);
+            throw failure;
           }
         );
+        await expect(manager.deleteChatHistory(nativeIdOf(session))).rejects.toBe(failure);
+        expect(manager.getSessions()).toEqual([]);
+        expect(manager.getOpenChatIds().size).toBe(0);
+        expect(manager.isDeletingSession(session.internalId)).toBe(false);
+      });
 
-        it(`${issue} leaves an open chat alone when another note shares its session`, async () => {
-          const sharedSessionId = `backend-${nextBackendSessionId}`;
-          const { manager, persistence } = buildHistoryHarness({
-            files: {
-              "chats/duplicate.md": {
-                epoch: 1_000,
-                backendId: "pi",
-                sessionId: sharedSessionId,
-              },
-            },
-          });
-          const session = await manager.createSession("pi");
-          expect(session.getBackendSessionId()).toBe(sharedSessionId);
-          getSessionTestHandle(session).setMessages([{ message: "First turn" }], true);
-          await manager.saveActiveSession();
+      it("closes a missing session when deletion succeeded but its index update failed https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        const failure = Object.assign(new Error("index write denied"), { code: "EACCES" });
+        backend.deleteSession.mockImplementationOnce(
+          async ({ sessionId }: { sessionId: string }) => {
+            storedChats.delete(sessionId);
+            throw failure;
+          }
+        );
+        backend.sessionExistsLocally = jest.fn(async () => false);
+        await expect(manager.deleteChatHistory(nativeIdOf(session))).rejects.toBe(failure);
+        expect(manager.getSessions()).toEqual([]);
+        expect(manager.getOpenChatIds().size).toBe(0);
+        expect(manager.isDeletingSession(session.internalId)).toBe(false);
+      });
 
-          await manager.deleteChatHistory("chats/duplicate.md");
+      it("keeps the open session and stored history when deletion fails https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        backend.deleteSession.mockRejectedValueOnce(new Error("disk locked"));
+        await expect(manager.deleteChatHistory(nativeIdOf(session))).rejects.toThrow("disk locked");
+        expect(manager.getSessions()).toEqual([session]);
+        expect(await manager.getChatHistoryItems()).toHaveLength(1);
+      });
+    });
 
-          expect(manager.getSessions()).toEqual([session]);
-          expect(persistence.deleteFile).toHaveBeenCalledTimes(1);
-          expect(persistence.deleteFile).toHaveBeenCalledWith("chats/duplicate.md");
+    describe("isDeletingSession()", () => {
+      it("reports pending deletion only for the affected open session and clears it when deletion finishes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        const sibling = await manager.createSession();
+        const entered = deferred();
+        const release = deferred();
+        backend.deleteSession.mockImplementationOnce(async () => {
+          entered.resolve();
+          await release.promise;
         });
+        expect(manager.isDeletingSession(session.internalId)).toBe(false);
+        const deleting = manager.deleteChatHistory(nativeIdOf(session));
+        await entered.promise;
+        expect(manager.isDeletingSession(session.internalId)).toBe(true);
+        expect(manager.isDeletingSession(sibling.internalId)).toBe(false);
+        expect(manager.isDeletingSession("missing")).toBe(false);
+        release.resolve();
+        await deleting;
+        expect(manager.isDeletingSession(session.internalId)).toBe(false);
+      });
+    });
 
-        it(`${issue} never saves a pending autosave while it deletes the chat`, async () => {
-          jest.useFakeTimers();
-          getSettingsMock.mockReturnValue({ ...getSettingsMock(), autosaveChat: true });
-          const { manager, persistence, session, chatId } = await openChat();
-          getSessionTestHandle(session).setMessages([{ message: "First turn" }], true);
-
-          await manager.deleteChatHistory(chatId);
-
-          expect(persistence.saveSession).not.toHaveBeenCalled();
-          expect(persistence.deleteFile).not.toHaveBeenCalled();
+    describe("forkChat()", () => {
+      it("opens the copied session under a new id and leaves the source title unchanged https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend } = buildHistoryHarness({
+          sessions: [{ sessionId: "root-source", cwd: "/vault", title: "Source title" }],
         });
+        const fork = await manager.forkChat(buildNativeChatId("pi", "root-source"));
+        expect(backend.forkSession).toHaveBeenCalledWith({ sessionId: "root-source" });
+        expect(fork.getBackendSessionId()).toBe("root-source-fork");
+        expect(manager.getActiveSession()).toBe(fork);
+        await manager.updateChatTitle(buildNativeChatId("pi", "root-source-fork"), "Fork title");
+        expect(storedChats.get("root-source")?.title).toBe("Source title");
+        expect(storedChats.get("root-source-fork")?.title).toBe("Fork title");
+      });
+
+      it("forwards the turn-end entry id for a per-turn branch (https://github.com/ItsDalk-Lane/Vault-Agent/issues/12)", async () => {
+        const { manager, backend } = buildHistoryHarness({
+          sessions: [{ sessionId: "root-source", cwd: "/vault", title: "Source title" }],
+        });
+        const fork = await manager.forkChat(buildNativeChatId("pi", "root-source"), "23");
+        expect(backend.forkSession).toHaveBeenCalledWith({
+          sessionId: "root-source",
+          atEntryId: "23",
+        });
+        expect(fork.getBackendSessionId()).toBe("root-source-fork");
+      });
+    });
+
+    describe("getLocalDataBackend()", () => {
+      it("provides the same current backend for local data inspection without creating a chat https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, backend, descriptor } = buildHistoryHarness({ sessions: [] });
+        await expect(manager.getLocalDataBackend()).resolves.toBe(backend);
+        await expect(manager.getLocalDataBackend()).resolves.toBe(backend);
+        expect(descriptor.createBackendProcess).toHaveBeenCalledTimes(1);
+        expect(manager.getSessions()).toEqual([]);
       });
     });
 
     describe("updateChatTitle()", () => {
-      it("updates the index title of a native entry", async () => {
-        const { manager, index } = buildHistoryHarness();
-        await index.recordSession({
-          backendId: "pi",
-          sessionId: "s1",
-          title: "Old title",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-        await manager.updateChatTitle(buildNativeChatId("pi", "s1"), "New title");
-        expect((await index.getEntry("pi", "s1"))?.title).toBe("New title");
-      });
-
-      it("matches the live session by backend, not session id alone", async () => {
-        const { manager, index } = buildHistoryHarness();
-        const live = await manager.createSession("pi");
-        const liveId = live.getBackendSessionId()!;
-        await index.recordSession({
-          backendId: "codex",
-          sessionId: liveId,
-          title: "Codex entry",
-          createdAtMs: 1_000,
-          lastAccessedAtMs: 2_000,
-        });
-
-        await manager.updateChatTitle(buildNativeChatId("codex", liveId), "Codex renamed");
-        expect((await index.getEntry("codex", liveId))?.title).toBe("Codex renamed");
-        expect(live.setLabel).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("ensureChatNote()", () => {
-      it("returns the note path of a saved chat without saving it again", async () => {
-        const { manager, persistence } = buildHistoryHarness({
-          files: { "chats/agent__a.md": { epoch: 1_000, backendId: "pi" } },
-        });
-
-        await expect(manager.ensureChatNote("chats/agent__a.md")).resolves.toBe(
-          "chats/agent__a.md"
-        );
-        expect(persistence.saveSession).not.toHaveBeenCalled();
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/694 saves a live chat that has no note yet and returns the new note's path", async () => {
-        const { mgr, saveSession } = savedNoteFixture(false);
-        const session = await mgr.createSession();
-        getSessionTestHandle(session).setMessages([{ message: "Unsaved question" }]);
-
-        await expect(mgr.ensureChatNote(nativeIdOf(session))).resolves.toBe("chats/saved.md");
-        expect(saveSession).toHaveBeenCalledWith(
-          [{ message: "Unsaved question" }],
-          session.backendId,
-          expect.anything()
-        );
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 saves a closed chat that has no note without opening it or leaving it open", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "closed question", "u1"));
-          },
-        });
-        const { manager, persistence } = buildHistoryHarness({
-          createBackendProcess: jest.fn(() => replay.backend),
-        });
-
-        await expect(manager.ensureChatNote(buildNativeChatId("pi", "closed"))).resolves.toBe(
-          "chats/agent__saved.md"
-        );
-
-        expect(persistence.saveSession).toHaveBeenCalledWith(
-          [expect.objectContaining({ sender: USER_SENDER, message: "closed question" })],
-          "pi",
-          expect.objectContaining({ sessionId: "closed" })
-        );
-        expect(manager.getActiveSession()).toBeNull();
-        expect(manager.getSessions()).toEqual([]);
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 keeps a closed chat open when the user opens it while it is being saved", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "closed question", "u1"));
-          },
-        });
-        const { manager, persistence } = buildHistoryHarness({
-          createBackendProcess: jest.fn(() => replay.backend),
-        });
-        const saveGate = deferred<{ path: string }>();
-        persistence.saveSession.mockImplementationOnce(() => saveGate.promise);
-
-        const saving = manager.ensureChatNote(buildNativeChatId("pi", "closed"));
-        const opened = await manager.loadNativeSessionFromHistory("pi", "closed");
-        saveGate.resolve({ path: "chats/agent__saved.md" });
-
-        await expect(saving).resolves.toBe("chats/agent__saved.md");
-        expect(manager.getActiveSession()).toBe(opened);
-        expect(manager.getSessions()).toEqual([opened]);
-      });
-
-      it("rejects without saving when a chat with no note cannot be loaded from its backend", async () => {
-        const replay = buildReplayingBackend({
-          loadSession: jest.fn(async () => {
-            throw new Error("backend is not installed");
-          }),
-        });
-        const { manager, persistence } = buildHistoryHarness({
-          createBackendProcess: jest.fn(() => replay.backend),
-        });
-
-        await expect(
-          manager.ensureChatNote(buildNativeChatId("pi", "unreachable"))
-        ).rejects.toThrow();
-        expect(persistence.saveSession).not.toHaveBeenCalled();
+      it("stores the renamed title and updates the open tab https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager } = buildHistoryHarness({ sessions: [] });
+        const session = await manager.createSession();
+        await manager.updateChatTitle(nativeIdOf(session), "Renamed conversation");
+        expect((await manager.getChatHistoryItems())[0].title).toBe("Renamed conversation");
+        expect(session.setLabel).toHaveBeenCalledWith("Renamed conversation");
       });
     });
 
     describe("setChatPinned()", () => {
-      const PINNED_AT = 1_760_000_000_000;
-      let nowSpy: jest.SpyInstance | undefined;
-      const freezeNow = () => {
-        nowSpy = jest.spyOn(Date, "now").mockReturnValue(PINNED_AT);
-      };
-
-      afterEach(() => {
-        nowSpy?.mockRestore();
-        nowSpy = undefined;
-      });
-
-      it("pins a saved chat by writing the current time to its note and returns the pinned row", async () => {
-        const { manager, persistence } = buildHistoryHarness({
-          files: { "chats/agent__a.md": { epoch: 1_000, backendId: "pi" } },
+      it("pins and unpins the same session id without creating a note https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, app } = buildHistoryHarness();
+        const id = buildNativeChatId("pi", "root-saved-chat");
+        const pinned = await manager.setChatPinned(id, true);
+        expect(pinned.id).toBe(id);
+        expect(pinned.pinnedAt).toEqual(expect.any(Number));
+        expect((await manager.getChatHistoryItems())[0].pinnedAt).toBe(pinned.pinnedAt);
+        await expect(manager.setChatPinned(id, false)).resolves.toEqual({
+          id,
+          pinnedAt: undefined,
         });
-        freezeNow();
-
-        const pinned = await manager.setChatPinned("chats/agent__a.md", true);
-
-        expect(pinned).toEqual({ id: "chats/agent__a.md", pinnedAt: PINNED_AT });
-        expect(persistence.setPinnedAt).toHaveBeenCalledWith("chats/agent__a.md", PINNED_AT);
-      });
-
-      it("unpins a saved chat by clearing the pin from its note", async () => {
-        const { manager, persistence } = buildHistoryHarness({
-          files: { "chats/agent__a.md": { epoch: 1_000, backendId: "pi", pinnedAt: 4_000 } },
-        });
-
-        const unpinned = await manager.setChatPinned("chats/agent__a.md", false);
-
-        expect(unpinned).toEqual({ id: "chats/agent__a.md", pinnedAt: undefined });
-        expect(persistence.setPinnedAt).toHaveBeenCalledWith("chats/agent__a.md", null);
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 saves a live chat that has no note yet and pins the new note instead of the unsaved chat", async () => {
-        const { mgr, saveSession, setPinnedAt } = savedNoteFixture(false);
-        freezeNow();
-        const session = await mgr.createSession();
-        getSessionTestHandle(session).setMessages([{ message: "Unsaved question" }]);
-
-        const pinned = await mgr.setChatPinned(nativeIdOf(session), true);
-
-        expect(saveSession).toHaveBeenCalledWith(
-          [{ message: "Unsaved question" }],
-          session.backendId,
-          expect.anything()
-        );
-        expect(setPinnedAt).toHaveBeenCalledWith("chats/saved.md", PINNED_AT);
-        expect(pinned).toEqual({ id: "chats/saved.md", pinnedAt: PINNED_AT });
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 loads a closed chat that has no note through its backend and saves it before pinning the note", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "closed question", "u1"));
-            emit(replayChunk("agent_message_chunk", "closed answer", "a1"));
-          },
-        });
-        const { manager, persistence } = buildHistoryHarness({
-          createBackendProcess: jest.fn(() => replay.backend),
-        });
-        freezeNow();
-
-        const pinned = await manager.setChatPinned(buildNativeChatId("pi", "closed"), true);
-
-        expect(persistence.saveSession).toHaveBeenCalledWith(
-          [
-            expect.objectContaining({ sender: USER_SENDER, message: "closed question" }),
-            expect.objectContaining({ sender: AI_SENDER, message: "closed answer" }),
-          ],
-          "pi",
-          expect.objectContaining({ sessionId: "closed" })
-        );
-        expect(persistence.setPinnedAt).toHaveBeenCalledWith("chats/agent__saved.md", PINNED_AT);
-        expect(pinned).toEqual({ id: "chats/agent__saved.md", pinnedAt: PINNED_AT });
-      });
-
-      it("https://github.com/logancyang/obsidian-copilot/issues/3195 pins nothing and rejects when a chat with no note cannot be loaded from its backend", async () => {
-        const replay = buildReplayingBackend({
-          loadSession: jest.fn(async () => {
-            throw new Error("backend is not installed");
-          }),
-        });
-        const { manager, persistence } = buildHistoryHarness({
-          createBackendProcess: jest.fn(() => replay.backend),
-        });
-
-        await expect(
-          manager.setChatPinned(buildNativeChatId("pi", "unreachable"), true)
-        ).rejects.toThrow();
-
-        expect(persistence.saveSession).not.toHaveBeenCalled();
-        expect(persistence.setPinnedAt).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("loadSessionFromHistory()", () => {
-      const savedAt = formatDateTime(new Date("2026-01-02T03:04:05Z"));
-      const savedChat = (messages: AgentChatMessage[]) =>
-        jest.fn().mockResolvedValue({
-          backendId: "pi",
-          sessionId: "native-1",
-          projectId: GLOBAL_SCOPE,
-          messages,
-        });
-      const savedTurn: AgentChatMessage[] = [
-        {
-          id: "s1",
-          sender: USER_SENDER,
-          message: "saved question",
-          isVisible: true,
-          timestamp: savedAt,
-        },
-        {
-          id: "s2",
-          sender: AI_SENDER,
-          message: "saved answer",
-          isVisible: true,
-          timestamp: savedAt,
-        },
-      ];
-      const openSavedChat = (
-        replay: ReturnType<typeof buildReplayingBackend>,
-        messages: AgentChatMessage[] = savedTurn
-      ) =>
-        buildManager({
-          persistence: { loadFile: savedChat(messages) },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        }).loadSessionFromHistory(mockTFile({ path: "chat/Saved.md" }));
-
-      it("keeps the explicit topic as the title of a safe copy of an old Markdown chat https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => emit(replayChunk("user_message_chunk", "question", "q")),
-        });
-        const saveSession = jest.fn().mockResolvedValue({ path: "chat/canonical.md" });
-        const manager = buildManager({
-          persistence: {
-            loadFile: jest.fn().mockResolvedValue({
-              backendId: "pi",
-              sessionId: "native-1",
-              projectId: GLOBAL_SCOPE,
-              topic: "明确的旧聊天标题",
-              label: "低优先级旧标签",
-              messages: savedTurn,
-            }),
-            saveSession,
-          },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        });
-        const session = await manager.loadSessionFromHistory(
-          mockTFile({ path: "chat/Original.md" })
-        );
-        expect(session.getLabel()).toBe("明确的旧聊天标题");
-        await manager.saveActiveSession();
-        expect(saveSession).toHaveBeenCalledWith(
-          expect.anything(),
-          "pi",
-          expect.objectContaining({ label: "明确的旧聊天标题" })
-        );
-      });
-
-      it("rebinds the existing canonical copy when an already saved session reopens its preserved original https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const file = mockTFile({ path: "chat/Original.md" });
-        const copy = mockTFile({ path: "chat/Canonical.md" });
-        const app = buildApp();
-        jest
-          .mocked(app.vault.getAbstractFileByPath)
-          .mockImplementation((path) => (path === copy.path ? copy : file));
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "saved question", "q"));
-            emit(replayChunk("agent_message_chunk", "saved answer", "a"));
-          },
-        });
-        const saveSession = jest.fn().mockResolvedValue({ path: copy.path });
-        const manager = buildManager({
-          app,
-          persistence: {
-            loadFile: savedChat(savedTurn),
-            saveSession,
-            writableSessionPath: jest.fn().mockResolvedValue(undefined),
-          },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        });
-        const first = await manager.loadSessionFromHistory(file);
-        expect(await manager.saveActiveSession()).toEqual({ path: copy.path });
-        expect(await manager.loadSessionFromHistory(file)).toBe(first);
-        expect(manager.getSessionSourcePath(first.internalId)).toBe("");
-        expect(await manager.saveActiveSession()).toEqual({ path: copy.path });
-        expect(saveSession).toHaveBeenCalledTimes(2);
-        expect(manager.getSessionSourcePath(first.internalId)).toBe(copy.path);
-      });
-
-      it("rechecks a previously bound managed note before opening it again after edits https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const file = mockTFile({ path: "chat/Canonical.md" });
-        const replay = buildReplayingBackend();
-        const writableSessionPath = jest
-          .fn()
-          .mockResolvedValueOnce(file.path)
-          .mockResolvedValue(undefined);
-        const manager = buildManager({
-          persistence: { loadFile: savedChat(savedTurn), writableSessionPath },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        });
-        const session = await manager.loadSessionFromHistory(file);
-        expect(manager.getSessionSourcePath(session.internalId)).toBe(file.path);
-        expect(await manager.loadSessionFromHistory(file)).toBe(session);
-        expect(manager.getSessionSourcePath(session.internalId)).toBe("");
-        expect(writableSessionPath).toHaveBeenCalledTimes(2);
-      });
-
-      it("opens old text read-only when its backend no longer has a runtime descriptor https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const factory = jest.fn(() => {
-          throw new Error("The removed engine cannot start.");
-        });
-        const manager = buildManager({
-          persistence: {
-            loadFile: jest.fn().mockResolvedValue({
-              backendId: "claude",
-              sessionId: "old-claude",
-              projectId: GLOBAL_SCOPE,
-              messages: savedTurn,
-            }),
-          },
-          descriptor: buildDescriptor({ id: "claude", createBackendProcess: factory }),
-          resolveDescriptor: () => undefined,
-        });
-        const session = await manager.loadSessionFromHistory(mockTFile({ path: "chat/Saved.md" }));
-        expect(factory).not.toHaveBeenCalled();
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "saved question"],
-          [AI_SENDER, "saved answer"],
-        ]);
-        expect(() => session.sendPrompt("继续")).toThrow("只读");
-        expect(senderAndText(session)).toHaveLength(2);
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/671 shows the replayed chat with its tool calls instead of the note's text when the session reattaches, and drops frames that arrive after the load response", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit({
-              sessionUpdate: "tool_call",
-              toolCallId: "tool-read",
-              title: "Read note.md",
-              kind: "read",
-              status: "completed",
-            });
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-          },
-        });
-
-        const session = await openSavedChat(replay);
-        replay.emit("native-1", replayChunk("agent_message_chunk", "late replayed answer", "a1"));
-
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "replayed question"],
-          [AI_SENDER, "replayed answer"],
-        ]);
-        expect(session.store.getDisplayMessages()[1].parts?.map((p) => p.kind)).toEqual([
-          "tool_call",
-          "text",
-        ]);
-      });
-
-      it("keeps the canonical imported history after cold opening even when nested user separators inflate the Markdown user count https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const importedText =
-          "已导入的历史聊天（仅文字）\n\n**user**: 原问题\n**assistant**: 原回答";
-        const savedMessages: AgentChatMessage[] = [
-          { ...savedTurn[0], message: "[Imported legacy chat: source=backup.md hash=old]" },
-          { ...savedTurn[0], id: "nested-user", message: "原问题" },
-          { ...savedTurn[1], id: "nested-ai", message: "原回答" },
-          { ...savedTurn[0], id: "followup", message: "继续核对" },
-          { ...savedTurn[1], id: "followup-answer", message: "真实结果" },
-        ];
-        const buildReplay = () =>
-          buildReplayingBackend({
-            onLoad: (emit) => {
-              emit(replayChunk("user_message_chunk", importedText, "material"));
-              emit(replayChunk("user_message_chunk", "继续核对", "followup"));
-              emit(replayChunk("agent_message_chunk", "真实结果", "result"));
-            },
-          });
-        const first = await openSavedChat(buildReplay(), savedMessages);
-        const cold = await openSavedChat(buildReplay(), savedMessages);
-        expect(senderAndText(first)).toEqual([
-          [USER_SENDER, importedText],
-          [USER_SENDER, "继续核对"],
-          [AI_SENDER, "真实结果"],
-        ]);
-        expect(senderAndText(cold)).toEqual(senderAndText(first));
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/671 gives replayed messages without send times the note's times so the next autosave keeps them", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-          },
-        });
-
-        const session = await openSavedChat(replay);
-
-        expect(session.store.getDisplayMessages().map((m) => [m.message, m.timestamp])).toEqual([
-          ["replayed question", savedAt],
-          ["replayed answer", savedAt],
-        ]);
-      });
-
-      it.each(["native-missing", undefined])(
-        "imports missing Pi history %s into Durable before opening without calling the model https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
-        async (sessionId) => {
-          const replay = buildReplayingBackend({
-            loadSession: jest.fn(async ({ sessionId: id }: { sessionId: string }) => {
-              if (id !== "imported-history") throw new Error("Session not found");
-              replay.emit(id, replayChunk("user_message_chunk", "saved question", "imported-user"));
-              replay.emit(id, replayChunk("agent_message_chunk", "saved answer", "imported-ai"));
-              return { sessionId: id, state: { model: null, mode: null } };
-            }),
-          });
-          const importLegacySession = jest.fn(async () => ({
-            sessionId: "imported-history",
-            state: { model: null, mode: null },
-            notices: [],
-          }));
-          const sessionExistsLocally = jest.fn(async () => false);
-          const prompt = jest.fn();
-          const manager = buildManager({
-            persistence: {
-              loadFile: jest.fn(async () => ({
-                backendId: "pi",
-                sessionId,
-                projectId: GLOBAL_SCOPE,
-                messages: savedTurn,
-              })),
-            },
-            descriptor: buildDescriptor({
-              createBackendProcess: () => ({
-                ...replay.backend,
-                sessionExistsLocally,
-                importLegacySession,
-                prompt,
-              }),
-            }),
-          });
-          const session = await manager.loadSessionFromHistory(
-            mockTFile({ path: "chat/Saved.md" })
-          );
-          expect(importLegacySession).toHaveBeenCalledWith(
-            expect.objectContaining({
-              entry: expect.objectContaining({
-                backendId: "pi",
-                sourcePath: "chat/Saved.md",
-                messages: [
-                  { role: "user", text: "saved question" },
-                  { role: "assistant", text: "saved answer" },
-                ],
-                importMode: "text_only",
-              }),
-            })
-          );
-          expect(session.getBackendSessionId()).toBe("imported-history");
-          expect(senderAndText(session)).toEqual([
-            [USER_SENDER, "saved question"],
-            [AI_SENDER, "saved answer"],
-          ]);
-          expect(prompt).not.toHaveBeenCalled();
-          expect(manager.getSessionSourcePath(session.internalId)).toBe("");
-          const reopened = await manager.loadSessionFromHistory(
-            mockTFile({ path: "chat/Saved.md" })
-          );
-          expect(reopened).toBe(session);
-          expect(manager.getSessions()).toEqual([session]);
-          expect(prompt).not.toHaveBeenCalled();
-        }
-      );
-
-      it("keeps an existing Pi store untouched when opening fails instead of replacing it with an imported empty runtime https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const replay = buildReplayingBackend({
-          loadSession: jest.fn(async () => {
-            throw new Error("disk unavailable");
-          }),
-        });
-        const importLegacySession = jest.fn();
-        const manager = buildManager({
-          persistence: { loadFile: savedChat(savedTurn) },
-          descriptor: buildDescriptor({
-            createBackendProcess: () => ({
-              ...replay.backend,
-              sessionExistsLocally: jest.fn(async () => true),
-              importLegacySession,
-            }),
-          }),
-        });
-        await expect(
-          manager.loadSessionFromHistory(mockTFile({ path: "chat/Saved.md" }))
-        ).rejects.toThrow("原始记录");
-        expect(importLegacySession).not.toHaveBeenCalled();
-        expect(manager.getSessions()).toHaveLength(0);
-      });
-
-      it("leaves the backup and session list untouched when Durable history import cannot be saved https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const replay = buildReplayingBackend();
-        const importLegacySession = jest.fn(async () => {
-          throw new Error("history storage failed");
-        });
-        const app = buildApp();
-        const manager = buildManager({
-          app,
-          persistence: {
-            loadFile: jest.fn(async () => ({
-              backendId: "pi",
-              projectId: GLOBAL_SCOPE,
-              messages: savedTurn,
-            })),
-          },
-          descriptor: buildDescriptor({
-            createBackendProcess: () => ({ ...replay.backend, importLegacySession }),
-          }),
-        });
-        await expect(
-          manager.loadSessionFromHistory(mockTFile({ path: "chat/Saved.md" }))
-        ).rejects.toThrow("history storage failed");
-        expect(manager.getSessions()).toHaveLength(0);
-        expect(app.vault.modify).not.toHaveBeenCalled();
+        expect((await manager.getChatHistoryItems())[0].pinnedAt).toBeUndefined();
         expect(app.vault.create).not.toHaveBeenCalled();
-      });
-
-      it("reattaches a project chat to its project scope", async () => {
-        seedProjects("proj-ctx");
-        const replay = buildReplayingBackend();
-
-        await buildManager({
-          persistence: {
-            loadFile: jest.fn().mockResolvedValue({
-              backendId: "pi",
-              sessionId: "native-1",
-              projectId: "proj-ctx",
-              messages: savedTurn,
-            }),
-          },
-          descriptor: buildDescriptor({ createBackendProcess: () => replay.backend }),
-        }).loadSessionFromHistory(mockTFile({ path: "chat/Saved.md" }));
-
-        expect(replay.backend.loadSession).toHaveBeenCalledWith(
-          expect.objectContaining({ sessionId: "native-1", projectId: "proj-ctx" })
-        );
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/635 keeps the replayed chat when the note also holds a /compact turn that the agent's replay omits", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit({
-              sessionUpdate: "tool_call",
-              toolCallId: "tool-read",
-              title: "Read note.md",
-              kind: "read",
-              status: "completed",
-            });
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-          },
-        });
-
-        const session = await openSavedChat(replay, [
-          ...savedTurn,
-          { id: "s3", sender: USER_SENDER, message: "/compact", isVisible: true, timestamp: null },
-        ]);
-
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "replayed question"],
-          [AI_SENDER, "replayed answer"],
-        ]);
-        expect(session.store.getDisplayMessages()[1].parts?.map((p) => p.kind)).toEqual([
-          "tool_call",
-          "text",
-        ]);
-      });
-
-      it("preserves an empty canonical replay instead of substituting unimported Markdown messages https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const replay = buildReplayingBackend({
-          loadSession: jest.fn(async () => {
-            throw new MethodUnsupportedError("session/load");
-          }),
-        });
-
-        const session = await openSavedChat(replay);
-
-        expect(senderAndText(session)).toEqual([]);
-      });
-
-      it("keeps unimported old fanout text in the backup instead of replacing the current Durable messages https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const fanoutBody = serializeFanoutComposite(
-          {
-            answers: { codex: { backendId: "codex", status: "done", text: "codex answer" } },
-            summary: { status: "done", text: "the summary" },
-          },
-          (id) => id
-        );
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-          },
-        });
-
-        const session = await openSavedChat(replay, [
-          ...savedTurn,
-          { id: "s3", sender: USER_SENDER, message: "ask both", isVisible: true, timestamp: null },
-          { id: "s4", sender: AI_SENDER, message: fanoutBody, isVisible: true, timestamp: null },
-        ]);
-
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "replayed question"],
-          [AI_SENDER, "replayed answer"],
-        ]);
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/638 keeps the replayed chat and its compaction row when the note also holds the /compact turn the replay never repeats", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-            emit({ sessionUpdate: "compaction", id: "c1", status: "completed", trigger: "manual" });
-          },
-        });
-
-        const session = await openSavedChat(replay, [
-          ...savedTurn,
-          { id: "s3", sender: USER_SENDER, message: "/compact", isVisible: true, timestamp: null },
-          { id: "s4", sender: AI_SENDER, message: "", isVisible: true, timestamp: null },
-        ]);
-
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "replayed question"],
-          [AI_SENDER, "replayed answer"],
-        ]);
-        expect(
-          session.store
-            .getDisplayMessages()
-            .flatMap((m) => m.parts ?? [])
-            .filter((p) => p.kind === "compaction")
-        ).toHaveLength(1);
-      });
-
-      it("keeps unsent refusal text in its backup instead of implying the active model received it https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const replay = buildReplayingBackend({
-          onLoad: (emit) => {
-            emit(replayChunk("user_message_chunk", "replayed question", "u1"));
-            emit(replayChunk("agent_message_chunk", "replayed answer", "a1"));
-          },
-        });
-        const refusal = "This chat's model isn't enabled. Pick an enabled model to continue.";
-
-        const session = await openSavedChat(replay, [
-          ...savedTurn,
-          { id: "s3", sender: USER_SENDER, message: "try again", isVisible: true, timestamp: null },
-          { id: "s4", sender: AI_SENDER, message: refusal, isVisible: true, timestamp: null },
-        ]);
-
-        expect(senderAndText(session)).toEqual([
-          [USER_SENDER, "replayed question"],
-          [AI_SENDER, "replayed answer"],
-        ]);
-      });
-    });
-
-    describe("importActiveLegacySession()", () => {
-      it("imports only the selected historical text into a new Pi chat and keeps the original chat open https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const historical = buildDescriptor({
-          id: "claude",
-          createBackendProcess: jest.fn(() => {
-            throw new Error("removed engine");
-          }),
-        });
-        const replay = buildReplayingBackend();
-        const importLegacySession = jest.fn(async () => ({
-          sessionId: "pi-imported",
-          state: { model: null, mode: null },
-          notices: [],
-        }));
-        const pi = buildDescriptor({
-          id: "pi",
-          createBackendProcess: () => ({ ...replay.backend, importLegacySession }),
-        });
-        const messages: AgentChatMessage[] = [
-          {
-            id: "legacy-user",
-            sender: USER_SENDER,
-            timestamp: null,
-            isVisible: true,
-            message: "真实的旧问题",
-          },
-        ];
-        const manager = buildManager({
-          descriptor: historical,
-          resolveDescriptor: (id) => (id === "pi" ? pi : undefined),
-          persistence: {
-            loadFile: async () => ({
-              backendId: historical.id,
-              sessionId: "old",
-              projectId: GLOBAL_SCOPE,
-              messages,
-            }),
-          },
-        });
-        const original = await manager.loadSessionFromHistory(
-          mockTFile({ path: "old/history.md" })
-        );
-        const imported = await manager.importActiveLegacySession();
-        expect(imported.backendId).toBe("pi");
-        expect(imported.getBackendSessionId()).toBe("pi-imported");
-        expect(importLegacySession).toHaveBeenCalledWith(
-          expect.objectContaining({
-            entry: expect.objectContaining({
-              backendId: historical.id,
-              sessionId: "old",
-              messages: [{ role: "user", text: "真实的旧问题" }],
-            }),
-          })
-        );
-        expect(manager.getSessions()).toContain(original);
-        expect(original.store.getDisplayMessages()).toEqual(messages);
-        expect(historical.createBackendProcess).not.toHaveBeenCalled();
-      });
-
-      it("rejects importing when no historical chat is selected https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        await expect(buildManager().importActiveLegacySession()).rejects.toThrow("不是待导入");
       });
     });
 
@@ -4911,6 +3529,8 @@ describe("AgentSessionManager", () => {
           createBackendProcess: () => ({ ...replay.backend, prompt, rolloverSession }),
         });
         const manager = buildManager({ descriptor: pi });
+        storeChat("root-source");
+        storeChat("root-new-summary");
         const source = await manager.loadNativeSessionFromHistory("pi", "root-source");
         const next = await manager.rolloverSession(source.internalId);
         expect(rolloverSession).toHaveBeenCalledWith({ sessionId: "root-source" });
@@ -4918,7 +3538,7 @@ describe("AgentSessionManager", () => {
         expect(next.projectId).toBe(source.projectId);
         expect(manager.getActiveSession()).toBe(next);
         expect(manager.getSessions()).toContain(source);
-        expect(source.isHistoricalOnly()).toBe(true);
+        expect(source.getState()?.readOnly).toBe(true);
         expect(prompt).not.toHaveBeenCalled();
       });
 
@@ -4933,6 +3553,8 @@ describe("AgentSessionManager", () => {
             createBackendProcess: () => ({ ...replay.backend, rolloverSession }),
           }),
         });
+        storeChat("root-source");
+        storeChat("root-new-summary");
         const source = await manager.loadNativeSessionFromHistory("pi", "root-source");
         const port = manager;
         await expect(port.rolloverSession(source.internalId)).rejects.toThrow("summary failed");
@@ -4942,92 +3564,123 @@ describe("AgentSessionManager", () => {
       });
     });
 
-    describe("importSessionBackup()", () => {
-      it("opens a selected backup through the real backend import boundary without changing source notes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const app = buildApp();
-        const replay = buildReplayingBackend();
-        const importSessionBackup = jest.fn(async () => ({
-          sessionId: "backup-readonly",
-          state: { model: null, mode: null, readOnly: true },
-          notices: [],
-        }));
-        const pi = buildDescriptor({
-          id: "pi",
-          createBackendProcess: () => ({ ...replay.backend, importSessionBackup }),
+    describe("subscribeStorageChanges()", () => {
+      it("keeps page subscriptions working after the engine is replaced and releases them at shutdown https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const emitters: (() => void)[] = [];
+        const releases = [jest.fn(), jest.fn()];
+        const exits: (() => void)[] = [];
+        let created = 0;
+        const manager = buildManager({
+          descriptor: buildDescriptor({
+            createBackendProcess: () => {
+              const generation = created++;
+              return {
+                ...makeMockBackendProcess(),
+                subscribeStorageChanges: (listener: () => void) => {
+                  emitters[generation] = listener;
+                  return releases[generation];
+                },
+                onExit: (listener: () => void) => {
+                  exits.push(listener);
+                  return () => undefined;
+                },
+              };
+            },
+          }),
         });
-        const manager = buildManager({ app, descriptor: pi });
-
-        const session = await manager.importSessionBackup('{"schema":"selected backup"}');
-
-        expect(session.getBackendSessionId()).toBe("backup-readonly");
-        expect(importSessionBackup).toHaveBeenCalledWith(
-          expect.objectContaining({ content: '{"schema":"selected backup"}' })
-        );
-        expect(app.vault.create).not.toHaveBeenCalled();
-        expect(app.vault.modify).not.toHaveBeenCalled();
+        const listener = jest.fn();
+        const stop = manager.subscribeStorageChanges(listener);
+        await manager.getLocalDataBackend();
+        emitters[0]();
+        expect(listener).toHaveBeenCalledTimes(1);
+        exits[0]();
+        await manager.getLocalDataBackend();
+        expect(releases[0]).toHaveBeenCalledTimes(1);
+        emitters[1]();
+        expect(listener).toHaveBeenCalledTimes(2);
+        stop();
+        emitters[1]();
+        expect(listener).toHaveBeenCalledTimes(2);
+        await manager.shutdown();
+        expect(releases[1]).toHaveBeenCalledTimes(1);
+      });
+      it("isolates a failed page listener from the remaining subscribers https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        let emit!: () => void;
+        const manager = buildManager({
+          descriptor: buildDescriptor({
+            createBackendProcess: () => ({
+              ...makeMockBackendProcess(),
+              subscribeStorageChanges: (listener: () => void) => {
+                emit = listener;
+                return () => undefined;
+              },
+            }),
+          }),
+        });
+        manager.subscribeStorageChanges(() => {
+          throw new Error("closed page");
+        });
+        const listener = jest.fn();
+        manager.subscribeStorageChanges(listener);
+        await manager.getLocalDataBackend();
+        expect(() => emit()).not.toThrow();
+        expect(listener).toHaveBeenCalledTimes(1);
       });
     });
 
     describe("exportActiveSession()", () => {
-      it("writes a new backup in the configured conversations folder without overwriting the old source https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        getSettingsMock.mockReturnValue({ ...mockDefaultSettings(), vaultAgentFolder: "My Notes" });
-        const app = buildApp();
-        const historical = buildDescriptor({
-          id: "claude",
-          createBackendProcess: jest.fn(() => {
-            throw new Error("removed engine");
+      it("exports a standalone copy through the system picker and preserves cancellation https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const replay = buildReplayingBackend();
+        const attachments = [{ name: "images/photo.png", content: new Uint8Array([1, 2, 3]) }];
+        const exportSession = jest.fn(async () => ({
+          suggestedName: "chat.md",
+          content: "![photo](images/photo.png)",
+          attachments,
+        }));
+        const manager = buildManager({
+          descriptor: buildDescriptor({
+            id: "pi",
+            createBackendProcess: () => ({ ...replay.backend, exportSession }),
           }),
         });
-        const exportSession = jest.fn(async () => ({
-          suggestedName: "backup.json",
-          content: '{"backup":true}',
-        }));
-        const pi = buildDescriptor({
-          id: "pi",
-          createBackendProcess: () => ({ ...makeMockBackendProcess(), exportSession }),
+        storeChat("root-export");
+        await manager.loadNativeSessionFromHistory("pi", "root-export");
+        (saveChatExport as jest.Mock)
+          .mockResolvedValueOnce({ path: "/chosen/chat.md" })
+          .mockResolvedValueOnce(null);
+        await expect(manager.exportActiveSession("markdown")).resolves.toEqual({
+          path: "/chosen/chat.md",
         });
-        const messages: AgentChatMessage[] = [
-          {
-            id: "legacy-user",
-            sender: USER_SENDER,
-            timestamp: null,
-            isVisible: true,
-            message: "原记录",
-          },
-        ];
-        const manager = buildManager({
-          app,
-          descriptor: historical,
-          resolveDescriptor: (id) => (id === "pi" ? pi : undefined),
-          persistence: {
-            loadFile: async () => ({
-              backendId: historical.id,
-              sessionId: "old",
-              projectId: GLOBAL_SCOPE,
-              messages,
-            }),
-          },
+        expect(exportSession).toHaveBeenCalledWith({
+          sessionId: "root-export",
+          format: "markdown",
         });
-        await manager.loadSessionFromHistory(mockTFile({ path: "old/history.md" }));
-        const result = await manager.exportActiveSession();
-        expect(result.path).toMatch(/^My Notes\/conversations\/.+-backup\.json$/);
-        expect(app.vault.create).toHaveBeenCalledWith(result.path, '{"backup":true}');
-        expect(app.vault.modify).not.toHaveBeenCalled();
-        expect(exportSession).toHaveBeenCalledWith(
-          expect.objectContaining({
-            format: "json",
-            legacy: expect.objectContaining({ messages: [{ role: "user", text: "原记录" }] }),
-          })
+        expect(saveChatExport).toHaveBeenCalledWith(
+          "chat.md",
+          "![photo](images/photo.png)",
+          attachments
         );
-        expect(historical.createBackendProcess).not.toHaveBeenCalled();
+        await expect(manager.exportActiveSession("markdown")).resolves.toBeNull();
       });
-
       it("rejects exporting before a chat is available https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        await expect(buildManager().exportActiveSession()).rejects.toThrow("没有可导出");
+        await expect(buildManager().exportActiveSession()).rejects.toThrow(
+          t("localData.noChatToExport")
+        );
       });
     });
 
     describe("loadNativeSessionFromHistory()", () => {
+      it("reports a missing session without creating a replacement or reading vault notes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const { manager, app } = buildHistoryHarness({ sessions: [] });
+        await expect(
+          manager.loadNativeSessionFromHistory("pi", "root-deleted")
+        ).rejects.toMatchObject({
+          code: "SESSION_NOT_FOUND",
+          message: t("localData.sessionMissing"),
+        });
+        expect(manager.getSessions()).toEqual([]);
+        expect(app.vault.read).not.toHaveBeenCalled();
+      });
       it("preserves the original pending Pi plan while real Manager restore replays model, effort and ordinary mode configuration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const replay = buildReplayingBackend();
         const plan = {
@@ -5094,7 +3747,8 @@ describe("AgentSessionManager", () => {
         getSettingsMock.mockReturnValue({
           agentMode: { activeBackend: "pi", backends: { pi: { defaultMode: "auto" } } },
         });
-        const session = await manager.loadNativeSessionFromHistory("pi", "saved-plan-root");
+        storeChat("root-saved-plan-root");
+        const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-plan-root");
         expect(backend.setSessionMode).not.toHaveBeenCalled();
         expect(session.getState()?.mode?.current).toBe("default");
         expect(session.getCurrentPlan()).toEqual(plan);
@@ -5107,7 +3761,7 @@ describe("AgentSessionManager", () => {
         expect(backend.prompt).not.toHaveBeenCalled();
         await session.resolvePlanProposalPermission("original-plan-call", false, "先核对原文");
         expect(decide).toHaveBeenCalledWith({
-          sessionId: "saved-plan-root",
+          sessionId: "root-saved-plan-root",
           planId: "original-plan",
           revision: 1,
           action: "feedback",
@@ -5125,8 +3779,8 @@ describe("AgentSessionManager", () => {
           createBackendProcess: jest.fn(() => replay.backend),
         });
 
-        const session = await manager.loadNativeSessionFromHistory("pi", "saved-chat");
-        replay.emit("saved-chat", replayChunk("agent_message_chunk", "second", "a1"));
+        const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
+        replay.emit("root-saved-chat", replayChunk("agent_message_chunk", "second", "a1"));
 
         expect(senderAndText(session)).toEqual([
           [USER_SENDER, "test"],
@@ -5159,7 +3813,7 @@ describe("AgentSessionManager", () => {
           createBackendProcess: jest.fn(() => replay.backend),
         });
 
-        const session = await manager.loadNativeSessionFromHistory("pi", "saved-chat");
+        const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
 
         const [user, reply] = session.store.getDisplayMessages();
         expect(session.store.getDisplayMessages()).toHaveLength(2);
@@ -5177,7 +3831,7 @@ describe("AgentSessionManager", () => {
           createBackendProcess: jest.fn(() => replay.backend),
         });
 
-        await manager.loadNativeSessionFromHistory("pi", "saved-chat");
+        await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
 
         expect(replay.handlerCountAtOpen.load).toBe(1);
       });
@@ -5192,7 +3846,7 @@ describe("AgentSessionManager", () => {
           createBackendProcess: jest.fn(() => replay.backend),
         });
 
-        await manager.loadNativeSessionFromHistory("pi", "saved-chat");
+        await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
 
         expect(replay.backend.resumeSession).toHaveBeenCalledTimes(1);
         expect(replay.handlerCountAtOpen.resume).toBe(1);
@@ -5208,8 +3862,8 @@ describe("AgentSessionManager", () => {
           createBackendProcess: jest.fn(() => replay.backend),
         });
 
-        const session = await manager.loadNativeSessionFromHistory("pi", "saved-chat");
-        replay.emit("saved-chat", replayChunk("agent_message_chunk", "background", "a1"));
+        const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
+        replay.emit("root-saved-chat", replayChunk("agent_message_chunk", "background", "a1"));
 
         expect(senderAndText(session)).toEqual([]);
       });
@@ -5240,28 +3894,14 @@ describe("AgentSessionManager", () => {
             createBackendProcess: jest.fn(() => replay.backend),
           });
 
-          await expect(manager.loadNativeSessionFromHistory("pi", "saved-chat")).rejects.toThrow(
-            "Could not resume"
-          );
+          await expect(
+            manager.loadNativeSessionFromHistory("pi", "root-saved-chat")
+          ).rejects.toThrow("Could not resume");
 
           expect(replay.unregister).toHaveBeenCalledTimes(1);
           expect(manager.getSessions()).toEqual([]);
         }
       );
-
-      it("matches live sessions by the (backendId, sessionId) pair, not session id alone", async () => {
-        const { manager } = buildHistoryHarness();
-        const session = await manager.createSession("pi");
-        const liveId = session.getBackendSessionId()!;
-
-        await expect(manager.loadNativeSessionFromHistory("pi", liveId)).resolves.toBe(session);
-
-        const historical = await manager.loadNativeSessionFromHistory("codex", liveId);
-        expect(historical).not.toBe(session);
-        expect(historical.isHistoricalOnly()).toBe(true);
-        expect(historical.backendId).toBe("codex");
-        expect(manager.getActiveSession()).toBe(historical);
-      });
 
       it.each([
         ["default", false],
@@ -5299,7 +3939,7 @@ describe("AgentSessionManager", () => {
           getSettingsMock.mockReturnValue({
             agentMode: { activeBackend: "pi", backends: { pi: { defaultMode: "auto" } } },
           });
-          const session = await manager.loadNativeSessionFromHistory("pi", "saved-chat");
+          const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
           expect(setSessionMode).not.toHaveBeenCalled();
           expect(session.getState()).toBe(state);
           expect(session.getState()?.mode?.current).toBe(mode);
@@ -5307,7 +3947,7 @@ describe("AgentSessionManager", () => {
         }
       );
 
-      it("uses the global ordinary mode only when a writable legacy session has no persisted mode current https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      it("uses the global ordinary mode only when a writable session has no persisted mode current https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const state: BackendState = {
           model: null,
           mode: {
@@ -5331,8 +3971,11 @@ describe("AgentSessionManager", () => {
         getSettingsMock.mockReturnValue({
           agentMode: { activeBackend: "pi", backends: { pi: { defaultMode: "auto" } } },
         });
-        const session = await manager.loadNativeSessionFromHistory("pi", "legacy-chat");
-        expect(setSessionMode).toHaveBeenCalledWith({ sessionId: "legacy-chat", modeId: "auto" });
+        const session = await manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
+        expect(setSessionMode).toHaveBeenCalledWith({
+          sessionId: "root-saved-chat",
+          modeId: "auto",
+        });
         expect(session.getState()?.mode?.current).toBe("auto");
       });
 
@@ -5341,7 +3984,7 @@ describe("AgentSessionManager", () => {
         const release = deferred();
         const backend = buildResumeOnlyBackend({
           resumeSession: jest.fn(async ({ sessionId }: { sessionId: string }) => {
-            if (sessionId === "first-chat") {
+            if (sessionId === "root-first-chat") {
               entered.resolve();
               await release.promise;
             }
@@ -5349,9 +3992,11 @@ describe("AgentSessionManager", () => {
           }),
         });
         const { manager } = buildHistoryHarness({ createBackendProcess: jest.fn(() => backend) });
-        const firstLoading = manager.loadNativeSessionFromHistory("pi", "first-chat");
+        storeChat("root-first-chat");
+        storeChat("root-second-chat");
+        const firstLoading = manager.loadNativeSessionFromHistory("pi", "root-first-chat");
         await entered.promise;
-        const second = await manager.loadNativeSessionFromHistory("pi", "second-chat");
+        const second = await manager.loadNativeSessionFromHistory("pi", "root-second-chat");
         expect(manager.getActiveSession()).toBe(second);
         release.resolve();
         const first = await firstLoading;
@@ -5371,9 +4016,9 @@ describe("AgentSessionManager", () => {
           }),
         });
         const { manager } = buildHistoryHarness({ createBackendProcess: jest.fn(() => backend) });
-        const firstLoading = manager.loadNativeSessionFromHistory("pi", "saved-chat");
+        const firstLoading = manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
         await entered.promise;
-        const secondLoading = manager.loadNativeSessionFromHistory("pi", "saved-chat");
+        const secondLoading = manager.loadNativeSessionFromHistory("pi", "root-saved-chat");
         release.resolve();
         const [first, second] = await Promise.all([firstLoading, secondLoading]);
         expect(first).toBe(second);
@@ -5429,16 +4074,6 @@ describe("AgentSessionManager", () => {
         await mgr.enterProject(PROJECT_ID);
         expect(ProjectFileManager.getInstance).toHaveBeenCalled();
         expect(mockTouchProjectLastUsed).toHaveBeenCalledWith(PROJECT_ID);
-      });
-
-      it("ensures vault-root instruction discovery before a project session, not just global", async () => {
-        const mgr = buildManager();
-        await mgr.enterProject(PROJECT_ID);
-        expect(ensureAgentsFileForDiscoverySpy).toHaveBeenCalledWith(expect.anything(), "");
-        expect(ensureAgentsFileForDiscoverySpy).toHaveBeenCalledWith(
-          expect.anything(),
-          `Projects/${PROJECT_ID}`
-        );
       });
 
       it("touches last-used on the restored-session path (no re-spawn)", async () => {
@@ -5599,7 +4234,7 @@ describe("AgentSessionManager", () => {
         expect(mgr.getActiveSession()).toBe(landing);
       });
 
-      it("does not reuse an empty landing after a System-Prompt-only edit", async () => {
+      it("keeps an empty landing when only inert project.md text changes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         publish(makeRecord({ webUrls: "https://a.com" }, 0, "old instructions"));
         const mgr = buildManager();
         await mgr.enterProject(PROJECT_ID);
@@ -5611,8 +4246,8 @@ describe("AgentSessionManager", () => {
         sessionCreateSpy.mockClear();
         await mgr.enterProject(PROJECT_ID);
 
-        expect(sessionCreateSpy).toHaveBeenCalledTimes(1);
-        expect(mgr.getActiveSession()).not.toBe(landing);
+        expect(sessionCreateSpy).not.toHaveBeenCalled();
+        expect(mgr.getActiveSession()).toBe(landing);
       });
 
       it("reuses an empty landing after vault content inside the project's sources changes, building its context at the first message", async () => {

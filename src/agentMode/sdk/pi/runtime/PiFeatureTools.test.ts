@@ -446,9 +446,10 @@ describe("PiFeatureTools", () => {
         webSearch: async () => ({ content: "", citations: [] }),
         settings: () =>
           ({
-            enableSelfHostMode: enabled,
+            firecrawlApiKey: enabled ? "fixture-key" : "",
+            selfHostSearchProvider: "firecrawl",
             agentMode: { offerFeedbackCards: true },
-          }) as VaultAgentSettings,
+          }) as unknown as VaultAgentSettings,
       });
       expect(capabilities.filter("web_search", { caller: "root", mode: "default" })).toBe(true);
       expect(capabilities.filter("web_search", { caller: "root", mode: "plan" })).toBe(false);
@@ -475,7 +476,8 @@ describe("PiFeatureTools", () => {
         webSearch,
         settings: () =>
           ({
-            enableSelfHostMode: true,
+            firecrawlApiKey: "fixture-key",
+            selfHostSearchProvider: "firecrawl",
             agentMode: { offerFeedbackCards: true },
           }) as unknown as VaultAgentSettings,
       });
@@ -550,7 +552,12 @@ describe("PiFeatureTools", () => {
     it("keeps web approval identities separate when providers reuse a call ID and retains the legacy fallback https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const fixture = await pendingFixture(undefined, {
         webSearch: async () => ({ content: "unused", citations: [] }),
-        settings: () => ({ enableSelfHostMode: true, agentMode: {} }) as VaultAgentSettings,
+        settings: () =>
+          ({
+            firecrawlApiKey: "fixture-key",
+            selfHostSearchProvider: "firecrawl",
+            agentMode: {},
+          }) as unknown as VaultAgentSettings,
       });
       fixture.requestPermission.mockResolvedValue({
         outcome: { outcome: "selected", optionId: "deny_search" },
@@ -579,7 +586,8 @@ describe("PiFeatureTools", () => {
           webSearch: condition === "missing-host" ? undefined : webSearch,
           settings: () =>
             ({
-              enableSelfHostMode: enabled,
+              firecrawlApiKey: enabled ? "fixture-key" : "",
+              selfHostSearchProvider: "firecrawl",
               agentMode: { offerFeedbackCards: true },
             }) as unknown as VaultAgentSettings,
         });
@@ -623,7 +631,8 @@ describe("PiFeatureTools", () => {
         webSearch,
         settings: () =>
           ({
-            enableSelfHostMode: true,
+            firecrawlApiKey: "fixture-key",
+            selfHostSearchProvider: "firecrawl",
             agentMode: { offerFeedbackCards: true },
           }) as unknown as VaultAgentSettings,
       });

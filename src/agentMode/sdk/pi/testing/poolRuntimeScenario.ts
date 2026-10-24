@@ -297,7 +297,6 @@ export async function runPoolRuntimeScenario(directory: string) {
       "session.json"
     );
     const subscriptions = new Set<() => void>();
-    const notices: string[] = [];
     let blockOnce = true;
     const retryBackend = new PiBackendProcess({
       host: {
@@ -306,7 +305,6 @@ export async function runPoolRuntimeScenario(directory: string) {
         getSettings: () => settings,
         privateRoot,
         streamsFactory: () => faux.provider,
-        notify: (message: string) => notices.push(message),
         subscribeSettings: (listener) => {
           subscriptions.add(listener);
           if (blockOnce) {
@@ -336,39 +334,6 @@ export async function runPoolRuntimeScenario(directory: string) {
         modelId: "saved-model",
       });
       await fs.access(lease("root-startup-retry"));
-      const retainedBytes = path.join(
-        locator.sessionStorePaths("root-startup-retry").storeDir,
-        "limit-fixture.bin"
-      );
-      await fs.writeFile(retainedBytes, new Uint8Array(16 * 1024 * 1024));
-      faux.setResponses([fauxAssistantMessage("容量提醒后仍可回答")]);
-      await retryBackend.prompt({
-        sessionId: "root-startup-retry",
-        requestId: "warning",
-        prompt: [{ type: "text", text: "继续" }],
-      });
-      assert.equal(notices.length, 1, "16MiB must visibly suggest a new chat before continuing");
-      const beforeBlock = faux.state.callCount;
-      await fs.writeFile(retainedBytes, new Uint8Array(32 * 1024 * 1024));
-      await assert.rejects(
-        () =>
-          retryBackend.prompt({
-            sessionId: "root-startup-retry",
-            requestId: "blocked",
-            prompt: [{ type: "text", text: "继续" }],
-          }),
-        /存储上限.*总结并新建会话/
-      );
-      const archive = await retryBackend.exportSession({
-        sessionId: "root-startup-retry",
-        format: "json",
-      });
-      assert.ok(archive.content.includes("容量提醒后仍可回答"));
-      assert.equal(
-        faux.state.callCount,
-        beforeBlock,
-        "32MiB must block new billing while export and reading remain available"
-      );
     } finally {
       await retryBackend.shutdown();
     }
@@ -389,8 +354,6 @@ export async function runPoolRuntimeScenario(directory: string) {
         "shutdown_releases_all_leases",
         "startup_failure_disposes_partial_resources",
         "startup_retry_opens_fresh_harness",
-        "16mib_visible_warning",
-        "32mib_blocks_dispatch_but_allows_export",
       ],
       providerCalls: faux.state.callCount,
     };

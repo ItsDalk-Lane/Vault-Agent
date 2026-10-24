@@ -1,3 +1,4 @@
+import type { PromptContent, PromptContext, SessionExportOutput } from "@/agentMode/session/types";
 import { assertSteerText, submitSteerInput } from "@/agentMode/sdk/pi/runtime/SteerInput";
 import {
   restoreUnsentRootInput,
@@ -6,6 +7,7 @@ import {
 } from "@/agentMode/sdk/pi/runtime/UnsentRootInput";
 import { AI_SENDER, USER_SENDER } from "@/constants";
 import { formatDateTime } from "@/utils";
+import { err2String } from "@/errorFormat";
 import { applyRequestCapabilities } from "@/agentMode/sdk/pi/runtime/RequestCapabilities";
 import {
   deriveSdkToolRejection,
@@ -22,11 +24,7 @@ import {
   CapabilityCatalog,
   type CapabilityContext,
 } from "@/agentMode/sdk/pi/policy/CapabilityCatalog";
-import {
-  createWorkItemStore,
-  type WorkItemStore,
-  type WorkItem,
-} from "@/agentMode/sdk/pi/storage/WorkItemStore";
+import { createWorkItemStore, type WorkItemStore } from "@/agentMode/sdk/pi/storage/WorkItemStore";
 import {
   getMutationJournalDoc,
   type MutationDocState,
@@ -36,6 +34,7 @@ import {
 import {
   buildPriorFanoutContextBlock,
   renderFanoutComposite,
+  serializeFanoutComposite,
   type FanoutTurn,
 } from "@/agentMode/session/fanout/fanoutTypes";
 import {
@@ -107,6 +106,7 @@ import { createVaultHostTools } from "@/agentMode/sdk/pi/tools/VaultHostTools";
 import { RunBudget, type BudgetReserveRecord } from "@/agentMode/sdk/pi/runtime/RunBudget";
 import { projectBudget } from "@/agentMode/sdk/pi/features/BudgetProjection";
 import { sha256 } from "@/utils/hash";
+import { isRecord } from "@/utils/obsidianInternals";
 import {
   createPiFeatureTools,
   type PiFeatureTools,
@@ -118,8 +118,6 @@ import {
   createPiSubagentTools,
   type PiSubagentTools,
 } from "@/agentMode/sdk/pi/runtime/PiSubagentTools";
-import type { LegacyChatEntry } from "@/agentMode/session/legacy/LegacyHistoryReader";
-import { LegacyImport, type LegacyImportMapping } from "@/agentMode/sdk/pi/storage/LegacyImport";
 import { SessionExport, type SessionExportInput } from "@/agentMode/sdk/pi/storage/SessionExport";
 import { PiRuntimeProjection } from "@/agentMode/sdk/pi/runtime/PiRuntimeProjection";
 import { PiRuntimeEventBarrier } from "@/agentMode/sdk/pi/runtime/PiRuntimeEventBarrier";
@@ -128,16 +126,19 @@ import {
   type PiNativeHostTools,
 } from "@/agentMode/sdk/pi/tools/PiNativeHostTools";
 import { RuntimePool } from "@/agentMode/sdk/pi/runtime/RuntimePool";
+import { SessionFileOperations } from "@/agentMode/sdk/pi/storage/SessionFileOperations";
+import { t } from "@/i18n";
+import type {
+  ListedSessionInfo,
+  LocalStoragePaths,
+  UpdateSessionMetadataInput,
+} from "@/agentMode/session/types";
+import type { SessionStorePaths } from "@/agentMode/sdk/pi/storage/StoreLocator";
 import {
   createPiRuntimeApprovals,
   type PiRuntimeApprovals,
 } from "@/agentMode/sdk/pi/runtime/PiRuntimeApprovals";
-import {
-  StoreSizePolicy,
-  STORE_SIZE_PAUSE_BYTES,
-} from "@/agentMode/sdk/pi/storage/StoreSizePolicy";
 import { logError, logWarn } from "@/logger";
-import { defaultEnabledProfiles } from "@/agentMode/sdk/pi/features/subagents/Profiles";
 import {
   createPiRuntimeRecovery,
   readPiRecoverySnapshot,
@@ -188,6 +189,10 @@ interface SessionMetadata {
   readonly cwd: string;
   readonly createdAt: string;
   readonly title: string | null;
+  titleSource?: "user" | "agent";
+  lastAccessedAtMs?: number;
+  updatedAtMs?: number;
+  pinnedAt?: number;
   modelId: string | null;
   effort: string | null;
   mode: VaultAgentMode;
@@ -195,6 +200,7 @@ interface SessionMetadata {
   archivedAtMs?: number;
   sourceSessionId?: string;
   sourceEntryId?: string;
+  forkChildSessionIds?: Record<string, string>;
   continuationWorkItemId?: string;
   readonly parentSessionId?: string;
   readonly parentRunId?: string;
@@ -224,6 +230,8 @@ interface OpenRoot {
   readonly subagents: PiSubagentTools;
   readonly native: PiNativeHostTools;
   readonly runs: Map<string, NonNullable<OpenRoot["run"]>>;
+  /** 当前根轮各模型段的首 token 耗时，随 va.run 终态持久化。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 */
+  segmentTtfts: number[];
   readonly sdkToolRejections: Map<string, SdkToolRejection>;
   sdkToolRejectionChain: Promise<void>;
   steerSourceChain: Promise<void>;
@@ -275,6 +283,13 @@ export class PiRuntime {
   private readonly checkpointChains = new Map<string, Promise<void>>();
   private readonly budgets = new Map<string, Promise<RunBudget>>();
   private readonly locator: StoreLocator;
+  private readonly files: SessionFileOperations;
+  private readonly owners = new Map<string, string>();
+  private readonly deleting = new Set<string>();
+  private readonly forking = new Set<string>();
+  private readonly operationTasks = new Map<string, Set<Promise<unknown>>>();
+  private readonly storageListeners = new Set<() => void>();
+  private indexWrites: Promise<void> = Promise.resolve();
   private readonly vaultRoot: string;
   private readonly pool: RuntimePool;
   private readonly openRequests = new Map<
@@ -322,6 +337,7 @@ export class PiRuntime {
       vaultRoot,
       vaultId: host.keychain.getVaultId(),
     });
+    this.files = new SessionFileOperations(this.locator);
     this.pool = new RuntimePool({
       openRuntime: async (rootKey) => {
         const request = this.openRequests.get(rootKey);
@@ -351,10 +367,6 @@ export class PiRuntime {
           await this.cancel(runtime.rootKey, true);
       },
       archiveRuntime: async (runtime) => this.archiveRoot(runtime.handle as OpenRoot),
-      sizePolicy: new StoreSizePolicy({
-        measureBytes: (rootKey) =>
-          this.measureStoreBytes(this.locator.sessionStorePaths(rootKey).storeDir),
-      }),
       activity: async (rootKey) => {
         const owner = this.roots.get(rootKey);
         const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
@@ -391,8 +403,220 @@ export class PiRuntime {
     });
   }
 
+  async initialize(): Promise<void> {
+    await this.files.initialize();
+    try {
+      await this.files.finishPendingDeletes();
+    } catch (error) {
+      logWarn("[PiRuntime] pending local deletion failed", error);
+      this.host.notify?.(t("localData.deletionIncomplete"));
+    }
+    await this.rebuildIndex();
+  }
+
+  getLocalStoragePaths(): LocalStoragePaths {
+    return this.files.paths;
+  }
+
+  subscribeStorageChanges(listener: () => void): () => void {
+    this.storageListeners.add(listener);
+    return () => this.storageListeners.delete(listener);
+  }
+
+  async updateSessionMetadata(input: UpdateSessionMetadataInput): Promise<ListedSessionInfo> {
+    return this.withSessionOperation(input.sessionId, async () => {
+      await this.updateMetadata(input.sessionId, (current) => {
+        if (!current)
+          throw Object.assign(new Error(t("localData.sessionMissing")), {
+            code: "SESSION_NOT_FOUND",
+          });
+        return {
+          ...current,
+          ...(input.title === undefined
+            ? {}
+            : { title: input.title.trim() || null, titleSource: input.titleSource ?? "user" }),
+          ...(input.pinnedAt === undefined ? {} : { pinnedAt: input.pinnedAt ?? undefined }),
+          ...(input.lastAccessedAtMs === undefined
+            ? {}
+            : { lastAccessedAtMs: input.lastAccessedAtMs }),
+        };
+      });
+      const metadata = await this.readMetadata(input.sessionId);
+      if (!metadata)
+        throw Object.assign(new Error(t("localData.sessionMissing")), {
+          code: "SESSION_NOT_FOUND",
+        });
+      return this.listedSession(metadata);
+    });
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    assertHostRootId(sessionId);
+    if (this.deleting.has(sessionId) || this.forking.has(sessionId))
+      throw Object.assign(new Error(t("localData.sessionBusy")), { code: "STORE_BUSY" });
+    const ownerId = this.owners.get(sessionId) ?? (await this.files.ownerId(sessionId));
+    if (ownerId !== sessionId) throw new Error(t("localData.sessionBusy"));
+    this.deleting.add(sessionId);
+    let deletionError: unknown;
+    try {
+      await this.cancel(sessionId);
+      await Promise.allSettled([...(this.operationTasks.get(sessionId) ?? [])]);
+      await this.cancel(sessionId);
+      await this.close(sessionId);
+      await this.metadataWrites.get(sessionId);
+      await this.checkpointChains.get(sessionId);
+      await this.files.remove(sessionId);
+      this.readOnlyRoots.delete(sessionId);
+      this.unsentInputs.delete(sessionId);
+      this.unsentAdmissions.delete(sessionId);
+      for (const [id, owner] of this.owners) if (owner === sessionId) this.owners.delete(id);
+    } catch (error) {
+      deletionError = error;
+    } finally {
+      this.deleting.delete(sessionId);
+      try {
+        await this.rebuildIndex();
+      } catch (error) {
+        if (deletionError === undefined) deletionError = error;
+        else logWarn("[PiRuntime] deletion index refresh failed", error);
+      }
+      this.notifyStorageChanged();
+    }
+    if (deletionError !== undefined)
+      throw deletionError instanceof Error
+        ? deletionError
+        : Object.assign(new Error(err2String(deletionError)), { cause: deletionError });
+  }
+
+  async forkSession(
+    sessionId: string,
+    atEntryId?: string
+  ): Promise<{ sessionId: string; state: BackendState }> {
+    if (this.deleting.has(sessionId) || this.forking.has(sessionId))
+      throw Object.assign(new Error(t("localData.sessionBusy")), { code: "STORE_BUSY" });
+    const source = await this.activeRoot(sessionId);
+    this.forking.add(sessionId);
+    try {
+      try {
+        await this.assertArchiveBoundary(source);
+        await Promise.allSettled([...(this.operationTasks.get(sessionId) ?? [])]);
+        await this.assertArchiveBoundary(source);
+      } catch (cause) {
+        throw Object.assign(new Error(t("localData.forkBusy")), {
+          code: "SESSION_NOT_STABLE",
+          cause,
+        });
+      }
+      const nextId = `root-${this.crypto.randomUUID()}`;
+      const now = Date.now();
+      // 逐轮分叉只搬运目标轮终态 va.run 为止（含）的条目前缀：条目原样复制（byTaskId 无法携带，
+      // 工具配对退回按调用 id 匹配），产品文档按初始态重建，可从转录恢复的状态由重放还原；
+      // 扇出子候选不复制，其卡片可见但子历史不可打开（整聊分叉仍是完整副本）。
+      // va.run.runId 是工作目标标识、跨轮复用，分支锚点必须用终态 va.run 的条目 id。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12
+      const prefix = atEntryId === undefined ? null : this.runPrefixThrough(source, atEntryId);
+      if (atEntryId !== undefined && prefix === null)
+        throw Object.assign(new Error(t("localData.forkPointMissing")), {
+          code: "SESSION_NOT_FOUND",
+        });
+      const metadata: SessionMetadata = {
+        ...source.metadata,
+        sessionId: nextId,
+        title: source.metadata.title
+          ? t("localData.forkTitle", { title: source.metadata.title })
+          : null,
+        createdAt: new Date(now).toISOString(),
+        lastAccessedAtMs: now,
+        updatedAtMs: now,
+        pinnedAt: undefined,
+        sourceSessionId: sessionId,
+        sourceEntryId: prefix ? String(prefix[prefix.length - 1]?.id) : undefined,
+        archivedAtMs: undefined,
+        readOnly: false,
+        continuationWorkItemId: undefined,
+        unsentInput: undefined,
+      };
+      if (prefix === null) {
+        // 复制时保留源写入租约，避免关闭与重取租约之间被另一个窗口写入未完成工作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        await this.withMetadataLock(sessionId, () =>
+          this.files.fork(sessionId, nextId, JSON.stringify(metadata), true)
+        );
+        this.forking.delete(sessionId);
+        const result = await this.load(nextId, metadata.cwd);
+        await this.rebuildIndex();
+        this.notifyStorageChanged();
+        return result;
+      }
+      const forked = await this.withSessionOperation(nextId, async () => {
+        const next = await this.getRoot(nextId, source.metadata.cwd, true, {
+          cwd: source.metadata.cwd,
+          projectId: source.metadata.projectId,
+          readOnly: true,
+        });
+        if (source.metadata.modelId) await this.setModel(nextId, source.metadata.modelId);
+        Object.assign(next.metadata, {
+          title: metadata.title,
+          createdAt: metadata.createdAt,
+          lastAccessedAtMs: metadata.lastAccessedAtMs,
+          updatedAtMs: metadata.updatedAtMs,
+          pinnedAt: undefined,
+          sourceSessionId: sessionId,
+          sourceEntryId: metadata.sourceEntryId,
+          archivedAtMs: undefined,
+          continuationWorkItemId: undefined,
+          unsentInput: undefined,
+          mode: source.metadata.mode,
+        });
+        await this.withMetadataLock(sessionId, () => this.files.copyAttachments(sessionId, nextId));
+        const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
+        await next.conversation.commit(async (tx) => {
+          for (const record of prefix) {
+            await tx.appendEntry(next.conversation.id, {
+              kind: record.kind,
+              ...(record.data !== null && record.data !== undefined
+                ? { data: JSON.parse(JSON.stringify(record.data)) as JsonObject }
+                : {}),
+              ...(record.model && record.model.length > 0
+                ? {
+                    model: JSON.parse(JSON.stringify(record.model)) as NonNullable<
+                      EntryRecord["model"]
+                    >,
+                  }
+                : {}),
+              ...(record.edits
+                ? { edits: JSON.parse(JSON.stringify(record.edits)) as EntryRecord["edits"] }
+                : {}),
+            });
+          }
+        }, BACKGROUND_CONTEXT);
+        await this.replay(nextId);
+        next.metadata.readOnly = false;
+        await this.saveMetadata(next.metadata);
+        this.emit(nextId, { sessionUpdate: "state_changed", state: this.stateOf(next) });
+        return { sessionId: nextId, state: this.stateOf(next) };
+      });
+      await this.rebuildIndex();
+      this.notifyStorageChanged();
+      return forked;
+    } finally {
+      this.forking.delete(sessionId);
+    }
+  }
+
+  /** 目标终态 va.run 条目为止（含）的升序条目前缀；条目不存在或非终态 va.run 时为 null。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12 */
+  private runPrefixThrough(source: OpenRoot, atEntryId: string): EntryRecord[] | null {
+    const ordered = [...source.entries.values()].sort((a, b) => Number(a.id) - Number(b.id));
+    const cutoff = ordered.findIndex(
+      (record) => String(record.id) === atEntryId && record.kind === "va.run"
+    );
+    if (cutoff < 0) return null;
+    const data = isRecord(ordered[cutoff]?.data) ? ordered[cutoff].data : null;
+    if (data?.status === undefined || data.status === "running") return null;
+    return ordered.slice(0, cutoff + 1);
+  }
+
   async open(input: OpenSessionInput): Promise<{ sessionId: string; state: BackendState }> {
     const sessionId = input.sessionId ?? `root-${this.crypto.randomUUID()}`;
+    if (input.parentSessionId) this.owners.set(sessionId, input.parentSessionId);
     return this.withSessionOperation(sessionId, async () => {
       input.signal?.throwIfAborted();
       let closing: Promise<void> | undefined;
@@ -467,7 +691,7 @@ export class PiRuntime {
             throw new Error("当前只读历史尚无执行位置，请先重新载入。");
           if (!this.roots.has(input.sessionId)) {
             const directory = this.path.dirname(
-              this.locator.sessionStorePaths(input.sessionId).metaPath
+              (await this.sessionPaths(input.sessionId)).metaPath
             );
             const restored = await restoreUnsentRootInput(draft, directory);
             if (restored.kind === "prompt") await this.prompt(restored.input);
@@ -521,8 +745,6 @@ export class PiRuntime {
             typeof latest.runId === "string"
           ) {
             let item = await root.workItems.read(latest.runId);
-            if (item?.status === "paused_storage")
-              throw new Error("这段记录接近容量上限，请选择“总结并新建会话”保留进度并续段。");
             if (item?.status === "active" && root.recovery.state.status === "available") {
               const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
               const unfinished = await root.harness.inspect(BACKGROUND_CONTEXT);
@@ -567,30 +789,7 @@ export class PiRuntime {
       let provisionalId: string | undefined;
       let activated = false;
       try {
-        let carriedWork: WorkItem | null = null;
-        const paused = source.recovery?.state?.interruptedRun;
-        if (paused?.status === "paused_storage") {
-          carriedWork = await source.workItems.read(paused.runId);
-          await source.recovery?.recover("reconcile");
-          if (source.recovery?.state?.pendingMutationIds.length)
-            throw new Error("请先核对实际文件结果，再整理到新聊天。");
-          await source.recovery?.recover("abort");
-          await this.settlePausedRunAfterAbort(source);
-        }
         await this.assertArchiveBoundary(source);
-        if (carriedWork) {
-          await this.checkpointWorkItem(
-            source,
-            carriedWork.id,
-            "rollover_authorized",
-            [],
-            0,
-            "paused_budget"
-          );
-          await source.workItems.authorizeNextSegment(carriedWork.id);
-          this.budgets.delete(`${source.ownerSessionId}:${carriedWork.id}`);
-          source.metadata.continuationWorkItemId = carriedWork.id;
-        }
         source.busy = true;
         source.pending = controller;
         const previousSummaries = new Set(
@@ -598,7 +797,6 @@ export class PiRuntime {
             .filter((entry) => entry.kind === "pi.compaction")
             .map((entry) => String(entry.id))
         );
-        // 总结是用户明确选择的收尾动作，超出存储上限时仍允许它完成，但不接纳新的用户任务：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
         const requestId = `rollover-${this.crypto.randomUUID()}`;
         const summaryWork = this.runPrompt(
           source,
@@ -616,7 +814,7 @@ export class PiRuntime {
             (entry) => entry.kind === "pi.compaction" && !previousSummaries.has(String(entry.id))
           )
           .at(-1);
-        if (!summary?.model?.length && !carriedWork)
+        if (!summary?.model?.length)
           throw new Error("当前内容尚不足以生成实际摘要；原聊天已保留。");
         const summaryText =
           summary?.model
@@ -625,14 +823,7 @@ export class PiRuntime {
                 ? [message.content]
                 : message.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
             )
-            .join("\n") ??
-          (carriedWork
-            ? [
-                carriedWork.checkpoint.goal,
-                ...carriedWork.checkpoint.remainingItems,
-                carriedWork.checkpoint.nextStep,
-              ].join("\n")
-            : "");
+            .join("\n") ?? "";
         if (!summaryText.trim()) throw new Error("模型没有提供可保存的摘要，原聊天没有归档。");
         const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
         const compactedContext = await source.conversation.context(BACKGROUND_CONTEXT);
@@ -646,7 +837,6 @@ export class PiRuntime {
         );
         await this.assertArchiveBoundary(source);
         // 先关闭空闲写入者再准备只读新根，双窗口时也不突破两个打开 store 的上限：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-        if (carriedWork) carriedWork = (await source.workItems.read(carriedWork.id)) ?? carriedWork;
         await this.pool.close(input.sessionId);
         provisionalId = `root-${this.crypto.randomUUID()}`;
         const nextId = provisionalId;
@@ -702,10 +892,6 @@ export class PiRuntime {
               data: JSON.parse(JSON.stringify(state)) as JsonObject,
             });
           }, BACKGROUND_CONTEXT);
-          if (carriedWork) {
-            await next.workItems.importWorkItem({ ...carriedWork, status: "active" });
-            next.metadata.continuationWorkItemId = carriedWork.id;
-          }
           await this.replay(nextId);
           await next.recovery?.saveSnapshot(this.recoverySnapshot(next));
           await this.saveMetadata(next.metadata);
@@ -807,7 +993,6 @@ export class PiRuntime {
       const root = await this.activeRoot(input.sessionId);
       root.recovery?.assertCanStartWork();
       if (this.isReadOnly(root)) throw new Error("只读历史不能回退文件。");
-      await this.ensureStoreCapacity(root);
       if (root.busy || root.pending) throw new Error("请等待当前工作结束后再回退。");
       const controller = new AbortController();
       const abort = () => controller.abort();
@@ -840,301 +1025,285 @@ export class PiRuntime {
     });
   }
 
-  async list(cwd?: string) {
-    const parent = this.path.join(this.locator.vaultStoreRoot, "sessions");
-    const names = await this.fs.readdir(parent).catch((error: NodeJS.ErrnoException) => {
-      if (error.code === "ENOENT") return [];
-      throw error;
-    });
-    const result = [];
-    for (const id of names) {
+  async list(cwd?: string): Promise<ListedSessionInfo[]> {
+    await this.rebuildIndex();
+    return this.readListedSessions(cwd);
+  }
+
+  private async readListedSessions(cwd?: string): Promise<ListedSessionInfo[]> {
+    const result: ListedSessionInfo[] = [];
+    for (const id of await this.files.rootIds()) {
       const metadata = await this.readMetadata(id);
-      if (metadata && (cwd === undefined || metadata.cwd === cwd))
-        result.push({
-          sessionId: id,
-          cwd: metadata.cwd,
-          title: metadata.title,
-          updatedAt: metadata.createdAt,
-        });
+      if (
+        metadata &&
+        !metadata.parentSessionId &&
+        (cwd === undefined || cwd === this.vaultRoot || metadata.cwd === cwd)
+      )
+        result.push(this.listedSession(metadata));
     }
     return result;
+  }
+
+  private listedSession(metadata: SessionMetadata): ListedSessionInfo {
+    const createdAtMs = Date.parse(metadata.createdAt);
+    return {
+      sessionId: metadata.sessionId,
+      cwd: metadata.cwd,
+      title: metadata.title,
+      titleSource: metadata.titleSource,
+      createdAtMs,
+      lastAccessedAtMs: metadata.lastAccessedAtMs ?? createdAtMs,
+      updatedAt: new Date(metadata.updatedAtMs ?? createdAtMs).toISOString(),
+      pinnedAt: metadata.pinnedAt,
+      projectId: metadata.projectId,
+    };
+  }
+
+  private async rebuildIndex(): Promise<void> {
+    const writing = this.indexWrites
+      .catch(() => undefined)
+      .then(async () => {
+        const entries = await this.readListedSessions();
+        const target = this.files.paths.indexPath;
+        await this.fs.mkdir(this.path.dirname(target), { recursive: true, mode: 0o700 });
+        const temporary = `${target}.${this.crypto.randomUUID()}.tmp`;
+        try {
+          await this.fs.writeFile(temporary, JSON.stringify({ version: 2, entries }), {
+            mode: 0o600,
+          });
+          await this.fs.rename(temporary, target);
+        } finally {
+          await this.fs.rm(temporary, { force: true });
+        }
+      });
+    this.indexWrites = writing.then(
+      () => undefined,
+      () => undefined
+    );
+    await writing;
+  }
+
+  private notifyStorageChanged(): void {
+    for (const listener of this.storageListeners) {
+      try {
+        listener();
+      } catch (error) {
+        logWarn("[PiRuntime] local data listener failed", error);
+      }
+    }
+  }
+
+  async writeSessionDiagnostic(input: {
+    sessionId: string;
+    name: string;
+    content: Uint8Array;
+  }): Promise<{ zipDir: string; zipPath: string }> {
+    return this.withSessionOperation(input.sessionId, async () => {
+      if (
+        !input.name ||
+        this.path.basename(input.name) !== input.name ||
+        input.name === "." ||
+        input.name === ".."
+      )
+        throw new Error(t("localData.exportPathInvalid"));
+      const ownerId = this.owners.get(input.sessionId) ?? input.sessionId;
+      const save = async () => {
+        if (!(await this.readMetadata(input.sessionId)))
+          throw Object.assign(new Error(t("localData.sessionMissing")), {
+            code: "SESSION_NOT_FOUND",
+          });
+        const zipDir = this.path.join(
+          this.locator.sessionStorePaths(ownerId).storeDir,
+          "diagnostics",
+          this.crypto.randomUUID()
+        );
+        const zipPath = this.path.join(zipDir, input.name);
+        try {
+          await this.fs.mkdir(zipDir, { recursive: true, mode: 0o700 });
+          await this.fs.writeFile(zipPath, input.content, { mode: 0o600 });
+        } catch (error) {
+          // 写入中断时移除半份聊天报告，清理失败仍保留原始故障供用户判断。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+          await this.fs.rm(zipDir, { recursive: true, force: true }).catch(() => undefined);
+          throw error;
+        } finally {
+          this.notifyStorageChanged();
+        }
+        return { zipDir, zipPath };
+      };
+      // 报告包含聊天内容，必须受同一会话租约和删除等待保护；只读查看无需重新打开执行器。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      return this.writerRoots.has(ownerId) ? save() : this.files.withLease(ownerId, save);
+    });
+  }
+
+  private async sessionPaths(id: string): Promise<SessionStorePaths> {
+    const ownerId = this.owners.get(id) ?? (await this.files.ownerId(id));
+    if (ownerId !== id) this.owners.set(id, ownerId);
+    return this.locator.sessionStorePaths(id, ownerId);
   }
 
   async exists(sessionId: string): Promise<boolean> {
     return (await this.readMetadata(sessionId)) !== null;
   }
 
-  async importLegacySession(input: {
-    cwd: string;
-    entry: LegacyChatEntry;
-  }): Promise<{ sessionId: string; state: BackendState; notices: readonly string[] }> {
-    if (!/^[a-f0-9]{64}$/.test(input.entry.sourceHash))
-      throw new Error("The history source has no valid content hash.");
-    return this.withSessionOperation(`root-import-${input.entry.sourceHash}`, async () => {
-      const mappings = this.path.join(this.locator.vaultStoreRoot, "imports");
-      await this.fs.mkdir(mappings, { recursive: true, mode: 0o700 });
-      const importer = new LegacyImport({
-        ports: {
-          findMapping: async (hash) => {
-            try {
-              return JSON.parse(
-                await this.fs.readFile(this.path.join(mappings, `${hash}.json`), "utf8")
-              ) as LegacyImportMapping;
-            } catch (error) {
-              if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-              throw error;
-            }
-          },
-          createRoot: async ({ sourceHash }) => {
-            const sessionId = `root-import-${sourceHash}`;
-            await this.open({ sessionId, cwd: input.cwd });
-            return { rootId: sessionId, sessionId };
-          },
-          saveMapping: async (mapping) => {
-            const target = this.path.join(mappings, `${mapping.sourceHash}.json`);
-            const temporary = `${target}.${this.crypto.randomUUID()}.tmp`;
-            await this.fs.writeFile(temporary, JSON.stringify(mapping), { mode: 0o600 });
-            await this.fs.rename(temporary, target);
-          },
-          appendMaterial: async (material) => {
-            const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
-            const { defineDoc } = await import("@earendil-works/pi-durable");
-            const root = await this.getRoot(material.sessionId, input.cwd, false);
-            const imports = defineDoc<{ entries: Record<string, string> }>({
-              kind: "va.legacy_imports",
-              version: 1,
-              scope: "conversation",
-              history: "rewindable",
-              fork: "initial",
-              initial: () => ({ entries: {} }),
-            });
-            let messageId = "";
-            await root.conversation.commit(async (tx) => {
-              const state = await tx.doc(imports, root.conversation.id);
-              const previous = state.entries[material.contentHash];
-              if (previous) {
-                messageId = previous;
-                return;
-              }
-              const entry = await tx.appendEntry(root.conversation.id, {
-                kind: "va.material",
-                data: {
-                  origin: material.origin,
-                  sourcePath: material.sourcePath,
-                  contentHash: material.contentHash,
-                  importMode: material.importMode,
-                  truncated: material.truncated,
-                  text: material.text,
-                },
-                model: [
-                  {
-                    role: "user",
-                    content: [{ type: "text", text: material.text }],
-                    timestamp: Date.now(),
-                  },
-                ],
-              });
-              messageId = String(entry.id);
-              state.entries[material.contentHash] = messageId;
-            }, BACKGROUND_CONTEXT);
-            await this.replay(material.sessionId);
-            return { messageId };
-          },
-        },
-      });
-      const imported = await importer.importEntry(input.entry);
-      const root = await this.getRoot(imported.sessionId, input.cwd, false);
-      return {
-        sessionId: imported.sessionId,
-        state: this.stateOf(root),
-        notices: imported.notices,
-      };
-    });
-  }
-
   async exportSession(input: {
     sessionId: string;
     format: "json" | "markdown";
-    legacy?: LegacyChatEntry;
-  }): Promise<{ suggestedName: string; content: string }> {
+  }): Promise<SessionExportOutput> {
     return this.withSessionOperation(input.sessionId, async () => {
+      const metadata = await this.readMetadata(input.sessionId);
+      if (!metadata)
+        throw Object.assign(new Error(t("localData.sessionMissing")), {
+          code: "SESSION_NOT_FOUND",
+        });
+      if (!this.readOnlyRoots.has(input.sessionId)) {
+        try {
+          await this.getRoot(input.sessionId, metadata.cwd, false);
+        } catch (error: unknown) {
+          if (
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            (error.code === "STORE_VERSION_UNSUPPORTED" ||
+              error.code === "STORAGE_FAILED" ||
+              error.code === "SESSION_ARCHIVED")
+          )
+            await this.loadReadOnlySnapshot(input.sessionId, error);
+          else throw error;
+        }
+      }
+      const readOnly = this.readOnlyRoots.get(input.sessionId);
       let session: SessionExportInput;
-      if (input.legacy) {
-        const legacy = input.legacy;
+      let messages: readonly AgentChatMessage[];
+      if (readOnly) {
+        messages = readOnly.snapshot.messages;
         session = {
-          sessionId: legacy.sessionId,
-          backendId: legacy.backendId,
-          title: legacy.title,
-          projectId: legacy.projectId,
-          createdAtMs: legacy.createdAtMs,
-          lastAccessedAtMs: legacy.lastAccessedAtMs,
-          messages: legacy.messages,
+          ...readOnly.snapshot.session,
           extras: {
-            sourcePath: legacy.sourcePath,
-            sourceHash: legacy.sourceHash,
-            importMode: legacy.importMode,
+            ...readOnly.snapshot.session.extras,
+            recoveryNotice: readOnly.recovery.message,
           },
         };
       } else {
-        const metadata = await this.readMetadata(input.sessionId);
-        if (!metadata) throw new Error("The session to export does not exist.");
-        if (!this.readOnlyRoots.has(input.sessionId)) {
-          try {
-            await this.getRoot(input.sessionId, metadata.cwd, false);
-          } catch (error: unknown) {
-            if (
-              error &&
-              typeof error === "object" &&
-              "code" in error &&
-              (error.code === "STORE_VERSION_UNSUPPORTED" ||
-                error.code === "STORAGE_FAILED" ||
-                error.code === "SESSION_ARCHIVED")
-            )
-              await this.loadReadOnlySnapshot(input.sessionId, error);
-            else throw error;
-          }
-        }
-        const readOnly = this.readOnlyRoots.get(input.sessionId);
-        if (readOnly) {
-          session = {
-            ...readOnly.snapshot.session,
-            extras: {
-              ...readOnly.snapshot.session.extras,
-              recoveryNotice: readOnly.recovery.message,
-            },
-          };
-        } else {
-          const root = await this.getRoot(input.sessionId, metadata.cwd, false);
-          await this.replay(input.sessionId);
-          const attachments = new Map<
-            string,
-            import("@/agentMode/sdk/pi/storage/SessionExport").SessionExportAttachment
-          >();
-          for (const item of root.entries.values()) {
-            if (
-              item.kind !== "va.input" ||
-              !item.data ||
-              typeof item.data !== "object" ||
-              Array.isArray(item.data) ||
-              !Array.isArray(item.data.attachments)
-            )
-              continue;
-            for (const attachment of item.data.attachments)
-              if (
-                attachment &&
-                typeof attachment === "object" &&
-                !Array.isArray(attachment) &&
-                typeof attachment.attachmentId === "string" &&
-                typeof attachment.mime === "string" &&
-                typeof attachment.bytes === "number" &&
-                typeof attachment.contentHash === "string"
-              )
-                attachments.set(attachment.attachmentId, {
-                  attachmentId: attachment.attachmentId,
-                  mime: attachment.mime,
-                  bytes: attachment.bytes,
-                  contentHash: attachment.contentHash,
-                  ...(typeof attachment.blobRef === "string"
-                    ? { blobRef: attachment.blobRef }
-                    : {}),
-                  ...(typeof attachment.vaultPath === "string"
-                    ? { vaultPath: attachment.vaultPath }
-                    : {}),
-                });
-          }
-          session = {
-            sessionId: input.sessionId,
-            backendId: "pi",
-            title: metadata.title,
-            projectId: metadata.projectId,
-            createdAtMs: Date.parse(metadata.createdAt),
-            lastAccessedAtMs: Date.now(),
-            attachments: [...attachments.values()],
-            messages: this.messages(root).map((message) => ({
-              role: message.sender === "user" ? "user" : "assistant",
-              text: message.message,
-            })),
-            extras: {
-              entries: [...root.entries.values()],
-              modelId: metadata.modelId,
-              mode: metadata.mode,
-            },
-          };
-        }
+        const root = await this.getRoot(input.sessionId, metadata.cwd, false);
+        await this.replay(input.sessionId);
+        messages = this.messages(root);
+        session = {
+          sessionId: input.sessionId,
+          backendId: "pi",
+          title: metadata.title,
+          projectId: metadata.projectId,
+          createdAtMs: Date.parse(metadata.createdAt),
+          lastAccessedAtMs: metadata.lastAccessedAtMs ?? Date.parse(metadata.createdAt),
+          messages: [],
+          extras: {
+            entries: [...root.entries.values()],
+            modelId: metadata.modelId,
+            mode: metadata.mode,
+          },
+        };
       }
+      const attachments = new Map<
+        string,
+        import("@/agentMode/sdk/pi/storage/SessionExport").SessionExportAttachment
+      >();
+      const directory = `${input.sessionId}-attachments`;
+      const exportedMessages = messages.map((message) => {
+        const names: string[] = [];
+        for (const content of message.content ?? []) {
+          if (
+            !content ||
+            typeof content !== "object" ||
+            !("type" in content) ||
+            content.type !== "image_url" ||
+            !("image_url" in content)
+          )
+            continue;
+          const image = content.image_url;
+          if (
+            !image ||
+            typeof image !== "object" ||
+            !("url" in image) ||
+            typeof image.url !== "string"
+          )
+            continue;
+          const matched = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=]+)$/.exec(
+            image.url
+          );
+          if (!matched) continue;
+          const [, mime, data] = matched;
+          const contentHash = sha256(data);
+          const extension =
+            mime === "image/jpeg" ? "jpg" : mime.slice(6).replace(/[^a-zA-Z0-9]/g, "");
+          const name = `${directory}/${contentHash}.${extension}`;
+          names.push(name);
+          attachments.set(name, {
+            attachmentId: contentHash,
+            mime,
+            contentHash,
+            bytes: Buffer.from(data, "base64").byteLength,
+            name,
+            data,
+          });
+        }
+        return {
+          role: message.sender === "user" ? ("user" as const) : ("assistant" as const),
+          text: message.message,
+          ...(names.length ? { attachments: names } : {}),
+        };
+      });
+      const privateDir = this.path.dirname((await this.sessionPaths(input.sessionId)).metaPath);
+      for (const name of await this.fs.readdir(privateDir)) {
+        if (!/^command-output-[a-zA-Z0-9-]+\.txt$/.test(name)) continue;
+        const bytes = await this.fs.readFile(this.path.join(privateDir, name));
+        const contentHash = sha256(bytes.toString("base64"));
+        attachments.set(name, {
+          attachmentId: contentHash,
+          mime: "text/plain",
+          bytes: bytes.byteLength,
+          contentHash,
+          name: `${directory}/${name}`,
+          data: bytes.toString("base64"),
+        });
+      }
+      session = { ...session, messages: exportedMessages, attachments: [...attachments.values()] };
+      const serialized = JSON.stringify(session).replaceAll(
+        JSON.stringify(privateDir).slice(1, -1),
+        directory
+      );
+      session = JSON.parse(serialized) as SessionExportInput;
       let content = "";
       const exporter = new SessionExport({
         ports: {
           writeFile: async (_path, text) => {
             content = text;
           },
-          readFile: async () => content,
         },
       });
       if (input.format === "markdown") content = exporter.toMarkdown(session);
-      else {
-        const result = await exporter.exportSession(session);
-        if (!result.ok) throw new Error(result.message);
-      }
+      else await exporter.exportSession(session);
       return {
-        suggestedName: `${input.sessionId.replace(/[^a-zA-Z0-9_-]/g, "_")}.${input.format === "markdown" ? "md" : "json"}`,
+        suggestedName: `${input.sessionId}.${input.format === "markdown" ? "md" : "json"}`,
         content,
+        ...(input.format === "markdown"
+          ? {
+              attachments: [...attachments.values()].map((file) => ({
+                name: file.name!,
+                content: new Uint8Array(Buffer.from(file.data!, "base64")),
+              })),
+            }
+          : {}),
       };
     });
   }
 
-  async importSessionBackup(input: {
-    cwd: string;
-    content: string;
-  }): Promise<{ sessionId: string; state: BackendState; notices: readonly string[] }> {
-    const exporter = new SessionExport({
-      ports: {
-        readFile: async () => input.content,
-        writeFile: async () => {
-          throw new Error("Importing a backup cannot write its source.");
-        },
-      },
-    });
-    const imported = await exporter.importDocument("backup.json");
-    if (!imported.ok) throw new Error(imported.message);
-    const document = imported.document;
-    const sessionId = `root-backup-${document.contentHash}`;
-    return this.withSessionOperation(sessionId, async () => {
-      const opened = await this.open({ sessionId, cwd: input.cwd, readOnly: true });
-      const root = await this.activeRoot(sessionId);
-      if (!root.metadata.readOnly) throw new Error("An imported backup must remain read-only.");
-      const [{ defineDoc }, { BACKGROUND_CONTEXT }] = await Promise.all([
-        import("@earendil-works/pi-durable"),
-        import("@earendil-works/chord/context"),
-      ]);
-      const token = defineDoc<{ imports: Record<string, boolean> }>({
-        kind: "va.backup_imports",
-        version: 1,
-        scope: "conversation",
-        history: "rewindable",
-        fork: "initial",
-        initial: () => ({ imports: {} }),
-      });
-      await root.conversation.commit(async (tx) => {
-        const state = await tx.doc(token, root.conversation.id);
-        if (state.imports[document.contentHash]) return;
-        await tx.appendEntry(root.conversation.id, {
-          kind: "va.backup",
-          data: JSON.parse(JSON.stringify(document)),
-          model: document.session.messages.map((message) => ({
-            role: "user" as const,
-            content: [{ type: "text" as const, text: message.text }],
-            timestamp: message.timestampMs ?? document.session.createdAtMs,
-          })),
-        });
-        state.imports[document.contentHash] = true;
-      }, BACKGROUND_CONTEXT);
-      await this.replay(sessionId);
-      return { ...opened, notices: imported.notices };
-    });
-  }
-
-  async steer(input: { sessionId: string; requestId: string; text: string }): Promise<void> {
+  // prompt/context 支持把带图片和资料的排队消息插入进行中的轮次：https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+  async steer(input: {
+    sessionId: string;
+    requestId: string;
+    text: string;
+    prompt?: PromptContent[];
+    context?: PromptContext;
+  }): Promise<void> {
     return this.withSessionOperation(input.sessionId, async () => {
       assertSteerText(input.text);
       const root = this.requireRoot(input.sessionId);
@@ -1164,8 +1333,8 @@ export class PiRuntime {
         input: {
           sessionId: input.sessionId,
           requestId: input.requestId,
-          prompt: [{ type: "text", text: input.text }],
-          context: { project: selected.project, materials: [] },
+          prompt: input.prompt ?? [{ type: "text", text: input.text }],
+          context: { project: selected.project, materials: input.context?.materials ?? [] },
         },
         environment: {
           scope: { vaultRoot: this.vaultRoot, workspaceRoot: root.metadata.cwd },
@@ -1503,18 +1672,8 @@ export class PiRuntime {
         .join("\n")
         .trim() === "/stop";
     if (!stopRequested) root.recovery?.assertCanStartWork();
-    if (
-      root.metadata.readOnly &&
-      !root.metadata.parentSessionId &&
-      input.prompt
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("\n")
-        .trim() !== "/stop"
-    )
-      throw new Error(
-        "This imported backup is read-only. Import its visible history into a new chat before continuing."
-      );
+    if (root.metadata.readOnly && !root.metadata.parentSessionId && !stopRequested)
+      throw new Error(t("localData.readOnly"));
     const command = await dispatchPiRuntimeCommand(input, {
       compact: async () => ({ ok: false }),
       stop: async () => this.cancel(input.sessionId),
@@ -1533,25 +1692,13 @@ export class PiRuntime {
       if (this.unsentInputs.has(input.sessionId)) await this.saveUnsentInput(input.sessionId, null);
       return { stopReason: "end_turn", handledLocally: true };
     }
-    if (root.metadata.readOnly && !root.metadata.parentSessionId)
-      throw new Error(
-        "This imported backup is read-only. Import its visible history into a new chat before continuing."
-      );
     if (root.busy) throw new Error("This Pi session is already answering.");
     root.busy = true;
     root.pending = this.unsentAdmissions.get(input.sessionId)?.controller ?? new AbortController();
     const work = (async () => {
       let admitted = false;
       try {
-        const admission = await this.pool.admitRun(root.ownerSessionId);
-        if (admission.kind === "blocked")
-          throw new Error(
-            "这段聊天已达到存储上限。可在更多菜单选择“总结并新建会话”；原历史将完整保留为只读。"
-          );
-        if (admission.warning)
-          this.host.notify?.(
-            "这段聊天保存的内容较多，可在更多菜单选择“总结并新建会话”；当前消息仍可继续。"
-          );
+        await this.pool.admitRun(root.ownerSessionId);
         admitted = true;
         return await this.runPrompt(root, { ...input, requestId }, requestId);
       } finally {
@@ -1591,78 +1738,82 @@ export class PiRuntime {
   }
 
   async cancel(sessionId: string, closing = false, preserveRollover = false): Promise<void> {
-    return this.withSessionOperation(sessionId, async () => {
-      if (await this.pauseUnsentInput(sessionId, !closing)) return;
-      if (
-        !closing &&
-        (this.unsentInputs.has(sessionId) || (await this.readMetadata(sessionId))?.unsentInput)
-      ) {
-        await this.saveUnsentInput(sessionId, null);
-        const savedRoot = this.roots.get(sessionId);
-        if (savedRoot) this.emitProjection(savedRoot);
-        return;
-      }
-      const root = this.roots.get(sessionId);
-      if (!preserveRollover && (!closing || root?.run?.status === "active"))
-        this.rollovers.get(sessionId)?.abort();
-      if (!root) return;
-      if (root.metadata.archivedAtMs) return;
-      // 滚动时关闭已结束的旧写入者只是释放名额，不能误当成用户停止；真正 Stop 仍取消整个整理：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      if (closing && this.rollovers.has(sessionId) && root.run?.status !== "active") return;
-      const cancellingPermissions = [...(root.approvals?.pending ?? [])];
-      root.pending?.abort();
-      root.run?.controller.abort();
-      if (root.run) root.run.status = "cancelled";
-      if (root.storageFailed) {
-        root.vaultTools.dispose();
-        root.approvals?.dispose();
-        await root.native.dispose();
+    return this.withSessionOperation(
+      sessionId,
+      async () => {
+        if (await this.pauseUnsentInput(sessionId, !closing)) return;
+        if (
+          !closing &&
+          (this.unsentInputs.has(sessionId) || (await this.readMetadata(sessionId))?.unsentInput)
+        ) {
+          await this.saveUnsentInput(sessionId, null);
+          const savedRoot = this.roots.get(sessionId);
+          if (savedRoot) this.emitProjection(savedRoot);
+          return;
+        }
+        const root = this.roots.get(sessionId);
+        if (!preserveRollover && (!closing || root?.run?.status === "active"))
+          this.rollovers.get(sessionId)?.abort();
+        if (!root) return;
+        if (root.metadata.archivedAtMs) return;
+        // 滚动时关闭已结束的旧写入者只是释放名额，不能误当成用户停止；真正 Stop 仍取消整个整理：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        if (closing && this.rollovers.has(sessionId) && root.run?.status !== "active") return;
+        const cancellingPermissions = [...(root.approvals?.pending ?? [])];
+        root.pending?.abort();
+        root.run?.controller.abort();
+        if (root.run) root.run.status = "cancelled";
+        if (root.storageFailed) {
+          root.vaultTools.dispose();
+          root.approvals?.dispose();
+          await root.native.dispose();
+          await root.work?.catch(() => undefined);
+          return;
+        }
+        if (root.ownerSessionId === sessionId) {
+          await root.approvals?.cancelAll();
+          for (const prompt of cancellingPermissions)
+            await root.audit.record({
+              operationId: prompt.toolCall.toolCallId,
+              actor: "root",
+              toolId: prompt.binding?.toolId ?? prompt.toolCall.title ?? "unknown",
+              arguments: prompt.toolCall.rawInput,
+              targets: prompt.binding?.targets ?? [],
+              effects: [],
+              decision: "cancelled",
+              status: "cancelled",
+              requestId: root.run?.requestId,
+            });
+          await root.features.cancelPendingInteractions();
+          await root.subagents.stopAll();
+        }
+        for (const child of [...this.roots.values()])
+          if (child.metadata.parentSessionId === sessionId)
+            await this.cancel(child.metadata.sessionId);
+        await root.conversation.abort(
+          (await import("@earendil-works/chord/context")).BACKGROUND_CONTEXT,
+          { background: true }
+        );
         await root.work?.catch(() => undefined);
-        return;
-      }
-      if (root.ownerSessionId === sessionId) {
-        await root.approvals?.cancelAll();
-        for (const prompt of cancellingPermissions)
-          await root.audit.record({
-            operationId: prompt.toolCall.toolCallId,
-            actor: "root",
-            toolId: prompt.binding?.toolId ?? prompt.toolCall.title ?? "unknown",
-            arguments: prompt.toolCall.rawInput,
-            targets: prompt.binding?.targets ?? [],
-            effects: [],
-            decision: "cancelled",
-            status: "cancelled",
-            requestId: root.run?.requestId,
-          });
-        await root.features.cancelPendingInteractions();
-        await root.subagents.stopAll();
-      }
-      for (const child of [...this.roots.values()])
-        if (child.metadata.parentSessionId === sessionId)
-          await this.cancel(child.metadata.sessionId);
-      await root.conversation.abort(
-        (await import("@earendil-works/chord/context")).BACKGROUND_CONTEXT,
-        { background: true }
-      );
-      await root.work?.catch(() => undefined);
-      if (!root.storageFailed) {
-        const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
-        // 摘要任务结束时可能才排入写入；停止必须等实际任务收尾后撤销这些排队记录，不能冷开后误判为待执行工作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-        const remaining = await root.harness.inspect(BACKGROUND_CONTEXT);
-        for (const submission of remaining.submissions)
-          await root.harness.abortSubmission(
-            submission.id,
-            BACKGROUND_CONTEXT,
-            submission.conversationId
-          );
-      }
-      if (!root.storageFailed && root.ownerSessionId === sessionId)
-        await this.settlePausedRunAfterAbort(root);
-      if (root.recovery && !root.storageFailed) {
-        await root.vaultTools.reconcile();
-        await root.recovery.safeBoundary();
-      }
-    });
+        if (!root.storageFailed) {
+          const { BACKGROUND_CONTEXT } = await import("@earendil-works/chord/context");
+          // 摘要任务结束时可能才排入写入；停止必须等实际任务收尾后撤销这些排队记录，不能冷开后误判为待执行工作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+          const remaining = await root.harness.inspect(BACKGROUND_CONTEXT);
+          for (const submission of remaining.submissions)
+            await root.harness.abortSubmission(
+              submission.id,
+              BACKGROUND_CONTEXT,
+              submission.conversationId
+            );
+        }
+        if (!root.storageFailed && root.ownerSessionId === sessionId)
+          await this.settlePausedRunAfterAbort(root);
+        if (root.recovery && !root.storageFailed) {
+          await root.vaultTools.reconcile();
+          await root.recovery.safeBoundary();
+        }
+      },
+      true
+    );
   }
 
   async close(sessionId: string): Promise<void> {
@@ -1727,7 +1878,16 @@ export class PiRuntime {
       for (const child of [...this.roots.values()])
         if (child.metadata.parentSessionId === sessionId)
           await this.closeResources(child.metadata.sessionId);
-      await root.sdkToolRejectionChain;
+      // 候选与父会话共用工具，关闭一个候选不能等待另一个仍在读取的候选。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      const drained: PromiseSettledResult<unknown>[] =
+        root.ownerSessionId === sessionId
+          ? await Promise.allSettled([
+              root.sdkToolRejectionChain,
+              root.steerSourceChain,
+              this.checkpointChains.get(root.ownerSessionId),
+              root.vaultTools.drain(),
+            ])
+          : [];
       await root.watch.stop();
       if (root.ownerSessionId !== sessionId) {
         this.roots.delete(sessionId);
@@ -1768,6 +1928,10 @@ export class PiRuntime {
         for (const key of this.budgets.keys())
           if (key.startsWith(`${sessionId}:`)) this.budgets.delete(key);
       }
+      if (!root.storageFailed) {
+        const rejected = drained.find((result) => result.status === "rejected");
+        if (rejected?.status === "rejected") throw rejected.reason;
+      }
     } finally {
       // 内层关闭只能撤自己的门，外层释放仍在保存/重建检查点时不能开放新调用。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
       if (!alreadyClosing) this.closingRoots.delete(sessionId);
@@ -1792,6 +1956,8 @@ export class PiRuntime {
     this.observedSessions.clear();
     this.observedOwners.clear();
     this.readOnlyRoots.clear();
+    await this.indexWrites;
+    this.storageListeners.clear();
     // 一条待发输入保存失败不能阻止其它写入者释放；完成全部清理后仍报告原始失败。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     const failures = results.flatMap((result) =>
       result.status === "rejected" ? [result.reason as unknown] : []
@@ -1978,6 +2144,7 @@ export class PiRuntime {
   }
 
   async replay(sessionId: string): Promise<void> {
+    if (this.deleting.has(this.owners.get(sessionId) ?? sessionId)) return;
     return this.withSessionOperation(sessionId, async () => {
       const root = this.roots.get(sessionId);
       if (!root) return;
@@ -2040,6 +2207,7 @@ export class PiRuntime {
     input: OpenSessionInput | undefined,
     parent: OpenRoot
   ): Promise<OpenRoot> {
+    this.owners.set(id, parent.ownerSessionId);
     const [{ BACKGROUND_CONTEXT }, { watchEvents }] = await Promise.all([
       import("@earendil-works/chord/context"),
       import("@earendil-works/pi-durable"),
@@ -2080,7 +2248,7 @@ export class PiRuntime {
     );
     if (!conversation) throw new Error("The saved fan-out conversation is missing.");
     metadata.conversationId = String(conversation.id);
-    const privateDir = this.path.dirname(this.locator.sessionStorePaths(id).metaPath);
+    const privateDir = this.path.dirname((await this.sessionPaths(id)).metaPath);
     await this.fs.mkdir(privateDir, { recursive: true, mode: 0o700 });
     const watch = await watchEvents(parent.harness, conversation.id, BACKGROUND_CONTEXT);
     const translator = new EventTranslator({
@@ -2535,7 +2703,6 @@ export class PiRuntime {
     });
     const signal = request.signal ?? binding.controller.signal;
     if (owner.pauseRequested) return this.pauseAtBoundary(owner, binding, signal);
-    await this.ensureStoreCapacity(owner, signal);
     await this.checkpointChains.get(owner.metadata.sessionId);
     await this.checkpointWorkItem(owner, binding.id, "before_request");
     try {
@@ -2610,13 +2777,7 @@ export class PiRuntime {
     reason: string,
     evidenceEntryIds: readonly string[] = [],
     sourceSeq = 0,
-    status?:
-      | "active"
-      | "paused_budget"
-      | "paused_storage"
-      | "paused_stalled"
-      | "paused_user"
-      | "waiting_user"
+    status?: "active" | "paused_budget" | "paused_stalled" | "paused_user" | "waiting_user"
   ): Promise<void> {
     const item = await owner.workItems.read(runId);
     if (!item || (reason === "committed_progress" && item.status === "waiting_user")) return;
@@ -2733,44 +2894,11 @@ export class PiRuntime {
     await root.recovery?.safeBoundary();
   }
 
-  private async ensureStoreCapacity(owner: OpenRoot, signal?: AbortSignal): Promise<void> {
-    if (this.rollovers.has(owner.metadata.sessionId)) return;
-    if ((await this.measureStoreBytes(owner.store.storeDir)) < STORE_SIZE_PAUSE_BYTES) return;
-    let run = owner.run ?? [...owner.runs.values()].at(-1);
-    if (!run) {
-      const runId = `storage-${owner.metadata.sessionId}`;
-      await owner.workItems.ensure(runId, "保留当前聊天和已完成的操作，在新记录中继续。");
-      run = {
-        id: runId,
-        requestId: runId,
-        controller: new AbortController(),
-        startedAt: Date.now(),
-        budget: await this.budgetFor(owner, runId),
-        status: "active",
-        purpose: "root",
-      };
-      owner.run = run;
-      owner.runs.set(runId, run);
-    }
-    const interruption = new AbortController();
-    const abort = () => interruption.abort();
-    const signals = [run.controller.signal, ...(signal ? [signal] : [])];
-    for (const item of signals) {
-      item.addEventListener("abort", abort, { once: true });
-      if (item.aborted) interruption.abort();
-    }
-    try {
-      await this.pauseAtBoundary(owner, run, interruption.signal, "storage");
-    } finally {
-      for (const item of signals) item.removeEventListener("abort", abort);
-    }
-  }
-
   private pauseAtBoundary(
     owner: OpenRoot,
     run: NonNullable<OpenRoot["run"]>,
     signal: AbortSignal,
-    reason: "budget" | "storage" | "stalled" | "user" = "budget"
+    reason: "budget" | "stalled" | "user" = "budget"
   ): Promise<never> {
     const ownerId = owner.metadata.sessionId;
     if (!this.pauseOperations.has(ownerId)) {
@@ -2795,14 +2923,12 @@ export class PiRuntime {
         await this.checkpointChains.get(ownerId);
         await owner.vaultTools.drain();
         await owner.native.dispose();
-        const pausedStatus: "paused_storage" | "paused_stalled" | "paused_budget" | "paused_user" =
-          reason === "storage"
-            ? "paused_storage"
-            : reason === "user"
-              ? "paused_user"
-              : reason === "stalled"
-                ? "paused_stalled"
-                : "paused_budget";
+        const pausedStatus: "paused_stalled" | "paused_budget" | "paused_user" =
+          reason === "user"
+            ? "paused_user"
+            : reason === "stalled"
+              ? "paused_stalled"
+              : "paused_budget";
         await this.checkpointWorkItem(owner, run.id, pausedStatus, [], 0, pausedStatus);
         const state = {
           runId: run.id,
@@ -2916,6 +3042,8 @@ export class PiRuntime {
     waitForCapacity = true
   ): Promise<OpenRoot> {
     await this.resourceClosures.get(id);
+    if (this.deleting.has(this.owners.get(id) ?? id))
+      throw Object.assign(new Error(t("localData.sessionMissing")), { code: "SESSION_NOT_FOUND" });
     if (this.closed) throw new Error("The Pi runtime is closed.");
     if (!allowRollover && this.rollovers.has(id)) throw new Error("这段聊天正在整理，请等待完成。");
     if (this.closingRoots.has(id))
@@ -2933,6 +3061,11 @@ export class PiRuntime {
     }
     const opening = (async () => {
       const stored = await this.readMetadata(id);
+      // 已删除记录必须直接报告不存在，不能因其他聊天占用名额而误报繁忙。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (!create && !stored)
+        throw Object.assign(new Error(t("localData.sessionMissing")), {
+          code: "SESSION_NOT_FOUND",
+        });
       if (stored?.archivedAtMs)
         throw Object.assign(new Error("这段聊天已归档，原始历史仅供读取和导出。"), {
           code: "SESSION_ARCHIVED",
@@ -2994,11 +3127,12 @@ export class PiRuntime {
       defineDoc,
     } = await import("@earendil-works/pi-durable");
     const { openNodeJsonlStorage } = await import("@earendil-works/pi-durable/storage/jsonl/node");
-    const paths = this.locator.sessionStorePaths(id);
+    const paths = await this.sessionPaths(id);
     const privateDir = this.path.dirname(paths.metaPath);
     let metadata = await this.readMetadata(id);
     if (metadata?.unsentInput) this.unsentInputs.set(id, metadata.unsentInput);
-    if (!metadata && !create) throw new Error("The saved Pi session does not exist.");
+    if (!metadata && !create)
+      throw Object.assign(new Error(t("localData.sessionMissing")), { code: "SESSION_NOT_FOUND" });
     const parentSessionId = metadata?.parentSessionId ?? input?.parentSessionId;
     if (parentSessionId)
       return this.openChild(
@@ -3076,7 +3210,6 @@ export class PiRuntime {
       readOnly: input?.readOnly,
       projectId: input?.projectId,
     };
-    await this.fs.mkdir(privateDir, { recursive: true, mode: 0o700 });
     let storage: Storage | undefined;
     const opened = await this.withMetadataLock(id, async () => {
       const result = await new DurableStore({
@@ -3085,6 +3218,24 @@ export class PiRuntime {
         context: BACKGROUND_CONTEXT,
         lease: new StoreLease({ leaseDir: paths.leaseDir, storePath: paths.storeDir }),
         openStorage: async (directory, context, options) => {
+          const current = await this.readMetadata(id);
+          if (!current && !create)
+            throw Object.assign(new Error(t("localData.sessionMissing")), {
+              code: "SESSION_NOT_FOUND",
+            });
+          if (current) Object.assign(metadata, current);
+          // 恢复不能把丢失的主记录当作新聊天，否则会覆盖剩余的历史快照。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+          if (!create) {
+            try {
+              await this.fs.access(this.path.join(directory, "main.jsonl"));
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+              throw Object.assign(new Error(t("localData.transcriptMissing")), {
+                code: "SESSION_TRANSCRIPT_MISSING",
+                cause: error,
+              });
+            }
+          }
           storage = await openNodeJsonlStorage(directory, context, options);
           return storage;
         },
@@ -3145,13 +3296,8 @@ export class PiRuntime {
           readOnly: session
             ? this.isReadOnly(session)
             : (owned?.subagents.isReadOnly(conversationId) ?? true),
-          trustedHost:
-            this.host.getSettings().agentMode.backends.pi?.hostExecutionMode === "trusted_host",
           scope: {
             vaultRoot: this.vaultRoot,
-            externalRoots: (this.host.getSettings().agentMode.backends.pi?.externalScopes ?? [])
-              .filter((scope) => scope.expiresAtMs === undefined || scope.expiresAtMs > Date.now())
-              .map((scope) => scope.root),
             readOnly: false,
           },
         };
@@ -3188,7 +3334,6 @@ export class PiRuntime {
             code: "RECOVERY_REQUIRED",
             block: "未完成的工作尚未得到用户明确恢复，工具不会执行。",
           };
-        await this.ensureStoreCapacity(owned, context.abortSignal);
         const session = this.sessionForConversation(conversationId, id);
         const parentRun = session
           ? session.run
@@ -3210,9 +3355,6 @@ export class PiRuntime {
       });
       const vaultTools = await createVaultHostTools({
         capabilities,
-        beforeMutation: async (signal) => {
-          if (owned) await this.ensureStoreCapacity(owned, signal);
-        },
         audit,
         app: this.host.app,
         vaultRoot: this.vaultRoot,
@@ -3731,9 +3873,6 @@ export class PiRuntime {
       cleanup.push(() => mcp.dispose());
       registry.install(defineExtension({ name: "vault-agent-mcp", tools: mcp.registrations }));
       const native = await createPiNativeHostTools({
-        beforeOperation: async (signal) => {
-          if (owned) await this.ensureStoreCapacity(owned, signal);
-        },
         capabilities,
         audit,
         vaultRoot: this.vaultRoot,
@@ -3757,10 +3896,6 @@ export class PiRuntime {
             : (owned?.subagents.isReadOnly(conversationId) ?? true);
         },
         subscribeSettings: this.host.subscribeSettings,
-        getExecutionMode: () =>
-          this.host.getSettings().agentMode.backends.pi?.hostExecutionMode ?? "strict",
-        getExternalScopes: () =>
-          this.host.getSettings().agentMode.backends.pi?.externalScopes ?? [],
         requestPermission: (prompt) =>
           owned?.approvals?.request(prompt) ??
           Promise.resolve({ outcome: { outcome: "cancelled" } }),
@@ -3788,13 +3923,11 @@ export class PiRuntime {
         conversation,
         sessionId: id,
         models,
-        enabledProfiles: () =>
-          this.host.getSettings().agentMode.backends.pi?.enabledSubagentProfiles ??
-          defaultEnabledProfiles(),
         getModelKey: () => owned?.metadata.modelId ?? metadata.modelId,
         getMode: () =>
           owned && this.isReadOnly(owned) ? "plan" : (owned?.metadata.mode ?? metadata.mode),
         isPathInScope: (path) => this.pathInScope(path, metadata.cwd),
+        hostChildReadOnly: (conversationId) => this.callbacks.readOnly(conversationId),
         getRun: () =>
           owned?.run && owned.run.status === "active"
             ? { id: owned.run.id, budget: owned.run.budget, signal: owned.run.controller.signal }
@@ -3881,6 +4014,7 @@ export class PiRuntime {
         subagents,
         native,
         runs: new Map(),
+        segmentTtfts: [],
         sdkToolRejections: new Map(),
         sdkToolRejectionChain: Promise.resolve(),
         steerSourceChain: Promise.resolve(),
@@ -3899,6 +4033,7 @@ export class PiRuntime {
         pauseRequested: false,
       };
       const root = owned;
+      cleanup.push(root.harness.subscribeCommits(() => this.notifyStorageChanged()));
       await vaultTools.bindMutationJournal(
         await createDurableMutationJournal({ harness, conversation })
       );
@@ -4575,6 +4710,7 @@ export class PiRuntime {
           ? "fanout"
           : "root",
     };
+    root.segmentTtfts = [];
     const run = root.run;
     root.runs.set(runId, run);
     if (!root.metadata.parentSessionId)
@@ -4772,11 +4908,13 @@ export class PiRuntime {
         endedAtMs: Date.now(),
         cancelEpoch: terminal === "cancelled" ? 1 : 0,
         modelAttempts: run.budget.snapshot.modelAttempts,
+        ...(root.segmentTtfts.length ? { segmentTtfts: [...root.segmentTtfts] } : {}),
         fileChanges: root.fileChanges.map((change) => ({
           ...change,
           mutationOperationIds: [...(change.mutationOperationIds ?? [])],
         })),
       };
+      root.segmentTtfts = [];
       const terminalWrite = await root.conversation.submit(
         { type: "write", entry: { kind: "va.run", data: state } },
         BACKGROUND_CONTEXT
@@ -5052,6 +5190,9 @@ export class PiRuntime {
         contextWindow
       );
       if (usage) this.emit(sessionId, { sessionUpdate: "usage_update", usage });
+    } else if (event.kind === "message_timing") {
+      // 只统计根轮内的模型段；标题、压缩与子代理请求不计入本轮 TTFT。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+      if (root.run?.purpose === "root") root.segmentTtfts.push(event.ttftMs);
     } else if (event.kind === "compaction") {
       const placed = [...root.entries.values()].some(
         (entry) => entry.kind === "pi.compaction" && String(entry.byTaskId) === event.taskId
@@ -5202,6 +5343,32 @@ export class PiRuntime {
       root.sdkToolRejections,
       root.acceptedSteers
     );
+    // 分叉只替换可打开的显示标识，原始记录和已经发送过的模型上下文保持不变。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    const forkChildSessionIds = root.metadata.forkChildSessionIds;
+    for (const message of messages) {
+      if (!message.fanout || !forkChildSessionIds) continue;
+      const turn: FanoutTurn = {
+        ...message.fanout,
+        answers: Object.fromEntries(
+          Object.entries(message.fanout.answers).map(([slot, answer]) => [
+            slot,
+            answer.completion
+              ? {
+                  ...answer,
+                  completion: {
+                    ...answer.completion,
+                    sessionId:
+                      forkChildSessionIds[answer.completion.sessionId] ??
+                      answer.completion.sessionId,
+                  },
+                }
+              : answer,
+          ])
+        ),
+      };
+      message.fanout = turn;
+      message.message = serializeFanoutComposite(turn, (key) => key);
+    }
     const draft = this.unsentInputs.get(root.metadata.sessionId);
     if (draft?.kind === "prompt" && !this.unsentAdmissions.has(root.metadata.sessionId)) {
       const pending = this.unsentMessage(draft);
@@ -5373,7 +5540,7 @@ export class PiRuntime {
     let snapshot: PiRecoverySnapshot;
     try {
       snapshot = await readPiRecoverySnapshot(
-        this.path.dirname(this.locator.sessionStorePaths(sessionId).metaPath)
+        this.path.dirname((await this.sessionPaths(sessionId)).metaPath)
       );
       if (snapshot.session.sessionId !== sessionId) throw new Error("历史快照不属于这段聊天。");
       const draft = (await this.readMetadata(sessionId))?.unsentInput;
@@ -5654,31 +5821,53 @@ export class PiRuntime {
 
   private hasSessionOperation(ownerSessionId: string): boolean {
     return (
+      this.forking.has(ownerSessionId) ||
+      this.deleting.has(ownerSessionId) ||
       [...this.sessionOperations].some(
         ([id, count]) =>
           count > 0 &&
           (this.roots.get(id)?.ownerSessionId ?? this.operationOwners.get(id) ?? id) ===
             ownerSessionId
-      ) || this.opening.has(ownerSessionId)
+      ) ||
+      this.opening.has(ownerSessionId)
     );
   }
 
-  private async withSessionOperation<T>(sessionId: string, work: () => Promise<T>): Promise<T> {
+  private async withSessionOperation<T>(
+    sessionId: string,
+    work: () => Promise<T>,
+    allowDeleting = false
+  ): Promise<T> {
+    // 冷启动打开子会话也必须登记到父会话，删除才能等它完成而不被迟到的建目录操作复活。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    const ownerId = this.owners.get(sessionId) ?? (await this.files.ownerId(sessionId));
+    if (ownerId !== sessionId) this.owners.set(sessionId, ownerId);
+    if (!allowDeleting && this.deleting.has(ownerId))
+      throw Object.assign(new Error(t("localData.sessionMissing")), { code: "SESSION_NOT_FOUND" });
+    if (!allowDeleting && this.forking.has(ownerId))
+      throw Object.assign(new Error(t("localData.sessionBusy")), { code: "STORE_BUSY" });
     // 页面观察者只是缓存；真正读取或修改 SDK 的完整异步操作才保护写入者不被中途回收。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     this.sessionOperations.set(sessionId, (this.sessionOperations.get(sessionId) ?? 0) + 1);
-    try {
+    const task = (async () => {
       await this.resourceClosures.get(this.roots.get(sessionId)?.ownerSessionId ?? sessionId);
-      return await work();
+      return work();
+    })();
+    const tasks = this.operationTasks.get(ownerId) ?? new Set<Promise<unknown>>();
+    tasks.add(task);
+    this.operationTasks.set(ownerId, tasks);
+    try {
+      return await task;
     } finally {
+      tasks.delete(task);
+      if (!tasks.size) this.operationTasks.delete(ownerId);
       const remaining = (this.sessionOperations.get(sessionId) ?? 1) - 1;
       if (remaining) this.sessionOperations.set(sessionId, remaining);
       else this.sessionOperations.delete(sessionId);
-      const ownerId = this.roots.get(sessionId)?.ownerSessionId;
+      const liveOwnerId = this.roots.get(sessionId)?.ownerSessionId;
       if (
-        ownerId &&
+        liveOwnerId &&
         !this.closed &&
-        !this.closingRoots.has(ownerId) &&
-        !this.pausingRoots.has(ownerId)
+        !this.closingRoots.has(liveOwnerId) &&
+        !this.pausingRoots.has(liveOwnerId)
       )
         await this.pool.notifyCapacityAvailable();
     }
@@ -5699,33 +5888,12 @@ export class PiRuntime {
     }
   }
 
-  private async measureStoreBytes(directory: string): Promise<number> {
-    const files = await this.fs
-      .readdir(directory, { withFileTypes: true })
-      .catch((error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") return [];
-        throw error;
-      });
-    const sizes = await Promise.all(
-      files.map((file) => {
-        const path = this.path.join(directory, file.name);
-        return file.isDirectory()
-          ? this.measureStoreBytes(path)
-          : this.fs.stat(path).then((stat) => stat.size);
-      })
-    );
-    return sizes.reduce((total, size) => total + size, 0);
-  }
-
   private async readMetadata(id: string): Promise<SessionMetadata | null> {
     assertHostRootId(id);
     try {
       return JSON.parse(
         await this.fs.readFile(
-          this.path.join(
-            this.path.dirname(this.locator.sessionStorePaths(id).metaPath),
-            "session.json"
-          ),
+          this.path.join(this.path.dirname((await this.sessionPaths(id)).metaPath), "session.json"),
           "utf8"
         )
       ) as SessionMetadata;
@@ -5748,9 +5916,9 @@ export class PiRuntime {
     change: (latest: SessionMetadata | null) => SessionMetadata | Promise<SessionMetadata>
   ): Promise<void> {
     await this.withMetadataLock(id, async () => {
-      const paths = this.locator.sessionStorePaths(id);
+      const paths = await this.sessionPaths(id);
       // 排队会话没有本地 SDK 写入者，暂存输入仍要尊重原租约，避免覆盖其他窗口。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      const lease = !this.writerRoots.has(id)
+      const lease = !this.writerRoots.has(this.owners.get(id) ?? id)
         ? new StoreLease({ leaseDir: paths.leaseDir, storePath: paths.storeDir })
         : undefined;
       const acquired = await lease?.acquire();
@@ -5759,9 +5927,12 @@ export class PiRuntime {
           code: "STORE_BUSY",
         });
       try {
-        const metadata = await change(await this.readMetadata(id));
+        const metadata = {
+          ...(await change(await this.readMetadata(id))),
+          updatedAtMs: Date.now(),
+        };
         const target = this.path.join(
-          this.path.dirname(this.locator.sessionStorePaths(metadata.sessionId).metaPath),
+          this.path.dirname((await this.sessionPaths(metadata.sessionId)).metaPath),
           "session.json"
         );
         const temporary = `${target}.${this.crypto.randomUUID()}.tmp`;
@@ -5783,6 +5954,8 @@ export class PiRuntime {
         }
         if (metadata.unsentInput) this.unsentInputs.set(id, metadata.unsentInput);
         else this.unsentInputs.delete(id);
+        await this.rebuildIndex();
+        this.notifyStorageChanged();
       } finally {
         if (acquired?.kind === "acquired") await lease!.release(acquired.token);
       }
@@ -5817,7 +5990,7 @@ export class PiRuntime {
       if (!latest) throw new Error("找不到原聊天，尚未提交这条请求。");
       if (latest.archivedAtMs || (latest.readOnly && !latest.parentSessionId))
         throw new Error("只读聊天不能保存新的待发请求。");
-      const directory = this.path.dirname(this.locator.sessionStorePaths(id).metaPath);
+      const directory = this.path.dirname((await this.sessionPaths(id)).metaPath);
       if (latest.unsentInput && JSON.stringify(latest.unsentInput) !== JSON.stringify(draft)) {
         const prior = latest.unsentInput;
         if (
@@ -5839,12 +6012,6 @@ export class PiRuntime {
           throw new Error("相同请求标识不能替换原文或附件，原请求已保留。");
       }
       const stored = await storeUnsentRootInput(draft, directory);
-      if (
-        (await this.measureStoreBytes(directory)) +
-          new TextEncoder().encode(JSON.stringify(stored)).byteLength >=
-        STORE_SIZE_PAUSE_BYTES
-      )
-        throw new Error("待发请求超过这段聊天的保存容量，尚未提交，请缩小附件或新建聊天。");
       return { ...latest, unsentInput: stored };
     });
     const admission = { controller, saved };

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { BuiltinModelCatalog } from "@/modelManagement";
 
 import { getProviderCapability, normalizeBaseUrlForProtocol } from "@/utils/providerCapability";
 
@@ -20,19 +21,7 @@ const FACTS = JSON.parse(
 ) as BuiltinProviderFact[];
 const ISSUE = "https://github.com/ItsDalk-Lane/Vault-Agent/issues/2";
 
-const CATALOG_ROWS = Object.freeze([
-  { id: "anthropic", npm: "@ai-sdk/anthropic", builtin: "anthropic" },
-  { id: "openai", npm: "@ai-sdk/openai", builtin: "openai" },
-  { id: "google", npm: "@ai-sdk/google", builtin: "google" },
-  { id: "groq", npm: "@ai-sdk/groq", builtin: "groq" },
-  { id: "cerebras", npm: "@ai-sdk/cerebras", builtin: "cerebras" },
-  { id: "togetherai", npm: "@ai-sdk/togetherai", builtin: "together" },
-  { id: "xai", npm: "@ai-sdk/xai", builtin: "xai" },
-  { id: "minimax", npm: "@ai-sdk/anthropic", builtin: "minimax" },
-  { id: "minimax-cn", npm: "@ai-sdk/anthropic", builtin: "minimax-cn" },
-  { id: "vercel", npm: "@ai-sdk/gateway", builtin: "vercel-ai-gateway" },
-  { id: "mistral", npm: "@ai-sdk/mistral", builtin: "mistral" },
-]);
+const CATALOG_ROWS = new BuiltinModelCatalog().getAllProviders();
 
 describe("providerCapabilityContract", () => {
   describe("getProviderCapability()", () => {
@@ -82,12 +71,21 @@ describe("providerCapabilityContract", () => {
         "zai-coding-cn",
       ]);
     });
+    it(`keeps checked-in model and catalog data identical to the locked SDK (${ISSUE})`, () => {
+      expect(() =>
+        execFileSync(
+          process.execPath,
+          ["src/agentMode/sdk/pi/models/generateDeclaredModels.mjs", "--check"],
+          { encoding: "utf8" }
+        )
+      ).not.toThrow();
+    });
     it.each(CATALOG_ROWS)(
-      `resolves $id to the public Pi host, using the compatible /v1 route when the catalog chooses OpenAI format (${ISSUE})`,
+      `resolves bundled $id to its public Pi protocol endpoint (${ISSUE})`,
       (row) => {
         const capability = getProviderCapability(row);
         expect(capability).not.toBeNull();
-        const bases = FACTS.find((fact) => fact.id === row.builtin)?.models.map((model) =>
+        const bases = FACTS.find((fact) => fact.id === row.id)?.models.map((model) =>
           normalizeBaseUrlForProtocol(model.baseUrl, capability!.providerType)
         );
         expect(bases).toContain(capability!.defaultBaseUrl);

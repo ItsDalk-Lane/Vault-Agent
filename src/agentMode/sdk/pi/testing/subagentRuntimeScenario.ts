@@ -53,7 +53,7 @@ export async function runSubagentRuntimeScenario(directory: string) {
       activeBackend: "pi",
       skills: { folder: "skills" },
       backends: {
-        pi: { defaultMode: "auto", enabledSubagentProfiles: ["researcher", "reviewer", "writer"] },
+        pi: { defaultMode: "auto" },
       },
     },
     backends: { pi: { enabledModels: ["fixture-model", "fixture-child"] } },
@@ -313,6 +313,14 @@ export async function runSubagentRuntimeScenario(directory: string) {
   await fs.writeFile(path.join(vaultRoot, writerFile.path), "base\n");
   const writerSession = "root-cold-writer";
   let writerBackend = new PiBackendProcess(options);
+  let writerChildReadOnly = false;
+  const wireWriterHostGates = () => {
+    writerBackend.setPermissionPrompter(async () => ({
+      outcome: { outcome: "selected", optionId: "allow_once" },
+    }));
+    // 旧语义通过撤除 writer profile 拒绝写入；单层模型下等价做法是把子会话置为只读。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+    writerBackend.setReadOnlySessionPredicate(() => writerChildReadOnly);
+  };
   const writerEvents: SessionEvent[] = [];
   const observeWriter = () =>
     writerBackend.registerSessionHandler(writerSession, (event) => writerEvents.push(event));
@@ -401,7 +409,8 @@ export async function runSubagentRuntimeScenario(directory: string) {
       return read();
     }
     if (childRequests === 5) {
-      settings.agentMode.backends.pi!.enabledSubagentProfiles = ["researcher", "reviewer"];
+      // 写作 profile 已常开；撤销等价改为宿主把子会话置为只读。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+      writerChildReadOnly = true;
       return edit();
     }
     const result = context.messages.findLast(
@@ -410,7 +419,9 @@ export async function runSubagentRuntimeScenario(directory: string) {
     revokedWriteDenied =
       result?.role === "toolResult" &&
       result.isError === true &&
-      /permission|read.?only|not.?allowed|not.?enabled|只读|权限/i.test(JSON.stringify(result));
+      /permission|read.?only|not.?allowed|not.?enabled|只读|权限|outside the selected scope/i.test(
+        JSON.stringify(result)
+      );
     const offered = new Set<string>();
     for (const message of context.messages)
       if (message.role === "system") {
@@ -418,10 +429,10 @@ export async function runSubagentRuntimeScenario(directory: string) {
         for (const tool of message.toolsRemoved ?? []) offered.delete(tool.name);
       }
     revokedModelReadOnly = !offered.has("vault_edit");
-    settings.agentMode.backends.pi!.enabledSubagentProfiles = ["researcher", "reviewer", "writer"];
     return fauxAssistantMessage("verified already saved write");
   };
   try {
+    wireWriterHostGates();
     await writerBackend.start();
     await writerBackend.newSession({ sessionId: writerSession, cwd: vaultRoot });
     await writerBackend.setSessionModel({ sessionId: writerSession, modelId: "fixture-model" });
@@ -448,6 +459,7 @@ export async function runSubagentRuntimeScenario(directory: string) {
     const callsBeforeReopen = faux.state.callCount;
     await writerBackend.shutdown();
     writerBackend = new PiBackendProcess(options);
+    wireWriterHostGates();
     await writerBackend.start();
     observeWriter();
     await writerBackend.loadSession({ sessionId: writerSession, cwd: vaultRoot });

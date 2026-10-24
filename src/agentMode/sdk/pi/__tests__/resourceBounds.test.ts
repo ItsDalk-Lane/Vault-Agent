@@ -1,11 +1,5 @@
 import { RuntimePool } from "@/agentMode/sdk/pi/runtime/RuntimePool";
 import { RunBudget } from "@/agentMode/sdk/pi/runtime/RunBudget";
-import {
-  STORE_SIZE_STOP_BYTES,
-  STORE_SIZE_WARN_BYTES,
-  StoreSizePolicy,
-  classifyStoreSize,
-} from "@/agentMode/sdk/pi/storage/StoreSizePolicy";
 
 describe("resourceBounds", () => {
   describe("resourceBounds", () => {
@@ -93,7 +87,6 @@ describe("resourceBounds", () => {
           activity:
             options.activity ??
             (async () => ({ activeForegroundTasks: 0, activeBackgroundTasks: 0 })),
-          sizePolicy: new StoreSizePolicy({ measureBytes: async () => options.bytes ?? 0 }),
           setTimer: (delayMs, callback) => {
             const timer = { delayMs, callback, cancelled: false };
             timers.push(timer);
@@ -104,24 +97,6 @@ describe("resourceBounds", () => {
         });
         return { pool, timers, opened, closed, archived, cancelled };
       }
-
-      it("warns at 16 MiB and stops new runs at 32 MiB without crashing", async () => {
-        expect(classifyStoreSize(STORE_SIZE_WARN_BYTES - 1)).toBe("ok");
-        expect(classifyStoreSize(STORE_SIZE_WARN_BYTES)).toBe("suggest_new_session");
-        expect(classifyStoreSize(STORE_SIZE_STOP_BYTES)).toBe("stop_new_runs");
-
-        const mode = makePool({ bytes: STORE_SIZE_WARN_BYTES });
-        await mode.pool.acquire("root-a");
-        const warned = await mode.pool.admitRun("root-a");
-        expect(warned).toMatchObject({ kind: "accepted", warning: true });
-
-        const stopped = makePool({ bytes: STORE_SIZE_STOP_BYTES });
-        await stopped.pool.acquire("root-b");
-        const blocked = await stopped.pool.admitRun("root-b");
-        expect(blocked).toMatchObject({ kind: "blocked", code: "STORE_SIZE_LIMIT" });
-        await expect(stopped.pool.cancelRun("root-b")).resolves.toEqual({ kind: "cancelled" });
-        expect(stopped.cancelled).toEqual(["root-b"]);
-      });
 
       it("keeps at most two root stores and queues the third", async () => {
         const { pool, opened, timers } = makePool();

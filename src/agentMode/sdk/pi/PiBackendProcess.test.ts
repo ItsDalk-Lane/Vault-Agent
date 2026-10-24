@@ -1,5 +1,5 @@
-import type { VaultAgentSettings } from "@/settings/model";
 import { requireNodeModule } from "@/utils/desktopRuntime";
+import type { VaultAgentSettings } from "@/settings/model";
 
 jest.mock("@/components/modals/ConfirmModal", () => ({ ConfirmModal: class {} }));
 jest.mock("@/components/ui/setting-item", () => ({ SettingItem: () => null }));
@@ -27,25 +27,12 @@ import { PiBackendDescriptor } from "@/agentMode/backends/pi/descriptor";
 import {
   backendDisplayOrder,
   backendRegistry,
-  describeBackendForHistory,
-  getActiveBackendDescriptor,
   listBackendDescriptors,
-  RECOMMENDED_BACKEND_ID,
 } from "@/agentMode/backends/registry";
 import { PiRuntime, type PiHostOptions } from "./runtime/PiRuntime";
 import { PiBackendProcess, PiRuntimeNotReadyError } from "@/agentMode/sdk/pi/PiBackendProcess";
 
 const requireNodeModuleMock = requireNodeModule as jest.MockedFunction<typeof requireNodeModule>;
-
-function settingsWithActiveBackend(activeBackend?: string): VaultAgentSettings {
-  return {
-    agentMode: {
-      byok: {},
-      activeBackend: activeBackend ?? "opencode",
-      backends: {},
-    },
-  } as unknown as VaultAgentSettings;
-}
 
 const createProcessArgs = {
   plugin: {} as never,
@@ -55,10 +42,17 @@ const createProcessArgs = {
 };
 
 describe("PiBackendProcess", () => {
-  let boundary: { observe: jest.Mock; replay: jest.Mock; shutdown: jest.Mock; open: jest.Mock };
+  let boundary: {
+    initialize: jest.Mock;
+    observe: jest.Mock;
+    replay: jest.Mock;
+    shutdown: jest.Mock;
+    open: jest.Mock;
+  };
   beforeEach(() => {
     jest.clearAllMocks();
     boundary = {
+      initialize: jest.fn(async () => undefined),
       observe: jest.fn(),
       replay: jest.fn(async () => undefined),
       shutdown: jest.fn(async () => undefined),
@@ -90,22 +84,6 @@ describe("PiBackendProcess", () => {
       expect(backendDisplayOrder().map((descriptor) => descriptor.id)).toEqual(["pi"]);
       expect(listBackendDescriptors().map((descriptor) => descriptor.id)).toEqual(["pi"]);
     });
-
-    it("reads old identity metadata while selecting Pi for new chats https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      expect(RECOMMENDED_BACKEND_ID).toBe("pi");
-      for (const backendId of ["opencode", "claude", "codex"]) {
-        expect(getActiveBackendDescriptor(settingsWithActiveBackend(backendId))).toBe(
-          PiBackendDescriptor
-        );
-        expect(backendRegistry[backendId]).toBeUndefined();
-        const identity = describeBackendForHistory(backendId);
-        expect(identity.id).toBe(backendId);
-        expect(identity.Icon).toBeDefined();
-        expect(identity).not.toHaveProperty("createBackendProcess");
-        expect(identity).not.toHaveProperty("getEnabledModelEntries");
-      }
-      expect(getActiveBackendDescriptor(settingsWithActiveBackend("pi"))).toBe(PiBackendDescriptor);
-    });
   });
 
   describe("start()", () => {
@@ -125,6 +103,63 @@ describe("PiBackendProcess", () => {
       expect(process.isSetSessionConfigOptionSupported()).toBe(true);
       await process.shutdown();
       await expect(process.start()).rejects.toBeInstanceOf(PiRuntimeNotReadyError);
+    });
+  });
+
+  describe("getModelCatalog()", () => {
+    it("reads configured model ids and reasoning options without starting a runtime or touching local sessions https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const settings = {
+        providers: {
+          local: {
+            providerId: "local",
+            providerType: "openai-compatible",
+            baseUrl: "https://example.com/v1",
+            origin: { kind: "byok" },
+          },
+        },
+        configuredModels: [
+          {
+            configuredModelId: "saved-model",
+            providerId: "local",
+            info: { id: "upstream-model", reasoning: true, reasoningEfforts: ["low", "high"] },
+          },
+        ],
+      } as unknown as VaultAgentSettings;
+      const process = new PiBackendProcess({
+        host: { getSettings: () => settings } as PiHostOptions,
+      });
+
+      expect(process.getModelCatalog()).toEqual({
+        availableModels: [
+          {
+            baseModelId: "saved-model",
+            name: "upstream-model",
+            provider: "local",
+            effortOptions: [
+              { value: "low", label: "low" },
+              { value: "high", label: "high" },
+            ],
+          },
+        ],
+      });
+      settings.providers.local.enabled = false;
+      expect(process.getModelCatalog()).toEqual({ availableModels: [] });
+      expect(PiRuntime).not.toHaveBeenCalled();
+      expect(requireNodeModuleMock).not.toHaveBeenCalled();
+      expect(boundary.open).not.toHaveBeenCalled();
+    });
+
+    it("reuses the empty catalog while no usable local models are configured https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const host = {
+        getSettings: () =>
+          ({ providers: {}, configuredModels: [] }) as unknown as VaultAgentSettings,
+      } as PiHostOptions;
+      const process = new PiBackendProcess({ host });
+      const empty = process.getModelCatalog();
+      expect(empty).toEqual({ availableModels: [] });
+      expect(process.getModelCatalog()).toBe(empty);
+      expect(new PiBackendProcess({ host }).getModelCatalog()).toBe(empty);
+      expect(PiRuntime).not.toHaveBeenCalled();
     });
   });
 

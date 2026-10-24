@@ -114,16 +114,7 @@ export function normalizeVaultRoot(vaultRoot: string, platform: StorePlatform): 
 }
 
 export function resolveDataRoot(options: ResolveDataRootOptions): string {
-  const { platform, homeDir, env = {} } = options;
-  if (platform === "darwin") {
-    return joinStorePath(platform, homeDir, "Library", "Application Support", "VaultAgent");
-  }
-  if (platform === "win32") {
-    const base = env.LOCALAPPDATA?.trim() || joinStorePath(platform, homeDir, "AppData", "Local");
-    return joinStorePath(platform, base, "VaultAgent");
-  }
-  const base = env.XDG_STATE_HOME?.trim() || joinStorePath(platform, homeDir, ".local", "state");
-  return joinStorePath(platform, base, "vault-agent");
+  return joinStorePath(options.platform, options.homeDir, ".vault-agent", "v2");
 }
 
 function defaultSha256(input: string): string {
@@ -215,16 +206,21 @@ export class StoreLocator {
   }
 
   get vaultStoreRoot(): string {
-    return joinStorePath(this.platform, this.dataRoot, "v1", "vaults", this.requireVaultKey());
+    return joinStorePath(this.platform, this.dataRoot, "vaults", this.requireVaultKey());
   }
 
-  sessionStorePaths(rootId: string): SessionStorePaths {
+  sessionStorePaths(rootId: string, ownerId = rootId): SessionStorePaths {
     const hostRootId = assertHostRootId(rootId);
-    const sessionRoot = joinStorePath(this.platform, this.vaultStoreRoot, "sessions", hostRootId);
+    const ownerRootId = assertHostRootId(ownerId);
+    const ownerRoot = joinStorePath(this.platform, this.vaultStoreRoot, "sessions", ownerRootId);
+    const sessionRoot =
+      ownerId === rootId
+        ? ownerRoot
+        : joinStorePath(this.platform, ownerRoot, "children", hostRootId);
     return {
-      storeDir: joinStorePath(this.platform, sessionRoot, "store"),
+      storeDir: ownerRoot,
       metaPath: joinStorePath(this.platform, sessionRoot, "meta.json"),
-      leaseDir: joinStorePath(this.platform, sessionRoot, "lease"),
+      leaseDir: joinStorePath(this.platform, this.vaultStoreRoot, "locks", ownerRootId),
       attachmentsDir: joinStorePath(this.platform, sessionRoot, "attachments"),
     };
   }

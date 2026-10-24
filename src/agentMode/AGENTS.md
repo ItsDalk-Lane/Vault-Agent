@@ -35,7 +35,7 @@ backend-agnostic session-domain types in `session/types.ts` instead. `backends/p
 descriptors assemble dependencies and construct `sdk/pi/` adapters; they do not import
 the Pi SDK directly.
 
-`session/legacy/` 只保存旧聊天的读取、只读适配器及名称/图标元数据。旧 `backendId` 原样保留，不能加入当前运行注册表。该目录禁止引入 `child_process`、启动进程、旧执行桥或 Pi SDK。
+本版本不兼容此前聊天存储，包括此前的 Pi 会话。不得恢复旧后端历史读取、笔记导入、旧索引扫描或自动迁移；旧文件原样保留，不在启动时清理。
 
 Enforced by `no-restricted-imports` in the root `eslint.config.mjs` (plus the existing
 `boundaries/dependencies` sibling rules) and by
@@ -45,10 +45,10 @@ Enforced by `no-restricted-imports` in the root `eslint.config.mjs` (plus the ex
 ## 当前运行入口
 
 新聊天只通过 `backends/pi/descriptor.ts` 装配 `sdk/pi/PiBackendProcess.ts`。
-`session/` 与界面只能调用后端无关的契约。历史身份保存在 `session/legacy/historicalBackends.ts`，只用于只读显示，不能恢复旧程序。
+`session/` 与界面只能调用后端无关的契约。最近会话直接来自当前库外会话记录，不读取旧程序或库内聊天笔记。
 
 需要增加能力时，先使用现有 Pi 宿主工具和公共 SDK 接口，不重新引入 ACP、旧代理 SDK、二进制下载或后台守护程序。
-修改会话契约时，同时检查普通聊天、后台标签、多模型候选、恢复与只读历史。
+修改会话契约时，同时检查普通聊天、后台标签、多模型候选、恢复与当前会话的只读状态。
 
 ## Adding a new layer
 

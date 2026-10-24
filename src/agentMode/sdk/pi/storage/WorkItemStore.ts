@@ -34,13 +34,7 @@ export interface TaskCheckpoint {
 
 export interface WorkItem {
   readonly id: string;
-  readonly status:
-    | "active"
-    | "paused_budget"
-    | "paused_storage"
-    | "paused_stalled"
-    | "paused_user"
-    | "waiting_user";
+  readonly status: "active" | "paused_budget" | "paused_stalled" | "paused_user" | "waiting_user";
   readonly grants: readonly {
     readonly segment: number;
     readonly requests: number;
@@ -60,7 +54,6 @@ export interface WorkItemStore {
   ): Promise<WorkItem>;
   recordInput(id: string, input: WorkInput): Promise<void>;
   recordInstructionSources(id: string, sources: readonly WorkInstructionSource[]): Promise<void>;
-  importWorkItem(item: WorkItem): Promise<void>;
   authorizeNextSegment(id: string): Promise<WorkItem>;
   reserve(record: BudgetReserveRecord): Promise<ReserveCommitResult>;
   refund(id: string, attemptId: string): Promise<void>;
@@ -165,8 +158,6 @@ export async function createWorkItemStore(input: {
           result: undefined,
         };
       }),
-    importWorkItem: (item) =>
-      change(item.id, (existing) => ({ item: existing ?? item, result: undefined })),
     authorizeNextSegment: (id) =>
       change(id, (item) => {
         if (!item) throw new Error("找不到需要继续的任务。");

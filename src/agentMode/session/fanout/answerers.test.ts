@@ -4,26 +4,17 @@ import {
   FANOUT_MAX_ANSWERERS,
   FANOUT_MIN_ANSWERERS,
   FanoutSelectionError,
-  answererBackendLabel,
   enabledFanoutModels,
   configuredFanoutModels,
   isFanoutModels,
   resolveAnswererModels,
   type FanoutModelOption,
 } from "@/agentMode/session/fanout/answerers";
-import {
-  FANOUT_ENGINE_ID,
-  modelKeyForLegacyBackend,
-  parseFanoutComposite,
-  readFanoutTurn,
-  serializeFanoutComposite,
-  type FanoutTurn,
-} from "@/agentMode/session/fanout/fanoutTypes";
+import { FANOUT_ENGINE_ID } from "@/agentMode/session/fanout/fanoutTypes";
 
 // Fan-out selects stable model keys on the single Pi engine: a model without a key is disabled, the
 // same model selected twice is deduped by an explicit policy, two keys sharing one configuration
-// cannot stand in for two providers, and turns written before the migration still read back with
-// their original labels:
+// cannot stand in for two providers:
 // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 function model(overrides: Partial<FanoutModelOption> & { modelKey: string }): FanoutModelOption {
   return {
@@ -259,83 +250,6 @@ describe("answerers", () => {
       expect(isFanoutModels([], "anthropic/claude")).toBe(false);
       expect(isFanoutModels(["anthropic/claude"], "anthropic/claude")).toBe(false);
       expect(isFanoutModels(["anthropic/claude", "openai/gpt"], "anthropic/claude")).toBe(true);
-    });
-  });
-
-  describe("readFanoutTurn()", () => {
-    it("reads a legacy turn and gives every answer a stable model key and label", () => {
-      const legacy: FanoutTurn = {
-        answers: {
-          opencode: { backendId: "opencode", status: "done", text: "legacy answer" },
-        },
-        summary: { status: "done", text: "legacy summary" },
-      };
-
-      const read = readFanoutTurn(legacy);
-
-      expect(read.answers.opencode).toMatchObject({
-        backendId: "opencode",
-        status: "done",
-        text: "legacy answer",
-        modelKey: modelKeyForLegacyBackend("opencode"),
-        label: "opencode",
-      });
-      expect(read.summary.text).toBe("legacy summary");
-      expect(answererBackendLabel(read.answers.opencode.modelKey ?? "")).toBe("opencode");
-    });
-
-    it("round-trips a new turn with model keys and still parses a pre-migration composite", () => {
-      const turn: FanoutTurn = {
-        answers: {
-          "anthropic/claude": {
-            backendId: "anthropic/claude",
-            status: "done",
-            text: "new answer",
-            modelKey: "anthropic/claude",
-            label: "Claude",
-          },
-          "openai/gpt": {
-            backendId: "openai/gpt",
-            status: "done",
-            text: "other answer",
-            modelKey: "openai/gpt",
-            label: "GPT",
-          },
-        },
-        summary: { status: "done", text: "summary" },
-      };
-
-      const parsed = parseFanoutComposite(serializeFanoutComposite(turn, (backendId) => backendId));
-
-      expect(parsed?.answers["anthropic/claude"]).toMatchObject({
-        modelKey: "anthropic/claude",
-        label: "Claude",
-        text: "new answer",
-      });
-
-      const legacyBody = [
-        "<!--copilot:multi-agent v=1-->",
-        "<!--copilot:summary-->",
-        "### Summary",
-        "old summary",
-        '<!--copilot:agent id="codex" name="Codex" status="done"-->',
-        "### Codex",
-        "old answer",
-        "<!--copilot:multi-agent-end-->",
-      ].join("\n");
-      const legacyParsed = parseFanoutComposite(legacyBody);
-
-      expect(legacyParsed?.answers.codex).toMatchObject({
-        status: "done",
-        text: "old answer",
-        label: "Codex",
-      });
-      expect(legacyParsed?.answers.codex.modelKey).toBeUndefined();
-      expect(
-        readFanoutTurn(legacyParsed ?? { answers: {}, summary: { status: "done", text: "" } })
-      ).toMatchObject({
-        answers: { codex: { modelKey: modelKeyForLegacyBackend("codex"), label: "Codex" } },
-      });
     });
   });
 });

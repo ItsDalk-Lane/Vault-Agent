@@ -72,7 +72,6 @@ function harness(
     },
     terminate,
     resolveSecret: async () => ("secretValue" in options ? options.secretValue : "server-secret"),
-    defaultMode: "trusted_host",
     defaultRiskAuthorized: true,
   });
   return { factory, created, transport, terminate };
@@ -82,7 +81,6 @@ function request(config: McpStdioTransport, overrides: Record<string, unknown> =
   return {
     serverId: "local-server",
     config,
-    mode: "trusted_host" as const,
     riskAuthorized: true,
     interpreterAvailable: true,
     ...overrides,
@@ -105,18 +103,7 @@ async function expectCode(
 
 describe("StdioTransportFactory", () => {
   describe("create()", () => {
-    it("never starts an opaque local server in strict mode", async () => {
-      const harnessed = harness();
-
-      await expectCode(
-        () => harnessed.factory.create(request(stdioConfig(), { mode: "strict" })),
-        "MCP_STDIO_STRICT_DENIED"
-      );
-      expect(harnessed.created).toEqual([]);
-      expect(harnessed.terminate.calls).toEqual([]);
-    });
-
-    it("requires the config-level risk authorization before trusted_host starts", async () => {
+    it("requires the config-level risk authorization before any start (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const harnessed = harness();
 
       await expectCode(

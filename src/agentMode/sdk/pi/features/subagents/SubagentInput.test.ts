@@ -7,10 +7,7 @@ import {
   SubagentInputError,
   type SubagentInputReaderPort,
 } from "@/agentMode/sdk/pi/features/subagents/SubagentInput";
-import {
-  SubagentProfileError,
-  validateSubagentRequest,
-} from "@/agentMode/sdk/pi/features/subagents/Profiles";
+import { validateSubagentRequest } from "@/agentMode/sdk/pi/features/subagents/Profiles";
 import { sha256 } from "@/utils/hash";
 
 // Input files go through the controlled reader: at most 8 files, 128 KiB and 10% of the child model
@@ -220,9 +217,8 @@ describe("SubagentInput", () => {
         expect(validateSubagentRequest({ profileId: "researcher" }).profile.effects).not.toContain(
           "write"
         );
-        expect(() => validateSubagentRequest({ profileId: "writer" })).toThrow(
-          SubagentProfileError
-        );
+        // writer 常开后注入仍不能改 profile；其写入只受逐次审批约束。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+        expect(validateSubagentRequest({ profileId: "writer" }).profile.writeCapable).toBe(true);
       });
 
       it("reports a missing file and an invalid path instead of skipping them", async () => {

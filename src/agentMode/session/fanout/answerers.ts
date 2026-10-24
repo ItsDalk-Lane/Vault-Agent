@@ -1,11 +1,7 @@
 import type { VaultAgentSettings } from "@/settings/model";
 import { isProviderEnabled } from "@/utils/providerAvailability";
 import type { BackendId } from "@/agentMode/session/types";
-import {
-  FANOUT_ENGINE_ID,
-  legacyBackendForModelKey,
-  type FanoutEngineId,
-} from "@/agentMode/session/fanout/fanoutTypes";
+import { FANOUT_ENGINE_ID, type FanoutEngineId } from "@/agentMode/session/fanout/fanoutTypes";
 
 export const EMPTY_ANSWERERS: ReadonlyArray<BackendId> = Object.freeze([]);
 
@@ -146,7 +142,7 @@ export function isFanoutModels(modelKeys: ReadonlyArray<string>, mainModelKey: s
 }
 
 export function answererBackendLabel(modelKey: string): BackendId {
-  return legacyBackendForModelKey(modelKey) ?? modelKey;
+  return modelKey;
 }
 
 const EMPTY_FANOUT_MODELS: readonly FanoutModelOption[] = Object.freeze([]);

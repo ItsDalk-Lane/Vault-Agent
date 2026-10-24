@@ -17,10 +17,7 @@ export async function runNativeRuntimeScenario(directory: string) {
   await fs.mkdir(externalRoot, { recursive: true });
   const target = path.join(externalRoot, "note.md");
   await fs.writeFile(target, "before");
-  const backendSettings = {
-    hostExecutionMode: "strict" as "strict" | "trusted_host",
-    externalScopes: [{ root: externalRoot, permissions: ["read", "write"] }],
-  };
+  const backendSettings = {};
   const settings = {
     providers: {
       fixture: {
@@ -110,18 +107,9 @@ export async function runNativeRuntimeScenario(directory: string) {
     assert.equal(await fs.readFile(target, "utf8"), "after");
     assert.equal(approvals, 1);
     await backend.setSessionMode({ sessionId: session.sessionId, modeId: "default" });
+    // 命令不再有 strict/trusted 门槛；批准一次即执行。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
     const marker = path.join(externalRoot, "command.txt");
-    await run("bash", { command: `printf command > "${marker}"` }, "strict");
-    assert.equal(
-      await fs.access(marker).then(
-        () => true,
-        () => false
-      ),
-      false
-    );
-    assert.equal(approvals, 1);
-    backendSettings.hostExecutionMode = "trusted_host";
-    await run("bash", { command: `printf command > "${marker}"`, timeout: 2 }, "trusted");
+    await run("bash", { command: `printf command > "${marker}"`, timeout: 2 }, "command");
     assert.equal(await fs.readFile(marker, "utf8"), "command");
     assert.equal(approvals, 2);
     let started!: () => void;
@@ -166,20 +154,8 @@ export async function runNativeRuntimeScenario(directory: string) {
     assert.ok(audits.every((record) => /^[a-f0-9]{64}$/.test(record.argumentsHash)));
     assert.equal(JSON.stringify(audits).includes("printf command"), false);
     assert.equal(JSON.stringify(audits).includes("test-key"), false);
-    // 未提供给模型的命令在 SDK 层就拒绝；仍必须保留真实错误证据，不能伪造执行器已被调用。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    assert.ok(
-      saved.session.extras.entries.some(
-        (entry) =>
-          entry.kind === "pi.tool-result" &&
-          entry.model?.some(
-            (message) =>
-              message.role === "toolResult" &&
-              message.toolName === "bash" &&
-              message.isError === true
-          )
-      ),
-      "strict mode must persist the SDK command rejection alongside proof that no process ran"
-    );
+    // 计划模式下命令对模型不可见，SDK 层拒绝的命令仍必须保留真实错误证据。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+    // （default 模式的命令现在批准即执行，此处验证 plan 模式的只读拒绝路径。）
     backend.setPermissionPrompter(async () => {
       approvals += 1;
       return { outcome: { outcome: "selected", optionId: "allow_once" } };

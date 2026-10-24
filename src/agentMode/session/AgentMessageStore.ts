@@ -12,6 +12,7 @@ import {
   NewAgentChatMessage,
   StopReason,
   TurnFileChange,
+  TurnUsageSummary,
 } from "@/agentMode/session/types";
 import { USER_SENDER } from "@/constants";
 import { FormattedDateTime, MessageContext } from "@/types/message";
@@ -30,6 +31,8 @@ interface StoredAgentMessage {
   content?: unknown[];
   turnStopReason?: StopReason;
   turnDurationMs?: number;
+  turnUsage?: TurnUsageSummary;
+  turnEndEntryId?: string;
   fanout?: FanoutTurn;
   fileChanges?: TurnFileChange[];
   version: number;
@@ -199,6 +202,8 @@ function sameStoredMessage(a: StoredAgentMessage, b: StoredAgentMessage): boolea
     a.isAuxiliary === b.isAuxiliary &&
     a.turnStopReason === b.turnStopReason &&
     a.turnDurationMs === b.turnDurationMs &&
+    a.turnEndEntryId === b.turnEndEntryId &&
+    sameValue(a.turnUsage, b.turnUsage) &&
     sameTimestamp(a.timestamp, b.timestamp) &&
     sameParts(a.parts, b.parts) &&
     sameValue(a.content, b.content) &&
@@ -307,19 +312,6 @@ export class AgentMessageStore {
     msg.turnDurationMs = nextDurationMs;
     this.touch(msg);
     return true;
-  }
-
-  // OpenCode replays a chat without send times and autosave rewrites its note from these messages, so the note's times carry over while its turns line up. https://github.com/Brevilabs/obsidian-copilot-private/issues/671
-  fillMissingTimestamps(saved: readonly AgentChatMessage[]): void {
-    const visible = this.messages.filter((m) => m.isVisible);
-    for (let i = 0; i < visible.length && i < saved.length; i++) {
-      const msg = visible[i];
-      if (msg.sender !== saved[i].sender) return;
-      const timestamp = saved[i].timestamp;
-      if (msg.timestamp || !timestamp) continue;
-      msg.timestamp = timestamp;
-      this.touch(msg);
-    }
   }
 
   setFanout(id: string, turn: FanoutTurn): boolean {
@@ -605,6 +597,8 @@ export class AgentMessageStore {
       context: message.context ?? existing?.context,
       turnStopReason: message.turnStopReason ?? existing?.turnStopReason,
       turnDurationMs: message.turnDurationMs ?? existing?.turnDurationMs,
+      turnUsage: message.turnUsage ?? existing?.turnUsage,
+      turnEndEntryId: message.turnEndEntryId ?? existing?.turnEndEntryId,
       fanout: fanout ?? existing?.fanout,
       fileChanges: projectedArray(message.fileChanges, existing?.fileChanges),
       version: existing?.version ?? 0,
@@ -628,6 +622,8 @@ export class AgentMessageStore {
       parts: m.parts,
       turnStopReason: m.turnStopReason,
       turnDurationMs: m.turnDurationMs,
+      turnUsage: m.turnUsage,
+      turnEndEntryId: m.turnEndEntryId,
       fileChanges: m.fileChanges,
       ...(m.fanout ? { fanout: snapshotFanoutTurn(m.fanout) } : {}),
     };

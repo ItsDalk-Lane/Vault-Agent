@@ -10,11 +10,6 @@ import path from "node:path";
 import type { App } from "obsidian";
 import type VaultAgentPlugin from "@/main";
 import {
-  getCachedSystemPrompts,
-  getSelectedPromptTitle,
-  getDisableBuiltinSystemPrompt,
-} from "@/system-prompts/state";
-import {
   VAULT_AGENT_PROMPT_BASE,
   VAULT_AGENT_WEB_RESEARCH_STEERING,
   VAULT_AGENT_PROJECT_WORKSPACE_POLICY,
@@ -23,12 +18,6 @@ import {
 } from "@/agentMode/backends/shared/agentSystemPrompt";
 
 jest.mock("@/context/manifestBuilder", () => ({ buildProjectContext: jest.fn() }));
-
-jest.mock("@/system-prompts/state", () => ({
-  getCachedSystemPrompts: jest.fn(),
-  getSelectedPromptTitle: jest.fn(),
-  getDisableBuiltinSystemPrompt: jest.fn(),
-}));
 
 jest.mock("@/agentMode/sdk/pi/PiBackendProcess", () => ({
   PiBackendProcess: jest.fn(),
@@ -144,33 +133,17 @@ describe("descriptor", () => {
   });
 
   describe("getPiInstructionSections()", () => {
-    it("keeps the existing prompt text in base, tool guidance, and selected user order https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      jest
-        .mocked(getCachedSystemPrompts)
-        .mockReturnValue([{ title: "chosen", content: "User instructions" }] as ReturnType<
-          typeof getCachedSystemPrompts
-        >);
-      jest.mocked(getSelectedPromptTitle).mockReturnValue("chosen");
-      jest.mocked(getDisableBuiltinSystemPrompt).mockReturnValue(false);
-      expect(getPiInstructionSections()).toEqual({
+    it("keeps the existing prompt text and a stable empty optional user section https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const sections = getPiInstructionSections();
+      expect(sections).toEqual({
         base: [VAULT_AGENT_PROMPT_BASE, VAULT_AGENT_WEB_RESEARCH_STEERING].join("\n\n"),
         toolGuidance: [
           VAULT_AGENT_EXECUTION_POLICY,
           VAULT_AGENT_PROJECT_WORKSPACE_POLICY,
           VAULT_AGENT_INSTRUCTION_PRECEDENCE,
         ].join("\n\n"),
-        userSystem: ["User instructions"],
+        userSystem: [],
       });
-    });
-
-    it("disables only optional builtins while keeping policy guidance and a stable empty user section https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      jest.mocked(getCachedSystemPrompts).mockReturnValue([]);
-      jest.mocked(getSelectedPromptTitle).mockReturnValue("");
-      jest.mocked(getDisableBuiltinSystemPrompt).mockReturnValue(true);
-      const sections = getPiInstructionSections();
-      expect(sections.base).toBe("");
-      expect(sections.toolGuidance).toContain(VAULT_AGENT_INSTRUCTION_PRECEDENCE);
-      expect(sections.userSystem).toHaveLength(0);
       expect(getPiInstructionSections().userSystem).toBe(sections.userSystem);
     });
   });

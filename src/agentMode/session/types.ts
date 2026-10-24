@@ -5,7 +5,6 @@ import type { FormattedDateTime, MessageContext } from "@/types/message";
 import type { FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import type { PlanUsage } from "@/agentMode/session/planUsage";
 import type { FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
-import type { LegacyChatEntry } from "@/agentMode/session/legacy/LegacyHistoryReader";
 
 export type { PlanUsage, UsageWindow } from "@/agentMode/session/planUsage";
 import type { ProjectScopeId } from "./scope";
@@ -20,7 +19,6 @@ export interface AgentBrand {
   readonly id: BackendId;
   readonly displayName: string;
   readonly Icon: React.ComponentType<{ className?: string }>;
-  readonly needsSelfHostWarning?: boolean;
 }
 
 export type SessionId = string;
@@ -65,7 +63,6 @@ export interface EnabledModelEntry {
   credentialState: EnabledModelCredentialState;
   capabilities?: ModelCapability[];
   effortOptions?: EffortOption[];
-  needsSelfHostWarning?: boolean;
 }
 
 export interface ModelSelection {
@@ -269,7 +266,6 @@ export type RunStatus =
   | "cancelled"
   | "completed"
   | "paused_budget"
-  | "paused_storage"
   | "paused_user"
   | "paused_stalled"
   | "failed"
@@ -300,7 +296,6 @@ export function isRunTerminal(status: RunStatus): boolean {
     status === "cancelled" ||
     status === "failed" ||
     status === "paused_budget" ||
-    status === "paused_storage" ||
     status === "paused_user" ||
     status === "paused_stalled" ||
     status === "interrupted"
@@ -414,6 +409,21 @@ export interface SessionUsage {
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
   updatedAt: number;
+}
+
+/** 一轮（一个 run）的用量与计时汇总，逐段累加自持久化的 pi.assistant / pi.tool-result 记录；旧日志缺计时字段时对应项缺省。
+ * https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+ */
+export interface TurnUsageSummary {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  modelRequests: number;
+  modelDurationMs?: number;
+  toolDurationMs?: number;
+  ttftMs?: number;
+  modelId?: string | null;
 }
 
 export interface SessionEvent {
@@ -545,7 +555,7 @@ export interface PromptContext {
     readonly updateOnly?: boolean;
   };
   readonly materials: readonly {
-    readonly origin: "note" | "web" | "mcp" | "subagent" | "legacy_session";
+    readonly origin: "note" | "web" | "mcp" | "subagent";
     readonly text: string;
     readonly sourcePath?: string;
     readonly url?: string;
@@ -574,6 +584,29 @@ export interface ListedSessionInfo {
   cwd: string;
   title?: string | null;
   updatedAt?: string | null;
+  createdAtMs?: number;
+  lastAccessedAtMs?: number;
+  pinnedAt?: number;
+  projectId?: ProjectScopeId;
+  titleSource?: "user" | "agent";
+}
+
+export interface UpdateSessionMetadataInput {
+  sessionId: SessionId;
+  titleSource?: "user" | "agent";
+  title?: string;
+  pinnedAt?: number | null;
+  lastAccessedAtMs?: number;
+}
+
+export interface LocalStoragePaths {
+  dataRoot: string;
+  vaultStoreRoot: string;
+  sessionsRoot: string;
+  indexPath: string;
+  deletionsRoot: string;
+  logsRoot: string;
+  tempRoot: string;
 }
 
 export interface ListSessionsOutput {
@@ -586,8 +619,15 @@ export interface CancelInput {
 
 export type SessionUpdateHandler = (event: SessionEvent) => void;
 
+export interface SessionExportOutput {
+  suggestedName: string;
+  content: string;
+  attachments?: readonly { name: string; content: Uint8Array }[];
+}
+
 export interface BackendProcess {
   start?(): Promise<void>;
+  getModelCatalog(): BackendModelCatalog;
   isRunning(): boolean;
   onExit(listener: () => void): () => void;
   setPermissionPrompter(fn: (req: PermissionPrompt) => Promise<PermissionDecision>): void;
@@ -602,26 +642,24 @@ export interface BackendProcess {
     status: "dismissed" | "reported";
   }): Promise<void>;
   setFeedbackEnabled?(input: { sessionId: SessionId; enabled: boolean }): Promise<void>;
-  importLegacySession?(input: {
-    cwd: string;
-    entry: LegacyChatEntry;
-  }): Promise<OpenSessionOutput & { notices: readonly string[] }>;
-  importSessionBackup?(input: {
-    cwd: string;
-    content: string;
-  }): Promise<OpenSessionOutput & { notices: readonly string[] }>;
   exportSession?(input: {
     sessionId: SessionId;
     format: "json" | "markdown";
-    legacy?: LegacyChatEntry;
-  }): Promise<{ suggestedName: string; content: string }>;
+  }): Promise<SessionExportOutput>;
   readContextWindow?(wireModelId: string | null | undefined): Promise<number | null>;
   setSessionObserved?(input: { sessionId: SessionId; observed: boolean }): void;
   readSubagentHistory?(input: {
     sessionId: SessionId;
     conversationId: string;
   }): Promise<readonly AgentChatMessage[]>;
-  steerSession?(input: { sessionId: SessionId; requestId: string; text: string }): Promise<void>;
+  // prompt/context 让排队消息能带着图片和资料插入进行中的轮次：https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+  steerSession?(input: {
+    sessionId: SessionId;
+    requestId: string;
+    text: string;
+    prompt?: PromptContent[];
+    context?: PromptContext;
+  }): Promise<void>;
   pauseSession?(input: { sessionId: SessionId }): Promise<void>;
   recoverSession?(input: {
     sessionId: SessionId;
@@ -656,6 +694,17 @@ export interface BackendProcess {
   prompt(params: PromptInput): Promise<PromptOutput>;
   cancel(params: CancelInput): Promise<void>;
   closeSession?(params: { sessionId: SessionId }): Promise<void>;
+  deleteSession?(params: { sessionId: SessionId }): Promise<void>;
+  /** atEntryId 存在时为逐轮分叉：只复制该轮终态 va.run 条目为止的前缀。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12 */
+  forkSession?(params: { sessionId: SessionId; atEntryId?: string }): Promise<OpenSessionOutput>;
+  updateSessionMetadata?(params: UpdateSessionMetadataInput): Promise<ListedSessionInfo>;
+  getLocalStoragePaths?(): LocalStoragePaths;
+  writeSessionDiagnostic?(input: {
+    sessionId: SessionId;
+    name: string;
+    content: Uint8Array;
+  }): Promise<{ zipDir: string; zipPath: string }>;
+  subscribeStorageChanges?(listener: () => void): () => void;
   setSessionModel(params: { sessionId: SessionId; modelId: string }): Promise<BackendState>;
   isSetSessionModelSupported(): boolean | null;
   setSessionMode(params: { sessionId: SessionId; modeId: string }): Promise<BackendState>;
@@ -718,6 +767,10 @@ export interface AgentChatMessage {
   content?: unknown[];
   turnStopReason?: StopReason;
   turnDurationMs?: number;
+  /** 该轮的用量与计时汇总；仅完成的 run 消息携带。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 */
+  turnUsage?: TurnUsageSummary;
+  /** 该轮终态 va.run 的条目 id（唯一），用于逐轮分支定位；va.run 的 runId 是工作目标标识、跨轮复用，不能当轮锚点。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12 */
+  turnEndEntryId?: string;
   fanout?: FanoutTurn;
   fileChanges?: TurnFileChange[];
 }

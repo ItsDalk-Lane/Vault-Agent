@@ -234,6 +234,9 @@ export class DurableStore {
       storage = await this.openStorage(this.storeDir, this.context, { fsync: true });
     } catch (error) {
       await this.releaseQuietly(token);
+      const code = (error as { code?: string })?.code;
+      // 记录缺失必须明确拒绝打开，避免上层改用快照而掩盖主记录已经丢失。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (code === "SESSION_NOT_FOUND" || code === "SESSION_TRANSCRIPT_MISSING") throw error;
       throw new DurableStoreError(
         "STORAGE_FAILED",
         `Could not open the durable store: ${errorMessage(error)}`

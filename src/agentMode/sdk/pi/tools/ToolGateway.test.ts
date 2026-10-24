@@ -39,7 +39,7 @@ function context(overrides: Partial<GatewayExecuteContext> = {}): GatewayExecute
   return {
     caller: "root",
     mode: "default",
-    scope: { vaultRoot: "/vault", externalRoots: [], readOnly: false },
+    scope: { vaultRoot: "/vault", readOnly: false },
     scopeVersion: 1,
     policyVersion: 1,
     targets: [{ kind: "vault_path", value: "/vault/Notes/a.md", insideScope: true }],
@@ -278,17 +278,12 @@ describe("ToolGateway", () => {
         },
       });
       register(fixture, {}, ["execute"], "host_process");
-      const denied = await fixture.gateway.executeTool(
-        "tool_host_process_execute",
-        {},
-        context({ trustedHost: false, targets: [{ kind: "operation", value: "command" }] })
-      );
+      // host_process 不再有 strict/trusted 预置分支，审批是唯一闸门：https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
       const approved = await fixture.gateway.executeTool(
         "tool_host_process_execute",
         {},
-        context({ trustedHost: true, targets: [{ kind: "operation", value: "command" }] })
+        context({ targets: [{ kind: "operation", value: "command" }] })
       );
-      expect(denied).toMatchObject({ decision: "deny", code: "OPAQUE_EXECUTION_DISABLED" });
       expect(approved.decision).toBe("allow");
       expect(approvals).toBe(1);
       expect(fixture.executed).toEqual(["tool_host_process_execute"]);

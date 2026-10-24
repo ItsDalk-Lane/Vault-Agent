@@ -222,7 +222,7 @@ describe("VaultSearch", () => {
         {
           caller: "fanout",
           mode: "plan",
-          scope: { vaultRoot: "/vault", externalRoots: [], readOnly: true },
+          scope: { vaultRoot: "/vault", readOnly: true },
           scopeVersion: 1,
           policyVersion: 1,
           targets: [],

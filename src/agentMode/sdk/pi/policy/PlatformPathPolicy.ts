@@ -28,6 +28,11 @@ export interface PlatformPathPolicyOptions {
    * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
    */
   readonly authorizedUncRoots?: readonly string[];
+  /** "open" accepts any UNC path when the single-layer approval model has no pre-authorized
+   * roots; device namespaces and ADS streams stay rejected either way.
+   * https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+   */
+  readonly uncAccess?: "authorized-roots" | "open";
 }
 
 const WINDOWS_DEVICE_NAMESPACE = /^\\\\[.?]\\/;
@@ -49,6 +54,7 @@ export class PlatformPathPolicy {
   private readonly platform: HostPlatform;
   private readonly caseSensitivity: PathCaseSensitivity;
   private readonly authorizedUncRoots: readonly string[];
+  private readonly uncAccess: "authorized-roots" | "open";
 
   constructor(options: PlatformPathPolicyOptions) {
     this.platform = options.platform;
@@ -57,6 +63,7 @@ export class PlatformPathPolicy {
     this.authorizedUncRoots = (options.authorizedUncRoots ?? []).map((root) =>
       normalizeSeparators(root, options.platform)
     );
+    this.uncAccess = options.uncAccess ?? "authorized-roots";
   }
 
   validate(raw: string): string {
@@ -154,6 +161,7 @@ export class PlatformPathPolicy {
   }
 
   private assertAuthorizedUnc(normalized: string, raw: string): void {
+    if (this.uncAccess === "open") return;
     const authorized = this.authorizedUncRoots.some((root) => this.isWithin(root, normalized));
     if (!authorized) {
       throw new PlatformPathError(

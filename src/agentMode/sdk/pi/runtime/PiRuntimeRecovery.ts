@@ -155,15 +155,13 @@ export async function createPiRuntimeRecovery(
               status:
                 run.status === "waiting_user"
                   ? "completed"
-                  : run.status === "paused_storage"
-                    ? ("paused_storage" as const)
-                    : run.status === "paused_user"
-                      ? ("paused_user" as const)
-                      : run.status === "paused_stalled"
-                        ? ("paused_stalled" as const)
-                        : run.status === "paused_budget"
-                          ? ("paused_budget" as const)
-                          : ("interrupted" as const),
+                  : run.status === "paused_user"
+                    ? ("paused_user" as const)
+                    : run.status === "paused_stalled"
+                      ? ("paused_stalled" as const)
+                      : run.status === "paused_budget"
+                        ? ("paused_budget" as const)
+                        : ("interrupted" as const),
               startedAtMs: run.startedAtMs,
               cancelEpoch: 0,
             },
@@ -191,15 +189,13 @@ export async function createPiRuntimeRecovery(
                 ? "这段聊天连续三次未正常结束，已转为只读。可导出、停止未完成工作，或明确重试。"
                 : run?.status === "waiting_user"
                   ? "本轮已结束，清单仍有剩余工作。点击继续会沿原目标启动下一段并追加32次请求额度；打开记录不会自动执行，也可直接发送新的要求。"
-                  : run?.status === "paused_storage"
-                    ? "这段记录接近容量上限，进度和结果已保存。请在更多菜单选择“总结并新建会话”保留进度并续段；打开历史不会继续执行。"
-                    : run?.status === "paused_user"
-                      ? "工作已按要求暂停，进度与已发生的修改保留。点击继续前不会重新执行。"
-                      : run?.status === "paused_stalled"
-                        ? "相同操作连续失败且没有新进展，已保存暂停。检查原因后可明确继续，或停止未完成的工作。"
-                        : run?.status === "paused_budget"
-                          ? "本段模型请求额度已用完，进度和操作结果已保存。点击继续可追加下一段32次请求额度；累计用量会保留。"
-                          : "有尚未完成的工作。选择继续前不会重新调用模型或执行工具；也可以停止未完成工作。",
+                  : run?.status === "paused_user"
+                    ? "工作已按要求暂停，进度与已发生的修改保留。点击继续前不会重新执行。"
+                    : run?.status === "paused_stalled"
+                      ? "相同操作连续失败且没有新进展，已保存暂停。检查原因后可明确继续，或停止未完成的工作。"
+                      : run?.status === "paused_budget"
+                        ? "本段模型请求额度已用完，进度和操作结果已保存。点击继续可追加下一段32次请求额度；累计用量会保留。"
+                        : "有尚未完成的工作。选择继续前不会重新调用模型或执行工具；也可以停止未完成工作。",
     };
   };
   const coordinator = new RecoveryCoordinator({

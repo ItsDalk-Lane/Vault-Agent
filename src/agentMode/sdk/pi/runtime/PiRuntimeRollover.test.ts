@@ -15,7 +15,7 @@ describe("PiRuntimeRollover", () => {
         expect(report.checks).toEqual(
           expect.arrayContaining([
             "failed_new_root_does_not_archive_or_publish_ghost",
-            "actual_32_mib_jsonl_blocks_new_work_but_allows_explicit_rollover",
+            "explicit_rollover_remains_available_for_large_sessions",
             "official_sdk_summary_carried_to_new_root_with_source",
             "old_store_readonly_and_bytes_preserved",
             "archived_reopen_has_no_provider_call",

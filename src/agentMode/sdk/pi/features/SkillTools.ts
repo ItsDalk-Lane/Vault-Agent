@@ -19,11 +19,7 @@ export interface SkillToolCatalogPort {
 }
 
 export interface SkillHostProcessPort {
-  requestApproval(input: {
-    readonly skillId: string;
-    readonly command: string;
-    readonly executionMode: "strict" | "trusted_host";
-  }): Promise<{
+  requestApproval(input: { readonly skillId: string; readonly command: string }): Promise<{
     readonly approved: boolean;
     readonly requestId?: string;
     readonly reason?: string;
@@ -52,7 +48,6 @@ export interface SkillToolsOptions {
     readonly skillId: string;
     readonly relativePath: string;
   }) => Promise<string>;
-  readonly executionMode?: "strict" | "trusted_host";
   readonly allowedTrusts?: readonly SkillTrust[];
   readonly maxInstructionsBytes?: number;
 }
@@ -200,7 +195,6 @@ export class SkillTools {
     input: {
       readonly skillId: string;
       readonly command: string;
-      readonly executionMode?: "strict" | "trusted_host";
     },
     hostProcess = this.#options.hostProcess
   ): Promise<SkillToolResult> {
@@ -222,7 +216,6 @@ export class SkillTools {
     const approval = await hostProcess.requestApproval({
       skillId: entry.skillId,
       command: input.command,
-      executionMode: input.executionMode ?? this.#options.executionMode ?? "strict",
     });
     if (approval.result) return approval.result;
     if (!approval.approved) {
@@ -243,7 +236,6 @@ export class SkillTools {
       details: Object.freeze({
         skillId: entry.skillId,
         ...(approval.requestId !== undefined ? { requestId: approval.requestId } : {}),
-        executionMode: input.executionMode ?? this.#options.executionMode ?? "strict",
       }),
     });
   }

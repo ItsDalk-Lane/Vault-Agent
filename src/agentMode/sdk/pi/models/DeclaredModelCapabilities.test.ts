@@ -43,12 +43,9 @@ describe("DeclaredModelCapabilities", () => {
       });
     });
     it.each(["togetherai", "vercel"])(
-      "resolves models.dev provider alias %s without guessing a protocol https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
+      "does not remap obsolete external catalog provider alias %s https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
       (provider) => {
-        expect(lookupDeclaredModelCapabilities(provider, "declared")?.modalities?.input).toEqual([
-          "text",
-          "image",
-        ]);
+        expect(lookupDeclaredModelCapabilities(provider, "declared")).toBeUndefined();
       }
     );
     it("returns no declaration for an unknown provider or model https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {

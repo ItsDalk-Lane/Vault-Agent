@@ -355,7 +355,7 @@ describe("VaultReadTools", () => {
           {
             caller: "fanout",
             mode: "plan",
-            scope: { vaultRoot: fixture.vault, externalRoots: [], readOnly: true },
+            scope: { vaultRoot: fixture.vault, readOnly: true },
             scopeVersion: 1,
             policyVersion: 1,
             targets: [{ kind: "vault_path", value: "Notes/a.md", insideScope: true }],

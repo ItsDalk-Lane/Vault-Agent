@@ -1,14 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import {
-  backendDisplayOrder,
-  backendRegistry,
-  describeBackendForHistory,
-} from "@/agentMode/backends/registry";
-import { LegacyHistoryReader } from "@/agentMode/session/legacy/LegacyHistoryReader";
-
-// 旧 Claude 执行链不得重新进入运行入口，历史名称与聊天仍可只读查看。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// 已移除的执行链不能重新进入运行入口。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const projectRoot = path.resolve(__dirname, "../../../../..");
 const DELETED_MODULES = [
   "ClaudeSdkBackendProcess",
@@ -91,65 +84,6 @@ describe("noClaudeExecution", () => {
       });
 
       expect(offenders).toEqual([]);
-    });
-  });
-
-  describe("historical backend identity", () => {
-    it("keeps the old identity outside every runtime and model-discovery registration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      expect(backendRegistry.claude).toBeUndefined();
-      expect(Object.keys(backendRegistry)).toEqual(["pi"]);
-      expect(backendDisplayOrder().map((descriptor) => descriptor.id)).toEqual(["pi"]);
-      const history = describeBackendForHistory("claude");
-      expect(history).toMatchObject({
-        id: "claude",
-        label: "Claude",
-      });
-      expect(
-        Object.values(history).some(
-          (value) => typeof value === "function" && value !== history.Icon
-        )
-      ).toBe(false);
-      expect(history).not.toHaveProperty("createBackendProcess");
-      expect(history).not.toHaveProperty("getEnabledModelEntries");
-      expect(history).not.toHaveProperty("getInstallState");
-    });
-  });
-
-  describe("legacy Claude history", () => {
-    it("opens an old Claude chat with its original backendId and messages", async () => {
-      const markdown = [
-        "---",
-        "backendId: claude",
-        "sessionId: old-claude-1",
-        "title: Old Claude chat",
-        "createdAtMs: 1700000000000",
-        "---",
-        "",
-        "**user**: summarize my note",
-        "",
-        "**ai**: here is the summary",
-        "",
-      ].join("\n");
-      const reader = new LegacyHistoryReader({
-        ports: {
-          listFiles: async () => [{ path: "chats/old-claude-1.md", content: markdown }],
-          isTombstoned: async () => false,
-        },
-      });
-
-      const result = await reader.readAll();
-
-      expect(result.entries).toHaveLength(1);
-      expect(result.entries[0]).toMatchObject({
-        backendId: "claude",
-        sessionId: "old-claude-1",
-        title: "Old Claude chat",
-        importMode: "text_only",
-      });
-      expect(result.entries[0]?.messages.map((message) => message.text)).toEqual([
-        "summarize my note",
-        "here is the summary",
-      ]);
     });
   });
 });

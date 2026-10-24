@@ -76,7 +76,6 @@ function harness(
     platform?: HostPlatform;
     files?: readonly string[];
     configured?: { bash?: string };
-    trusted?: boolean;
     nativeFail?: boolean;
   } = {}
 ): Harness {
@@ -97,9 +96,6 @@ function harness(
     defaultCwd: "/home/user/projects",
     now: () => 1_000,
   });
-  if (options.trusted === true) {
-    policy.confirmTrustedHost({ confirmedBy: "user", riskAcknowledged: true, noticeVersion: 1 });
-  }
   const bashCalls = { calls: 0 };
   const powershellCalls = { calls: 0 };
   const registrations: NativeCommandRegistrations = {
@@ -166,7 +162,6 @@ describe("NativeCommands", () => {
       const harnessed = harness({
         platform: "win32",
         files: [windowsPowerShell],
-        trusted: true,
       });
       const token = approve(harnessed, "Get-Location", windowsPowerShell);
 
@@ -191,17 +186,11 @@ describe("NativeCommands", () => {
       ]);
     });
 
-    it("requires a fresh approval for every trusted command and never auto-runs", async () => {
-      const harnessed = harness({ trusted: true });
+    it("requires a fresh approval for every command and never auto-runs", async () => {
+      const harnessed = harness();
       const token = approve(harnessed);
 
       const unapproved = await harnessed.commands.execute("bash", { command: "echo hi" }, {}, {});
-      const auto = await harnessed.commands.execute(
-        "bash",
-        { command: "echo hi" },
-        {},
-        { autoApproved: true }
-      );
       const approvedOnce = await harnessed.commands.execute(
         "bash",
         { command: "echo hi" },
@@ -217,33 +206,24 @@ describe("NativeCommands", () => {
 
       expect(unapproved.isError).toBe(true);
       expect(outputText(unapproved)).toContain("CONFIRMATION_REQUIRED");
-      expect(auto.isError).toBe(true);
-      expect(outputText(auto)).toContain("AUTO_MODE_CANNOT_BYPASS_STRICT");
       expect(approvedOnce.isError).toBeFalsy();
       expect(replayed.isError).toBe(true);
       expect(outputText(replayed)).toContain("APPROVAL_REQUIRED");
       expect(harnessed.env.execCalls).toHaveLength(1);
     });
 
-    it("denies strict execution and auto bypass with zero process calls", async () => {
+    it("asks for confirmation and spawns nothing before an approval (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
       const harnessed = harness();
 
-      const strict = await harnessed.commands.execute("bash", { command: "echo hi" }, {}, {});
-      const auto = await harnessed.commands.execute(
-        "bash",
-        { command: "echo hi" },
-        {},
-        { autoApproved: true }
-      );
+      const unapproved = await harnessed.commands.execute("bash", { command: "echo hi" }, {}, {});
 
-      expect(outputText(strict)).toContain("OPAQUE_EXECUTION_DISABLED");
-      expect(outputText(auto)).toContain("OPAQUE_EXECUTION_DISABLED");
+      expect(outputText(unapproved)).toContain("CONFIRMATION_REQUIRED");
       expect(harnessed.bashCalls.calls).toBe(0);
       expect(harnessed.env.execCalls).toEqual([]);
     });
 
     it("injects the absolute interpreter and clamps a long timeout", async () => {
-      const harnessed = harness({ trusted: true });
+      const harnessed = harness();
       const token = approve(harnessed, "echo hi", "/bin/bash", 300_000);
 
       await harnessed.commands.execute(
@@ -262,7 +242,6 @@ describe("NativeCommands", () => {
       const harnessed = harness({
         files: ["/bin/bash", "/opt/tools/bash"],
         configured: { bash: "/opt/tools/bash" },
-        trusted: true,
       });
       const token = approve(harnessed, "echo hi", "/opt/tools/bash");
 
@@ -277,7 +256,7 @@ describe("NativeCommands", () => {
     });
 
     it("rejects a command that names a vault target before spawning", async () => {
-      const harnessed = harness({ trusted: true });
+      const harnessed = harness();
 
       const result = await harnessed.commands.execute(
         "bash",
@@ -292,7 +271,7 @@ describe("NativeCommands", () => {
     });
 
     it("keeps a native shell error as an error result", async () => {
-      const harnessed = harness({ trusted: true, nativeFail: true });
+      const harnessed = harness({ nativeFail: true });
       const token = approve(harnessed);
 
       const result = await harnessed.commands.execute(

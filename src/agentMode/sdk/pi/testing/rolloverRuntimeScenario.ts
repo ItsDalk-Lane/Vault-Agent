@@ -305,11 +305,11 @@ export async function runRolloverRuntimeScenario(directory: string) {
       .state.mode?.current;
     await backend.shutdown();
     const main = (await storeFiles(path.join(directory, "private"))).find((file) =>
-      file.endsWith("root-compact/store/main.jsonl")
+      file.endsWith("root-compact/main.jsonl")
     );
     assert.ok(main);
     const metadata = JSON.parse(
-      await fs.readFile(path.join(path.dirname(main), "..", "session.json"), "utf8")
+      await fs.readFile(path.join(path.dirname(main), "session.json"), "utf8")
     ) as { conversationId: string };
     const storage = await openNodeJsonlStorage(path.dirname(main), BACKGROUND_CONTEXT, {
       fsync: true,
@@ -351,9 +351,6 @@ export async function runRolloverRuntimeScenario(directory: string) {
     backend = new PiBackendProcess(options);
     await backend.start();
     await backend.loadSession({ sessionId: opened.sessionId, cwd: vaultRoot });
-    const callsAtLimit = faux.state.callCount;
-    await assert.rejects(prompt("must reject new work", "size-limit"), /storage limit|存储/);
-    assert.equal(faux.state.callCount, callsAtLimit);
     faux.setResponses([fauxAssistantMessage("真实滚动摘要：较早状态为黄色")]);
     const before = faux.state.callCount;
     const rolled = await rollover({ sessionId: opened.sessionId });
@@ -376,7 +373,7 @@ export async function runRolloverRuntimeScenario(directory: string) {
     assert.ok(carried.content.includes(opened.sessionId));
     assert.ok(carried.content.includes('"origin"'));
     const oldStore = (await storeFiles(path.join(directory, "private"))).find((file) =>
-      file.endsWith("root-compact/store/main.jsonl")
+      file.endsWith("root-compact/main.jsonl")
     );
     assert.ok(oldStore);
     const bytesBeforeReopen = await fs.readFile(oldStore, "utf8");
@@ -428,7 +425,7 @@ export async function runRolloverRuntimeScenario(directory: string) {
         "stop_during_summary_keeps_source_writable",
         "active_background_or_pending_question_blocks_rollover",
         "failed_new_root_does_not_archive_or_publish_ghost",
-        "actual_32_mib_jsonl_blocks_new_work_but_allows_explicit_rollover",
+        "explicit_rollover_remains_available_for_large_sessions",
         "official_sdk_summary_carried_to_new_root_with_source",
         "old_store_readonly_and_bytes_preserved",
         "archived_reopen_has_no_provider_call",

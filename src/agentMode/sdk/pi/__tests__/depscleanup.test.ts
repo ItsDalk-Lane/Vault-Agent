@@ -1,13 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { sanitizeSettings } from "@/settings/model";
-import type { VaultAgentSettings } from "@/settings/model";
-
-// The release ships without the removed execution SDKs and without any runtime download step: the
-// plugin bundle is the whole engine, installing it is the only setup, old settings still load, and the
-// legacy reader stays a pure reader.
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// 插件必须包含完整引擎，移除的执行依赖和运行时下载安装入口不得重新出现。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const projectRoot = path.resolve(__dirname, "../../../../..");
 const REMOVED_DEPENDENCIES = ["@agentclientprotocol/sdk", "@anthropic-ai/claude-agent-sdk"];
 const REMOVED_INSTALL_MODULES = [
@@ -106,61 +100,6 @@ describe("depscleanup", () => {
       expect(readme).toMatch(/no Node\/npm install, agent CLI, or login is required/i);
       expect(readme).not.toMatch(/installed and updated from inside the plugin/i);
       expect(readme).not.toMatch(/via the Claude Agent SDK/i);
-    });
-  });
-
-  describe("settings", () => {
-    it("loads a config that still carries removed CLI fields without losing live settings", () => {
-      const legacy = {
-        providers: {
-          "byok-openai": {
-            providerId: "byok-openai",
-            providerType: "openai",
-            displayName: "OpenAI",
-            apiKeyKeychainId: "keychain-openai",
-            origin: { kind: "byok", catalogProviderId: "openai" },
-            addedAt: 1,
-          },
-        },
-        configuredModels: [],
-        agentMode: {
-          byok: {},
-          activeBackend: "pi",
-          backends: {
-            codex: {
-              binaryPath: "/usr/local/bin/codex",
-              binaryVersion: "1.0.0",
-              defaultModel: null,
-            },
-            opencode: { binaryPath: "/usr/local/bin/opencode", probeSessionId: "probe-1" },
-            claude: { enableThinking: true },
-          },
-          claudeCli: { path: "/usr/local/bin/claude" },
-          deviceProfiles: {
-            "device-a": {
-              claudeCliPath: "/usr/local/bin/claude",
-              codex: { binaryPath: "/usr/local/bin/codex" },
-            },
-          },
-          debugFullFrames: false,
-          offerFeedbackCards: true,
-          notificationSound: false,
-          notificationSoundId: "piano",
-          welcomeDismissed: false,
-          skills: { folder: "vault-agent/skills" },
-        },
-      } as unknown as VaultAgentSettings;
-
-      const sanitized = sanitizeSettings(legacy);
-
-      expect(sanitized.providers["byok-openai"]?.apiKeyKeychainId).toBe("keychain-openai");
-      expect(sanitized.agentMode.activeBackend).toBe("pi");
-      expect(sanitized.agentMode.backends.claude?.enableThinking).toBe(true);
-      const codex = sanitized.agentMode.backends.codex as unknown as Record<string, unknown>;
-      expect(codex?.binaryPath).toBeUndefined();
-      expect(codex?.binaryVersion).toBeUndefined();
-      const settings = sanitized as unknown as { agentMode: Record<string, unknown> };
-      expect(settings.agentMode.claudeCli).toBeUndefined();
     });
   });
 });

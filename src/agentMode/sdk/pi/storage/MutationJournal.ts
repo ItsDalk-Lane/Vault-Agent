@@ -19,25 +19,9 @@ export interface MutationJournal {
   readonly version: 1;
   readonly mutations: Record<string, StoredMutation>;
   readonly reverts: Record<string, RevertReceipt>;
-  readonly legacyJournalImport?: {
-    readonly source: "mutations/journal.json";
-    readonly sha256: string;
-    readonly schemaVersion: number;
-    readonly mutationCount: number;
-    readonly revertCount: number;
-    readonly status: "imported";
-    readonly importedAtMs: number;
-  };
-  readonly operationIdentityVersion?: 2;
-  readonly legacyTaskOperations?: Record<
-    string,
-    { readonly operationId: string; readonly toolId: string; readonly arguments: unknown }
-  >;
-  readonly ambiguousLegacyTasks?: readonly string[];
 }
 
 export interface MutationJournalStore {
   load(): Promise<MutationJournal | null>;
   save(journal: MutationJournal): Promise<void>;
-  migrateOperationIdentities?(journal: MutationJournal): Promise<MutationJournal>;
 }

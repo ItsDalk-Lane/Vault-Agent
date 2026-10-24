@@ -9,7 +9,7 @@ import { getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { KeychainService } from "@/services/keychainService";
 import { createCopilotPatternFilter } from "@/search/searchUtils";
 import { getManagedSkills } from "@/agentMode/skills/SkillManager";
-import { createNodeProjectDiscoveryFs } from "@/agentMode/skills/nodeFsAdapters";
+import { requireNodeModule } from "@/utils/desktopRuntime";
 import { capabilitiesFromConfiguredInfo } from "@/modelManagement";
 import { configuredPiCatalog } from "@/agentMode/sdk/pi/runtime/PiRuntimeModels";
 import {
@@ -19,11 +19,6 @@ import {
   VAULT_AGENT_INSTRUCTION_PRECEDENCE,
   VAULT_AGENT_EXECUTION_POLICY,
 } from "@/agentMode/backends/shared/agentSystemPrompt";
-import {
-  getCachedSystemPrompts,
-  getSelectedPromptTitle,
-  getDisableBuiltinSystemPrompt,
-} from "@/system-prompts/state";
 import {
   ModelSelectionError,
   configuredModelKeyFromWireId,
@@ -40,19 +35,14 @@ export function getPiInstructionSections(): Pick<
   ContextBuilderInput,
   "base" | "toolGuidance" | "userSystem"
 > {
-  const user = getCachedSystemPrompts().find(
-    (prompt) => prompt.title === getSelectedPromptTitle()
-  )?.content;
   return {
-    base: getDisableBuiltinSystemPrompt()
-      ? ""
-      : [VAULT_AGENT_PROMPT_BASE, VAULT_AGENT_WEB_RESEARCH_STEERING].join("\n\n"),
+    base: [VAULT_AGENT_PROMPT_BASE, VAULT_AGENT_WEB_RESEARCH_STEERING].join("\n\n"),
     toolGuidance: [
       VAULT_AGENT_EXECUTION_POLICY,
       VAULT_AGENT_PROJECT_WORKSPACE_POLICY,
       VAULT_AGENT_INSTRUCTION_PRECEDENCE,
     ].join("\n\n"),
-    userSystem: user ? [user] : EMPTY_USER_INSTRUCTIONS,
+    userSystem: EMPTY_USER_INSTRUCTIONS,
   };
 }
 
@@ -105,7 +95,11 @@ export const PiBackendDescriptor: BackendDescriptor = {
         skillsSource: {
           listSkills: async () => getManagedSkills(),
           // 技能发现提供绝对路径，交给现有文件适配器读取，避免库适配器重复添加根目录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-          readBody: (path) => createNodeProjectDiscoveryFs().readFile(path),
+          readBody: (path) =>
+            requireNodeModule<typeof import("node:fs/promises")>("node:fs/promises").readFile(
+              path,
+              "utf8"
+            ),
         },
       },
     }),

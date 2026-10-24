@@ -44,8 +44,19 @@ describe("AgentChatUIState", () => {
         sendPrompt,
       } as unknown as AgentSession);
       await chat.steerMessage("保留原文");
-      expect(steerPrompt).toHaveBeenCalledWith("保留原文");
+      expect(steerPrompt).toHaveBeenCalledWith("保留原文", undefined, undefined);
       expect(sendPrompt).not.toHaveBeenCalled();
+    });
+    it("forwards the queued message's context and attachments https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", async () => {
+      const steerPrompt = jest.fn(async () => undefined);
+      const chat = new AgentChatUIState({
+        subscribe: jest.fn(),
+        steerPrompt,
+      } as unknown as AgentSession);
+      const context = { notes: [], urls: [] };
+      const promptContent = [{ type: "image", mimeType: "image/png", data: "AQID" }] as const;
+      await chat.steerMessage("看这张图", context, [...promptContent]);
+      expect(steerPrompt).toHaveBeenCalledWith("看这张图", context, [...promptContent]);
     });
   });
   describe("pause()", () => {

@@ -88,10 +88,9 @@
       "resolvedZone": "external",
       "mode": "default",
       "effect": "read",
-      "inScope": false,
-      "code": "PATH_OUT_OF_SCOPE",
-      "expected": "deny",
-      "reason": "未授权外部根"
+      "inScope": true,
+      "expected": "allow",
+      "reason": "外部读取不再需要预授权根，仅受逐次审批约束（POL-09 语义随单层权限模型更新）https://github.com/ItsDalk-Lane/Vault-Agent/issues/15"
     },
     {
       "id": "POL-10",
@@ -119,10 +118,8 @@
       "resolvedZone": "external",
       "mode": "auto",
       "effect": "execute",
-      "hostExecution": "strict",
-      "code": "OPAQUE_EXECUTION_DISABLED",
-      "expected": "deny",
-      "reason": "strict不运行opaque"
+      "expected": "ask",
+      "reason": "host_process 不再有 strict/trusted 分支，恒为逐次审批（POL-12 语义随单层权限模型更新）https://github.com/ItsDalk-Lane/Vault-Agent/issues/15"
     },
     {
       "id": "POL-13",

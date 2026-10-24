@@ -5,12 +5,10 @@ import {
   type HostCommandRequest,
 } from "@/agentMode/sdk/pi/policy/HostExecutionPolicy";
 
-// strict is the default and no execution mode can bypass it: opaque commands are denied without
-// spawning anything. trusted_host only opens after a real user acknowledges the non-sandbox risk,
-// every command still needs its own concrete confirmation (no allow-always), auto mode cannot skip
-// it, a settings change/revoke invalidates unused confirmations, and known vault targets stay
-// rejected:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// Commands are always offered and the per-command approval is the only gate: every command needs
+// its own single-use confirmation (no allow-always, no mode bypass), known vault targets stay
+// rejected, and a missing interpreter disables the capability:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
 function harness(): {
   readonly policy: HostExecutionPolicy;
   readonly spawns: string[];
@@ -29,63 +27,14 @@ function harness(): {
   return { policy, spawns, runner };
 }
 
-function enableTrustedHost(policy: HostExecutionPolicy): void {
-  const result = policy.confirmTrustedHost({
-    confirmedBy: "user",
-    riskAcknowledged: true,
-    noticeVersion: 1,
-  });
-  if (!result.ok) throw new Error(result.code);
-}
-
 describe("HostExecutionPolicy", () => {
   describe("evaluate()", () => {
-    it("denies opaque execution in the default strict mode without spawning", async () => {
+    it("requires a per-command confirmation without any pre-enabled mode", async () => {
       const harnessed = harness();
-
-      const decision = await harnessed.policy.runIfAllowed(
-        { command: "cat /home/user/notes.md" },
-        harnessed.runner
-      );
-      const auto = await harnessed.policy.runIfAllowed(
-        { command: "cat /home/user/notes.md" },
-        harnessed.runner,
-        { autoApproved: true }
-      );
-
-      expect(harnessed.policy.state.mode).toBe("strict");
-      expect(decision).toMatchObject({ ran: false, code: "OPAQUE_EXECUTION_DISABLED" });
-      expect(auto).toMatchObject({ ran: false, code: "OPAQUE_EXECUTION_DISABLED" });
-      expect(harnessed.spawns).toEqual([]);
-    });
-
-    it("rejects a settings object that claims trust without a user confirmation", async () => {
-      const policy = new HostExecutionPolicy({
-        path,
-        vaultRoot: "/vault",
-        interpreter: { available: true, label: "/bin/bash" },
-        initialState: { mode: "trusted_host", trustedConfirmedAtMs: null, settingsVersion: 3 },
-        now: () => 1_000,
-      });
-
-      const decision = await policy.runIfAllowed({ command: "echo hi" }, async () => undefined);
-
-      expect(decision).toMatchObject({ ran: false, code: "TRUSTED_HOST_NOT_CONFIRMED" });
-      expect(policy.state.mode).toBe("trusted_host");
-    });
-
-    it("requires a per-command confirmation in trusted_host mode", async () => {
-      const harnessed = harness();
-      enableTrustedHost(harnessed.policy);
 
       const decision = await harnessed.policy.runIfAllowed(
         { command: "echo hi", cwd: "/home/user/projects" },
         harnessed.runner
-      );
-      const auto = await harnessed.policy.runIfAllowed(
-        { command: "echo hi", cwd: "/home/user/projects" },
-        harnessed.runner,
-        { autoApproved: true }
       );
 
       expect(decision).toMatchObject({ ran: false, code: "CONFIRMATION_REQUIRED" });
@@ -99,13 +48,11 @@ describe("HostExecutionPolicy", () => {
         });
         expect(decision.confirmation?.nonSandboxNotice).toContain("not a sandbox");
       }
-      expect(auto).toMatchObject({ ran: false, code: "AUTO_MODE_CANNOT_BYPASS_STRICT" });
       expect(harnessed.spawns).toEqual([]);
     });
 
-    it("runs a trusted command only with the single concrete user approval", async () => {
+    it("runs a command only with the single concrete user approval", async () => {
       const harnessed = harness();
-      enableTrustedHost(harnessed.policy);
       const request: HostCommandRequest = { command: "echo hi", cwd: "/home/user/projects" };
       const approved = harnessed.policy.approveCommand(request, { approvedByUser: true });
       if (!approved.ok) throw new Error(approved.code);
@@ -124,7 +71,6 @@ describe("HostExecutionPolicy", () => {
 
     it("rejects a command that names a vault target", async () => {
       const harnessed = harness();
-      enableTrustedHost(harnessed.policy);
 
       const stringCommand = await harnessed.policy.evaluate({
         command: "cat /vault/notes/a.md",
@@ -150,68 +96,54 @@ describe("HostExecutionPolicy", () => {
         interpreter: { available: false },
         now: () => 1_000,
       });
-      policy.confirmTrustedHost({ confirmedBy: "user", riskAcknowledged: true, noticeVersion: 1 });
 
       const decision = await policy.evaluate({ command: "echo hi" });
 
       expect(decision).toMatchObject({ allowed: false, code: "INTERPRETER_UNAVAILABLE" });
     });
-  });
 
-  describe("confirmTrustedHost()", () => {
-    it("cannot be enabled by a model or without acknowledging the risk", () => {
-      const harnessed = harness();
-
-      expect(
-        harnessed.policy.confirmTrustedHost({
-          confirmedBy: "model",
-          riskAcknowledged: true,
-          noticeVersion: 1,
-        })
-      ).toMatchObject({ ok: false, code: "MODEL_CANNOT_ENABLE_TRUST" });
-      expect(
-        harnessed.policy.confirmTrustedHost({
-          confirmedBy: "user",
-          riskAcknowledged: false,
-          noticeVersion: 1,
-        })
-      ).toMatchObject({ ok: false, code: "RISK_NOT_ACKNOWLEDGED" });
-      expect(harnessed.policy.state.mode).toBe("strict");
-    });
-
-    it("enables trusted_host only after a user acknowledgement and bumps the settings version", () => {
-      const harnessed = harness();
-      const before = harnessed.policy.state.settingsVersion;
-
-      enableTrustedHost(harnessed.policy);
-
-      expect(harnessed.policy.state.mode).toBe("trusted_host");
-      expect(harnessed.policy.state.trustedConfirmedAtMs).toBe(1_000);
-      expect(harnessed.policy.state.settingsVersion).toBe(before + 1);
-    });
-  });
-
-  describe("settings changes", () => {
-    it("revokes an unused command approval when trusted_host is disabled", async () => {
-      const harnessed = harness();
-      enableTrustedHost(harnessed.policy);
+    it("refuses an expired approval (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", async () => {
+      let clock = 1_000;
+      const policy = new HostExecutionPolicy({
+        path,
+        vaultRoot: "/vault",
+        interpreter: { available: true, label: "/bin/bash" },
+        now: () => clock,
+      });
       const request: HostCommandRequest = { command: "echo hi" };
-      const approved = harnessed.policy.approveCommand(request, { approvedByUser: true });
+      const approved = policy.approveCommand(request, { approvedByUser: true });
       if (!approved.ok) throw new Error(approved.code);
 
-      harnessed.policy.disableTrustedHost();
-      const decision = await harnessed.policy.runIfAllowed(request, harnessed.runner, {
-        approvalToken: approved.token,
-      });
+      clock += 3 * 60 * 1_000;
+      const decision = await policy.evaluate(request, { approvalToken: approved.token });
 
-      expect(harnessed.policy.state.mode).toBe("strict");
-      expect(decision).toMatchObject({ ran: false, code: "STALE_APPROVAL" });
-      expect(harnessed.spawns).toEqual([]);
+      expect(decision).toMatchObject({ allowed: false, code: "STALE_APPROVAL" });
+    });
+  });
+
+  describe("approveCommand()", () => {
+    it("cannot be approved by anything but a real user confirmation", () => {
+      const harnessed = harness();
+
+      expect(
+        harnessed.policy.approveCommand({ command: "echo hi" }, { approvedByUser: false })
+      ).toMatchObject({ ok: false, code: "MODEL_CANNOT_APPROVE" });
+    });
+
+    it("refuses to approve a command that names a vault target", () => {
+      const harnessed = harness();
+
+      expect(
+        harnessed.policy.approveCommand(
+          { command: "cat /vault/notes/a.md" },
+          { approvedByUser: true }
+        )
+      ).toMatchObject({ ok: false, code: "VAULT_TARGET_IN_COMMAND" });
     });
   });
 
   describe("riskNotice()", () => {
-    it("states that trusted execution is not a sandbox", () => {
+    it("states that host execution is not a sandbox", () => {
       const harnessed = harness();
 
       const notice = harnessed.policy.riskNotice();

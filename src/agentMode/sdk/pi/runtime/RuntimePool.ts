@@ -1,11 +1,3 @@
-import {
-  STORE_SIZE_STOP_BYTES,
-  STORE_SIZE_WARN_BYTES,
-  canAcceptNewRun,
-  type StoreSizePolicy,
-  type StoreSizeStatus,
-} from "@/agentMode/sdk/pi/storage/StoreSizePolicy";
-
 // One writer per root, at most two open root stores, idle stores closed after 60 seconds
 // with no observers or work, and rolling archive only at a task boundary:
 // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
@@ -35,14 +27,9 @@ export class RuntimePoolError extends Error {
   }
 }
 
-export type AdmitRunResult =
-  | { kind: "accepted"; status: StoreSizeStatus; warning: boolean }
-  | {
-      kind: "blocked";
-      code: "STORE_SIZE_LIMIT";
-      suggestion: "summarize_and_new_session";
-      status: StoreSizeStatus;
-    };
+export interface AdmitRunResult {
+  readonly kind: "accepted";
+}
 
 export type CancelRunResult = { readonly kind: "cancelled" };
 
@@ -61,7 +48,6 @@ export interface RuntimePoolOptions {
   archiveRuntime?: (runtime: PooledRuntime) => Promise<void>;
   activity?: (rootKey: string) => Promise<RuntimeActivity>;
   isInUse?: (rootKey: string) => boolean;
-  sizePolicy?: StoreSizePolicy;
   now?: () => number;
   setTimer?: (delayMs: number, callback: () => void | Promise<void>) => () => void;
   idleTimeoutMs?: number;
@@ -111,7 +97,6 @@ export class RuntimePool {
   private readonly archiveRuntime: ((runtime: PooledRuntime) => Promise<void>) | undefined;
   private readonly isInUse: (rootKey: string) => boolean;
   private readonly activityProbe: (rootKey: string) => Promise<RuntimeActivity>;
-  private readonly sizePolicy: StoreSizePolicy | undefined;
   private readonly now: () => number;
   private readonly setTimer: (delayMs: number, callback: () => void | Promise<void>) => () => void;
   private readonly idleTimeoutMs: number;
@@ -130,7 +115,6 @@ export class RuntimePool {
     this.archiveRuntime = options.archiveRuntime;
     this.isInUse = options.isInUse ?? (() => false);
     this.activityProbe = options.activity ?? (async () => IDLE_ACTIVITY);
-    this.sizePolicy = options.sizePolicy;
     this.now = options.now ?? Date.now;
     this.setTimer =
       options.setTimer ??
@@ -194,32 +178,9 @@ export class RuntimePool {
     const entry = this.requireEntry(rootKey);
     if (this.closed || entry.closing || this.closingRoots.has(rootKey))
       throw new RuntimePoolError("RUNTIME_CLOSING", `The runtime for ${rootKey} is closing.`);
-    // 测量容量期间也是正在接纳执行；异步探测不能把刚开始发送的聊天回收。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     entry.activeRuns += 1;
-    let accepted = false;
-    try {
-      const status = await this.readSizeStatus(rootKey);
-      if (
-        this.closed ||
-        entry.closing ||
-        this.closingRoots.has(rootKey) ||
-        this.entries.get(rootKey) !== entry
-      )
-        throw new RuntimePoolError("RUNTIME_CLOSING", `The runtime for ${rootKey} is closing.`);
-      if (!canAcceptNewRun(status.verdict)) {
-        return {
-          kind: "blocked",
-          code: "STORE_SIZE_LIMIT",
-          suggestion: "summarize_and_new_session",
-          status,
-        };
-      }
-      accepted = true;
-      this.cancelIdleCheck(entry);
-      return { kind: "accepted", status, warning: status.verdict === "suggest_new_session" };
-    } finally {
-      if (!accepted) entry.activeRuns -= 1;
-    }
+    this.cancelIdleCheck(entry);
+    return { kind: "accepted" };
   }
 
   async finishRun(rootKey: string): Promise<void> {
@@ -311,16 +272,6 @@ export class RuntimePool {
       throw new RuntimePoolError("RUNTIME_NOT_OPEN", `No runtime is open for ${rootKey}.`);
     }
     return entry;
-  }
-
-  private async readSizeStatus(rootKey: string): Promise<StoreSizeStatus> {
-    if (this.sizePolicy) return this.sizePolicy.status(rootKey);
-    return {
-      bytes: 0,
-      verdict: "ok",
-      warnAtBytes: STORE_SIZE_WARN_BYTES,
-      stopAtBytes: STORE_SIZE_STOP_BYTES,
-    };
   }
 
   private async runArchive(entry: PoolEntry): Promise<void> {

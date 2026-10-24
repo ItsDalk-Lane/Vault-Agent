@@ -4,9 +4,7 @@ import {
   backendRegistry,
   CREATABLE_BACKEND_IDS,
   creatableBackendDescriptors,
-  describeBackendForHistory,
   getActiveBackendDescriptor,
-  historicalBackendDescriptors,
   listBackendDescriptors,
   RECOMMENDED_BACKEND_ID,
 } from "./registry";
@@ -30,8 +28,8 @@ describe("registry", () => {
       agentMode: {
         enabled: true,
         byok: {},
-        activeBackend: activeBackend ?? "opencode",
-        backends: { opencode: {} },
+        activeBackend: activeBackend ?? "pi",
+        backends: { pi: {} },
       },
     }) as unknown as VaultAgentSettings;
 
@@ -45,12 +43,10 @@ describe("registry", () => {
       expect(getActiveBackendDescriptor(settings)).toBe(PiBackendDescriptor);
     });
 
-    it("starts new chats with Pi after an old backend selection while preserving history labels https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      for (const id of ["claude", "codex", "opencode"])
+    it("uses only Pi for current and unknown engine selections https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      for (const id of ["pi", "unknown-engine"])
         expect(getActiveBackendDescriptor(baseSettings(id, true))).toBe(PiBackendDescriptor);
-      expect(backendRegistry.claude).toBeUndefined();
-      expect(backendRegistry.codex).toBeUndefined();
-      expect(backendRegistry.opencode).toBeUndefined();
+      expect(Object.keys(backendRegistry)).toEqual(["pi"]);
     });
 
     it("falls back to Pi when an unknown backend is selected so no CLI gate appears", () => {
@@ -94,50 +90,10 @@ describe("registry", () => {
     });
   });
 
-  describe("historicalBackendDescriptors()", () => {
-    it("keeps legacy identities available as history metadata outside the picker", () => {
-      const ids = backendDisplayOrder().map((descriptor) => descriptor.id);
-      expect(ids).toEqual(["pi"]);
-      expect(
-        historicalBackendDescriptors()
-          .map((descriptor) => descriptor.id)
-          .sort()
-      ).toEqual(["claude", "codex", "opencode"]);
-      expect(backendRegistry.pi).toBeDefined();
-    });
-
-    it("exposes only stable history metadata without runtime or model discovery methods https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      const history = historicalBackendDescriptors();
-      expect(historicalBackendDescriptors()).toBe(history);
-      for (const identity of history) {
-        expect(identity).not.toHaveProperty("createBackendProcess");
-        expect(identity).not.toHaveProperty("getEnabledModelEntries");
-      }
-    });
-  });
-
   describe("RECOMMENDED_BACKEND_ID", () => {
     it("names the single creatable engine", () => {
       expect(RECOMMENDED_BACKEND_ID).toBe("pi");
       expect(backendRegistry[RECOMMENDED_BACKEND_ID]).toBe(PiBackendDescriptor);
-    });
-  });
-
-  describe("describeBackendForHistory()", () => {
-    it("keeps an old backend label without demanding an install", () => {
-      expect(describeBackendForHistory("claude")).toEqual({
-        id: "claude",
-        label: "Claude",
-        displayName: "Claude",
-        Icon: expect.anything(),
-        agentProductName: "Claude Code",
-      });
-      expect(describeBackendForHistory("mystery-agent")).toEqual({
-        id: "mystery-agent",
-        label: "mystery-agent",
-        displayName: "mystery-agent",
-        Icon: expect.anything(),
-      });
     });
   });
 });

@@ -389,6 +389,22 @@ describe("DurableStore", () => {
         expect(lease.releasedTokens).toEqual(["t1"]);
       });
 
+      it.each(["SESSION_NOT_FOUND", "SESSION_TRANSCRIPT_MISSING"])(
+        "preserves %s after releasing the lease so restoration cannot treat missing data as a recoverable store failure https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+        async (code) => {
+          const engine = createFakeEngine();
+          const failure = Object.assign(new Error("Saved session data is missing"), { code });
+          engine.nextOpenFailure = failure;
+          const lease = createFakeLease();
+          const metadata = createFakeMetadata();
+          const store = createStore({ engine, lease, metadata });
+
+          await expect(store.open()).rejects.toBe(failure);
+          expect(metadata.writes).toEqual([]);
+          expect(lease.releasedTokens).toEqual(["t1"]);
+        }
+      );
+
       it("fails closed on an invalid header and releases the lease", async () => {
         const engine = createFakeEngine();
         const lease = createFakeLease();

@@ -62,7 +62,7 @@ describe("SubagentControlTools", () => {
           },
         });
       });
-      it("offers the same enabled role schema as foreground delegation without exposing disabled writer https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      it("offers the same enabled role schema as foreground delegation including always-on writer (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
         const port = controlPort();
         expect(
           tools(port)
@@ -71,7 +71,7 @@ describe("SubagentControlTools", () => {
         ).toMatchObject({
           properties: {
             profileId: {
-              enum: ["researcher", "reviewer"],
+              enum: ["researcher", "reviewer", "writer"],
               description: expect.stringContaining("Read-only"),
             },
           },

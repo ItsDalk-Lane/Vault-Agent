@@ -177,39 +177,6 @@ describe("WorkItemStore", () => {
         });
       });
     });
-    describe("importWorkItem()", () => {
-      it("preserves spend and the original objective across explicit store rollover without replacing an existing destination https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const source = await fixture();
-        await source.store.ensure("work", "Original objective");
-        await source.store.reserve({
-          attemptId: "one",
-          runId: "work",
-          purpose: "root",
-          reservedAtMs: 1,
-        });
-        await source.store.recordUsage("work", "one", 0.25);
-        await source.store.checkpoint("work", checkpoint, "paused_storage");
-        const item = (await source.store.read("work"))!;
-        const destination = await fixture();
-        await destination.store.importWorkItem(item);
-        await destination.store.importWorkItem({
-          ...item,
-          checkpoint: { ...checkpoint, goal: "Different objective" },
-        });
-        expect(await destination.store.read("work")).toEqual(item);
-        expect((await destination.store.authorizeNextSegment("work")).grants).toHaveLength(1);
-        expect(
-          (
-            await destination.store.reserve({
-              attemptId: "two",
-              runId: "work",
-              purpose: "root",
-              reservedAtMs: 2,
-            })
-          ).accepted
-        ).toBe(false);
-      });
-    });
     describe("ensure()", () => {
       it("keeps the original objective and imported reservations across repeated continuation requests https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const { store } = await fixture();
@@ -282,15 +249,12 @@ describe("WorkItemStore", () => {
         await store.checkpoint("work", checkpoint, "paused_user");
         expect((await store.authorizeNextSegment("work")).grants).toHaveLength(4);
       });
-      it("adds one explicitly approved segment after a progress pause and refuses implicit grants after a storage pause https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      it("adds one explicitly approved segment after a progress pause https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const { store } = await fixture();
         await store.ensure("work", "goal");
         await store.checkpoint("work", checkpoint, "paused_stalled");
         expect((await store.authorizeNextSegment("work")).grants).toHaveLength(2);
         expect((await store.authorizeNextSegment("work")).grants).toHaveLength(2);
-        await store.checkpoint("work", checkpoint, "paused_storage");
-        expect((await store.authorizeNextSegment("work")).status).toBe("paused_storage");
-        expect((await store.read("work"))?.grants).toHaveLength(2);
       });
       it("grants one new segment only from a paused work item and preserves the previous usage https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const { store } = await fixture();

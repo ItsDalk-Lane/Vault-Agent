@@ -2,13 +2,6 @@ import { sha256 } from "@/utils/hash";
 import { PROMPT_CONTEXT_MAX_BYTES } from "@/agentMode/session/types";
 import type { ProjectInstruction } from "./ProjectInstructions";
 
-// Context assembly follows one fixed order — product base behaviour, tool/permission guidance, the
-// user's own system instructions, project instructions, explicitly selected skills, then the current
-// user input and its materials. Materials carry their origin/path/url/hash, stay untrusted data that
-// can never become a system instruction, respect a 128 KiB and model-window budget by listing what was
-// omitted instead of uploading everything, and the legacy history envelope is dropped when the
-// runtime already keeps the conversation:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 export const CONTEXT_MATERIAL_MAX_BYTES = PROMPT_CONTEXT_MAX_BYTES;
 export const CONTEXT_MATERIAL_BYTES_PER_TOKEN = 4;
 export const CONTEXT_MATERIAL_WINDOW_FRACTION = 0.1;
@@ -31,8 +24,7 @@ export type ContextOrigin =
   | "note"
   | "web"
   | "mcp"
-  | "subagent"
-  | "legacy_session";
+  | "subagent";
 
 export interface ContextSection {
   readonly kind: ContextSectionKind;
@@ -93,8 +85,6 @@ export interface ContextBuilderInput {
   }[];
   readonly userInput: string;
   readonly materials?: readonly ContextMaterialInput[];
-  readonly legacyHistoryEnvelope?: string;
-  readonly durableHoldsHistory: boolean;
   readonly contextWindowTokens?: number;
   readonly maxMaterialBytes?: number;
 }
@@ -115,7 +105,6 @@ export interface BuiltContext {
   readonly materialBudgetBytes: number;
   readonly materialDigest: readonly ContextMaterialDigest[];
   readonly omittedMaterials: readonly ContextMaterialDigest[];
-  readonly historyEnvelopeDropped: boolean;
   readonly notices: readonly string[];
 }
 
@@ -195,11 +184,7 @@ export function buildContext(input: ContextBuilderInput): BuiltContext {
   const digest: ContextMaterialDigest[] = [];
   for (const material of input.materials ?? []) {
     const bytes = utf8Bytes(material.text);
-    const isLegacy = material.origin === "legacy_session";
-    const droppedLegacy =
-      isLegacy && input.durableHoldsHistory && material.explicitlyImported !== true;
-    const fits = materialBytes + bytes <= materialBudgetBytes;
-    const included = !droppedLegacy && fits;
+    const included = materialBytes + bytes <= materialBudgetBytes;
     digest.push(
       Object.freeze({
         origin: material.origin,
@@ -235,20 +220,12 @@ export function buildContext(input: ContextBuilderInput): BuiltContext {
       `${omittedMaterials.length} material(s) were not attached because they exceed the ${materialBudgetBytes} byte budget; read them on demand instead of sending everything.`
     );
   }
-  const historyEnvelopeDropped =
-    input.durableHoldsHistory && (input.legacyHistoryEnvelope?.length ?? 0) > 0;
-  if (historyEnvelopeDropped) {
-    notices.push(
-      "The legacy history envelope was dropped because the runtime already holds the conversation."
-    );
-  }
   return Object.freeze({
     sections: Object.freeze(sections),
     materialBytes,
     materialBudgetBytes,
     materialDigest: Object.freeze(digest),
     omittedMaterials,
-    historyEnvelopeDropped,
     notices: Object.freeze(notices),
   });
 }

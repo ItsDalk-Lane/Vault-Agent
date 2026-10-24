@@ -1,4 +1,7 @@
-import type { App } from "obsidian";
+import { FileSystemAdapter, type App } from "obsidian";
+import type VaultAgentPlugin from "@/main";
+import { AgentModelPreloader } from "@/agentMode/session/AgentModelPreloader";
+import type { BackendDescriptor } from "@/agentMode/session/types";
 import type { VaultAgentSettings } from "@/settings/model";
 import { PiBackendProcess } from "@/agentMode/sdk/pi/PiBackendProcess";
 import { StoreLocator } from "@/agentMode/sdk/pi/storage/StoreLocator";
@@ -13,7 +16,9 @@ export async function runStartupRuntimeScenario(directory: string) {
   const app = {
     vault: {
       configDir: ".fixture-config",
-      adapter: { getBasePath: () => vaultRoot },
+      adapter: Object.assign(Object.create(FileSystemAdapter.prototype), {
+        getBasePath: () => vaultRoot,
+      }),
       getFiles: () => [],
       getMarkdownFiles: () => [],
       on: () => ({}),
@@ -65,7 +70,17 @@ export async function runStartupRuntimeScenario(directory: string) {
     throw new Error("A session lifecycle operation must not call a model.");
   };
   try {
-    await backend.start();
+    const preloader = new AgentModelPreloader(
+      app,
+      { manifest: { version: "test" } } as VaultAgentPlugin,
+      () => ({ id: "pi", createBackendProcess: () => backend }) as unknown as BackendDescriptor
+    );
+    await preloader.preload("pi");
+    assert.equal(preloader.takeWarm("pi")?.proc, backend);
+    const locations = backend.getLocalStoragePaths();
+    assert.deepEqual((await backend.listSessions({ cwd: vaultRoot })).sessions, []);
+    assert.deepEqual(await fs.readdir(locations.sessionsRoot), []);
+    assert.deepEqual(await fs.readdir(vaultRoot), []);
     const unaffected = await backend.newSession({
       cwd: vaultRoot,
       sessionId: "root-startup-unaffected",
@@ -124,6 +139,7 @@ export async function runStartupRuntimeScenario(directory: string) {
     return {
       status: "passed",
       checks: [
+        "preload_without_session_files",
         "no_ghost_index",
         "individual_creation_failure_does_not_restart_runtime",
         "other_chat_remains_usable",

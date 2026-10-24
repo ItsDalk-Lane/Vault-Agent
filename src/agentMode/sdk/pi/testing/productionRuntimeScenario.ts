@@ -10,7 +10,6 @@ import type { JsonObject } from "@earendil-works/pi-durable";
 import type { VaultAgentSettings } from "@/settings/model";
 import { PiBackendProcess } from "@/agentMode/sdk/pi/PiBackendProcess";
 import type { SessionEvent } from "@/agentMode/session/types";
-import { sha256 } from "@/utils/hash";
 import type { ProviderStreamsFactory } from "@/agentMode/sdk/pi/models/ProviderFactory";
 import { isSummaryRequest } from "@/agentMode/sdk/pi/testing/summaryRequest";
 
@@ -53,7 +52,8 @@ export async function runProductionRuntimeScenario(directory: string) {
           id: "fixture-model",
           displayName: "Fixture",
           toolCall: true,
-          limits: { context: 8192, output: 1024 },
+          // 单层权限模型下命令与外部文件工具常驻注册，夹具窗口需容纳其 schema；仍保持小窗口以验证真实压缩。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+          limits: { context: 12_288, output: 1024 },
           modalities: { input: ["text", "image"], output: ["text"] },
         },
         configuredAt: 1,
@@ -541,7 +541,7 @@ export async function runProductionRuntimeScenario(directory: string) {
     format: "json",
   });
   const attachmentDocument = JSON.parse(withAttachment.content) as {
-    session: { attachments?: { mime: string; bytes: number }[] };
+    session: { attachments?: { mime: string; bytes: number; data: string }[] };
   };
   assert.ok(
     attachmentDocument.session.attachments?.some(
@@ -549,40 +549,10 @@ export async function runProductionRuntimeScenario(directory: string) {
     ),
     "full export must include attachment metadata from the actual input receipt"
   );
-  const sourceText = "**user**: 旧问题\n\n**ai**: 旧回答\n";
-  const sourcePath = path.join(vaultRoot, "old-chat.md");
-  await fs.writeFile(sourcePath, sourceText);
-  const legacyEntry = {
-    backendId: "claude",
-    sessionId: "old-fixture",
-    title: "原有聊天",
-    createdAtMs: 1,
-    lastAccessedAtMs: 2,
-    sourcePath: "old-chat.md",
-    sourceHash: sha256(sourceText),
-    messages: [
-      { role: "user" as const, text: "旧问题" },
-      { role: "assistant" as const, text: "旧回答" },
-    ],
-    unknownFields: {},
-    importMode: "text_only" as const,
-  };
-  const beforeImport = faux.state.callCount;
-  const imported = await afterDismissal.importLegacySession({ cwd: vaultRoot, entry: legacyEntry });
-  const repeated = await afterDismissal.importLegacySession({ cwd: vaultRoot, entry: legacyEntry });
-  assert.equal(imported.sessionId, repeated.sessionId);
-  assert.equal(await fs.readFile(sourcePath, "utf8"), sourceText);
-  const importedBackup = await afterDismissal.exportSession({
-    sessionId: imported.sessionId,
-    format: "json",
-  });
-  const importedDocument = JSON.parse(importedBackup.content) as {
-    session: { extras: { entries: { kind: string }[] } };
-  };
-  assert.equal(
-    importedDocument.session.extras.entries.filter((entry) => entry.kind === "va.material").length,
-    1
+  assert.ok(
+    attachmentDocument.session.attachments?.some((attachment) => attachment.data === image)
   );
+  const beforeExport = faux.state.callCount;
   const fullBackup = await afterDismissal.exportSession({
     sessionId: opened.sessionId,
     format: "json",
@@ -591,62 +561,14 @@ export async function runProductionRuntimeScenario(directory: string) {
     sessionId: opened.sessionId,
     format: "markdown",
   });
+  assert.ok(fullBackup.content.includes("真实入口回答"));
+  assert.ok(fullBackup.content.includes("va.state"));
   assert.ok(markdown.content.includes("真实入口回答"));
-  const restored = await afterDismissal.importSessionBackup({
-    cwd: vaultRoot,
-    content: fullBackup.content,
-  });
-  assert.equal(restored.state.readOnly, true);
-  const restoredEvents: SessionEvent[] = [];
-  const stopWatchingBackup = afterDismissal.registerSessionHandler(restored.sessionId, (event) =>
-    restoredEvents.push(event)
-  );
-  await afterDismissal.loadSession({ sessionId: restored.sessionId, cwd: vaultRoot });
-  const restoredMessages = restoredEvents.flatMap((event) =>
-    event.update.sessionUpdate === "session_projection" ? event.update.projection.messages : []
-  );
   assert.ok(
-    restoredMessages.some((message) => message.sender === "user" && message.message === "请回答"),
-    "a full backup must retain the original user role"
+    markdown.attachments?.some((file) => Buffer.from(file.content).toString("base64") === image)
   );
-  assert.ok(
-    restoredMessages.some(
-      (message) => message.sender === "ai" && message.message === "真实入口回答"
-    ),
-    "a full backup must retain the original assistant role"
-  );
-  assert.ok(
-    restoredMessages.some(
-      (message) =>
-        message.sender === "user" &&
-        Array.isArray(message.content) &&
-        JSON.stringify(message.content).includes(`data:image/png;base64,${image}`)
-    ),
-    "restoring the full backup must restore the actual image bytes rather than only its receipt"
-  );
-  const exportedAgain = await afterDismissal.exportSession({
-    sessionId: restored.sessionId,
-    format: "json",
-  });
-  assert.ok(exportedAgain.content.includes("真实入口回答"));
-  assert.ok(
-    exportedAgain.content.includes("va.state"),
-    "full export must retain durable feature entries"
-  );
-  assert.equal(
-    faux.state.callCount,
-    beforeImport,
-    "import, read-only restore, and export must never contact a provider"
-  );
-  stopWatchingBackup();
-  faux.appendResponses([fauxAssistantMessage("导入后的新聊天确实可以继续")]);
-  await afterDismissal.prompt({
-    sessionId: imported.sessionId,
-    requestId: "continue-import",
-    prompt: [{ type: "text", text: "继续分析刚导入的资料" }],
-  });
-  assert.equal(faux.state.callCount, beforeImport + 1);
-  assert.equal(await fs.readFile(sourcePath, "utf8"), sourceText);
+  assert.ok(!markdown.content.includes(options.host.privateRoot));
+  assert.equal(faux.state.callCount, beforeExport);
   await afterDismissal.shutdown();
   await assert.rejects(
     afterDismissal.prompt({
@@ -693,15 +615,12 @@ export async function runProductionRuntimeScenario(directory: string) {
       "todo_revision_conflict",
       "error_feedback_persisted_and_dismissed",
       "stop_pending_question",
-      "legacy_import_idempotent_source_unchanged",
-      "full_backup_round_trip_read_only",
       "markdown_export_real_history",
       "nonincremental_stream_live_projection",
       "public_thinking_only_with_durable_timing",
       "local_skill_model_unknown_and_stop_commands",
       "material_budget_and_source_on_real_request",
       "image_private_blob_and_full_export_receipt",
-      "imported_chat_continues_without_changing_source",
       "shutdown_rejects_new_calls_and_reopen_preserves_thinking",
     ],
     providerCalls: faux.state.callCount + wholeMessageCalls,

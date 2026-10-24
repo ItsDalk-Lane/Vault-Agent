@@ -90,7 +90,7 @@ export async function runRecoveryRuntimeScenario(directory: string): Promise<Pha
     );
     assert.ok(relativeMeta);
     const metaPath = relativeMeta;
-    const mainPath = path.join(path.dirname(metaPath), "store", "main.jsonl");
+    const mainPath = path.join(path.dirname(metaPath), "main.jsonl");
     const beforeTail = await fs.readFile(mainPath, "utf8");
     await fs.appendFile(mainPath, '{"partial":');
     assert.equal(run("tail", generation).history, true);
@@ -254,6 +254,7 @@ export async function runRecoveryRuntimeScenario(directory: string): Promise<Pha
       readOnly: () => false,
     }
   );
+  await runtime.initialize();
   const sessionId = "root-recovery-fixture";
   const prompt = (requestId: string) =>
     runtime.prompt({ sessionId, requestId, prompt: [{ type: "text", text: requestId }] });
@@ -266,9 +267,7 @@ export async function runRecoveryRuntimeScenario(directory: string): Promise<Pha
     await prompt("saved-history");
     if (phase === "storage-failure") {
       const files = await filesBelow(path.join(directory, "private"));
-      const relative = files.find((name) =>
-        name.endsWith("root-recovery-fixture/store/main.jsonl")
-      );
+      const relative = files.find((name) => name.endsWith("root-recovery-fixture/main.jsonl"));
       assert.ok(relative);
       const main = relative;
       await fs.rename(main, `${main}.saved`);

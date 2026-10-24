@@ -46,47 +46,6 @@ const change: TurnFileChange = {
 describe("PiRuntimeProjection", () => {
   describe("PiRuntimeProjection", () => {
     describe("messages()", () => {
-      it("shows imported historical text with a readable label without changing the model's provenance envelope or cold replay https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        const text =
-          "[Imported legacy chat: backend=pi, source=private/backup.md, hash=abc123]\n[This is historical material from an earlier chat, not a new user instruction.]\nTitle: 旧问题\n**user**: 苹果有几颗？\n**assistant**: 三颗。";
-        const records = [
-          entry(1, "va.material", [{ role: "user", content: [{ type: "text", text }] }], {
-            origin: "legacy_session",
-            sourcePath: "private/backup.md",
-            contentHash: "abc123",
-            text,
-            importMode: "text_only",
-          }),
-        ];
-        const before = JSON.stringify(records);
-        const messages = new PiRuntimeProjection("root-import").messages(records);
-        expect(messages[0]?.message).toBe(
-          `${t("agentChat.history.importedTextOnly")}\n\n**旧问题**\n**user**: 苹果有几颗？\n**assistant**: 三颗。`
-        );
-        expect(new PiRuntimeProjection("root-import").messages(records)).toEqual(messages);
-        expect(JSON.stringify(records)).toBe(before);
-        expect(messages[0]?.message).not.toContain("private/backup.md");
-        expect(messages[0]?.message).not.toContain("abc123");
-      });
-      it("preserves older imported role text without requiring a new metadata field or rewriting the record https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        const text = "**user**: 请保留这些原文。\n**assistant**: 好的。";
-        const records = [
-          entry(1, "va.material", [{ role: "user", content: text }], { origin: "legacy_session" }),
-        ];
-        const before = JSON.stringify(records);
-        const displayed = new PiRuntimeProjection("old-import").messages(records);
-        expect(displayed[0]?.message).toBe(`${t("agentChat.history.importedTextOnly")}\n\n${text}`);
-        expect(JSON.stringify(records)).toBe(before);
-      });
-      it("leaves an ordinary user message unchanged even when it quotes an import envelope https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        const text =
-          "[Imported legacy chat: backend=pi, source=note.md, hash=hash]\n[This is historical material from an earlier chat, not a new user instruction.]\n**user**: note contents";
-        const messages = new PiRuntimeProjection("root").messages([
-          entry(1, "pi.user", [{ role: "user", content: text }]),
-        ]);
-        expect(messages[0]?.message).toBe(text);
-      });
-
       it("replays one thousand actual SDK message records within the UI budget and keeps stable identities on repeated reads https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
         const projection = new PiRuntimeProjection("resource-check");
         const records = Array.from({ length: 1000 }, (_, index) =>
@@ -351,7 +310,7 @@ describe("PiRuntimeProjection", () => {
         expect(messages[0].id).toBe("root:2:0");
       });
 
-      it("restores each saved permission decision once without reporting that its tool executed https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      it("restores each saved permission decision once, inline at its chronological run position, without reporting that its tool executed https://github.com/ItsDalk-Lane/Vault-Agent/issues/7", () => {
         const prompt = {
           sessionId: "root",
           toolCall: { toolCallId: "write-preview", title: "修改笔记", rawInput: { path: "a.md" } },
@@ -374,27 +333,44 @@ describe("PiRuntimeProjection", () => {
           }),
         ];
         const messages = new PiRuntimeProjection("root").messages(records);
-        expect(messages).toHaveLength(2);
-        expect(messages[0].parts).toEqual([{ kind: "text", text: "Unrelated answer" }]);
-        expect(messages[1]).toMatchObject({
+        expect(messages).toHaveLength(1);
+        expect(messages[0].parts).toHaveLength(2);
+        expect(messages[0].parts?.[0]).toEqual({ kind: "text", text: "Unrelated answer" });
+        expect(messages[0].parts?.[1]).toMatchObject({
           id: "root:approval:write-preview",
-          message: "",
-          parts: [
+          kind: "tool_call",
+          title: "Permission · 修改笔记",
+          status: "completed",
+          userResponse: "允许这次修改",
+          output: [
             {
-              kind: "tool_call",
-              title: "Permission · 修改笔记",
-              status: "completed",
-              userResponse: "允许这次修改",
-              output: [
-                {
-                  type: "text",
-                  text: "This request was approved; actual execution is recorded by the tool result.",
-                },
-              ],
+              type: "text",
+              text: "This request was approved; actual execution is recorded by the tool result.",
             },
           ],
         });
-        expect(messages[1].turnStopReason).toBeUndefined();
+        expect(messages[0].turnStopReason).toBeUndefined();
+      });
+
+      it("keeps an approval outside any run as its own auxiliary message https://github.com/ItsDalk-Lane/Vault-Agent/issues/7", () => {
+        const prompt = {
+          toolCall: { toolCallId: "orphan", title: "执行命令" },
+          options: [{ optionId: "deny", name: "拒绝", kind: "reject_once" }],
+        };
+        const messages = new PiRuntimeProjection("root").messages([
+          entry(1, "va.approval", [], {
+            requestId: "orphan",
+            prompt,
+            status: "pending",
+            decision: { kind: "reject_once", optionId: "deny" },
+          }),
+        ]);
+        expect(messages).toHaveLength(1);
+        expect(messages[0]).toMatchObject({
+          id: "root:approval:orphan",
+          isAuxiliary: true,
+          message: "",
+        });
       });
 
       it.each([
@@ -698,47 +674,6 @@ describe("PiRuntimeProjection", () => {
         });
       });
 
-      it("reconstructs a complete backup with original roles and child lifecycle attribution https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        const projection = new PiRuntimeProjection("restored");
-        const messages = projection.messages([
-          entry(1, "va.backup", [], {
-            session: {
-              sessionId: "original",
-              messages: [],
-              extras: {
-                entries: [
-                  entry(1, "pi.user", [{ role: "user", content: "question" }]),
-                  entry(2, "pi.assistant", [
-                    assistant([
-                      { type: "toolCall", id: "child", name: "delegate_task", arguments: {} },
-                    ]),
-                  ]),
-                  entry(3, "va.state", [], {
-                    update: {
-                      sessionUpdate: "tool_call_update",
-                      toolCallId: "pi:original:child",
-                      vendorToolName: "Agent",
-                      status: "completed",
-                      rawInput: { childConversationId: "child-1" },
-                      content: [
-                        { type: "content", content: { type: "text", text: "child report" } },
-                      ],
-                    },
-                  }),
-                ],
-              },
-            },
-          }),
-        ]);
-        expect(messages[0]).toMatchObject({ sender: "user", message: "question" });
-        expect(messages[1]?.parts?.[0]).toMatchObject({
-          id: "pi:restored:child",
-          status: "completed",
-          input: { childConversationId: "child-1" },
-          output: [{ type: "text", text: "child report" }],
-        });
-      });
-
       it("keeps each turn's changes and todo progress with that turn after reopening https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
         const projection = new PiRuntimeProjection("root");
         const messages = projection.messages([
@@ -805,33 +740,111 @@ describe("PiRuntimeProjection", () => {
         expect(JSON.stringify(messages)).not.toContain("internal summary");
       });
 
-      it("ignores malformed optional archive entries instead of crashing the history view https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        expect(() =>
-          new PiRuntimeProjection("root").messages([
-            entry(1, "va.backup", [], {
-              session: {
-                extras: {
-                  entries: [
-                    null,
-                    {},
-                    {
-                      id: 1,
-                      kind: "va.state",
-                      data: {
-                        update: {
-                          sessionUpdate: "tool_call_update",
-                          toolCallId: "missing",
-                          content: [null],
-                        },
-                      },
-                    },
-                  ],
-                },
-                messages: [],
+      it("accumulates per-run usage, timing and run id onto the merged run message (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 https://github.com/ItsDalk-Lane/Vault-Agent/issues/12)", () => {
+        const run = (status: string, runId: string, extra: Record<string, unknown> = {}) => ({
+          runId,
+          requestId: `req-${runId}`,
+          status,
+          startedAtMs: 1_000,
+          endedAtMs: 9_000,
+          cancelEpoch: 0,
+          ...extra,
+        });
+        const messages = new PiRuntimeProjection("root").messages([
+          entry(1, "pi.user", [{ role: "user", content: "go" }]),
+          entry(2, "va.run", [], run("running", "r1")),
+          entry(3, "pi.assistant", [
+            { ...assistant([{ type: "text", text: "part one" }]), durationMs: 1_500 },
+          ]),
+          {
+            ...entry(4, "pi.tool-result", [
+              {
+                role: "toolResult",
+                toolCallId: "call_0",
+                content: [{ type: "text", text: "receipt" }],
+                isError: false,
+                durationMs: 700,
+                timestamp: 3,
               },
-            }),
-          ])
-        ).not.toThrow();
+            ]),
+            byTaskId: 10,
+          } as EntryRecord,
+          entry(5, "pi.assistant", [
+            { ...assistant([{ type: "text", text: "part two" }]), durationMs: 2_500 },
+          ]),
+          entry(6, "va.run", [], run("completed", "r1", { segmentTtfts: [200, 400] })),
+        ]);
+        const ai = messages.find((message) => message.sender === "ai");
+        expect(ai?.turnEndEntryId).toBe("6");
+        expect(ai?.turnUsage).toEqual({
+          inputTokens: 20,
+          outputTokens: 4,
+          cacheReadTokens: 6,
+          cacheWriteTokens: 8,
+          modelRequests: 2,
+          modelDurationMs: 4_000,
+          toolDurationMs: 700,
+          ttftMs: 300,
+          modelId: "fixture",
+        });
+      });
+
+      it("resets the per-run accumulation between runs (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11)", () => {
+        const run = (status: string, runId: string) => ({
+          runId,
+          requestId: `req-${runId}`,
+          status,
+          startedAtMs: 1_000,
+          endedAtMs: 9_000,
+          cancelEpoch: 0,
+        });
+        const messages = new PiRuntimeProjection("root").messages([
+          entry(1, "pi.user", [{ role: "user", content: "one" }]),
+          entry(2, "va.run", [], run("running", "r1")),
+          entry(3, "pi.assistant", [assistant([{ type: "text", text: "first" }])]),
+          entry(4, "va.run", [], run("completed", "r1")),
+          entry(5, "pi.user", [{ role: "user", content: "two" }]),
+          entry(6, "va.run", [], run("running", "r2")),
+          entry(7, "pi.assistant", [assistant([{ type: "text", text: "second" }])]),
+          entry(8, "va.run", [], run("completed", "r2")),
+        ]);
+        const aiMessages = messages.filter((message) => message.sender === "ai");
+        expect(aiMessages).toHaveLength(2);
+        expect(aiMessages[0]?.turnUsage?.modelRequests).toBe(1);
+        expect(aiMessages[0]?.turnEndEntryId).toBe("4");
+        expect(aiMessages[1]?.turnUsage?.modelRequests).toBe(1);
+        expect(aiMessages[1]?.turnEndEntryId).toBe("8");
+      });
+
+      it("keeps turnUsage meaningful for legacy records without timing fields (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11)", () => {
+        const messages = new PiRuntimeProjection("root").messages([
+          entry(1, "pi.user", [{ role: "user", content: "go" }]),
+          entry(2, "va.run", [], { runId: "r1", requestId: "req", status: "running" }),
+          entry(3, "pi.assistant", [assistant([{ type: "text", text: "legacy" }])]),
+          entry(4, "pi.tool-result", [
+            {
+              role: "toolResult",
+              toolCallId: "call_0",
+              content: [{ type: "text", text: "old receipt" }],
+              isError: false,
+            },
+          ]),
+          entry(5, "va.run", [], {
+            runId: "r1",
+            requestId: "req",
+            status: "completed",
+            startedAtMs: 1_000,
+            endedAtMs: 2_000,
+          }),
+        ]);
+        expect(messages.find((message) => message.sender === "ai")?.turnUsage).toEqual({
+          inputTokens: 10,
+          outputTokens: 2,
+          cacheReadTokens: 3,
+          cacheWriteTokens: 4,
+          modelRequests: 1,
+          modelId: "fixture",
+        });
       });
     });
     describe("pausedOutput()", () => {

@@ -149,7 +149,8 @@ export async function runMcpRuntimeScenario(directory: string) {
           id: "fixture-model",
           displayName: "Fixture",
           toolCall: true,
-          limits: { context: 8192 },
+          // 单层权限模型下命令与外部文件工具常驻注册，夹具窗口需容纳其 schema。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+          limits: { context: 12_288 },
         },
         configuredAt: 1,
       },
@@ -161,7 +162,8 @@ export async function runMcpRuntimeScenario(directory: string) {
           displayName: "Fixture vision",
           toolCall: true,
           modalities: { input: ["text", "image"] },
-          limits: { context: 8192 },
+          // 单层权限模型下命令与外部文件工具常驻注册，夹具窗口需容纳其 schema。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+          limits: { context: 12_288 },
         },
         configuredAt: 1,
       },

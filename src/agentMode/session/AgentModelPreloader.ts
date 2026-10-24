@@ -1,15 +1,7 @@
 import { logError, logInfo, logWarn } from "@/logger";
 import type VaultAgentPlugin from "@/main";
 import { App, FileSystemAdapter, Platform } from "obsidian";
-import type {
-  BackendDescriptor,
-  BackendId,
-  BackendModelCatalog,
-  BackendProcess,
-  BackendState,
-  SessionId,
-  SessionUpdateHandler,
-} from "./types";
+import type { BackendDescriptor, BackendId, BackendModelCatalog, BackendProcess } from "./types";
 
 export interface WarmBackend {
   proc: BackendProcess;
@@ -72,7 +64,7 @@ export class AgentModelPreloader {
     if (this.disposed) return Promise.resolve();
     const existing = this.inflight.get(backendId);
     if (existing) return existing;
-    return this.startProbeChain(backendId);
+    return this.startLoadChain(backendId);
   }
 
   refresh(backendId: BackendId): Promise<void> | null {
@@ -84,11 +76,11 @@ export class AgentModelPreloader {
     }
     if (this.getCachedModelCatalog(backendId) === null) return null;
     this.clearCached(backendId);
-    return this.startProbeChain(backendId);
+    return this.startLoadChain(backendId);
   }
 
-  private startProbeChain(backendId: BackendId): Promise<void> {
-    const promise = this.runProbeChain(backendId).finally(() => {
+  private startLoadChain(backendId: BackendId): Promise<void> {
+    const promise = this.runLoadChain(backendId).finally(() => {
       this.inflight.delete(backendId);
       this.pendingRefresh.delete(backendId);
     });
@@ -96,13 +88,13 @@ export class AgentModelPreloader {
     return promise;
   }
 
-  private async runProbeChain(backendId: BackendId): Promise<void> {
+  private async runLoadChain(backendId: BackendId): Promise<void> {
     let round = 0;
     do {
       this.pendingRefresh.delete(backendId);
       if (round > 0) this.clearCached(backendId);
       round += 1;
-      await this.runProbe(backendId);
+      await this.loadCatalog(backendId);
     } while (this.pendingRefresh.has(backendId) && !this.disposed);
   }
 
@@ -137,11 +129,9 @@ export class AgentModelPreloader {
     }
   }
 
-  private async runProbe(backendId: BackendId): Promise<void> {
+  private async loadCatalog(backendId: BackendId): Promise<void> {
     if (Platform.isMobile) return;
-    const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof FileSystemAdapter)) return;
-    const cwd = adapter.getBasePath();
+    if (!(this.app.vault.adapter instanceof FileSystemAdapter)) return;
 
     const descriptor = this.resolveDescriptor(backendId);
     if (!descriptor) {
@@ -158,41 +148,15 @@ export class AgentModelPreloader {
       descriptor,
     });
 
-    // An agent can revise its model list after the probe session opens, so the cache follows it.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
     let catalog: BackendModelCatalog | null = null;
-    let updatedState: BackendState | null = null;
-    const onProbeEvent: SessionUpdateHandler = ({ update }) => {
-      if (update.sessionUpdate !== "state_changed" || !update.state.model) return;
-      updatedState = update.state;
-      if (!catalog || this.modelCatalogCache.get(backendId) !== catalog) return;
-      catalog = { availableModels: update.state.model.availableModels };
-      this.modelCatalogCache.set(backendId, catalog);
-      this.notify();
-    };
-
-    let probe: { sessionId: SessionId; state: BackendState } | null = null;
     try {
       await proc.start?.();
-      probe = await proc.newSession({ cwd });
-      proc.registerSessionHandler(probe.sessionId, onProbeEvent);
+      catalog = proc.getModelCatalog();
     } catch (err) {
       logError(`[AgentMode] preload ${backendId} failed`, err);
     }
 
-    if (this.disposed || !probe || (!probe.state.model && !probe.state.mode)) {
-      if (probe) {
-        logInfo(`[AgentMode] preload ${backendId}: agent did not report any initial state`);
-      }
-      try {
-        await proc.shutdown();
-      } catch (e) {
-        logWarn(`[AgentMode] preload ${backendId}: shutdown failed`, e);
-      }
-      return;
-    }
-
-    if (this.disposed || !proc.isRunning()) {
+    if (this.disposed || !catalog || !proc.isRunning()) {
       try {
         await proc.shutdown();
       } catch (e) {
@@ -214,22 +178,10 @@ export class AgentModelPreloader {
       }
     });
     this.warm.set(backendId, warm);
-    catalog = { availableModels: (updatedState ?? probe.state).model?.availableModels ?? null };
     this.modelCatalogCache.set(backendId, catalog);
     this.warmExitUnsubs.set(backendId, exitUnsub);
-    logProbeResult(backendId, "session probe", probe.state);
+    const ids = catalog.availableModels?.map((model) => model.baseModelId).join(", ") ?? "";
+    logInfo(`[AgentMode] preload ${backendId}: models=[${ids}]`);
     this.notify();
   }
-}
-
-function logProbeResult(backendId: BackendId, label: string, state: BackendState): void {
-  const ids = state.model?.availableModels.map((m) => m.baseModelId).join(", ") ?? "";
-  const modeOpts = state.mode?.options.map((o) => o.value).join(", ") ?? "";
-  const currentBaseId = state.model?.current.baseModelId ?? "-";
-  const currentEntry = state.model?.availableModels.find((e) => e.baseModelId === currentBaseId);
-  const effortOpts = currentEntry?.effortOptions.map((o) => o.value ?? "default").join(", ") ?? "";
-  logInfo(
-    `[AgentMode] preload ${backendId} (${label}): models=[${ids}] (current=${currentBaseId}), ` +
-      `mode=[${modeOpts}] effort=[${effortOpts}]`
-  );
 }

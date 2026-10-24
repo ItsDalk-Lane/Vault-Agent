@@ -1,11 +1,11 @@
 import type { VaultAgentMode } from "@/agentMode/session/types";
 import type { ToolEffect, ToolFamily, ToolManifest } from "@/agentMode/sdk/pi/policy/ToolManifest";
 
-// The engine is pure and always evaluates in the same order: protected path → scope → tool/resource
+// The engine is pure and always evaluates in the same order: protected path → tool/resource
 // family → read-only/plan → risk and mode. Auto never auto-approves delete/rename/unknown MCP, a
-// read-only child cannot widen its rights, native tools cannot write Vault targets, and deny rules
-// always beat allow rules:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// read-only child cannot widen its rights, and native tools cannot write Vault targets; deny rules
+// always beat allow rules. External targets need no pre-authorized root — the per-call approval is
+// the only authorization layer: https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
 export type PolicyCaller = "root" | "subagent" | "fanout";
 
 export interface PolicyTargetFact {
@@ -17,7 +17,6 @@ export interface PolicyTargetFact {
 
 export interface PolicyScope {
   readonly vaultRoot: string;
-  readonly externalRoots: readonly string[];
   readonly readOnly: boolean;
 }
 
@@ -40,7 +39,6 @@ export interface PolicyRequest {
   readonly rules?: readonly PolicyRule[];
   readonly nowMs?: number;
   readonly toolEnabled?: boolean;
-  readonly trustedHost?: boolean;
 }
 
 export type PolicyDenyCode =
@@ -48,12 +46,10 @@ export type PolicyDenyCode =
   | "TOOL_DISABLED"
   | "PROTECTED_PATH"
   | "PATH_OUT_OF_SCOPE"
-  | "EXTERNAL_SCOPE_REQUIRED"
   | "USE_VAULT_TOOL"
   | "USE_EXTERNAL_TOOL"
   | "READ_ONLY_MODE"
-  | "PERMISSION_DENIED"
-  | "OPAQUE_EXECUTION_DISABLED";
+  | "PERMISSION_DENIED";
 
 export interface PolicyAllowDecision {
   readonly decision: "allow";
@@ -109,20 +105,6 @@ export class PolicyEngine {
           "vault_search"
         );
       }
-      if (target.kind === "external_path") {
-        if (request.scope.externalRoots.length === 0) {
-          return deny(
-            "EXTERNAL_SCOPE_REQUIRED",
-            `No external root has been authorized for "${target.value}".`
-          );
-        }
-        if (target.insideScope === false) {
-          return deny(
-            "PATH_OUT_OF_SCOPE",
-            `The external target "${target.value}" is outside its authorized root.`
-          );
-        }
-      }
     }
     if (manifest.family === "native_file" && request.targets.some(isVaultTarget)) {
       return deny(
@@ -164,14 +146,9 @@ export class PolicyEngine {
       return allow(false, allowedByRule?.id);
     }
 
+    // 本地命令不再有 strict/trusted 预置开关；唯一闸门是逐次审批：https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
     if (manifest.family === "host_process") {
-      if (request.trustedHost === true) {
-        return allow(true, allowedByRule?.id);
-      }
-      return deny(
-        "OPAQUE_EXECUTION_DISABLED",
-        "Opaque local processes are disabled in strict mode."
-      );
+      return allow(true, allowedByRule?.id);
     }
     if (manifest.family === "mcp") {
       return allow(true, allowedByRule?.id);

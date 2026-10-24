@@ -29,7 +29,11 @@ export interface AgentChatBackend {
   cancel(): Promise<void>;
   pause?(): Promise<void>;
   canSteer?(): boolean;
-  steerMessage?(text: string): Promise<void>;
+  steerMessage?(
+    text: string,
+    context?: MessageContext,
+    promptContent?: PromptContent[]
+  ): Promise<void>;
   resumeFanout?(messageId: string): Promise<void>;
   readSubagentHistory?(conversationId: string): Promise<readonly AgentChatMessage[]>;
   getRecoveryState?(): RecoveryStateUpdate | null;

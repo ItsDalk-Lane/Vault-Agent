@@ -1,7 +1,6 @@
 import { canSendFollowUpDuringRecovery } from "@/agentMode/session/RecoveryPolicy";
 import { AI_SENDER, USER_SENDER, WEB_SELECTED_TEXT_TAG } from "@/constants";
 import { t } from "@/i18n";
-import { isHistoricalBackendId } from "@/agentMode/session/legacy/historicalBackends";
 import { logInfo, logWarn } from "@/logger";
 import { AgentMessageStore } from "@/agentMode/session/AgentMessageStore";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
@@ -328,7 +327,7 @@ export class AgentSession {
   }
 
   isHistoricalOnly(): boolean {
-    return isHistoricalBackendId(this.backendId) || this.currentState?.readOnly === true;
+    return this.currentState?.readOnly === true;
   }
 
   async readSubagentHistory(conversationId: string): Promise<readonly AgentChatMessage[]> {
@@ -375,7 +374,7 @@ export class AgentSession {
   async rolloverSession(): Promise<OpenSessionOutput> {
     await this.ready;
     if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
-    if (this.isHistoricalOnly()) throw new Error("只读历史不能整理成新的执行聊天。");
+    if (this.isHistoricalOnly()) throw new Error(t("localData.readOnly"));
     const status = this.getStatus();
     if (status !== "idle" && status !== "error") throw new Error("请先等待当前工作结束。");
     if (!this.backend.rolloverSession) throw new MethodUnsupportedError("rolloverSession");
@@ -393,7 +392,7 @@ export class AgentSession {
   async revertFileChange(change: TurnFileChange): Promise<FileChangeRevertResult> {
     await this.ready;
     if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
-    if (this.isHistoricalOnly()) throw new Error("只读历史不能回退文件。");
+    if (this.isHistoricalOnly()) throw new Error(t("localData.readOnly"));
     const status = this.getStatus();
     if (status !== "idle" && status !== "error") throw new Error("请等待当前工作结束后再回退。");
     if (!this.backend.revertFileChange) throw new MethodUnsupportedError("revertFileChange");
@@ -748,15 +747,26 @@ export class AgentSession {
     );
   }
 
-  async steerPrompt(text: string): Promise<void> {
-    if (!text.trim() || /^\s*\//.test(text))
+  async steerPrompt(
+    displayText: string,
+    context?: MessageContext,
+    promptContent?: PromptContent[]
+  ): Promise<void> {
+    if (!displayText.trim() || /^\s*\//.test(displayText))
       throw new Error("补充当前工作仅支持普通文字；命令请等本轮结束后发送。");
     if (!this.canSteer() || !this.backendSessionId || !this.backend.steerSession)
       throw new Error("未补充：当前工作不能接收补充，请重新发送。");
+    // 排队消息的插入要带上与普通发送相同的笔记/网页资料和图片，不能只送纯文本。
+    // https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+    const webTabBlock =
+      (context?.webTabs?.length ?? 0) > 0 ? await serializeWebTabContext(context) : "";
+    const promptContext = buildPromptContext(context, webTabBlock);
     await this.backend.steerSession({
       sessionId: this.backendSessionId,
       requestId: `steer-${uuidv4()}`,
-      text,
+      text: displayText,
+      prompt: buildPromptBlocks(displayText, promptContent),
+      context: promptContext,
     });
   }
 
@@ -773,7 +783,7 @@ export class AgentSession {
     ) {
       throw new Error("上次工作尚未处理，请先选择继续或结束未完成的工作。");
     }
-    if (this.isHistoricalOnly()) throw new Error("此旧聊天仅供只读查看，请先导入为新聊天后继续。");
+    if (this.isHistoricalOnly()) throw new Error(t("localData.readOnly"));
     // Agents only compact when /compact is the whole prompt, so nothing rides along with it.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/634
     const sendsCompact = isCompactCommand(displayText);

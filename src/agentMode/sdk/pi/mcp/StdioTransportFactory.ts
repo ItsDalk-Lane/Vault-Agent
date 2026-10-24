@@ -1,10 +1,9 @@
 import type { McpTransport } from "@earendil-works/pi-mcp";
-import type { HostExecutionMode } from "@/agentMode/sdk/pi/policy/HostExecutionPolicy";
 import { CommandEnvironment } from "@/agentMode/sdk/pi/tools/CommandEnvironment";
 import type { McpStdioTransport } from "@/agentMode/sdk/pi/mcp/McpConfig";
 
-// A stdio MCP server is an opaque local process: strict mode never starts it, trusted_host additionally
-// requires the config-level risk authorization, the command and cwd must be absolute and exist (no PATH
+// A stdio MCP server is an opaque local process: the config-level risk authorization gates its start,
+// the command and cwd must be absolute and exist (no PATH
 // fallback), the child inherits no environment and only receives the secrets this server was granted,
 // and a missing interpreter disables just this server instead of downloading anything. Closing asks the
 // injected terminator to clean the real process and reports whether that cleanup was proven:
@@ -60,7 +59,6 @@ export interface StdioTransportHandle {
 export interface StdioTransportRequest {
   readonly serverId: string;
   readonly config: McpStdioTransport;
-  readonly mode: HostExecutionMode;
   readonly riskAuthorized: boolean;
   readonly interpreterAvailable?: boolean;
   readonly signal?: AbortSignal;
@@ -72,7 +70,6 @@ export interface StdioTransportFactoryOptions {
   readonly createTransport: (plan: StdioLaunchPlan) => McpTransport;
   readonly terminate: StdioProcessTerminator;
   readonly resolveSecret: (ref: string) => Promise<string | undefined>;
-  readonly defaultMode?: HostExecutionMode;
   readonly defaultRiskAuthorized?: boolean;
   readonly defaultInterpreterAvailable?: boolean;
   readonly timeoutMs?: number;
@@ -98,7 +95,6 @@ export class StdioTransportFactory {
   readonly #createTransport: (plan: StdioLaunchPlan) => McpTransport;
   readonly #terminate: StdioProcessTerminator;
   readonly #resolveSecret: (ref: string) => Promise<string | undefined>;
-  readonly #defaultMode: HostExecutionMode;
   readonly #defaultRiskAuthorized: boolean;
   readonly #defaultInterpreterAvailable: boolean;
   readonly #timeoutMs: number;
@@ -109,20 +105,13 @@ export class StdioTransportFactory {
     this.#createTransport = options.createTransport;
     this.#terminate = options.terminate;
     this.#resolveSecret = options.resolveSecret;
-    this.#defaultMode = options.defaultMode ?? "strict";
     this.#defaultRiskAuthorized = options.defaultRiskAuthorized ?? false;
     this.#defaultInterpreterAvailable = options.defaultInterpreterAvailable ?? true;
     this.#timeoutMs = options.timeoutMs ?? 30_000;
   }
 
   async create(request: StdioTransportRequest): Promise<StdioTransportHandle> {
-    const mode = request.mode ?? this.#defaultMode;
-    if (mode !== "trusted_host") {
-      throw new StdioFactoryError(
-        "MCP_STDIO_STRICT_DENIED",
-        "strict mode keeps opaque local MCP servers stopped."
-      );
-    }
+    // 本地服务器启动不再有 strict/trusted_host 预置开关；配置级风险确认仍必须有效。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
     const riskAuthorized = request.riskAuthorized ?? this.#defaultRiskAuthorized;
     if (!riskAuthorized) {
       throw new StdioFactoryError(

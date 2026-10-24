@@ -32,14 +32,7 @@ import { PlatformPathPolicy } from "@/agentMode/sdk/pi/policy/PlatformPathPolicy
 import { defineToolManifest } from "@/agentMode/sdk/pi/policy/ToolManifest";
 import { ToolGateway } from "@/agentMode/sdk/pi/tools/ToolGateway";
 import { ToolRegistry } from "@/agentMode/sdk/pi/tools/ToolRegistry";
-import {
-  ExternalScopes,
-  type ExternalScopePermission,
-} from "@/agentMode/sdk/pi/policy/ExternalScopes";
-import {
-  HostExecutionPolicy,
-  type HostExecutionMode,
-} from "@/agentMode/sdk/pi/policy/HostExecutionPolicy";
+import { HostExecutionPolicy } from "@/agentMode/sdk/pi/policy/HostExecutionPolicy";
 import { GuardedExternalEnv } from "@/agentMode/sdk/pi/tools/GuardedExternalEnv";
 import {
   NativeTools,
@@ -78,12 +71,6 @@ import { withToolOutcome } from "@/agentMode/sdk/pi/tools/ToolResultOutcome";
 import type { ToolEffectState } from "@/agentMode/sdk/pi/tools/ToolOutcome";
 import type { ProcessResult } from "@/agentMode/sdk/pi/tools/ProcessSupervisor";
 
-export interface PiExternalRootSetting {
-  readonly root: string;
-  readonly permissions: readonly ExternalScopePermission[];
-  readonly expiresAtMs?: number;
-}
-
 export interface PiNativeHostToolsOptions {
   readonly capabilities?: CapabilityCatalog;
   readonly audit?: Pick<AuditLog, "record">;
@@ -95,8 +82,6 @@ export interface PiNativeHostToolsOptions {
   readonly getModeForConversation?: (conversationId: string) => VaultAgentMode;
   readonly getCaller?: (conversationId: string) => PolicyCaller;
   readonly isReadOnly?: (conversationId: string) => boolean;
-  readonly getExecutionMode: () => HostExecutionMode;
-  readonly getExternalScopes: () => readonly PiExternalRootSetting[];
   readonly requestPermission?: (prompt: PermissionPrompt) => Promise<PermissionDecision>;
   readonly knownSecrets?: () => readonly string[];
   readonly onFileChanges?: (changes: readonly TurnFileChange[]) => void;
@@ -162,42 +147,22 @@ export async function createPiNativeHostTools(
   let closed = false;
   let journalBound = false;
   let journalStore: NativeMutationJournalStore | undefined;
-  let journal: NativeMutationJournal = { version: 1, records: {}, imports: {} };
+  let journal: NativeMutationJournal = { version: 1, records: {} };
   let journalWrites = Promise.resolve();
   // 撤权后重新授权也必须让旧批准失效，避免同值设置掩盖等待期间的权限变化：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
   let settingsVersion = 1;
   const unsubscribeSettings = options.subscribeSettings?.(() => {
     settingsVersion += 1;
-    if (options.getExecutionMode() !== "trusted_host")
-      for (const controller of controllers) controller.abort();
   });
-  let scopeFingerprint = "";
-  let scopeVersion = 0;
-  let guarded: GuardedExternalEnv;
-  let activeScopes: ExternalScopes;
+  let guarded: GuardedExternalEnv | undefined;
+  let guardedVersion = 0;
   const currentEnv = async (): Promise<GuardedExternalEnv> => {
-    const settings = options.getExternalScopes();
-    const fingerprint = JSON.stringify(settings);
-    if (guarded && fingerprint === scopeFingerprint && scopeVersion === settingsVersion)
-      return guarded;
+    if (guarded && guardedVersion === settingsVersion) return guarded;
     const version = settingsVersion;
-    const scopes = new ExternalScopes({
-      fileSystem: {
-        realpath: (target) => fs.realpath(target),
-        stat: (target) => fs.stat(target, { bigint: true }),
-      },
-      path,
-      protectedRoots,
-    });
-    for (const grant of settings) await scopes.createScope({ ...grant, createdBy: "user" });
+    // 外部文件不再有预授权范围；设置变化仍会整体作废等待中的旧环境与批准。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
     guarded = new GuardedExternalEnv({
       raw,
-      scopes,
-      // 异步路径检查完成后仍须拦截已撤回的授权快照，不能把旧 scopes 当实时权限。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      isAccessCurrent: () =>
-        !closed &&
-        version === settingsVersion &&
-        JSON.stringify(options.getExternalScopes()) === fingerprint,
+      isAccessCurrent: () => !closed && version === settingsVersion,
       inspector: {
         realpath: (target) => fs.realpath(target),
         stat: (target) => fs.stat(target, { bigint: true }),
@@ -217,11 +182,7 @@ export async function createPiNativeHostTools(
       path,
       protectedRoots,
     });
-    activeScopes = scopes;
-    scopeFingerprint = fingerprint;
-    scopeVersion = version;
-    if (version !== settingsVersion || JSON.stringify(options.getExternalScopes()) !== fingerprint)
-      return currentEnv();
+    guardedVersion = version;
     return guarded;
   };
   const mode = (id: string): VaultAgentMode =>
@@ -266,7 +227,6 @@ export async function createPiNativeHostTools(
     { optionId: "allow_once", name: "允许这一次", kind: "allow_once" as const },
     { optionId: "reject_once", name: "拒绝", kind: "reject_once" as const },
   ];
-  const receiptsDir = path.join(options.privateDir, "native-mutations");
   const persistRecord = async (operationId: string, record: unknown): Promise<void> => {
     if (!journalStore) throw new Error("操作记录尚未绑定。");
     const nextWrite = journalWrites.then(async () => {
@@ -403,46 +363,8 @@ export async function createPiNativeHostTools(
   const bindMutationJournal = async (store: NativeMutationJournalStore): Promise<void> => {
     if (journalStore) throw new Error("操作记录已绑定。");
     const saved = await store.load();
-    if (saved) journal = saved;
-    else {
-      // 旧文件保留原文及校验值，只在首次绑定导入；之后唯一事实来自 Durable。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      const sources = [
-        ...(
-          await fs.readdir(receiptsDir).catch((error: NodeJS.ErrnoException) => {
-            if (error.code === "ENOENT") return [] as string[];
-            throw error;
-          })
-        )
-          .filter((name) => name.endsWith(".json"))
-          .map((name) => ({
-            file: path.join(receiptsDir, name),
-            key: `native-mutations/${name}`,
-            id: name.slice(0, -5),
-            command: false,
-          })),
-        ...(await fs.readdir(options.privateDir))
-          .filter((name) => /^command-intent-.*\.json$/.test(name))
-          .map((name) => ({
-            file: path.join(options.privateDir, name),
-            key: name,
-            id: name.slice(0, -5),
-            command: true,
-          })),
-      ];
-      for (const source of sources) {
-        const original = await fs.readFile(source.file, "utf8");
-        journal.imports[source.key] = sha256(original);
-        try {
-          const value = JSON.parse(original) as JsonObject;
-          journal.records[source.id] = source.command
-            ? { state: "command_unknown", command: value }
-            : value;
-        } catch {
-          journal.records[source.id] = { state: "invalid", source: source.key };
-        }
-      }
-      await store.save(journal);
-    }
+    journal = saved ?? { version: 1, records: {} };
+    if (!saved) await store.save(journal);
     journalStore = store;
     journalBound = true;
     await reconcile();
@@ -496,16 +418,8 @@ export async function createPiNativeHostTools(
     effects: name === "read" ? ["read"] : ["write", "create"],
     allowedCallers: ["root", "subagent", "fanout"],
     checkAvailability: () => ({
-      available:
-        !closed &&
-        options
-          .getExternalScopes()
-          .some(
-            (scope) =>
-              (scope.expiresAtMs === undefined || scope.expiresAtMs > Date.now()) &&
-              scope.permissions.includes(name === "read" ? "read" : "write")
-          ),
-      reason: "No current external folder grants this file access.",
+      available: !closed,
+      reason: "The feature session is closed.",
     }),
   });
   const fileRegistration = (name: NativeToolName): ToolRegistration => {
@@ -514,7 +428,7 @@ export async function createPiNativeHostTools(
       {
         ...(official[name] as unknown as ToolRegistration),
         ...definition,
-        description: `External files only: use absolute paths inside folders explicitly authorized by the user. Vault files must use vault_read/vault_create/vault_edit instead. ${official[name].description}`,
+        description: `External files only: use absolute paths outside the Vault. Vault files must use vault_read/vault_create/vault_edit instead. ${official[name].description}`,
         replay: name === "read" ? "safe" : "unsafe",
         callers: ["model", "tools"],
         outputLimits: { maxBytes: 256 * 1024 },
@@ -538,13 +452,13 @@ export async function createPiNativeHostTools(
               api,
               context,
               "EXTERNAL_ROOT_REQUIRED",
-              "外部文件必须使用已授权目录内的绝对路径。"
+              "外部文件必须使用绝对路径。"
             );
           let canonical: string;
           try {
             new PlatformPathPolicy({
               platform: path.sep === "\\" ? "win32" : "posix",
-              authorizedUncRoots: options.getExternalScopes().map((scope) => scope.root),
+              uncAccess: "open",
             }).validate(args.path);
             canonical = await canonicalTarget(args.path);
           } catch (error) {
@@ -626,11 +540,6 @@ export async function createPiNativeHostTools(
             },
           });
           await currentEnv();
-          const access = await activeScopes.checkRootAccess(
-            canonical,
-            name === "read" ? "read" : "write"
-          );
-          const scopeSnapshot = JSON.stringify(options.getExternalScopes());
           const reviewVersion = settingsVersion;
           const initialMode = mode(id);
           const manifest = defineToolManifest({
@@ -652,8 +561,7 @@ export async function createPiNativeHostTools(
             isScopeActive: (version) =>
               version === settingsVersion &&
               !blocked(id, context, name !== "read") &&
-              mode(id) === initialMode &&
-              JSON.stringify(options.getExternalScopes()) === scopeSnapshot,
+              mode(id) === initialMode,
             revalidateTargets: async () =>
               (await canonicalTarget(args.path as string)) === canonical,
             requestApproval: async () => {
@@ -778,22 +686,11 @@ export async function createPiNativeHostTools(
             mode: initialMode,
             scope: {
               vaultRoot: protectedRoots[0],
-              externalRoots: activeScopes
-                .listScopes()
-                .filter((scope) => scope.status === "active")
-                .map((scope) => scope.canonicalRoot),
               readOnly: options.isReadOnly?.(id) ?? initialMode === "plan",
             },
             scopeVersion: reviewVersion,
             policyVersion: reviewVersion,
-            targets: [
-              {
-                kind: "external_path",
-                value: canonical,
-                insideScope: access.allowed,
-                protected: !access.allowed && access.code === "ROOT_OVERLAPS_PROTECTED",
-              },
-            ],
+            targets: [{ kind: "external_path", value: canonical }],
             signal: context.abortSignal,
           });
           if (outcome.decision === "deny")
@@ -858,12 +755,8 @@ export async function createPiNativeHostTools(
       effects: ["execute"],
       allowedCallers: ["root"],
       checkAvailability: () => ({
-        available:
-          !closed &&
-          options.getExecutionMode() === "trusted_host" &&
-          commandDefinitionsAvailable.get(name) === true,
-        reason:
-          "Local commands require the current trusted-host setting and an available interpreter.",
+        available: !closed && commandDefinitionsAvailable.get(name) === true,
+        reason: "Local commands need an available interpreter.",
       }),
     };
     return compileHostToolDefinition(
@@ -886,26 +779,15 @@ export async function createPiNativeHostTools(
               "PERMISSION_DENIED",
               "当前会话不能执行电脑命令。"
             );
-          const executionMode = options.getExecutionMode();
-          if (executionMode !== "trusted_host")
-            return auditDenied(
-              name,
-              args,
-              api,
-              context,
-              "OPAQUE_EXECUTION_DISABLED",
-              "电脑命令默认关闭；需要用户在设置中单独启用。"
-            );
           const resolved = await interpreter.resolve(name);
           if (!resolved.available)
             return auditDenied(name, args, api, context, resolved.code, resolved.reason);
-          const cwd = options.getExternalScopes()[0]?.root ?? os.homedir();
+          const cwd = os.homedir();
           const policy = new HostExecutionPolicy({
             path,
             vaultRoot: protectedRoots[0],
             interpreter: { available: true, label: resolved.path },
             defaultCwd: cwd,
-            initialState: { mode: executionMode, trustedConfirmedAtMs: Date.now() },
           });
           const timeoutMs =
             typeof args.timeout === "number"
@@ -972,11 +854,7 @@ export async function createPiNativeHostTools(
               },
               spawner: {
                 spawn: (input) => {
-                  if (
-                    settingsVersion !== reviewVersion ||
-                    blocked(id, context, true) ||
-                    options.getExecutionMode() !== executionMode
-                  )
+                  if (settingsVersion !== reviewVersion || blocked(id, context, true))
                     throw new Error("命令授权已撤回。");
                   const child = spawn(input.command, [...input.args], {
                     cwd: input.cwd,
@@ -1063,11 +941,7 @@ export async function createPiNativeHostTools(
                   runContext: Context
                 ): Promise<Result<ShellExecResult, ExecutionError>> => {
                   await options.beforeOperation?.(controller.signal);
-                  if (
-                    typeof command === "string" ||
-                    blocked(id, context, true) ||
-                    options.getExecutionMode() !== "trusted_host"
-                  )
+                  if (typeof command === "string" || blocked(id, context, true))
                     throw new Error("命令未通过最终检查。");
                   const result = await supervisor.run(
                     {
@@ -1171,8 +1045,7 @@ export async function createPiNativeHostTools(
             isScopeActive: (version) =>
               version === settingsVersion &&
               !blocked(id, context, true) &&
-              mode(id) === initialMode &&
-              options.getExecutionMode() === executionMode,
+              mode(id) === initialMode,
             requestApproval: async () => {
               const accepted = await allowed(
                 {
@@ -1224,14 +1097,12 @@ export async function createPiNativeHostTools(
             mode: initialMode,
             scope: {
               vaultRoot: protectedRoots[0],
-              externalRoots: [],
               readOnly: options.isReadOnly?.(id) ?? initialMode === "plan",
             },
             scopeVersion: reviewVersion,
             policyVersion: reviewVersion,
             targets: [{ kind: "operation", value: name }],
             signal: context.abortSignal,
-            trustedHost: executionMode === "trusted_host",
           });
           const succeeded = outcome.decision === "allow" && result !== undefined && !result.isError;
           const auditFailed = outcome.decision === "deny" && outcome.code === "AUDIT_FAILED";

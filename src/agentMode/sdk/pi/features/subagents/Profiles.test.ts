@@ -10,9 +10,9 @@ import {
 } from "@/agentMode/sdk/pi/features/subagents/Profiles";
 
 // Built-in profiles are data: researcher/reviewer are read-only and enabled by default, writer is
-// write-capable but off until the user enables it, an unknown model is rejected instead of swapped,
-// and tool names or instructions that look like executable code are refused:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// write-capable and enabled alongside them — the per-call approval is the only gate, an unknown
+// model is rejected instead of swapped, and tool names or instructions that look like executable
+// code are refused: https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
 function expectCode(operation: () => unknown, code: string): void {
   try {
     operation();
@@ -26,13 +26,13 @@ function expectCode(operation: () => unknown, code: string): void {
 
 describe("Profiles", () => {
   describe("SUBAGENT_PROFILES", () => {
-    it("defines researcher/reviewer as read-only defaults and writer as an explicit opt-in", () => {
+    it("defines researcher/reviewer as read-only defaults and writer as always enabled (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
       expect(SUBAGENT_PROFILES.map((profile) => profile.profileId)).toEqual([
         "researcher",
         "reviewer",
         "writer",
       ]);
-      expect(defaultEnabledProfiles()).toEqual(["researcher", "reviewer"]);
+      expect(defaultEnabledProfiles()).toEqual(["researcher", "reviewer", "writer"]);
 
       const researcher = subagentProfile("researcher");
       const reviewer = subagentProfile("reviewer");
@@ -42,7 +42,7 @@ describe("Profiles", () => {
       expect(researcher?.effects).toContain("read");
       expect(researcher?.effects).not.toContain("write");
       expect(reviewer?.effects).toEqual(["read", "state"]);
-      expect(writer).toMatchObject({ writeCapable: true, defaultEnabled: false });
+      expect(writer).toMatchObject({ writeCapable: true, defaultEnabled: true });
       expect(writer?.effects).toContain("write");
       expect(subagentProfile("missing")).toBeUndefined();
     });
@@ -92,7 +92,6 @@ describe("Profiles", () => {
       expect(schema.enum).toEqual(defaultEnabledProfiles());
       for (const id of schema.enum)
         expect(schema.description).toContain(subagentProfile(id)!.description);
-      expect(schema.description).not.toContain("writer:");
       expect(schema.description).toContain("inputFiles");
       expect(schema.description).toContain("outputPaths");
       expect(subagentProfileSchema(["writer", "unknown", "writer"]).enum).toEqual(["writer"]);
@@ -104,7 +103,7 @@ describe("Profiles", () => {
   describe("validateSubagentRequest()", () => {
     it("lists currently allowed roles when an unknown or disabled role is requested https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       expect(() => validateSubagentRequest({ profileId: "explore" })).toThrow(
-        "Allowed enabled profiles: researcher, reviewer"
+        "Allowed enabled profiles: researcher, reviewer, writer"
       );
       expect(() =>
         validateSubagentRequest({ profileId: "writer", enabledProfiles: ["reviewer", "unknown"] })
@@ -124,9 +123,10 @@ describe("Profiles", () => {
       expect(writer.toolAllowlist).not.toContain("vault_write");
     });
 
-    it("requires an explicit user enable before writer can run", () => {
+    it("runs writer without an explicit enable but still rejects a disabled list (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
+      expect(validateSubagentRequest({ profileId: "writer" }).profile.profileId).toBe("writer");
       expectCode(
-        () => validateSubagentRequest({ profileId: "writer" }),
+        () => validateSubagentRequest({ profileId: "writer", enabledProfiles: ["reviewer"] }),
         "SUBAGENT_PROFILE_DISABLED"
       );
 

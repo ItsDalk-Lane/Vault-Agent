@@ -59,46 +59,6 @@ export interface AgentAnswer {
   };
 }
 
-const LEGACY_MODEL_KEYS: Readonly<Record<string, string>> = Object.freeze({
-  claude: "anthropic/claude",
-  codex: "openai/gpt",
-  opencode: "opencode/default",
-  pi: "pi/default",
-});
-
-export function modelKeyForLegacyBackend(backendId: BackendId): string {
-  return LEGACY_MODEL_KEYS[backendId] ?? `legacy:${backendId}`;
-}
-
-export function legacyBackendForModelKey(modelKey: string): BackendId | undefined {
-  for (const [backendId, key] of Object.entries(LEGACY_MODEL_KEYS)) {
-    if (key === modelKey) return backendId;
-  }
-  return undefined;
-}
-
-/** Reads a stored turn without dropping pre-migration answers: a missing modelKey is derived from the
- * historical backend label and the original label is preserved.
- * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
- */
-export function readFanoutTurn(turn: FanoutTurn): FanoutTurn {
-  const answers: Record<BackendId, AgentAnswer> = {};
-  for (const backendId of Object.keys(turn.answers)) {
-    const slot = turn.answers[backendId];
-    answers[backendId] = {
-      ...slot,
-      backendId: slot.backendId || backendId,
-      modelKey: slot.modelKey ?? modelKeyForLegacyBackend(backendId),
-      label: slot.label ?? backendId,
-    };
-  }
-  return {
-    answers,
-    summary: { ...turn.summary },
-    ...(turn.checkpoint ? { checkpoint: { ...turn.checkpoint } } : {}),
-  };
-}
-
 export type FanoutSummaryStatus = "pending" | "streaming" | "done" | "paused";
 
 // Fan-out view model shared by the sdk projection and the UI card: an unfinished candidate never

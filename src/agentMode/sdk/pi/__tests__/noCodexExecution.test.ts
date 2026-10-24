@@ -1,19 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import {
-  backendDisplayOrder,
-  backendRegistry,
-  describeBackendForHistory,
-} from "@/agentMode/backends/registry";
-import { AgentSessionIndex } from "@/agentMode/session/AgentSessionIndex";
 import { sanitizeSettings } from "@/settings/model";
 import type { VaultAgentSettings } from "@/settings/model";
 
-// The removed Codex execution chain must stay unreachable: no module may detect, download, install or
-// start the ACP binary, an old Codex id must still be indexable and labelled, and deleting it must not
-// touch ordinary OpenAI API models:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const projectRoot = path.resolve(__dirname, "../../../../..");
 const DELETED_MODULES = [
   "CodexBackend",
@@ -54,15 +44,6 @@ function sourceFiles(dir: string): string[] {
     if (/\.(ts|tsx)$/.test(entry.name)) files.push(full);
   }
   return files;
-}
-
-class FakeIndexStorage {
-  readonly files = new Map<string, string>();
-  exists = async (path: string): Promise<boolean> => this.files.has(path);
-  read = async (path: string): Promise<string> => this.files.get(path) ?? "";
-  write = async (path: string, content: string): Promise<void> => {
-    this.files.set(path, content);
-  };
 }
 
 describe("noCodexExecution", () => {
@@ -111,66 +92,6 @@ describe("noCodexExecution", () => {
       }
 
       expect(offenders).toEqual([]);
-    });
-  });
-
-  describe("historical backend identity", () => {
-    it("keeps the old identity outside every runtime and model-discovery registration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      expect(backendRegistry.codex).toBeUndefined();
-      expect(Object.keys(backendRegistry)).toEqual(["pi"]);
-      expect(backendDisplayOrder().map((descriptor) => descriptor.id)).toEqual(["pi"]);
-      const history = describeBackendForHistory("codex");
-      expect(history).toMatchObject({
-        id: "codex",
-        label: "Codex",
-      });
-      expect(
-        Object.values(history).some(
-          (value) => typeof value === "function" && value !== history.Icon
-        )
-      ).toBe(false);
-      expect(history).not.toHaveProperty("createBackendProcess");
-      expect(history).not.toHaveProperty("getEnabledModelEntries");
-      expect(history).not.toHaveProperty("getInstallState");
-    });
-  });
-
-  describe("AgentSessionIndex", () => {
-    it("keeps an old Codex id indexable while honouring its tombstone", async () => {
-      const storage = new FakeIndexStorage();
-      const index = new AgentSessionIndex(storage, "agent-chat-index.json");
-      await index.mergeDiscoveredSessions([
-        {
-          backendId: "codex",
-          sessionId: "old-codex-1",
-          title: "Old Codex chat",
-          createdAtMs: 1_700_000_000_000,
-          lastAccessedAtMs: 1_700_000_100_000,
-          projectId: "project-a",
-        },
-      ]);
-
-      const entries = await index.getEntries();
-
-      expect(entries).toHaveLength(1);
-      expect(entries[0]).toMatchObject({
-        backendId: "codex",
-        sessionId: "old-codex-1",
-        title: "Old Codex chat",
-        projectId: "project-a",
-      });
-      await index.deleteSession("codex", "old-codex-1");
-      expect(await index.isTombstoned("codex", "old-codex-1")).toBe(true);
-      await index.mergeDiscoveredSessions([
-        {
-          backendId: "codex",
-          sessionId: "old-codex-1",
-          title: "Old Codex chat",
-          createdAtMs: 1_700_000_000_000,
-          lastAccessedAtMs: 1_700_000_200_000,
-        },
-      ]);
-      expect(await index.getEntries()).toEqual([]);
     });
   });
 

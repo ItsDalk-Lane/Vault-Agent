@@ -15,7 +15,7 @@ describe("PiRuntimePool", () => {
         providerCalls: number;
       };
       expect(report.status).toBe("passed");
-      expect(report.providerCalls).toBe(3);
+      expect(report.providerCalls).toBe(2);
       expect(report.checks).toEqual(
         expect.arrayContaining([
           "pre_registered_observer_keeps_writer",
@@ -28,8 +28,6 @@ describe("PiRuntimePool", () => {
           "cold_pending_question_reopens_without_model",
           "evicted_session_api_reopens_metadata",
           "shutdown_releases_all_leases",
-          "16mib_visible_warning",
-          "32mib_blocks_dispatch_but_allows_export",
         ])
       );
     }, 65_000);

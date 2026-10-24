@@ -32,12 +32,11 @@ class FakeCatalog implements SkillToolCatalogPort {
 }
 
 class FakeHostProcess implements SkillHostProcessPort {
-  readonly approvals: Array<{ skillId: string; command: string; executionMode: string }> = [];
+  readonly approvals: Array<{ skillId: string; command: string }> = [];
   approved = false;
   requestApproval = async (input: {
     skillId: string;
     command: string;
-    executionMode: "strict" | "trusted_host";
   }): Promise<{ approved: boolean; requestId?: string; reason?: string }> => {
     this.approvals.push({ ...input });
     return this.approved
@@ -169,7 +168,6 @@ describe("SkillTools", () => {
           {
             skillId: "canonical:summarize",
             command: "node scripts/example.js",
-            executionMode: "strict",
           },
         ]);
       });
@@ -228,7 +226,6 @@ describe("SkillTools", () => {
           {
             skillId: "canonical:summarize",
             command: "node scripts/build.mjs",
-            executionMode: "strict",
           },
         ]);
 
@@ -241,7 +238,6 @@ describe("SkillTools", () => {
         expect(approved).toMatchObject({ isError: false });
         expect(approved.details).toMatchObject({
           requestId: "host-request-1",
-          executionMode: "strict",
         });
       });
     });

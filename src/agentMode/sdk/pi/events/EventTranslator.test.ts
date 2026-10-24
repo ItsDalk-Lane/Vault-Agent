@@ -16,6 +16,7 @@ function createTranslator(
   options: {
     sessionId?: string;
     events?: TranslatedEvent[];
+    now?: () => number;
     mcpServerFor?: (toolName: string) => string | undefined;
   } = {}
 ): {
@@ -26,7 +27,7 @@ function createTranslator(
   const translator = new EventTranslator({
     sessionId: options.sessionId ?? "session-1",
     emit: (event) => events.push(event),
-    now: () => 1_700_000_000_000,
+    now: options.now ?? (() => 1_700_000_000_000),
     ...(options.mcpServerFor !== undefined ? { mcpServerFor: options.mcpServerFor } : {}),
   });
   return { translator, events };
@@ -380,7 +381,6 @@ describe("EventTranslator", () => {
           writeFile: async (target, text) => {
             files.set(target, text);
           },
-          readFile: async (target) => files.get(target) ?? "",
         },
       });
       const result = await exporter.exportSession({
@@ -393,9 +393,7 @@ describe("EventTranslator", () => {
         extras: { entries: [entry] },
       });
       expect(result.ok).toBe(true);
-      const restored = await exporter.importDocument("exports/long-output.json");
-      expect(restored.ok).toBe(true);
-      expect(JSON.stringify(restored)).toContain(originalText);
+      expect(files.get("exports/long-output.json")).toContain(originalText);
     });
 
     it("does not report success for an end without an entry or result", () => {
@@ -467,6 +465,62 @@ describe("EventTranslator", () => {
         kind: "tool_call",
         tool: { vendorToolName: "Agent", mcpServer: "vault-mcp", kind: "other" },
       });
+    });
+  });
+
+  describe("message timing", () => {
+    it("emits ttft as the gap between message start and the first streamed change (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11)", () => {
+      let clock = 1_000;
+      const { translator, events } = createTranslator({ now: () => clock });
+      translate(translator, {
+        type: "message_start",
+        message: assistantMessage(""),
+      });
+      clock = 1_250;
+      translate(
+        translator,
+        messageUpdate([{ type: "text_start", contentIndex: 0, block: { type: "text", text: "" } }])
+      );
+      clock = 1_400;
+      translate(translator, messageUpdate([{ type: "text_delta", contentIndex: 0, delta: "a" }]));
+      translate(translator, {
+        type: "message_end",
+        entry: { id: 7, kind: "pi.assistant", model: [assistantMessage("a")] },
+      });
+
+      expect(events.filter((event) => event.kind === "message_timing")).toEqual([
+        { kind: "message_timing", entryId: "7", ttftMs: 250 },
+      ]);
+    });
+
+    it("does not fabricate ttft when the request produced no streamed change (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11)", () => {
+      const { translator, events } = createTranslator();
+      translate(translator, {
+        type: "message_start",
+        message: assistantMessage(""),
+      });
+      translate(translator, {
+        type: "message_end",
+        entry: { id: 8, kind: "pi.assistant", model: [assistantMessage("direct")] },
+      });
+
+      expect(events.some((event) => event.kind === "message_timing")).toBe(false);
+    });
+
+    it("ignores timing for non-assistant messages (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11)", () => {
+      let clock = 1_000;
+      const { translator, events } = createTranslator({ now: () => clock });
+      translate(translator, {
+        type: "message_start",
+        message: { role: "user", content: "hi" },
+      });
+      clock = 1_300;
+      translate(translator, {
+        type: "message_end",
+        entry: { id: 9, kind: "pi.user", model: [{ role: "user", content: "hi" }] },
+      });
+
+      expect(events.some((event) => event.kind === "message_timing")).toBe(false);
     });
   });
 

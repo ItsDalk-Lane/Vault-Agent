@@ -11,11 +11,12 @@ import {
 } from "@/agentMode/sdk/pi/policy/PolicyEngine";
 import type { VaultAgentMode } from "@/agentMode/session/types";
 
-// The policy engine is a pure, fixed-order decision: protected path → scope → tool/resource family
-// → read-only/plan → risk and mode. It never lets auto mode auto-approve delete/rename/unknown MCP,
-// a read-only child cannot widen its rights, native tools cannot write Vault targets, and a deny
-// rule always beats an allow rule:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// The policy engine is a pure, fixed-order decision: protected path → tool/resource family →
+// read-only/plan → risk and mode. External targets need no pre-authorized root — the per-call
+// approval is the only authorization layer. Auto mode never auto-approves delete/rename/unknown
+// MCP, a read-only child cannot widen its rights, native tools cannot write Vault targets, and a
+// deny rule always beats an allow rule:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
 const ENGINE = new PolicyEngine();
 const VAULT_TARGET = { kind: "vault_path" as const, value: "Notes/a.md", insideScope: true };
 const EXTERNAL_TARGET = {
@@ -23,7 +24,6 @@ const EXTERNAL_TARGET = {
   value: "/ext/a.md",
   insideScope: true,
 };
-const EXTERNAL_SCOPE = { vaultRoot: "/vault", externalRoots: ["/ext"], readOnly: false };
 
 function definition(overrides: Partial<ToolManifestDefinition> = {}): ToolManifestDefinition {
   return {
@@ -47,7 +47,7 @@ function request(overrides: Partial<PolicyRequest> = {}): PolicyRequest {
     targets: [VAULT_TARGET],
     mode: "default",
     caller: "root",
-    scope: { vaultRoot: "/vault", externalRoots: [], readOnly: false },
+    scope: { vaultRoot: "/vault", readOnly: false },
     rules: [],
     nowMs: 1_000,
     ...overrides,
@@ -77,8 +77,6 @@ interface Fixture {
   readonly effects: readonly ToolEffect[];
   readonly mode: VaultAgentMode;
   readonly targets?: PolicyRequest["targets"];
-  readonly scope?: PolicyRequest["scope"];
-  readonly trustedHost?: boolean;
   readonly expected: Record<string, unknown>;
 }
 
@@ -140,12 +138,11 @@ const POLICY_FIXTURES: readonly Fixture[] = [
     expected: { decision: "allow", requiresApproval: true },
   },
   {
-    name: "external read in plan with an explicit root",
+    name: "external read in plan without any pre-authorized root",
     family: "native_file",
     effects: ["read"],
     mode: "plan",
     targets: [EXTERNAL_TARGET],
-    scope: EXTERNAL_SCOPE,
     expected: { decision: "allow", requiresApproval: false },
   },
   {
@@ -154,22 +151,21 @@ const POLICY_FIXTURES: readonly Fixture[] = [
     effects: ["write"],
     mode: "plan",
     targets: [EXTERNAL_TARGET],
-    scope: EXTERNAL_SCOPE,
     expected: { decision: "deny", code: "READ_ONLY_MODE" },
   },
   {
-    name: "opaque host process in default",
+    name: "host process in default needs its own approval",
     family: "host_process",
     effects: ["execute"],
     mode: "default",
-    expected: { decision: "deny", code: "OPAQUE_EXECUTION_DISABLED" },
+    expected: { decision: "allow", requiresApproval: true },
   },
   {
-    name: "opaque host process in auto",
+    name: "host process in auto still needs its own approval",
     family: "host_process",
     effects: ["execute"],
     mode: "auto",
-    expected: { decision: "deny", code: "OPAQUE_EXECUTION_DISABLED" },
+    expected: { decision: "allow", requiresApproval: true },
   },
   {
     name: "unknown MCP effect in default",
@@ -192,22 +188,6 @@ const POLICY_FIXTURES: readonly Fixture[] = [
     mode: "plan",
     expected: { decision: "allow", requiresApproval: false },
   },
-  {
-    name: "trusted host process in default",
-    family: "host_process",
-    effects: ["execute"],
-    mode: "default",
-    trustedHost: true,
-    expected: { decision: "allow", requiresApproval: true },
-  },
-  {
-    name: "trusted host process in auto",
-    family: "host_process",
-    effects: ["execute"],
-    mode: "auto",
-    trustedHost: true,
-    expected: { decision: "allow", requiresApproval: true },
-  },
 ];
 
 describe("PolicyEngine", () => {
@@ -216,8 +196,6 @@ describe("PolicyEngine", () => {
       const outcome = withManifest(fixture.family, fixture.effects, {
         mode: fixture.mode,
         ...(fixture.targets !== undefined ? { targets: fixture.targets } : {}),
-        ...(fixture.scope !== undefined ? { scope: fixture.scope } : {}),
-        ...(fixture.trustedHost !== undefined ? { trustedHost: fixture.trustedHost } : {}),
       });
 
       expect(outcome).toMatchObject(fixture.expected);
@@ -234,10 +212,7 @@ describe("PolicyEngine", () => {
     });
 
     it("returns USE_EXTERNAL_TOOL when a Vault tool targets an external file", () => {
-      const outcome = decide({
-        targets: [EXTERNAL_TARGET],
-        scope: EXTERNAL_SCOPE,
-      });
+      const outcome = decide({ targets: [EXTERNAL_TARGET] });
 
       expect(outcome).toMatchObject({ decision: "deny", code: "USE_EXTERNAL_TOOL" });
     });
@@ -287,13 +262,13 @@ describe("PolicyEngine", () => {
     it("denies a read-only child that tries to widen its rights", () => {
       const outcome = decide({
         caller: "subagent",
-        scope: { vaultRoot: "/vault", externalRoots: [], readOnly: true },
+        scope: { vaultRoot: "/vault", readOnly: true },
       });
 
       expect(outcome).toMatchObject({ decision: "deny", code: "READ_ONLY_MODE" });
     });
 
-    it("rejects callers, disabled tools, protected targets, missing scopes and out-of-scope targets", () => {
+    it("rejects callers, disabled tools and protected or out-of-scope vault targets; external targets need no scope (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
       expect(
         decide({
           manifest: defineToolManifest(definition({ allowedCallers: ["root"] })),
@@ -313,9 +288,11 @@ describe("PolicyEngine", () => {
       expect(
         decide({
           targets: [EXTERNAL_TARGET],
-          scope: { vaultRoot: "/vault", externalRoots: [], readOnly: false },
+          manifest: defineToolManifest(
+            definition({ family: "native_file", toolId: "native_edit", effects: ["write"] })
+          ),
         })
-      ).toMatchObject({ decision: "deny", code: "EXTERNAL_SCOPE_REQUIRED" });
+      ).toMatchObject({ decision: "allow", requiresApproval: true });
 
       expect(
         decide({ targets: [{ kind: "vault_path", value: "Other/a.md", insideScope: false }] })

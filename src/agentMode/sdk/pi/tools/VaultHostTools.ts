@@ -141,31 +141,6 @@ export async function createVaultHostTools(
     throw new Error("Mutation backups must be stored outside the Vault.");
   }
   await fs.mkdir(path.join(privateDir, "blobs"), { recursive: true, mode: 0o700 });
-  const journalPath = path.join(privateDir, "journal.json");
-  const readLegacyJournal = async (): Promise<MutationJournal> => {
-    try {
-      const original = await fs.readFile(journalPath, "utf8");
-      const value = JSON.parse(original) as MutationJournal;
-      if (value.version !== 1 || !value.mutations || !value.reverts)
-        throw new Error("Unsupported mutation journal.");
-      // 原账本原文保留不改；校验与一次导入标记和账本一起提交，后续旧文件变化不得覆盖Durable事实。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      return {
-        ...value,
-        legacyJournalImport: value.legacyJournalImport ?? {
-          source: "mutations/journal.json",
-          sha256: sha256(original),
-          schemaVersion: value.version,
-          mutationCount: Object.keys(value.mutations).length,
-          revertCount: Object.keys(value.reverts).length,
-          status: "imported",
-          importedAtMs: Date.now(),
-        },
-      };
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      return { version: 1, mutations: {}, reverts: {} };
-    }
-  };
   let journal: MutationJournal = { version: 1, mutations: {}, reverts: {} };
   let journalStore: MutationJournalStore | undefined;
   let journalBound = false;
@@ -904,13 +879,6 @@ export async function createVaultHostTools(
   new VaultMoveTools({ vault: baseAdapter, pathResolver }).register(registry);
   const reconcile = async (): Promise<RecoveryResult> => {
     if (!journalBound) throw new Error("The mutation journal is not bound.");
-    if (journalStore?.migrateOperationIdentities) {
-      const refreshed = await journalStore.migrateOperationIdentities(journal);
-      if (refreshed !== journal) {
-        await journalStore.save(refreshed);
-        journal = refreshed;
-      }
-    }
     const pendingMutations = Object.values(journal.mutations).filter(
       (entry) =>
         !entry.committed &&
@@ -921,17 +889,7 @@ export async function createVaultHostTools(
           ["failed", "stale", "cancelled", "rejected"].includes(entry.state)
         )
     );
-    const manualRecovery: RecoveryDecision[] = (journal.ambiguousLegacyTasks ?? []).map(
-      (taskId) => ({
-        operationId: `legacy-task:${taskId}`,
-        path: "",
-        state: "needs_reconciliation",
-        action: "manual",
-        canReapprove: false,
-        canContinue: false,
-        receiptWritten: false,
-      })
-    );
+    const manualRecovery: RecoveryDecision[] = [];
     for (const entry of pendingMutations) {
       if (!inScope(entry.path) || (entry.newPath && !inScope(entry.newPath))) {
         manualRecovery.push({
@@ -1325,16 +1283,11 @@ export async function createVaultHostTools(
         execute: async (args, api, context) => {
           const signal = context.abortSignal;
           const conversationId = String(api.conversationId ?? options.sessionId);
-          const legacyTask =
-            api.taskId === undefined
-              ? undefined
-              : journal.legacyTaskOperations?.[String(api.taskId)];
-          // 供应商可跨轮复用callId，真实操作必须绑定SDK任务；旧记录只使用绑定时已核验的迁移关系。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+          // 供应商可跨轮复用 callId，真实操作必须绑定 SDK 任务。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
           const operationId =
-            legacyTask?.operationId ??
-            (api.taskId === undefined
+            api.taskId === undefined
               ? `${options.sessionId}:${conversationId}:${api.callId}`
-              : `vault-task:${options.sessionId}:${conversationId}:${api.taskId}`);
+              : `vault-task:${options.sessionId}:${conversationId}:${api.taskId}`;
           const reviewedMode = modeOf(conversationId);
           try {
             if (!journalBound) throw new Error("The mutation journal is not bound.");
@@ -1347,27 +1300,6 @@ export async function createVaultHostTools(
                 code: "INVALID_ARGUMENT",
               });
             const parameters = args as Record<string, unknown>;
-            if (
-              api.taskId !== undefined &&
-              journal.ambiguousLegacyTasks?.includes(String(api.taskId))
-            )
-              throw Object.assign(
-                new Error(
-                  "旧操作与当前任务的对应关系无法核实；已保留原记录，请停止旧任务并检查实际文件。"
-                ),
-                { code: "EFFECT_UNKNOWN" }
-              );
-            if (
-              legacyTask &&
-              (legacyTask.toolId !== toolId ||
-                !requireNodeModule<typeof import("node:util")>("node:util").isDeepStrictEqual(
-                  legacyTask.arguments,
-                  args
-                ))
-            )
-              throw Object.assign(new Error("恢复任务的参数与旧操作凭据不一致，已禁止重做。"), {
-                code: "EFFECT_UNKNOWN",
-              });
             if (
               journal.mutations[operationId] &&
               !journal.mutations[operationId].committed &&
@@ -1539,7 +1471,6 @@ export async function createVaultHostTools(
               mode: reviewedMode,
               scope: {
                 vaultRoot: options.vaultRoot,
-                externalRoots: [],
                 readOnly: readOnlyOf(conversationId),
               },
               scopeVersion: 1,
@@ -1837,27 +1768,11 @@ export async function createVaultHostTools(
     bindMutationJournal: async (store) => {
       if (journalStore) throw new Error("The mutation journal is already bound.");
       const persisted = await store.load();
-      let imported = persisted ?? (await readLegacyJournal());
-      if (imported.version !== 1 || !imported.mutations || !imported.reverts)
+      const current = persisted ?? { version: 1, mutations: {}, reverts: {} };
+      if (current.version !== 1 || !current.mutations || !current.reverts)
         throw new Error("Unsupported mutation journal.");
-      // 旧完成标记缺少执行阶段时不能直接当回执，只能用现有只读核对证明实际结果。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      if (Object.values(imported.mutations).some((entry) => !entry.state))
-        imported = {
-          ...imported,
-          mutations: Object.fromEntries(
-            Object.entries(imported.mutations).map(([id, entry]) => [
-              id,
-              entry.state
-                ? entry
-                : { ...entry, committed: false, state: "needs_reconciliation", effect: "unknown" },
-            ])
-          ),
-        };
-      // 导入成功后仅使用Durable事务，旧文件保留为证据但不再双写。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-      if (store.migrateOperationIdentities)
-        imported = await store.migrateOperationIdentities(imported);
-      if (!persisted || imported !== persisted) await store.save(imported);
-      journal = imported;
+      if (!persisted) await store.save(current);
+      journal = current;
       journalStore = store;
       journalBound = true;
       await reconcile();

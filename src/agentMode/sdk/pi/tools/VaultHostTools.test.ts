@@ -1211,27 +1211,19 @@ describe("VaultHostTools", () => {
       }
     );
 
-    it("binds and migrates the old journal once, then uses only the durable authority https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+    it("ignores an old journal file and restores only current durable mutations https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const vault = await setup();
       const options = {
         app: vault.app,
         vaultRoot: vault.root,
         privateDir: vault.privateDir,
-        sessionId: "journal-import",
+        sessionId: "durable-journal",
         getMode: () => "auto" as VaultAgentMode,
       };
-      const legacy = await createVaultHostTools(options);
-      await invoke(
-        legacy.registrations,
-        "vault_create",
-        { path: "before.md", content: "before" },
-        "old"
-      );
-      legacy.dispose();
       const journalPath = path.join(vault.privateDir, "mutations", "journal.json");
-      const original = JSON.stringify(readJournal(vault));
+      await fs.mkdir(path.dirname(journalPath), { recursive: true });
+      const original = "unread old journal";
       await fs.writeFile(journalPath, original);
-      journals.delete(vault.privateDir);
       let value: import("@/agentMode/sdk/pi/storage/MutationJournal").MutationJournal | null = null;
       const store = {
         load: jest.fn(async () => value),
@@ -1252,18 +1244,7 @@ describe("VaultHostTools", () => {
       ).toMatchObject({ ok: false });
       await host.bindMutationJournal(store);
       expect(store.save).toHaveBeenCalledTimes(1);
-      expect(value).toMatchObject({
-        mutations: { "journal-import:journal-import:old": { committed: true } },
-        legacyJournalImport: {
-          source: "mutations/journal.json",
-          sha256: sha256(original),
-          schemaVersion: 1,
-          mutationCount: 1,
-          revertCount: 0,
-          status: "imported",
-          importedAtMs: expect.any(Number),
-        },
-      });
+      expect(value).toEqual({ version: 1, mutations: {}, reverts: {} });
       expect(
         await invoke(
           host.registrations,
@@ -1274,11 +1255,10 @@ describe("VaultHostTools", () => {
       ).toMatchObject({ ok: true });
       expect(await fs.readFile(journalPath, "utf8")).toBe(original);
       host.dispose();
-      await fs.writeFile(journalPath, "broken legacy backup");
       const reopened = await createUnboundVaultHostTools(options);
       await reopened.bindMutationJournal(store);
       expect(value).toMatchObject({
-        legacyJournalImport: { sha256: sha256(original), mutationCount: 1, revertCount: 0 },
+        mutations: { "durable-journal:durable-journal:new": { committed: true } },
       });
       expect(reopened.recovery.decisions).toEqual([]);
       expect(
@@ -1289,6 +1269,7 @@ describe("VaultHostTools", () => {
           "new"
         )
       ).toMatchObject({ ok: true, alreadyApplied: true });
+      expect(await fs.readFile(journalPath, "utf8")).toBe(original);
       reopened.dispose();
     });
 
@@ -1325,51 +1306,6 @@ describe("VaultHostTools", () => {
         );
         expect(result).toMatchObject({ ok: false, outcome: { effect: "not_applied" } });
         expect(await vault.read("a.md")).toBe("before");
-        host.dispose();
-      }
-    );
-
-    it.each([false, true])(
-      "reconciles a legacy committed flag without an execution stage against actual bytes (changed=%s) instead of trusting it https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
-      async (changed) => {
-        const vault = await setup();
-        const options = {
-          app: vault.app,
-          vaultRoot: vault.root,
-          privateDir: vault.privateDir,
-          sessionId: "legacy-stage",
-          getMode: () => "auto" as VaultAgentMode,
-        };
-        const first = await createVaultHostTools(options);
-        await invoke(
-          first.registrations,
-          "vault_create",
-          { path: "old.md", content: "original effect" },
-          "old"
-        );
-        first.dispose();
-        const old = readJournal(vault);
-        const operationId = "legacy-stage:legacy-stage:old";
-        Reflect.deleteProperty(old.mutations[operationId], "state");
-        Reflect.deleteProperty(old.mutations[operationId], "effect");
-        const original = JSON.stringify(old);
-        const legacyPath = path.join(vault.privateDir, "mutations", "journal.json");
-        await fs.writeFile(legacyPath, original);
-        journals.delete(vault.privateDir);
-        if (changed) await vault.write("old.md", "later user content");
-        const create = jest.spyOn(vault.app.vault, "create");
-        const host = await createVaultHostTools(options);
-        expect(readJournal(vault).mutations[operationId]).toMatchObject({
-          committed: !changed,
-          state: changed ? "needs_reconciliation" : "committed",
-          effect: changed ? "unknown" : "applied",
-        });
-        expect(host.recovery.decisions).toEqual([
-          expect.objectContaining({ operationId, canContinue: !changed, canReapprove: false }),
-        ]);
-        expect(create).not.toHaveBeenCalled();
-        expect(await vault.read("old.md")).toBe(changed ? "later user content" : "original effect");
-        expect(await fs.readFile(legacyPath, "utf8")).toBe(original);
         host.dispose();
       }
     );

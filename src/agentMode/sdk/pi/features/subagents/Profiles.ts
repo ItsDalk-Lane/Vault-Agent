@@ -82,7 +82,8 @@ export const SUBAGENT_PROFILES: readonly SubagentProfile[] = Object.freeze([
       "wait_subagent",
     ]),
     maxDepth: SUBAGENT_MAX_DEPTH,
-    defaultEnabled: false,
+    // 写作子任务常开：唯一闸门是工具调用的逐次审批，不再有 profile 级开关。https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+    defaultEnabled: true,
     writeCapable: true,
     instructions: "Draft the requested content. Writes still require the host approval path.",
   }),

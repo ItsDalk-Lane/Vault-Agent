@@ -1,11 +1,4 @@
 import {
-  STORE_SIZE_STOP_BYTES,
-  STORE_SIZE_WARN_BYTES,
-  StoreSizePolicy,
-  canAcceptNewRun,
-  classifyStoreSize,
-} from "@/agentMode/sdk/pi/storage/StoreSizePolicy";
-import {
   RuntimePool,
   RuntimePoolError,
   type PooledRuntime,
@@ -13,10 +6,9 @@ import {
 } from "./RuntimePool";
 
 // The pool keeps one writer per root, at most two active root stores, closes idle stores
-// after 60 seconds, and refuses new runs at the 32 MiB store limit while still allowing
+// after 60 seconds, while allowing
 // cancellation and archive only at a task boundary:
 // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-const MiB = 1024 * 1024;
 const IDLE_MS = 60_000;
 
 interface FakeTimer {
@@ -31,9 +23,7 @@ interface FakeWorld {
   readonly cancelled: string[];
   readonly archived: string[];
   readonly activity: Map<string, RuntimeActivity>;
-  readonly bytes: Map<string, number>;
   readonly timers: FakeTimer[];
-  readonly measureCalls: string[];
   readonly pools: RuntimePool[];
 }
 
@@ -43,19 +33,10 @@ function createWorld(): FakeWorld {
   const cancelled: string[] = [];
   const archived: string[] = [];
   const activity = new Map<string, RuntimeActivity>();
-  const bytes = new Map<string, number>();
   const timers: FakeTimer[] = [];
-  const measureCalls: string[] = [];
   const pools: RuntimePool[] = [];
 
   const idleActivity: RuntimeActivity = { activeForegroundTasks: 0, activeBackgroundTasks: 0 };
-  const sizePolicy = new StoreSizePolicy({
-    measureBytes: async (rootKey) => {
-      measureCalls.push(rootKey);
-      return bytes.get(rootKey) ?? 0;
-    },
-  });
-
   const pool = new RuntimePool({
     openRuntime: async (rootKey): Promise<PooledRuntime> => {
       opened.push(rootKey);
@@ -71,7 +52,6 @@ function createWorld(): FakeWorld {
       archived.push(runtime.rootKey);
     },
     activity: async (rootKey) => activity.get(rootKey) ?? idleActivity,
-    sizePolicy,
     now: () => 1_000,
     setTimer: (delayMs, callback) => {
       const timer: FakeTimer = { delayMs, callback, cancelled: false };
@@ -82,7 +62,7 @@ function createWorld(): FakeWorld {
     },
   });
   pools.push(pool);
-  return { opened, closed, cancelled, archived, activity, bytes, timers, measureCalls, pools };
+  return { opened, closed, cancelled, archived, activity, timers, pools };
 }
 
 function setActivity(world: FakeWorld, rootKey: string, activity: Partial<RuntimeActivity>): void {
@@ -92,56 +72,6 @@ function setActivity(world: FakeWorld, rootKey: string, activity: Partial<Runtim
     ...activity,
   });
 }
-
-describe("StoreSizePolicy", () => {
-  it("classifies the 16 MiB warning and 32 MiB stop boundaries", () => {
-    expect(STORE_SIZE_WARN_BYTES).toBe(16 * MiB);
-    expect(STORE_SIZE_STOP_BYTES).toBe(32 * MiB);
-    expect(classifyStoreSize(0)).toBe("ok");
-    expect(classifyStoreSize(16 * MiB - 1)).toBe("ok");
-    expect(classifyStoreSize(16 * MiB)).toBe("suggest_new_session");
-    expect(classifyStoreSize(32 * MiB - 1)).toBe("suggest_new_session");
-    expect(classifyStoreSize(32 * MiB)).toBe("stop_new_runs");
-  });
-
-  it("measures the real store bytes on every status read instead of caching", async () => {
-    let realBytes = 10 * MiB;
-    const policy = new StoreSizePolicy({ measureBytes: async () => realBytes });
-
-    const first = await policy.status("root-1");
-    realBytes = 34 * MiB;
-    const second = await policy.status("root-1");
-
-    expect(first).toMatchObject({ bytes: 10 * MiB, verdict: "ok" });
-    expect(second).toMatchObject({ bytes: 34 * MiB, verdict: "stop_new_runs" });
-  });
-
-  it("does not pretend compaction shrank the on-disk JSONL file", async () => {
-    const sizes = [20 * MiB, 34 * MiB];
-    const calls: number[] = [];
-    const policy = new StoreSizePolicy({
-      measureBytes: async () => {
-        const size = sizes[Math.min(calls.length, sizes.length - 1)];
-        calls.push(size);
-        return size;
-      },
-    });
-
-    const before = await policy.status("root-1");
-    const afterCompaction = await policy.status("root-1");
-
-    expect(before).toMatchObject({ bytes: 20 * MiB, verdict: "suggest_new_session" });
-    expect(afterCompaction.bytes).toBe(34 * MiB);
-    expect(afterCompaction.verdict).toBe("stop_new_runs");
-    expect(afterCompaction.bytes).toBeGreaterThan(before.bytes);
-  });
-
-  it("exposes whether a new run may start", () => {
-    expect(canAcceptNewRun("ok")).toBe(true);
-    expect(canAcceptNewRun("suggest_new_session")).toBe(true);
-    expect(canAcceptNewRun("stop_new_runs")).toBe(false);
-  });
-});
 
 describe("RuntimePool", () => {
   describe("acquire() concurrency", () => {
@@ -155,66 +85,6 @@ describe("RuntimePool", () => {
       });
       expect(world.closed).toEqual(["root-visible-first"]);
       expect(world.cancelled).toEqual([]);
-    });
-
-    it("keeps a new run reserved while size measurement is pending after an idle probe started https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-      let probeStarted!: () => void;
-      let finishProbe!: () => void;
-      let measureStarted!: () => void;
-      let finishMeasure!: () => void;
-      const probing = new Promise<void>((resolve) => {
-        probeStarted = resolve;
-      });
-      const probe = new Promise<void>((resolve) => {
-        finishProbe = resolve;
-      });
-      const measuring = new Promise<void>((resolve) => {
-        measureStarted = resolve;
-      });
-      const measurement = new Promise<void>((resolve) => {
-        finishMeasure = resolve;
-      });
-      const closed: string[] = [];
-      const pool = new RuntimePool({
-        maxActive: 1,
-        openRuntime: async (rootKey) => ({ rootKey, handle: rootKey }),
-        closeRuntime: async (runtime) => {
-          closed.push(runtime.rootKey);
-        },
-        activity: async () => {
-          probeStarted();
-          await probe;
-          return { activeForegroundTasks: 0, activeBackgroundTasks: 0 };
-        },
-        sizePolicy: new StoreSizePolicy({
-          measureBytes: async () => {
-            measureStarted();
-            await measurement;
-            return 0;
-          },
-        }),
-        setTimer: () => () => undefined,
-      });
-      await pool.acquire("root-first");
-      await pool.release("root-first");
-      const waiting = pool.acquire("root-second", { waitForCapacity: false }).then(
-        (value) => ({ value, error: null }),
-        (error: unknown) => ({ value: null, error })
-      );
-      await probing;
-      const admission = pool.admitRun("root-first").then(
-        (value) => ({ value, error: null }),
-        (error: unknown) => ({ value: null, error })
-      );
-      await measuring;
-      finishProbe();
-      const waited = await waiting;
-      finishMeasure();
-      const admitted = await admission;
-      expect(waited.error).toMatchObject({ code: "RUNTIME_BUSY" });
-      expect(admitted.error).toBeNull();
-      expect(admitted.value?.kind).toBe("accepted");
-      expect(closed).toEqual([]);
     });
 
     it("keeps a short SDK operation that starts during an idle probe and drains the original queue when it ends https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
@@ -388,28 +258,6 @@ describe("RuntimePool", () => {
     expect(world.closed).toEqual(["root-idle"]);
     expect(world.closed).not.toContain("root-active");
     expect(world.opened).toEqual(["root-active", "root-idle", "root-new"]);
-  });
-
-  it("refuses new runs at 32 MiB but still allows cancelling an active run", async () => {
-    const world = createWorld();
-    const pool = world.pools[0];
-    await pool.acquire("root-1");
-    world.bytes.set("root-1", 10 * MiB);
-
-    const accepted = await pool.admitRun("root-1");
-    expect(accepted).toMatchObject({ kind: "accepted", warning: false, status: { verdict: "ok" } });
-
-    world.bytes.set("root-1", 33 * MiB);
-    const blocked = await pool.admitRun("root-1");
-    expect(blocked).toMatchObject({
-      kind: "blocked",
-      code: "STORE_SIZE_LIMIT",
-      suggestion: "summarize_and_new_session",
-      status: { bytes: 33 * MiB, verdict: "stop_new_runs" },
-    });
-
-    await expect(pool.cancelRun("root-1")).resolves.toEqual({ kind: "cancelled" });
-    expect(world.cancelled).toEqual(["root-1"]);
   });
 
   it("archives only after foreground and background tasks have ended", async () => {

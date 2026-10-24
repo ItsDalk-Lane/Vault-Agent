@@ -95,8 +95,6 @@ function userApprovalOptions(): readonly ApprovalOption[] {
   return [{ optionId: "allow-once", kind: "allow_once" }];
 }
 
-const HOST_STRICT = { trustedHost: false } as const;
-
 function requestFor(testCase: PolicyCase): PolicyRequest {
   const target = (() => {
     switch (testCase.resolvedZone) {
@@ -129,8 +127,6 @@ function requestFor(testCase: PolicyCase): PolicyRequest {
   if (testCase.denyRule === true) {
     rules.push({ id: "deny-rule", decision: "deny", effect: testCase.effect });
   }
-  const trustedHost =
-    testCase.trustedHost ?? (testCase.toolFamily === "host_process" && testCase.id === "POL-13");
   return {
     manifest: manifestFor(testCase.toolFamily, testCase.effect, {
       ...(testCase.id === "POL-27"
@@ -146,15 +142,10 @@ function requestFor(testCase: PolicyCase): PolicyRequest {
     caller: testCase.actor === "subagent" || testCase.caller === "tools" ? "subagent" : "root",
     scope: {
       vaultRoot: "/vault",
-      externalRoots:
-        testCase.toolFamily === "native_file" || testCase.toolFamily === "host_process"
-          ? ["/tmp"]
-          : [],
       readOnly: testCase.childReadOnly === true,
     },
     rules,
     ...(testCase.callable === false ? { toolEnabled: false } : {}),
-    ...(trustedHost ? { trustedHost: true } : HOST_STRICT),
   };
 }
 
@@ -170,8 +161,6 @@ describe("securityBoundary", () => {
         "POL-03": "READ_ONLY_MODE",
         "POL-07": "USE_VAULT_TOOL",
         "POL-08": "PROTECTED_PATH",
-        "POL-09": "PATH_OUT_OF_SCOPE",
-        "POL-12": "OPAQUE_EXECUTION_DISABLED",
         "POL-14": "READ_ONLY_MODE",
         "POL-16": "READ_ONLY_MODE",
         "POL-19": "PERMISSION_DENIED",
@@ -212,7 +201,7 @@ describe("securityBoundary", () => {
         expect(decision).toMatchObject({ decision: "deny", code: "PATH_OUT_OF_SCOPE" });
       });
 
-      it("denies external paths without an authorized root", () => {
+      it("allows external reads without any pre-authorized root (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
         const decision = engine.decide({
           ...requestFor({
             id: "external-no-root",
@@ -222,13 +211,13 @@ describe("securityBoundary", () => {
             effect: "read",
             expected: "allow",
           }),
-          scope: { vaultRoot: "/vault", externalRoots: [], readOnly: false },
+          scope: { vaultRoot: "/vault", readOnly: false },
         });
 
-        expect(decision).toMatchObject({ decision: "deny", code: "EXTERNAL_SCOPE_REQUIRED" });
+        expect(decision).toMatchObject({ decision: "allow", requiresApproval: false });
       });
 
-      it("denies host processes in strict mode even when the family is allowed", () => {
+      it("asks for approval on host processes without any pre-enabled mode (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15)", () => {
         const decision = engine.decide({
           ...requestFor({
             id: "host-strict",
@@ -238,13 +227,9 @@ describe("securityBoundary", () => {
             effect: "execute",
             expected: "ask",
           }),
-          trustedHost: false,
         });
 
-        expect(decision).toMatchObject({
-          decision: "deny",
-          code: "OPAQUE_EXECUTION_DISABLED",
-        });
+        expect(decision).toMatchObject({ decision: "allow", requiresApproval: true });
       });
 
       it("never lets plan mode write, delete, rename or execute", () => {

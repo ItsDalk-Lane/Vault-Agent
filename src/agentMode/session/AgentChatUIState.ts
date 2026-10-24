@@ -77,8 +77,12 @@ export class AgentChatUIState implements AgentChatBackend {
     return this.session.canSteer();
   }
 
-  async steerMessage(text: string): Promise<void> {
-    await this.session.steerPrompt(text);
+  async steerMessage(
+    text: string,
+    context?: MessageContext,
+    promptContent?: PromptContent[]
+  ): Promise<void> {
+    await this.session.steerPrompt(text, context, promptContent);
     this.notifyListeners();
   }
 

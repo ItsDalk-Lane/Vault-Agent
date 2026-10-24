@@ -1,13 +1,16 @@
+import type { SessionExportOutput } from "@/agentMode/session/types";
 import type { FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import { logWarn } from "@/logger";
 import { PiRuntime, type PiHostOptions } from "@/agentMode/sdk/pi/runtime/PiRuntime";
-import type { LegacyChatEntry } from "@/agentMode/session/legacy/LegacyHistoryReader";
+import { configuredPiCatalog } from "@/agentMode/sdk/pi/runtime/PiRuntimeModels";
+import { modelEntriesFromCatalog } from "@/agentMode/sdk/pi/models/ModelSelection";
 import type {
   AgentQuestionAnswers,
   AgentChatMessage,
   AskUserQuestionPrompt,
   BackendProcess,
   BackendState,
+  BackendModelCatalog,
   CancelInput,
   ListSessionsInput,
   ListSessionsOutput,
@@ -17,6 +20,8 @@ import type {
   OpenSessionOutput,
   PermissionDecision,
   PermissionPrompt,
+  PromptContent,
+  PromptContext,
   PromptInput,
   PromptOutput,
   ResumeSessionInput,
@@ -24,7 +29,14 @@ import type {
   SessionId,
   SessionUpdateHandler,
   FileChangeRevertResult,
+  ListedSessionInfo,
+  LocalStoragePaths,
+  UpdateSessionMetadataInput,
 } from "@/agentMode/session/types";
+
+const EMPTY_MODEL_CATALOG: BackendModelCatalog = Object.freeze({
+  availableModels: Object.freeze([]),
+});
 
 export interface PiBackendProcessOptions {
   host: PiHostOptions;
@@ -61,6 +73,12 @@ export class PiBackendProcess implements BackendProcess {
     this.host = options.host;
   }
 
+  // 模型预加载只读本地配置，不能为了取得选项创建空聊天。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  getModelCatalog(): BackendModelCatalog {
+    const availableModels = modelEntriesFromCatalog(configuredPiCatalog(this.host.getSettings()));
+    return availableModels.length ? { availableModels } : EMPTY_MODEL_CATALOG;
+  }
+
   isRuntimeReady(): boolean {
     return !this.closed && this.runtime !== null;
   }
@@ -76,6 +94,7 @@ export class PiBackendProcess implements BackendProcess {
         ask: (request) => this.askUserQuestionPrompter?.(request) ?? Promise.resolve({}),
         readOnly: (id) => this.readOnlySessionPredicate?.(id) ?? false,
       });
+      await this.runtime.initialize();
       for (const sessionId of this.observedSessions) this.runtime.observe(sessionId, true);
     }
     this.assertReady("start");
@@ -147,6 +166,8 @@ export class PiBackendProcess implements BackendProcess {
     sessionId: string;
     requestId: string;
     text: string;
+    prompt?: PromptContent[];
+    context?: PromptContext;
   }): Promise<void> {
     this.assertReady("steerSession");
     await this.runtime!.steer(params);
@@ -165,6 +186,44 @@ export class PiBackendProcess implements BackendProcess {
   async closeSession(params: { sessionId: SessionId }): Promise<void> {
     this.assertReady("closeSession");
     return this.runtime!.close(params.sessionId);
+  }
+
+  async deleteSession(params: { sessionId: SessionId }): Promise<void> {
+    this.assertReady("deleteSession");
+    await this.runtime!.deleteSession(params.sessionId);
+    this.observedSessions.delete(params.sessionId);
+  }
+
+  async forkSession(params: {
+    sessionId: SessionId;
+    atEntryId?: string;
+  }): Promise<OpenSessionOutput> {
+    this.assertReady("forkSession");
+    return this.runtime!.forkSession(params.sessionId, params.atEntryId);
+  }
+
+  async updateSessionMetadata(params: UpdateSessionMetadataInput): Promise<ListedSessionInfo> {
+    this.assertReady("updateSessionMetadata");
+    return this.runtime!.updateSessionMetadata(params);
+  }
+
+  getLocalStoragePaths(): LocalStoragePaths {
+    this.assertReady("getLocalStoragePaths");
+    return this.runtime!.getLocalStoragePaths();
+  }
+
+  async writeSessionDiagnostic(input: {
+    sessionId: SessionId;
+    name: string;
+    content: Uint8Array;
+  }): Promise<{ zipDir: string; zipPath: string }> {
+    this.assertReady("writeSessionDiagnostic");
+    return this.runtime!.writeSessionDiagnostic(input);
+  }
+
+  subscribeStorageChanges(listener: () => void): () => void {
+    this.assertReady("subscribeStorageChanges");
+    return this.runtime!.subscribeStorageChanges(listener);
   }
 
   async setSessionModel(params: { sessionId: SessionId; modelId: string }): Promise<BackendState> {
@@ -291,19 +350,10 @@ export class PiBackendProcess implements BackendProcess {
     await this.runtime!.setFeedbackEnabled(params.sessionId, params.enabled);
   }
 
-  async importLegacySession(input: {
-    cwd: string;
-    entry: LegacyChatEntry;
-  }): Promise<OpenSessionOutput & { notices: readonly string[] }> {
-    this.assertReady("importLegacySession");
-    return this.runtime!.importLegacySession(input);
-  }
-
   async exportSession(input: {
     sessionId: SessionId;
     format: "json" | "markdown";
-    legacy?: LegacyChatEntry;
-  }): Promise<{ suggestedName: string; content: string }> {
+  }): Promise<SessionExportOutput> {
     this.assertReady("exportSession");
     return this.runtime!.exportSession(input);
   }
@@ -311,14 +361,6 @@ export class PiBackendProcess implements BackendProcess {
   async recordFanoutTurn(input: { sessionId: SessionId; turn: FanoutTurn }): Promise<void> {
     this.assertReady("recordFanoutTurn");
     await this.runtime!.recordFanoutTurn(input);
-  }
-
-  async importSessionBackup(input: {
-    cwd: string;
-    content: string;
-  }): Promise<OpenSessionOutput & { notices: readonly string[] }> {
-    this.assertReady("importSessionBackup");
-    return this.runtime!.importSessionBackup(input);
   }
 
   async shutdown(): Promise<void> {

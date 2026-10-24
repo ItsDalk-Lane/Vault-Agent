@@ -16,19 +16,16 @@ import type {
   WatchTarget,
 } from "@earendil-works/pi-durable/env";
 
-import {
-  ExternalScopes,
-  type ExternalScopePathOperations,
-} from "@/agentMode/sdk/pi/policy/ExternalScopes";
 import { isPathWithin, type PathFileSystem } from "@/agentMode/sdk/pi/policy/PathResolver";
 import { PlatformPathPolicy } from "@/agentMode/sdk/pi/policy/PlatformPathPolicy";
 
 // GuardedExternalEnv implements the locked ExecutionEnv surface while checking every public I/O
-// method against the user-approved external scopes: an indirect stat/read through a symlink, a new
+// method against the protected roots only — external targets need no pre-authorized scope since the
+// per-call approval is the only authorization layer: an indirect stat/read through a symlink, a new
 // file below a symlinked parent, a hard-linked write, or leaking the raw environment could all
-// bypass a scope. Temp paths live under one private root outside the vault/scopes and exec goes
-// through a separate command gate instead of the raw shell:
-// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+// bypass a protected boundary. Temp paths live under one private root outside the vault and exec
+// goes through a separate command gate instead of the raw shell:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
 export type GuardedFileKind = "file" | "directory" | "symlink" | "missing";
 
 export interface GuardedInspectorEntry {
@@ -67,11 +64,20 @@ export interface GuardedCommandGate {
   authorize(request: GuardedCommandRequest): Promise<GuardedCommandDecision>;
 }
 
+export interface GuardedPathOperations {
+  isAbsolute(target: string): boolean;
+  resolve(...parts: string[]): string;
+  join(...parts: string[]): string;
+  basename(target: string): string;
+  dirname(target: string): string;
+  relative(from: string, to: string): string;
+  readonly sep: string;
+}
+
 export interface GuardedExternalEnvOptions {
   readonly raw: ExecutionEnv;
-  readonly scopes: ExternalScopes;
   readonly inspector: GuardedInspector;
-  readonly path: ExternalScopePathOperations;
+  readonly path: GuardedPathOperations;
   readonly protectedRoots: readonly string[];
   readonly isAccessCurrent?: () => boolean;
   readonly commandGate?: GuardedCommandGate;
@@ -88,9 +94,8 @@ export class GuardedExternalEnv implements ExecutionEnv {
   readonly id: string;
   cwd: string;
   #raw: ExecutionEnv;
-  readonly #scopes: ExternalScopes;
   readonly #inspector: GuardedInspector;
-  readonly #path: ExternalScopePathOperations;
+  readonly #path: GuardedPathOperations;
   readonly #protectedRoots: readonly string[];
   readonly #isAccessCurrent: (() => boolean) | undefined;
   readonly #commandGate: GuardedCommandGate | undefined;
@@ -103,7 +108,6 @@ export class GuardedExternalEnv implements ExecutionEnv {
 
   constructor(options: GuardedExternalEnvOptions) {
     this.#raw = options.raw;
-    this.#scopes = options.scopes;
     this.#inspector = options.inspector;
     this.#path = options.path;
     this.#protectedRoots = options.protectedRoots;
@@ -429,15 +433,8 @@ export class GuardedExternalEnv implements ExecutionEnv {
       const resolved = this.#resolve(target);
       const info = await this.#canonicalForCheck(resolved);
       if (await this.#isPrivateTemp(info.canonical)) return ok(info.canonical);
-      const access = await this.#scopes.checkRootAccess(info.canonical, "read");
-      if (!access.allowed) {
-        return err(
-          this.#fileError(
-            "permission_denied",
-            `EXTERNAL_PATH_DENIED: ${access.code}: ${access.message}`,
-            target
-          )
-        );
+      if (await this.#isProtected(info.canonical)) {
+        return err(this.#fileError("permission_denied", "PROTECTED_PATH_DENIED", target));
       }
       return ok(info.canonical);
     } catch (error) {
@@ -456,15 +453,8 @@ export class GuardedExternalEnv implements ExecutionEnv {
       const resolved = this.#resolve(target);
       const info = await this.#canonicalForCheck(resolved);
       if (await this.#isPrivateTemp(info.canonical)) return ok(info.canonical);
-      const access = await this.#scopes.checkRootAccess(info.canonical, "write");
-      if (!access.allowed) {
-        return err(
-          this.#fileError(
-            "permission_denied",
-            `EXTERNAL_PATH_DENIED: ${access.code}: ${access.message}`,
-            target
-          )
-        );
+      if (await this.#isProtected(info.canonical)) {
+        return err(this.#fileError("permission_denied", "PROTECTED_PATH_DENIED", target));
       }
       if (info.kind === "symlink") {
         return err(
@@ -559,6 +549,13 @@ export class GuardedExternalEnv implements ExecutionEnv {
     );
   }
 
+  async #isProtected(canonical: string): Promise<boolean> {
+    for (const protectedRoot of this.#protectedRoots) {
+      if (await this.#isInside(protectedRoot, canonical)) return true;
+    }
+    return false;
+  }
+
   #isInside(root: string, candidate: string): Promise<boolean> {
     return isPathWithin(root, candidate, this.#path, this.#inspector);
   }
@@ -566,10 +563,7 @@ export class GuardedExternalEnv implements ExecutionEnv {
   #resolve(target: string): string {
     new PlatformPathPolicy({
       platform: this.#path.sep === "\\" ? "win32" : "posix",
-      authorizedUncRoots: this.#scopes
-        .listScopes()
-        .filter((scope) => scope.status === "active")
-        .map((scope) => scope.canonicalRoot),
+      uncAccess: "open",
     }).validate(target);
     return this.#path.isAbsolute(target)
       ? this.#path.resolve(target)
