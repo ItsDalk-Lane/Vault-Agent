@@ -43,6 +43,7 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
       ok: false,
       code: "invalid_api_key",
       message: t("ui.model.err.authentication"),
+      status,
       checkedAt,
     };
   }
@@ -51,6 +52,7 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
       ok: false,
       code: "rate_limited",
       message: t("ui.model.err.rateLimited"),
+      status,
       checkedAt,
     };
   }
@@ -61,6 +63,7 @@ async function mapResponse(response: Response): Promise<VerificationResult> {
     message: snippet
       ? t("ui.model.err.httpWithSnippet", { status, snippet })
       : t("ui.model.err.http", { status }),
+    status,
     checkedAt,
   };
 }

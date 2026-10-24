@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-23",
+  "application": "Obsidian 1.14.4",
+  "settingsWindow": "设置 - houde - Obsidian 1.14.4",
+  "buildId": "c2a7ef50-dirty-937901a85e98",
+  "vault": {
+    "name": "houde",
+    "path": "/Users/study_superior/Desktop/Project/houde"
+  },
+  "checks": {
+    "added_model_focuses_id": "passed",
+    "unavailable_pdf_video_search_have_reasons": "passed",
+    "help_visible_on_first_open": "passed",
+    "escape_closes_help_preserving_provider": "passed",
+    "api_menu_has_exactly_four_protocols": "passed",
+    "escape_closes_api_menu_preserving_provider": "passed",
+    "escape_cancels_custom_effort_preserving_provider": "passed",
+    "cancel_discards_api_format_and_model_draft": "passed"
+  },
+  "configAfter": {
+    "providers": 3,
+    "models": 8,
+    "sha256": "2c34b2aa2937b0236c0a8ee97cb2394cc0e6c46acc1342a41800d399d3dea54d",
+    "matchesBefore": true
+  },
+  "settingsWindowClosed": true,
+  "productionSourceChangedDuringRecheck": false
+}

@@ -1,37 +1,12 @@
 import { logWarn } from "@/logger";
 
-import type { CatalogProvider, ModelInfo, ProviderType } from "@/modelManagement/types/catalog";
+import type { CatalogProvider, ModelInfo } from "@/modelManagement/types/catalog";
 import { isPlainObject, type WireModel, type WireProvider } from "./modelsDevWire";
 
 const EMBEDDING_TOKEN = /(^|[-_/.\s])embed(ding)?($|[-_/.\s])/i;
 
 export function looksLikeEmbeddingModel(idOrHaystack: string): boolean {
   return EMBEDDING_TOKEN.test(idOrHaystack);
-}
-
-// Bedrock routes by per-account region and Azure by per-deployment URL, neither of which the BYOK dialog can enter:
-// https://github.com/logancyang/obsidian-copilot/issues/2928
-// https://github.com/logancyang/obsidian-copilot/issues/2932
-const UNROUTABLE_PROVIDER_NPM: ReadonlySet<string> = new Set([
-  "@ai-sdk/amazon-bedrock",
-  "@ai-sdk/azure",
-]);
-
-function isUnroutableProvider(wire: unknown): boolean {
-  if (!isPlainObject(wire)) return false;
-  const npm = (wire as { npm?: unknown }).npm;
-  return typeof npm === "string" && UNROUTABLE_PROVIDER_NPM.has(npm);
-}
-
-function mapNpmToProviderType(npm: string | undefined): ProviderType {
-  switch (npm) {
-    case "@ai-sdk/anthropic":
-      return "anthropic";
-    case "@ai-sdk/google":
-      return "google";
-    default:
-      return "openai-compatible";
-  }
 }
 
 function transformModel(wire: WireModel): ModelInfo | null {
@@ -105,10 +80,11 @@ function transformProvider(providerKey: string, wire: unknown): CatalogProvider 
   const result: CatalogProvider = {
     id: wireProv.id,
     displayName: wireProv.name ?? wireProv.id,
-    providerType: mapNpmToProviderType(wireProv.npm),
+    ...(typeof wireProv.npm === "string" ? { npm: wireProv.npm } : {}),
     models,
   };
   if (typeof wireProv.api === "string" && wireProv.api.length > 0) {
+    result.api = wireProv.api;
     result.defaultBaseUrl = wireProv.api;
   }
   return result;
@@ -118,7 +94,6 @@ export function transformWireToCatalog(wire: unknown): CatalogProvider[] {
   if (!isPlainObject(wire)) return [];
   const providers: CatalogProvider[] = [];
   for (const [key, wireProvider] of Object.entries(wire)) {
-    if (isUnroutableProvider(wireProvider)) continue;
     const provider = transformProvider(key, wireProvider);
     if (provider) {
       providers.push(provider);

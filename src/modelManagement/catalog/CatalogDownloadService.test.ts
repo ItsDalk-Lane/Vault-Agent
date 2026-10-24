@@ -2,12 +2,16 @@ jest.mock("@/settings/model", () => ({
   getSettings: () => ({ debug: false }),
 }));
 
+jest.mock("@/logger", () => ({ logInfo: jest.fn(), logWarn: jest.fn(), logError: jest.fn() }));
+
 jest.mock("obsidian", () => ({
   requestUrl: jest.fn(),
   normalizePath: (p: string) => String(p).replace(/\/+/g, "/"),
 }));
 
 import { requestUrl, type RequestUrlParam, type RequestUrlResponse, type App } from "obsidian";
+
+import { logInfo, logWarn } from "@/logger";
 
 import type { CatalogProvider } from "@/modelManagement/types/catalog";
 
@@ -106,6 +110,7 @@ describe("CatalogDownloadService", () => {
   let nowSpy: jest.SpyInstance<number, []> | null = null;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     mockedRequestUrl.mockReset();
   });
 
@@ -126,7 +131,7 @@ describe("CatalogDownloadService", () => {
       expect(mockedRequestUrl).not.toHaveBeenCalled();
       expect(adapter.read).toHaveBeenCalledWith(CACHE_PATH);
       expect(svc.getAllProviders().map((p) => p.id)).toEqual(["anthropic", "helicone", "openai"]);
-      expect(svc.getProvider("anthropic")?.providerType).toBe("anthropic");
+      expect(svc.getProvider("anthropic")?.npm).toBe("@ai-sdk/anthropic");
     });
 
     it("fetches and rewrites the cache when the disk cache is older than 24h", async () => {
@@ -305,6 +310,37 @@ describe("CatalogDownloadService", () => {
   });
 
   describe("refresh()", () => {
+    it("logs each unknown package once and reports addable versus unsupported counts on each refresh (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", async () => {
+      const adapter = buildAdapter();
+      mockedRequestUrl.mockResolvedValue(
+        okResponse({
+          ...FIXTURE,
+          first: { id: "first", npm: "new-protocol" },
+          second: { id: "second", npm: "new-protocol" },
+          azure: { id: "azure", npm: "@ai-sdk/azure" },
+        })
+      );
+      const service = new CatalogDownloadService({ app: buildFakeApp(adapter) });
+      await service.refresh();
+      expect(logWarn).toHaveBeenCalledWith(
+        expect.stringContaining("Unknown npm package: new-protocol")
+      );
+      expect(
+        (logWarn as jest.Mock).mock.calls.filter(([message]) =>
+          String(message).includes("new-protocol")
+        )
+      ).toHaveLength(1);
+      expect(logInfo).toHaveBeenCalledWith(
+        "[modelsCatalog] capabilities: 3 addable, 3 unsupported"
+      );
+      await service.refresh();
+      expect(
+        (logWarn as jest.Mock).mock.calls.filter(([message]) =>
+          String(message).includes("new-protocol")
+        )
+      ).toHaveLength(2);
+    });
+
     it("issues a single request for concurrent calls", async () => {
       nowSpy = freezeNow(FIXED_NOW);
       const adapter = buildAdapter();

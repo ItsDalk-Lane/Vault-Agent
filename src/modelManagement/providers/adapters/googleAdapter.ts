@@ -1,25 +1,20 @@
 import * as z from "zod";
 
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-
 import type { VerificationResult } from "@/modelManagement/types/runtime";
-import type { AdapterBuildContext, AdapterVerifyContext, ProviderAdapter } from "./ProviderAdapter";
+import type { AdapterVerifyContext, ProviderAdapter } from "./ProviderAdapter";
 import { verifyViaListModels } from "./verifyViaListModels";
 import { t } from "@/i18n";
 
-const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
+import { DEFAULT_PROTOCOL_BASE_URLS } from "@/modelManagement/catalog/providerCapability";
 
-const extrasSchema = z.object({}).strict();
+// API 格式选择保存在共享配置中，密钥校验必须接受它而不把它作为请求参数：https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+const extrasSchema = z.object({ useResponsesApi: z.boolean().optional() }).strict();
 
 type Extras = z.infer<typeof extrasSchema>;
 
 export const googleAdapter: ProviderAdapter<Extras> = {
   providerType: "google",
   extrasSchema,
-
-  buildLangChainClient(ctx: AdapterBuildContext<Extras>): BaseChatModel {
-    throw new Error("[modelManagement] googleAdapter.buildLangChainClient not implemented yet");
-  },
 
   verifyCredentials(ctx: AdapterVerifyContext<Extras>): Promise<VerificationResult> {
     if (!ctx.apiKey) {
@@ -31,7 +26,10 @@ export const googleAdapter: ProviderAdapter<Extras> = {
       });
     }
     const trimmedBaseUrl = ctx.provider.baseUrl?.trim();
-    const base = (trimmedBaseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
+    // 策略端点已含版本时不能再重复拼接，否则密钥校验会请求不存在的地址：https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+    const base = (trimmedBaseUrl || DEFAULT_PROTOCOL_BASE_URLS["google-generative-ai"])
+      .replace(/\/$/, "")
+      .replace(/\/v1(beta)?$/, "");
     return verifyViaListModels(`${base}/v1beta/models?key=${encodeURIComponent(ctx.apiKey)}`, {});
   },
 };

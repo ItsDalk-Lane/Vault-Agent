@@ -144,6 +144,21 @@ describe("BackendConfigRegistry", () => {
   });
 
   describe("resolveEnabled()", () => {
+    it("omits disabled providers without deleting backend selections and restores them on enable https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const providerId = await providers.add({
+        providerType: "anthropic",
+        displayName: "A",
+        origin: { kind: "byok" },
+      });
+      const id = await models.add({ providerId, info: { id: "m", displayName: "M" } });
+      await registry.enableModel("pi", id);
+      await providers.update(providerId, { enabled: false });
+      expect(registry.resolveEnabled("pi")).toEqual([]);
+      expect(registry.get("pi").enabledModels).toEqual([id]);
+      await providers.update(providerId, { enabled: true });
+      expect(registry.resolveEnabled("pi").map((entry) => entry.configuredModelId)).toEqual([id]);
+    });
+
     it("marks entries whose configured model exists as ok and the rest as broken", async () => {
       const providerId = await providers.add({
         providerType: "anthropic",

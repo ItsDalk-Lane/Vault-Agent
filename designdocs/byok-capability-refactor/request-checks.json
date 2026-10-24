@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "requests": 7,
+  "checks": [
+    "strict_schema_payload_on_and_off",
+    "native_mid_conversation_system_messages_on_and_off",
+    "custom_openai_effort_reaches_payload",
+    "builtin_declarations_and_unknown_fail_closed",
+    "image_declaration_drives_attachment_rejection_and_payload",
+    "text_reaches_payload_with_images_enabled_or_disabled",
+    "builtin_anthropic_adaptive_max_effort_reaches_payload",
+    "protocol_switch_does_not_reuse_google_effort_wire_names"
+  ]
+}

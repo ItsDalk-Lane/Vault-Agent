@@ -4,6 +4,8 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { useApp } from "@/context";
 import { logError } from "@/logger";
 import { t } from "@/i18n";
+import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
+import { getProviderCapability } from "@/modelManagement/catalog/providerCapability";
 import {
   CUSTOM_OPENAI_DEFINITION,
   LOCAL_PROVIDER_DEFINITIONS,
@@ -82,7 +84,12 @@ export const ByokPanel: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const sync = (): void => {
-      if (!cancelled) setCatalogProviders(api.catalogService.getAllProviders());
+      if (!cancelled)
+        setCatalogProviders(
+          api.catalogService
+            .getAllProviders()
+            .filter((provider) => getProviderCapability(provider) !== null)
+        );
     };
     const unsub = api.catalogService.onChange(sync);
     api.catalogService
@@ -103,6 +110,8 @@ export const ByokPanel: React.FC = () => {
   const groups = useMemo<ByokTableGroup[]>(() => {
     const byProvider = new Map<string, ConfiguredModel[]>();
     for (const model of configuredModels) {
+      const provider = providers.find((candidate) => candidate.providerId === model.providerId);
+      if (!provider || !isProviderEnabled(provider)) continue;
       const list = byProvider.get(model.providerId);
       if (list) list.push(model);
       else byProvider.set(model.providerId, [model]);

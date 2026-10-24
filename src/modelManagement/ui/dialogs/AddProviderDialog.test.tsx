@@ -13,6 +13,12 @@ function makeCatalog(id: string, displayName: string): CatalogProvider {
     id,
     displayName,
     providerType: id === "anthropic" ? "anthropic" : "openai-compatible",
+    npm:
+      id === "anthropic"
+        ? "@ai-sdk/anthropic"
+        : id === "google"
+          ? "@ai-sdk/google"
+          : "@ai-sdk/openai-compatible",
     models: {},
   };
 }
@@ -73,6 +79,23 @@ describe("AddProviderDialog", () => {
       expect(screen.getByTestId("add-provider-card-google")).toBeTruthy();
       expect(screen.getByTestId("add-provider-more")).toBeTruthy();
       expect(screen.getByTestId("add-provider-card-groq")).toBeTruthy();
+    });
+
+    it("hides unsupported and unknown families in recommended rows and search (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
+      renderDialog({
+        catalogProviders: [
+          { ...makeCatalog("anthropic", "Anthropic"), npm: "@ai-sdk/azure" },
+          { ...makeCatalog("new-provider", "Unknown Provider"), npm: "unknown-sdk" },
+          makeCatalog("groq", "Groq"),
+        ],
+      });
+      expect(screen.queryByTestId("add-provider-card-anthropic")).toBeNull();
+      expect(screen.queryByTestId("add-provider-card-new-provider")).toBeNull();
+      expect(screen.getByTestId("add-provider-card-groq")).toBeTruthy();
+      fireEvent.change(screen.getByPlaceholderText("Search providers…"), {
+        target: { value: "unknown" },
+      });
+      expect(screen.queryByTestId("add-provider-card-new-provider")).toBeNull();
     });
 
     it("shows only providers matching the search query across catalog and local groups", () => {

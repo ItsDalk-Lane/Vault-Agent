@@ -1,3 +1,4 @@
+import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
 import { logError } from "@/logger";
 import { getSettings, setSettings } from "@/settings/model";
 
@@ -66,7 +67,13 @@ export class BackendConfigRegistry {
     const settings = getSettings();
     const config = settings.backends[backend] ?? EMPTY_CONFIG;
     if (config.enabledModels.length === 0) return EMPTY_RESOLVED;
-    return config.enabledModels.map((configuredModelId): EnabledBackendEntry => {
+    const enabledIds = config.enabledModels.filter((id) => {
+      const model = this.#models.get(id);
+      const provider = model ? this.#providers.get(model.providerId) : undefined;
+      return !provider || isProviderEnabled(provider);
+    });
+    if (enabledIds.length === 0) return EMPTY_RESOLVED;
+    return enabledIds.map((configuredModelId): EnabledBackendEntry => {
       const configuredModel = this.#models.get(configuredModelId);
       const provider = configuredModel
         ? this.#providers.get(configuredModel.providerId)

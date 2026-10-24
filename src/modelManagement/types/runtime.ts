@@ -5,6 +5,7 @@ export interface VerificationResult {
   ok: boolean;
   message?: string;
   code?: string;
+  status?: number;
   checkedAt: number;
 }
 
@@ -35,5 +36,6 @@ export interface ProviderDefinition {
   defaultBaseUrl?: string;
   requiresApiKey: boolean;
   modelInputHint: string;
+  useResponsesApi?: boolean;
   catalogProviderId?: string;
 }

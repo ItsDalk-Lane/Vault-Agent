@@ -1,7 +1,12 @@
 import { getSettings, resetSettings, setSettings, settingsStore } from "@/settings/model";
 import type { ConfiguredModel, Provider } from "@/modelManagement/types/persisted";
 
-import { chatBackendPickerAtom, byokProvidersAtom, visibleByokProvidersAtom } from "./atoms";
+import {
+  agentBackendPickerAtom,
+  chatBackendPickerAtom,
+  byokProvidersAtom,
+  visibleByokProvidersAtom,
+} from "./atoms";
 
 function provider(id: string, origin: Provider["origin"], baseUrl?: string): Provider {
   return {
@@ -48,7 +53,55 @@ function warningById(): Record<string, boolean> {
 }
 
 describe("atoms", () => {
+  describe("agentBackendPickerAtom", () => {
+    it("uses agent enablement and excludes unusable command choices without changing saved rows https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      const embedded = {
+        ...model("embedding", "local"),
+        info: { id: "embedding", displayName: "Embedding", isEmbedding: true },
+      };
+      const noTools = {
+        ...model("no-tools", "local"),
+        info: { id: "no-tools", displayName: "No tools", toolCall: false },
+      };
+      setSettings({
+        configuredModels: [model("local-m", "local"), embedded, noTools],
+        backends: {
+          chat: { enabledModels: ["cloud-m"] },
+          pi: { enabledModels: ["local-m", "embedding", "no-tools"] },
+        },
+      });
+      expect(
+        settingsStore.get(agentBackendPickerAtom).map((entry) => entry.configuredModelId)
+      ).toEqual(["local-m"]);
+      expect(getSettings().backends.pi?.enabledModels).toEqual([
+        "local-m",
+        "embedding",
+        "no-tools",
+      ]);
+      expect(getSettings().configuredModels).toHaveLength(3);
+    });
+  });
   describe("chatBackendPickerAtom", () => {
+    it("keeps models from retired agents out of Quick Chat without deleting their saved configuration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const legacy = provider("legacy", { kind: "agent", agentType: "opencode" });
+      setSettings({
+        providers: { cloud: CLOUD, legacy },
+        configuredModels: [model("cloud-m", "cloud"), model("legacy-m", "legacy")],
+        backends: { chat: { enabledModels: ["cloud-m", "legacy-m"] } },
+      });
+      expect(pickerIds()).toEqual(["cloud-m"]);
+      expect(getSettings().providers.legacy).toEqual(legacy);
+      expect(getSettings().backends.chat?.enabledModels).toEqual(["cloud-m", "legacy-m"]);
+    });
+
+    it("hides a disabled provider and restores its previous model selections when enabled https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      setSettings({ providers: { cloud: { ...CLOUD, enabled: false }, local: LOCAL } });
+      expect(pickerIds()).toEqual(["local-m", "missing"]);
+      expect(getSettings().backends.chat?.enabledModels).toEqual(["cloud-m", "local-m", "missing"]);
+      setSettings({ providers: { cloud: { ...CLOUD, enabled: true }, local: LOCAL } });
+      expect(pickerIds()).toEqual(["cloud-m", "local-m", "missing"]);
+    });
+
     it("lists every enabled entry without a Self-Host warning when Self-Host Mode is off", () => {
       expect(pickerIds()).toEqual(["cloud-m", "local-m", "missing"]);
       expect(warningById()).toEqual({ "cloud-m": false, "local-m": false, missing: false });

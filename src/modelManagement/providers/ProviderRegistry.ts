@@ -1,3 +1,4 @@
+import { resolveProviderBaseUrl } from "@/modelManagement/catalog/providerCapability";
 import type { App } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
 
@@ -51,6 +52,10 @@ export class ProviderRegistry {
     }
   }
 
+  notifyConfigChanged(providerId: string): void {
+    this.#emit(providerId);
+  }
+
   list(): readonly Provider[] {
     return this.#list(getSettings().providers);
   }
@@ -80,9 +85,7 @@ export class ProviderRegistry {
 
   async update(
     providerId: string,
-    patch: Partial<
-      Omit<Provider, "providerId" | "addedAt" | "apiKeyKeychainId" | "providerType" | "origin">
-    >
+    patch: Partial<Omit<Provider, "providerId" | "addedAt" | "apiKeyKeychainId" | "origin">>
   ): Promise<void> {
     const existing = getSettings().providers[providerId];
     if (!existing) {
@@ -94,7 +97,10 @@ export class ProviderRegistry {
     delete safePatch.providerId;
     delete safePatch.addedAt;
     delete safePatch.apiKeyKeychainId;
-    delete safePatch.providerType;
+    // 切换格式必须保留合法协议，同时拒绝未支持的外部值。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+    if (!["anthropic", "openai-compatible", "google"].includes(String(safePatch.providerType))) {
+      delete safePatch.providerType;
+    }
     delete safePatch.origin;
     for (const key of Object.keys(safePatch)) {
       if (Object.is(existing[key as keyof Provider], safePatch[key])) {
@@ -102,10 +108,7 @@ export class ProviderRegistry {
       }
     }
     if (Object.keys(safePatch).length === 0) return;
-    // https://github.com/logancyang/obsidian-copilot-preview/issues/313:
-    // enableCors selects only Quick Chat's renderer transport. Do not restart
-    // OpenCode Agent for a CORS-only edit; the settings subscription already
-    // rebuilds Quick Chat with the updated provider row.
+    // CORS 旧字段只保留数据兼容，不影响当前 Pi 执行配置。https://github.com/ItsDalk-Lane/Vault-Agent/issues/5
     const affectsAgentProviderConfig = Object.keys(safePatch).some((key) => key !== "enableCors");
     const next: Provider = { ...existing, ...(safePatch as Partial<Provider>) };
     setSettings((cur) => ({
@@ -211,8 +214,18 @@ export class ProviderRegistry {
         checkedAt: Date.now(),
       };
     }
+    const baseUrl = resolveProviderBaseUrl(provider);
+    // 凭据校验也必须遵守地址策略，不能把第三方旧密钥送往协议默认主机。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+    if (!baseUrl) {
+      return {
+        ok: false,
+        code: "missing_base_url",
+        message: t("ui.byok.requiredBaseUrl"),
+        checkedAt: Date.now(),
+      };
+    }
     return this.#adapters.verifyCredentials(provider.providerType, {
-      provider,
+      provider: { ...provider, baseUrl },
       apiKey,
       extras: provider.extras ?? {},
     });

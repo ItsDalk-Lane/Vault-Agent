@@ -4,6 +4,7 @@ import {
   type ListModelsResponseResult,
   type ListModelsResult,
 } from "./listModelsHttp";
+import { describeListModelsFailure } from "./listModelsFailure";
 import { t } from "@/i18n";
 
 export type { ListModelsResult } from "./listModelsHttp";
@@ -12,6 +13,7 @@ export interface ListOpenAICompatibleModelsOptions {
   apiKey?: string | null;
   openAIOrgId?: string;
   timeoutMs?: number;
+  catalogProviderId?: string;
 }
 
 export async function listOpenAICompatibleModels(
@@ -31,11 +33,25 @@ export async function listOpenAICompatibleModels(
   const result = await attempt(base, headers, opts.timeoutMs);
   if (result.ok) return { ok: true, modelIds: result.modelIds };
 
-  const looksLikeMissingV1 = result.status === 404 && !/\/v1(\/|$)/.test(base);
+  const url = `${base}/models`;
+  const failure = describeListModelsFailure(
+    {
+      status: result.status,
+      url,
+      baseUrl: base,
+      providerType: "openai-compatible",
+      catalogProviderId: opts.catalogProviderId,
+    },
+    result.message
+  );
+  const looksLikeMissingV1 =
+    result.status === 404 && failure.kind === "message" && !/\/v1(\/|$)/.test(base);
   const message = looksLikeMissingV1
-    ? t("ui.model.err.addV1Hint", { message: result.message })
-    : result.message;
-  return { ok: false, message };
+    ? t("ui.model.err.addV1Hint", { message: failure.message })
+    : failure.message;
+  return result.status === undefined
+    ? { ok: false, message }
+    : { ok: false, message, status: result.status };
 }
 
 async function attempt(

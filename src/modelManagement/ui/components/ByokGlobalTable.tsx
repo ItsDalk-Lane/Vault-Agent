@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { DestinationIcon } from "@/components/ui/DestinationIcon";
+import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
 import { providerDestination } from "@/modelManagement/providers/providerDestination";
 import type { ConfiguredModel, Provider } from "@/modelManagement/types/persisted";
 import { useModelManagement } from "@/modelManagement/ui/ModelManagementContext";
@@ -114,6 +115,7 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   };
 
   const getSubLine = (): string => {
+    if (!isProviderEnabled(provider)) return t("ui.model.providerDisabled");
     if (!providerRequiresApiKey(provider)) {
       return t("ui.model.localModels");
     }

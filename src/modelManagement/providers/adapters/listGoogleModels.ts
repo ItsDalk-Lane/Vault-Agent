@@ -3,6 +3,7 @@ import {
   parseModelListResponse,
   type ListModelsResult,
 } from "./listModelsHttp";
+import { describeListModelsFailure } from "./listModelsFailure";
 import { t } from "@/i18n";
 
 const MODEL_PREFIX = "models/";
@@ -10,6 +11,7 @@ const MODEL_PREFIX = "models/";
 export interface ListGoogleModelsOptions {
   apiKey?: string | null;
   timeoutMs?: number;
+  catalogProviderId?: string;
 }
 
 export async function listGoogleModels(
@@ -36,7 +38,21 @@ export async function listGoogleModels(
       idKey: "name",
       normalizeId: (id) => (id.startsWith(MODEL_PREFIX) ? id.slice(MODEL_PREFIX.length) : id),
     });
-    return result.ok ? result : { ok: false, message: result.message };
+    if (result.ok) return result;
+    // 诊断信息里保留不带密钥参数的地址，避免把 API key 写进错误提示。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+    const failure = describeListModelsFailure(
+      {
+        status: result.status,
+        url: `${base}/v1beta/models`,
+        baseUrl: base,
+        providerType: "google",
+        catalogProviderId: opts.catalogProviderId,
+      },
+      result.message
+    );
+    return result.status === undefined
+      ? { ok: false, message: failure.message }
+      : { ok: false, message: failure.message, status: result.status };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }

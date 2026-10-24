@@ -69,6 +69,21 @@ describe("googleAdapter", () => {
       );
     });
 
+    it.each(["v1", "v1beta"])(
+      "does not duplicate an explicit %s version in the policy endpoint (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)",
+      async (version) => {
+        await googleAdapter.verifyCredentials({
+          provider: provider({ baseUrl: `https://generativelanguage.googleapis.com/${version}` }),
+          apiKey: "g",
+          extras: {},
+        });
+        expect(mockSafeFetch).toHaveBeenCalledWith(
+          "https://generativelanguage.googleapis.com/v1beta/models?key=g",
+          expect.any(Object)
+        );
+      }
+    );
+
     it("surfaces Google's 400 bad-key response as a readable http_error", async () => {
       mockSafeFetch.mockResolvedValue({
         status: 400,

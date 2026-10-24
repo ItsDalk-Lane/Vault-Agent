@@ -1,15 +1,14 @@
-export type { ModelInfo, ProviderType } from "./types/catalog";
+export type { CatalogProvider, ModelInfo, ProviderType } from "./types/catalog";
 export type {
-  AgentType,
   BackendConfig,
   BackendType,
   ConfiguredModel,
-  PersistedCopilotPlusCatalog,
   Provider,
   ProviderOrigin,
 } from "./types/persisted";
 export type { EnabledBackendEntry } from "./types/runtime";
 
+export { isProviderEnabled } from "./providers/providerAvailability";
 export { ProviderRegistry } from "./providers/ProviderRegistry";
 export { isSelfHostedProvider } from "./providers/isSelfHostedProvider";
 export { providerDestination, urlDestination } from "./providers/providerDestination";
@@ -34,6 +33,7 @@ export type { ModelManagementApi } from "./createModelManagement";
 
 export {
   chatBackendPickerAtom,
+  agentBackendPickerAtom,
   backendsAtom,
   configuredModelsAtom,
   providersAtom,
@@ -42,3 +42,11 @@ export {
 export { ModelManagementProvider, useModelManagement } from "./ui/ModelManagementContext";
 
 export { ByokPanel } from "./ui/tabs/ByokPanel";
+
+export {
+  DEFAULT_PROTOCOL_BASE_URLS,
+  getProviderCapability,
+  normalizeBaseUrlForProtocol,
+  resolveProviderBaseUrl,
+} from "./catalog/providerCapability";
+export type { ProviderCapability } from "./catalog/providerCapability";

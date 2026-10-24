@@ -3,6 +3,7 @@ import {
   parseModelListResponse,
   type ListModelsResult,
 } from "./listModelsHttp";
+import { describeListModelsFailure } from "./listModelsFailure";
 import { t } from "@/i18n";
 
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -10,6 +11,7 @@ const ANTHROPIC_VERSION = "2023-06-01";
 export interface ListAnthropicModelsOptions {
   apiKey?: string | null;
   timeoutMs?: number;
+  catalogProviderId?: string;
 }
 
 export async function listAnthropicModels(
@@ -28,13 +30,27 @@ export async function listAnthropicModels(
   if (opts.apiKey) headers["x-api-key"] = opts.apiKey;
 
   try {
+    const url = `${base}/v1/models`;
     const response = await fetchWithListModelsTimeout(
-      `${base}/v1/models`,
+      url,
       { method: "GET", headers },
       opts.timeoutMs
     );
     const result = await parseModelListResponse(response, { listKey: "data", idKey: "id" });
-    return result.ok ? result : { ok: false, message: result.message };
+    if (result.ok) return result;
+    const failure = describeListModelsFailure(
+      {
+        status: result.status,
+        url,
+        baseUrl: base,
+        providerType: "anthropic",
+        catalogProviderId: opts.catalogProviderId,
+      },
+      result.message
+    );
+    return result.status === undefined
+      ? { ok: false, message: failure.message }
+      : { ok: false, message: failure.message, status: result.status };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }

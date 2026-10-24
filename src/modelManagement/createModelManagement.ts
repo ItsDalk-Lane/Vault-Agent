@@ -1,4 +1,7 @@
 import type { App } from "obsidian";
+import { KeychainService } from "@/services/keychainService";
+import type { ModelConnectionTestInput } from "@/types/modelConnectionTest";
+import type { ModelInfo } from "@/modelManagement/types/catalog";
 
 import { BackendConfigRegistry } from "@/modelManagement/backends/BackendConfigRegistry";
 import { CatalogDownloadService } from "@/modelManagement/catalog/CatalogDownloadService";
@@ -8,14 +11,23 @@ import {
   ProviderAdapterRegistry,
 } from "@/modelManagement/providers/adapters/ProviderAdapterRegistry";
 import { ProviderRegistry } from "@/modelManagement/providers/ProviderRegistry";
-import { AgentSetupApi } from "@/modelManagement/setup/AgentSetupApi";
 import { ByokSetupApi } from "@/modelManagement/setup/ByokSetupApi";
 
 export interface CreateModelManagementInput {
   app: App;
+  testModelConnection?: (input: ModelConnectionTestInput) => Promise<void>;
+  resolveDeclaredModelCapabilities?: (
+    providerId: string,
+    modelId: string
+  ) => Partial<ModelInfo> | undefined;
 }
 
 export interface ModelManagementApi {
+  testModelConnection?: (input: ModelConnectionTestInput) => Promise<void>;
+  resolveDeclaredModelCapabilities?: (
+    providerId: string,
+    modelId: string
+  ) => Partial<ModelInfo> | undefined;
   catalogService: CatalogDownloadService;
   providerRegistry: ProviderRegistry;
   configuredModelRegistry: ConfiguredModelRegistry;
@@ -23,7 +35,6 @@ export interface ModelManagementApi {
   adapters: ProviderAdapterRegistry;
   setup: {
     byok: ByokSetupApi;
-    agent: AgentSetupApi;
   };
   coordinator: ModelManagementCoordinator;
   dispose(): void;
@@ -77,17 +88,17 @@ export function createModelManagement(input: CreateModelManagementInput): ModelM
     backendConfigRegistry
   );
   const setup = {
-    byok: new ByokSetupApi(providerRegistry, configuredModelRegistry, backendConfigRegistry),
-    agent: new AgentSetupApi(
+    byok: new ByokSetupApi(
       providerRegistry,
       configuredModelRegistry,
       backendConfigRegistry,
-      catalogService,
-      coordinator
+      KeychainService.getInstance(app)
     ),
   };
 
   return {
+    resolveDeclaredModelCapabilities: input.resolveDeclaredModelCapabilities,
+    testModelConnection: input.testModelConnection,
     catalogService,
     providerRegistry,
     configuredModelRegistry,

@@ -35,13 +35,18 @@ const mockEntries = [
     },
   },
 ];
-// eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook; name must match the export
-jest.mock("jotai", () => ({ useAtomValue: () => mockEntries }));
+const mockUseAtomValue = jest.fn(() => mockEntries);
+jest.mock("jotai", () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook; name must match the export
+  useAtomValue: (...args: unknown[]) =>
+    (mockUseAtomValue as (...args: unknown[]) => unknown)(...args),
+}));
 jest.mock("@/modelManagement", () => ({
   ...jest.requireActual<typeof import("@/modelManagement/chatModel/chatModelSelection")>(
     "@/modelManagement/chatModel/chatModelSelection"
   ),
   chatBackendPickerAtom: "chat",
+  agentBackendPickerAtom: "pi",
   providerRequiresApiKey: (provider: { requiresApiKey?: boolean }) =>
     provider.requiresApiKey ?? true,
   configuredModelToCustomModel: ({
@@ -62,6 +67,12 @@ describe("useChatBackendModelOptions", () => {
       const { result } = renderHook(() => useChatBackendModelOptions(false));
       expect(result.current.options).toEqual([{ label: "GPT-4o", value: "model-a" }]);
       expect(result.current.resolveSelectionId("gpt-4o|openai")).toBe("model-a");
+    });
+    it("uses agent-enabled models for command selection instead of the inactive Quick Chat list https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      mockUseAtomValue.mockClear();
+      const { result } = renderHook(() => useChatBackendModelOptions(false, "pi"));
+      expect(result.current.options[0].value).toBe("model-a");
+      expect(mockUseAtomValue).toHaveBeenCalledWith("pi", { store: {} });
     });
     it("does not substitute the first model for a removed command selection (https://github.com/Brevilabs/obsidian-copilot-private/issues/616)", () => {
       const { result } = renderHook(() => useChatBackendModelOptions(false));

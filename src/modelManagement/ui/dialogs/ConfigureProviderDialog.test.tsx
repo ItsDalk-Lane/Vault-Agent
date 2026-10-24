@@ -1,5 +1,6 @@
+import type { ModelConnectionTestInput } from "@/types/modelConnectionTest";
 import type { VerificationResult } from "@/modelManagement/types/runtime";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 const mockVerifyCredentials = jest.fn<Promise<VerificationResult>, [string, unknown]>();
@@ -14,12 +15,21 @@ const mockBulkSet = jest.fn().mockResolvedValue([]);
 const mockEnableModel = jest.fn().mockResolvedValue(undefined);
 const mockRemoveRefs = jest.fn().mockResolvedValue(undefined);
 const mockGetProvider = jest.fn();
+const mockSaveProviderDraft = jest
+  .fn()
+  .mockResolvedValue({ providerId: "new", configuredModelIds: [] });
+const mockResolveDeclared = jest.fn();
+const mockTestModelConnection = jest
+  .fn<Promise<void>, [ModelConnectionTestInput]>()
+  .mockResolvedValue(undefined);
 
 jest.mock("@/modelManagement/ui/ModelManagementContext", () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real `useModelManagement` hook; the name must match the export
   useModelManagement: () => ({
     adapters: { verifyCredentials: mockVerifyCredentials },
-    setup: { byok: { setupProvider: mockSetupProvider } },
+    testModelConnection: mockTestModelConnection,
+    setup: { byok: { setupProvider: mockSetupProvider, saveProviderDraft: mockSaveProviderDraft } },
+    resolveDeclaredModelCapabilities: mockResolveDeclared,
     providerRegistry: {
       setApiKey: mockSetApiKey,
       clearApiKey: mockClearApiKey,
@@ -60,6 +70,7 @@ jest.mock("@/modelManagement/state/atoms", () => {
         addedAt: 0,
       },
     ]),
+    backendsAtom: jotai.atom({ pi: { enabledModels: ["cm1", "cm-custom"] } }),
     configuredModelsAtom: jotai.atom([
       {
         configuredModelId: "cm1",
@@ -104,682 +115,367 @@ import type { ProviderDefinition } from "@/modelManagement/types/runtime";
 import { CUSTOM_OPENAI_DEFINITION } from "@/modelManagement/catalog/builtinDefinitions";
 import { ConfigureProviderForm } from "./ConfigureProviderDialog";
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  mockGetApiKey.mockResolvedValue("existing-key");
-  mockListProviderModels.mockResolvedValue({ ok: true, modelIds: [] });
-});
-
-const anthropicSource: ProviderDefinition = {
+const ISSUE = "https://github.com/ItsDalk-Lane/Vault-Agent/issues/2";
+const source: ProviderDefinition = {
   id: "anthropic",
   displayName: "Anthropic",
   providerType: "anthropic",
   defaultBaseUrl: "https://api.anthropic.com",
   requiresApiKey: true,
-  modelInputHint: "e.g. claude-sonnet-5",
+  modelInputHint: "",
   catalogProviderId: "anthropic",
 };
-
-const openaiSource: ProviderDefinition = {
-  id: "openai",
-  displayName: "OpenAI",
-  providerType: "openai-compatible",
-  requiresApiKey: true,
-  modelInputHint: "e.g. gpt-5",
-  catalogProviderId: "openai",
-};
-
-const ollamaSource: ProviderDefinition = {
-  id: "ollama",
-  displayName: "Ollama",
+const local: ProviderDefinition = {
+  id: "local",
+  displayName: "Local",
   providerType: "openai-compatible",
   defaultBaseUrl: "http://localhost:11434/v1",
   requiresApiKey: false,
-  modelInputHint: "e.g. llama3.2",
+  modelInputHint: "",
 };
 
-const anthropicCatalogMetadata = {
-  id: "anthropic",
-  displayName: "Anthropic",
-  providerType: "anthropic" as const,
-  defaultBaseUrl: "https://api.anthropic.com",
-  models: {
-    "claude-sonnet": {
-      id: "claude-sonnet",
-      displayName: "Claude Sonnet 4.5",
-      limits: { context: 200000 },
-    },
-    "claude-opus": { id: "claude-opus", displayName: "Claude Opus 4.5" },
-    "claude-haiku": { id: "claude-haiku", displayName: "Claude Haiku 4.5" },
-    "voyage-embed": { id: "voyage-embed", displayName: "Voyage Embed", isEmbedding: true },
-  },
-};
-
-function manualAddId(id: string): void {
-  fireEvent.change(screen.getByTestId("model-checklist-manual-input"), { target: { value: id } });
-  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGetApiKey.mockResolvedValue("existing-key");
+  mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
+  mockSaveProviderDraft.mockResolvedValue({ providerId: "new", configuredModelIds: [] });
+  mockListProviderModels.mockResolvedValue({ ok: true, modelIds: [] });
+  mockGetProvider.mockReturnValue(undefined);
+  mockResolveDeclared.mockReturnValue(undefined);
+});
+function manualAdd(id: string) {
+  fireEvent.click(screen.getByRole("button", { name: "Add model" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Model ID" }), { target: { value: id } });
 }
-
-function rowCheckbox(id: string): HTMLElement {
-  const row = screen.getByTestId(`model-row-${id}`);
-  return within(row).getByRole("checkbox");
+async function fetchAndAdd(id: string) {
+  fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
+  fireEvent.click(await screen.findByRole("checkbox", { name: id }));
+  fireEvent.click(screen.getByRole("button", { name: "Add selected (1)" }));
 }
 
 describe("ConfigureProviderDialog", () => {
   describe("ConfigureProviderForm()", () => {
-    it.each([
-      ["Anthropic", anthropicSource],
-      ["OpenAI", openaiSource],
-      ["Ollama", ollamaSource],
-      ["custom OpenAI-compatible", CUSTOM_OPENAI_DEFINITION],
-    ] as const)(
-      "renders manual Model ID and discovery search together for %s (https://github.com/logancyang/obsidian-copilot/issues/2894)",
-      (_provider, source) => {
-        render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
-        const modelsSection = screen.getByText("Models").parentElement;
-        expect(modelsSection).not.toBeNull();
-        expect(within(modelsSection!).getByTestId("model-checklist-manual-input")).toBeTruthy();
-        expect(
-          within(modelsSection!).getByPlaceholderText("Search available models…")
-        ).toBeTruthy();
+    it(`tests the selected model with unsaved endpoint and key without saving the provider (${ISSUE})`, async () => {
+      render(
+        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
+      );
+      await screen.findByRole("button", { name: "Check claude-sonnet" });
+      fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
+        target: { value: "https://draft.example/messages" },
+      });
+      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "unsaved-key-fixture" } });
+      fireEvent.click(screen.getByRole("button", { name: "Check claude-sonnet" }));
+      await waitFor(() => expect(mockTestModelConnection).toHaveBeenCalledTimes(1));
+      const sent = mockTestModelConnection.mock.calls[0][0];
+      expect(sent).toMatchObject({
+        provider: {
+          providerType: "anthropic",
+          baseUrl: "https://draft.example/messages",
+          origin: { kind: "byok", catalogProviderId: "anthropic" },
+        },
+        model: { id: "claude-sonnet" },
+        apiKey: "unsaved-key-fixture",
+      });
+      expect(sent.signal).toBeInstanceOf(AbortSignal);
+      expect(mockListProviderModels).not.toHaveBeenCalled();
+      expect(mockSaveProviderDraft).not.toHaveBeenCalled();
+    });
+    it.each(["OpenAI Responses", "Anthropic Messages"])(
+      `keeps a third-party default on its original host when selecting %s (${ISSUE})`,
+      async (format) => {
+        render(
+          <ConfigureProviderForm
+            state={{
+              mode: "new",
+              source: {
+                ...local,
+                id: "groq",
+                displayName: "Groq",
+                defaultBaseUrl: "https://api.groq.com/openai/v1",
+              },
+            }}
+            onClose={jest.fn()}
+          />
+        );
+        fireEvent.keyDown(screen.getByRole("button", { name: "API format" }), { key: "Enter" });
+        fireEvent.click(await screen.findByRole("menuitem", { name: format }));
+        expect(screen.getByRole("textbox", { name: "Base URL" })).toHaveProperty(
+          "value",
+          "https://api.groq.com/openai/v1"
+        );
       }
     );
-
-    it("does not list models on open while a required API key is still empty", () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
+    it(`changes a native protocol default when switching to another native API format (${ISSUE})`, async () => {
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
+      fireEvent.keyDown(screen.getByRole("button", { name: "API format" }), { key: "Enter" });
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Google Generative AI" }));
+      expect(screen.getByRole("textbox", { name: "Base URL" })).toHaveProperty(
+        "value",
+        "https://generativelanguage.googleapis.com/v1beta"
       );
+    });
+    it(`does not contact the provider until the model list is requested (${ISSUE})`, () => {
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
       expect(mockListProviderModels).not.toHaveBeenCalled();
-    });
-
-    it("lists models on open for a keyless template and leaves them unchecked", async () => {
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["llama3.2"] });
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: ollamaSource }} onClose={jest.fn()} />
+      expect(screen.getByRole("textbox", { name: "Base URL" })).toHaveProperty(
+        "value",
+        "https://api.anthropic.com"
       );
-      await waitFor(() => expect(mockListProviderModels).toHaveBeenCalledTimes(1));
-      expect(mockListProviderModels).toHaveBeenCalledWith(
-        "openai-compatible",
-        "http://localhost:11434/v1",
-        expect.objectContaining({ apiKey: null })
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-llama3.2")).toBeTruthy());
-      expect(rowCheckbox("llama3.2").getAttribute("aria-checked")).toBe("false");
     });
-
-    it("lists models from a typed custom URL only after Test is clicked (https://github.com/logancyang/obsidian-copilot/issues/2895)", async () => {
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
+    it(`requires a custom endpoint and preserves manually entered endpoints (${ISSUE})`, async () => {
       render(
         <ConfigureProviderForm
           state={{ mode: "new", source: CUSTOM_OPENAI_DEFINITION }}
           onClose={jest.fn()}
         />
       );
-      const baseUrlInput = screen.getByText("Base URL").parentElement?.querySelector("input");
-      expect(baseUrlInput).not.toBeNull();
-
-      fireEvent.change(baseUrlInput!, { target: { value: "h" } });
-      fireEvent.change(baseUrlInput!, { target: { value: "https://work.example.com/v1" } });
-      expect(mockListProviderModels).not.toHaveBeenCalled();
-
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      await waitFor(() => expect(mockListProviderModels).toHaveBeenCalledTimes(1));
-      expect(mockListProviderModels).toHaveBeenCalledWith(
-        "openai-compatible",
-        "https://work.example.com/v1",
-        expect.objectContaining({ apiKey: null })
-      );
-    });
-
-    it("shows the source's default URL as the Base URL placeholder", () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
-      );
-      expect(screen.getByPlaceholderText("https://api.anthropic.com")).toBeTruthy();
-    });
-
-    it("shows the OpenAI endpoint as the Base URL placeholder when the source ships no default", async () => {
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: openaiSource }} onClose={jest.fn()} />
-      );
-      expect(screen.getByPlaceholderText("https://api.openai.com/v1")).toBeTruthy();
-    });
-
-    it("enables Save once at least one model is selected", async () => {
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: ollamaSource }} onClose={jest.fn()} />
-      );
-      const save = screen.getByRole("button", { name: "Save" });
-      expect(save.hasAttribute("disabled")).toBe(true);
-      manualAddId("llama3.2");
-      expect(save.hasAttribute("disabled")).toBe(false);
-    });
-
-    it("saves a new provider with its catalog id and the catalog metadata of the selected model", async () => {
-      mockGetProvider.mockReturnValue(anthropicCatalogMetadata);
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: anthropicSource }} onClose={onClose} />
-      );
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "sk-ant" } });
-      manualAddId("claude-sonnet");
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockSetupProvider).toHaveBeenCalledTimes(1));
-      expect(mockSetupProvider).toHaveBeenCalledWith(
-        expect.objectContaining({
-          catalogProviderId: "anthropic",
-          providerType: "anthropic",
-          displayName: "Anthropic",
-          baseUrl: "https://api.anthropic.com",
-          models: [
-            expect.objectContaining({
-              id: "claude-sonnet",
-              displayName: "Claude Sonnet 4.5",
-              limits: { context: 200000 },
-            }),
-          ],
-        })
-      );
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-    });
-
-    it("saves a manually added id that has no catalog entry with its id as name, flagging embedding names", async () => {
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: ollamaSource }} onClose={onClose} />
-      );
-      manualAddId("nomic-embed-text");
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockSetupProvider).toHaveBeenCalled());
-      expect(mockSetupProvider).toHaveBeenCalledWith(
-        expect.objectContaining({
-          providerType: "openai-compatible",
-          models: [
-            expect.objectContaining({
-              id: "nomic-embed-text",
-              displayName: "nomic-embed-text",
-              isEmbedding: true,
-            }),
-          ],
-        })
-      );
-    });
-
-    it("saves the Quick Chat CORS choice made for a new provider (https://github.com/logancyang/obsidian-copilot-preview/issues/313)", async () => {
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: CUSTOM_OPENAI_DEFINITION }}
-          onClose={jest.fn()}
-        />
-      );
-
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "work-key" } });
-      const baseUrlInput = screen.getByText("Base URL").parentElement?.querySelector("input");
-      expect(baseUrlInput).not.toBeNull();
-      fireEvent.change(baseUrlInput!, { target: { value: "https://work.example.com/v1" } });
-      manualAddId("work-model");
-      fireEvent.click(screen.getByRole("switch", { name: "Enable CORS" }));
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-      await waitFor(() =>
-        expect(mockSetupProvider).toHaveBeenCalledWith(
-          expect.objectContaining({ enableCors: true })
-        )
-      );
-    });
-
-    it("shows the error inline when listing models on open fails", async () => {
-      mockListProviderModels.mockResolvedValue({ ok: false, message: "connection refused" });
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: ollamaSource }} onClose={jest.fn()} />
-      );
-      expect(await screen.findByText("connection refused")).toBeTruthy();
-    });
-
-    it("offers Remove only on manually added ids, not on discovered models", async () => {
-      mockGetProvider.mockReturnValue(anthropicCatalogMetadata);
-      mockListProviderModels.mockResolvedValueOnce({ ok: true, modelIds: ["claude-sonnet"] });
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
-      );
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "sk-ant" } });
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-sonnet")).toBeTruthy());
-      expect(screen.queryByTestId("model-row-remove-claude-sonnet")).toBeNull();
-      manualAddId("my-private-model");
-      expect(screen.getByTestId("model-row-remove-my-private-model")).toBeTruthy();
-    });
-
-    it("saves a custom endpoint without an API key or verification (https://github.com/logancyang/obsidian-copilot/issues/2895)", async () => {
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: CUSTOM_OPENAI_DEFINITION }}
-          onClose={onClose}
-        />
-      );
-      const baseUrlInput = screen.getByText("Base URL").parentElement?.querySelector("input");
-      expect(baseUrlInput).not.toBeNull();
-      fireEvent.change(baseUrlInput!, {
-        target: { value: "http://127.0.0.1:8000/v1" },
+      expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true);
+      fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
+        target: { value: "https://custom.example/v1" },
       });
-      manualAddId("qwen3.8-27b");
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-      await waitFor(() => expect(mockSetupProvider).toHaveBeenCalledTimes(1));
-      expect(mockSetupProvider).toHaveBeenCalledWith(
-        expect.objectContaining({
-          apiKey: undefined,
-          requiresApiKey: false,
-          models: [expect.objectContaining({ id: "qwen3.8-27b" })],
-        })
+      await waitFor(() =>
+        expect(mockSaveProviderDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ baseUrl: "https://custom.example/v1", apiKey: "", models: [] })
+        )
       );
       expect(mockVerifyCredentials).not.toHaveBeenCalled();
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
-
-    it("disables Save for a custom endpoint until a Base URL is entered (https://github.com/logancyang/obsidian-copilot/issues/2895)", () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: CUSTOM_OPENAI_DEFINITION }}
-          onClose={jest.fn()}
-        />
-      );
-      manualAddId("qwen3.8-27b");
-
-      expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true);
-      expect(mockSetupProvider).not.toHaveBeenCalled();
-    });
-
-    it("checks the models already configured for the provider when editing", async () => {
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-sonnet")).toBeTruthy());
-      expect(rowCheckbox("claude-sonnet").getAttribute("aria-checked")).toBe("true");
-      expect(rowCheckbox("claude-opus").getAttribute("aria-checked")).toBe("true");
-    });
-
-    it("leaves newly discovered models unchecked when editing", async () => {
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["claude-haiku"] });
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-haiku")).toBeTruthy());
-      expect(rowCheckbox("claude-haiku").getAttribute("aria-checked")).toBe("false");
-    });
-
-    it("tests the stored key without saving it", async () => {
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      fireEvent.click(await screen.findByRole("button", { name: "Test" }));
-      await waitFor(() => expect(mockVerifyCredentials).toHaveBeenCalled());
-      expect(mockGetApiKey).toHaveBeenCalledWith("p1");
-      expect(mockSetApiKey).not.toHaveBeenCalled();
-    });
-
-    it("tests the edited Base URL rather than the saved one", async () => {
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      const baseUrlInput = await screen.findByPlaceholderText("https://api.anthropic.com");
-      fireEvent.change(baseUrlInput, { target: { value: "https://proxy.example.com" } });
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      await waitFor(() => expect(mockVerifyCredentials).toHaveBeenCalled());
-      const [providerType, ctx] = mockVerifyCredentials.mock.calls[0];
-      expect(providerType).toBe("anthropic");
-      expect((ctx as { provider: { baseUrl?: string } }).provider.baseUrl).toBe(
-        "https://proxy.example.com"
-      );
-    });
-
-    it("removes a deselected model from every backend on save", async () => {
-      mockBulkSet.mockResolvedValue(["cm1"]);
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={onClose} />
-      );
-      await waitFor(() =>
-        expect(rowCheckbox("claude-opus").getAttribute("aria-checked")).toBe("true")
-      );
-      fireEvent.click(rowCheckbox("claude-opus"));
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockRemoveRefs).toHaveBeenCalledWith(["cm2"]));
-      expect(mockBulkSet).toHaveBeenCalledWith("p1", [
-        expect.objectContaining({ id: "claude-sonnet" }),
-      ]);
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-    });
-
-    it("enrolls only newly added chat models on save, skipping embeddings and leaving existing models as they were", async () => {
-      mockGetProvider.mockReturnValue(anthropicCatalogMetadata);
-      mockListProviderModels.mockResolvedValue({
-        ok: true,
-        modelIds: ["claude-haiku", "voyage-embed"],
-      });
-      mockBulkSet.mockResolvedValue(["cm1", "cm2", "cm-haiku", "cm-embed"]);
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={onClose} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-haiku")).toBeTruthy());
-      fireEvent.click(rowCheckbox("claude-haiku"));
-      fireEvent.click(rowCheckbox("voyage-embed"));
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-      for (const backend of ["chat", "opencode"]) {
-        expect(mockEnableModel).toHaveBeenCalledWith(backend, "cm-haiku");
-      }
-      expect(mockEnableModel).not.toHaveBeenCalledWith(expect.anything(), "cm-embed");
-      expect(mockEnableModel).not.toHaveBeenCalledWith(expect.anything(), "cm1");
-      expect(mockEnableModel).not.toHaveBeenCalledWith(expect.anything(), "cm2");
-    });
-
-    it("lists models on open using the saved key when editing a custom provider", async () => {
+    it(`fetches models using the draft endpoint and saved key without rewriting the key (${ISSUE})`, async () => {
       mockGetApiKey.mockResolvedValue("saved-secret");
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["gpt-x"] });
+      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["work-model"] });
       render(
         <ConfigureProviderForm
           state={{ mode: "edit", providerId: "p-custom" }}
           onClose={jest.fn()}
         />
       );
-      await waitFor(() => expect(mockListProviderModels).toHaveBeenCalled());
+      await screen.findByDisplayValue("saved-secret");
+      fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
+        target: { value: "https://new.example/v1" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
+      await screen.findByRole("checkbox", { name: "work-model" });
       expect(mockListProviderModels).toHaveBeenCalledWith(
         "openai-compatible",
-        "https://proxy.example/v1",
+        "https://new.example/v1",
         expect.objectContaining({ apiKey: "saved-secret" })
       );
+      expect(mockSetApiKey).not.toHaveBeenCalled();
     });
-
-    it("reports a CORS-only change as saved only after it is persisted (https://github.com/logancyang/obsidian-copilot/issues/3147) (https://github.com/logancyang/obsidian-copilot-preview/issues/313)", async () => {
-      const onSaved = jest.fn();
-      let finishUpdate!: () => void;
-      mockUpdate.mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            finishUpdate = resolve;
+    it(`merges real list results with catalog and Pi declarations before adding model cards (${ISSUE})`, async () => {
+      mockGetProvider.mockReturnValue({
+        models: {
+          a: {
+            id: "a",
+            displayName: "A",
+            limits: { context: 200000 },
+            modalities: { input: ["text", "image"] },
+          },
+        },
+      });
+      mockResolveDeclared.mockReturnValue({
+        capabilities: { structuredOutput: true },
+        reasoningEfforts: ["low", "high"],
+      });
+      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["a"] });
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
+      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "secret" } });
+      await fetchAndAdd("a");
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(mockSaveProviderDraft).toHaveBeenCalledWith(
+          expect.objectContaining({
+            catalogProviderId: "anthropic",
+            models: [
+              expect.objectContaining({
+                enabled: true,
+                info: expect.objectContaining({
+                  id: "a",
+                  limits: expect.objectContaining({ context: 200000 }) as unknown,
+                  capabilities: {
+                    structuredOutput: true,
+                    nativeWebSearch: false,
+                    midConversationSystemMessages: false,
+                  },
+                  reasoningEfforts: ["low", "high"],
+                }) as unknown,
+              }),
+            ],
           })
+        )
       );
+    });
+    it(`saves manual IDs with the same visible name without needing a catalog match (${ISSUE})`, async () => {
+      render(<ConfigureProviderForm state={{ mode: "new", source: local }} onClose={jest.fn()} />);
+      manualAdd("llama3.2");
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(mockSaveProviderDraft).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requiresApiKey: false,
+            models: [
+              expect.objectContaining({
+                info: expect.objectContaining({
+                  id: "llama3.2",
+                  displayName: "llama3.2",
+                }) as unknown,
+              }),
+            ],
+          })
+        )
+      );
+    });
+    it(`keeps model visibility independent and saves hidden configured models instead of deleting them (${ISSUE})`, async () => {
+      render(
+        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
+      );
+      expect(
+        (
+          await screen.findByRole("switch", { name: "Show claude-sonnet in model pickers" })
+        ).getAttribute("aria-checked")
+      ).toBe("true");
+      expect(
+        screen
+          .getByRole("switch", { name: "Show claude-opus in model pickers" })
+          .getAttribute("aria-checked")
+      ).toBe("false");
+      fireEvent.click(screen.getByRole("switch", { name: "Show claude-sonnet in model pickers" }));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(mockSaveProviderDraft).toHaveBeenCalledWith(
+          expect.objectContaining({
+            models: [
+              expect.objectContaining({
+                enabled: false,
+                info: expect.objectContaining({ id: "claude-sonnet" }) as unknown,
+              }),
+              expect.objectContaining({
+                enabled: false,
+                info: expect.objectContaining({ id: "claude-opus" }) as unknown,
+              }),
+            ],
+          })
+        )
+      );
+    });
+    it(`keeps credentials and provider enablement as a draft when canceled (${ISSUE})`, async () => {
+      const onClose = jest.fn();
+      render(
+        <ConfigureProviderForm state={{ mode: "edit", providerId: "p-custom" }} onClose={onClose} />
+      );
+      await screen.findByDisplayValue("existing-key");
+      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+      fireEvent.click(screen.getByRole("switch", { name: "Enable this provider" }));
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(onClose).toHaveBeenCalled();
+      expect(mockSaveProviderDraft).not.toHaveBeenCalled();
+      expect(mockClearApiKey).not.toHaveBeenCalled();
+    });
+    it(`blocks Save after clearing a required API key (${ISSUE})`, async () => {
+      render(
+        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Clear" }));
+      expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true);
+    });
+    it(`does not overwrite a saved key when keychain lookup fails (${ISSUE})`, async () => {
+      mockGetApiKey.mockRejectedValueOnce(new Error("locked"));
       render(
         <ConfigureProviderForm
           state={{ mode: "edit", providerId: "p-custom" }}
           onClose={jest.fn()}
-          onSaved={onSaved}
         />
       );
-
-      const corsSwitch = await screen.findByRole("switch", { name: "Enable CORS" });
-      expect(corsSwitch.getAttribute("aria-checked")).toBe("true");
-      fireEvent.click(corsSwitch);
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-      await waitFor(() =>
-        expect(mockUpdate).toHaveBeenCalledWith(
-          "p-custom",
-          expect.objectContaining({ enableCors: false })
-        )
-      );
-      expect(onSaved).not.toHaveBeenCalled();
-      act(() => {
-        finishUpdate();
-      });
-      await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+      expect(await screen.findByRole("alert")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+      expect(mockSaveProviderDraft).not.toHaveBeenCalled();
     });
-
-    it("offers Remove on saved custom models but not on saved catalog models", async () => {
-      mockGetProvider.mockReturnValue({
-        ...anthropicCatalogMetadata,
-        models: { "claude-sonnet": anthropicCatalogMetadata.models["claude-sonnet"] },
-      });
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["claude-sonnet"] });
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-sonnet")).toBeTruthy());
-      await waitFor(() => expect(screen.getByTestId("model-row-claude-opus")).toBeTruthy());
-      expect(screen.queryByTestId("model-row-remove-claude-sonnet")).toBeNull();
-      expect(screen.getByTestId("model-row-remove-claude-opus")).toBeTruthy();
-    });
-
-    it("hides a removed custom model immediately and deletes it on save", async () => {
-      mockGetProvider.mockReturnValue(undefined);
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: [] });
-      mockBulkSet.mockResolvedValue(["cm1"]);
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={onClose} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-remove-claude-opus")).toBeTruthy());
-      fireEvent.click(screen.getByTestId("model-row-remove-claude-opus"));
-      expect(screen.queryByTestId("model-row-claude-opus")).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockRemoveRefs).toHaveBeenCalledWith(["cm2"]));
-      expect(mockBulkSet).toHaveBeenCalledWith("p1", [
-        expect.objectContaining({ id: "claude-sonnet" }),
-      ]);
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-    });
-
-    it("empties the key field on Clear without closing the dialog or deleting the stored key yet", async () => {
-      mockGetApiKey.mockResolvedValue("saved-secret");
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={onClose} />
-      );
-      const clear = await screen.findByTestId("api-key-clear");
-      fireEvent.click(clear);
-      await waitFor(() => expect(screen.getByTestId<HTMLInputElement>("api-key").value).toBe(""));
-      expect(mockClearApiKey).not.toHaveBeenCalled();
-      expect(onClose).not.toHaveBeenCalled();
-      expect(screen.queryByTestId("api-key-clear")).toBeNull();
-    });
-
-    it("disables Save after clearing a required-key provider's key", async () => {
-      mockGetApiKey.mockResolvedValue("saved-secret");
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
-      );
-      fireEvent.click(await screen.findByTestId("api-key-clear"));
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true)
-      );
-    });
-
-    it("keeps the user's selection unchanged when models are listed again after Test", async () => {
-      mockListProviderModels.mockResolvedValueOnce({ ok: true, modelIds: ["a", "b"] });
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: ollamaSource }} onClose={jest.fn()} />
-      );
-      await waitFor(() => expect(screen.getByTestId("model-row-a")).toBeTruthy());
-      expect(rowCheckbox("a").getAttribute("aria-checked")).toBe("false");
-      expect(rowCheckbox("b").getAttribute("aria-checked")).toBe("false");
-
-      fireEvent.click(rowCheckbox("a"));
-      expect(rowCheckbox("a").getAttribute("aria-checked")).toBe("true");
-
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      mockListProviderModels.mockResolvedValueOnce({ ok: true, modelIds: ["a", "b"] });
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      await waitFor(() => expect(mockListProviderModels).toHaveBeenCalledTimes(2));
-      expect(rowCheckbox("a").getAttribute("aria-checked")).toBe("true");
-      expect(rowCheckbox("b").getAttribute("aria-checked")).toBe("false");
-    });
-
-    it("shows nothing and lists no models while the provider being edited cannot be found", () => {
+    it(`shows no editable form for a missing provider and performs no model request (${ISSUE})`, () => {
       render(
         <ConfigureProviderForm
           state={{ mode: "edit", providerId: "missing" }}
           onClose={jest.fn()}
         />
       );
-      expect(screen.queryByTestId("model-checklist-manual-input")).toBeNull();
-      expect(screen.queryByText(/^Configure/)).toBeNull();
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
       expect(mockListProviderModels).not.toHaveBeenCalled();
     });
-
-    it("shows the source's model id hint as the manual input placeholder", () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: CUSTOM_OPENAI_DEFINITION }}
-          onClose={jest.fn()}
-        />
-      );
-      expect(screen.getByPlaceholderText("e.g. gpt-5.5")).toBeTruthy();
-    });
-
-    it("fails Test with a prompt to enter a key, without contacting the provider, when a required key is empty", async () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
-      );
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      expect(mockVerifyCredentials).not.toHaveBeenCalled();
-      expect(await screen.findByText("Enter an API key to verify this provider.")).toBeTruthy();
-    });
-
-    it("disables Save for a required-key provider with no key", () => {
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
-      );
-      manualAddId("claude-sonnet");
-      expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true);
-    });
-
-    it("verifies an untested key on Save and, when it is invalid, does not save and disables Save", async () => {
+    it(`rejects an invalid key on Save and reports the real verification error (${ISSUE})`, async () => {
       mockVerifyCredentials.mockResolvedValue({
         ok: false,
         code: "invalid_api_key",
         message: "Authentication failed",
         checkedAt: 1,
       });
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: anthropicSource }}
-          onClose={jest.fn()}
-        />
-      );
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "sk-bad" } });
-      manualAddId("claude-sonnet");
-      expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(false);
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
+      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "bad-key" } });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockVerifyCredentials).toHaveBeenCalled());
-      expect(mockSetupProvider).not.toHaveBeenCalled();
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(true)
+      expect(await screen.findByRole("alert")).toHaveProperty(
+        "textContent",
+        "Authentication failed"
       );
+      expect(mockSaveProviderDraft).not.toHaveBeenCalled();
     });
-
-    it("still saves when verification is inconclusive because of a network error", async () => {
+    it(`allows saving when verification is inconclusive due to network failure (${ISSUE})`, async () => {
       mockVerifyCredentials.mockResolvedValue({
         ok: false,
         code: "network",
-        message: "connection refused",
+        message: "offline",
         checkedAt: 1,
       });
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "new", source: anthropicSource }} onClose={onClose} />
-      );
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "sk-maybe" } });
-      manualAddId("claude-sonnet");
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
+      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "secret" } });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockSetupProvider).toHaveBeenCalledTimes(1));
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      await waitFor(() => expect(mockSaveProviderDraft).toHaveBeenCalled());
     });
-
-    it("reports a changed key and endpoint as saved only after both are persisted (https://github.com/logancyang/obsidian-copilot/issues/3147)", async () => {
-      const onSaved = jest.fn();
-      let finishUpdate!: () => void;
-      mockUpdate.mockImplementationOnce(
+    it(`does not reverify an unchanged saved key and only reports success after persistence (${ISSUE})`, async () => {
+      let finish!: () => void;
+      mockSaveProviderDraft.mockImplementationOnce(
         () =>
           new Promise<void>((resolve) => {
-            finishUpdate = resolve;
+            finish = resolve;
           })
       );
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
+      const onSaved = jest.fn();
+      const onClose = jest.fn();
       render(
         <ConfigureProviderForm
           state={{ mode: "edit", providerId: "p-custom" }}
-          onClose={jest.fn()}
-          onSaved={onSaved}
-        />
-      );
-      fireEvent.change(await screen.findByTestId("api-key"), { target: { value: "new-key" } });
-      fireEvent.change(screen.getByDisplayValue("https://proxy.example/v1"), {
-        target: { value: "https://new.example/v1" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() =>
-        expect(mockUpdate).toHaveBeenCalledWith(
-          "p-custom",
-          expect.objectContaining({ baseUrl: "https://new.example/v1" })
-        )
-      );
-      expect(mockSetApiKey).toHaveBeenCalledWith("p-custom", "new-key");
-      expect(onSaved).not.toHaveBeenCalled();
-      act(() => {
-        finishUpdate();
-      });
-      await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
-    });
-
-    it("pre-fills the saved key when editing and saves without rewriting or re-verifying it", async () => {
-      mockGetApiKey.mockResolvedValue("saved-secret");
-      mockBulkSet.mockResolvedValue(["cm1", "cm2"]);
-      const onClose = jest.fn();
-      render(
-        <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={onClose} />
-      );
-      const input = await screen.findByTestId<HTMLInputElement>("api-key");
-      expect(input.value).toBe("saved-secret");
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(mockSetApiKey).not.toHaveBeenCalled();
-      expect(mockVerifyCredentials).not.toHaveBeenCalled();
-    });
-
-    it("tests and saves a keyless provider with an empty key field", async () => {
-      mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
-      const onClose = jest.fn();
-      const onSaved = jest.fn();
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "new", source: ollamaSource }}
           onClose={onClose}
           onSaved={onSaved}
         />
       );
-      fireEvent.click(screen.getByRole("button", { name: "Test" }));
-      await waitFor(() => expect(mockVerifyCredentials).toHaveBeenCalled());
-      manualAddId("llama3.2");
+      await screen.findByDisplayValue("existing-key");
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockSetupProvider).toHaveBeenCalledTimes(1));
-      expect(mockSetupProvider).toHaveBeenCalledWith(
-        expect.objectContaining({ requiresApiKey: false })
+      await waitFor(() => expect(mockSaveProviderDraft).toHaveBeenCalled());
+      expect(mockVerifyCredentials).not.toHaveBeenCalled();
+      expect(onSaved).not.toHaveBeenCalled();
+      act(() => finish());
+      await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    it(`verifies changed credentials against the draft endpoint before saving (${ISSUE})`, async () => {
+      render(
+        <ConfigureProviderForm
+          state={{ mode: "edit", providerId: "p-custom" }}
+          onClose={jest.fn()}
+        />
       );
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(onSaved).toHaveBeenCalledTimes(1);
+      fireEvent.change(await screen.findByTestId("api-key"), { target: { value: "new-key" } });
+      fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
+        target: { value: "https://new.example/v1" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(mockVerifyCredentials).toHaveBeenCalledWith(
+          "openai-compatible",
+          expect.objectContaining({
+            apiKey: "new-key",
+            provider: expect.objectContaining({ baseUrl: "https://new.example/v1" }) as unknown,
+          })
+        )
+      );
     });
   });
 });

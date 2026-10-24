@@ -1,0 +1,51 @@
+{
+  "build": "passed",
+  "vault": {
+    "name": "houde",
+    "path": "/Users/study_superior/Desktop/Project/houde"
+  },
+  "tests": {
+    "suites": 526,
+    "tests": 5872,
+    "failed": 0
+  },
+  "bundleBytes": 4819596,
+  "bundleLimitBytes": 5000000,
+  "format": "passed",
+  "lint": {
+    "errors": 0,
+    "existingWarnings": 2
+  },
+  "review": "passed",
+  "piBoundaries": {
+    "violations": 0,
+    "files": 1376
+  },
+  "galleryBuild": "passed",
+  "galleryRender": {
+    "checks": 36,
+    "themes": 2,
+    "widths": [300, 560, 760]
+  },
+  "realSdkRequestConstruction": {
+    "status": "passed",
+    "requests": 7,
+    "checks": 8,
+    "networkSent": false
+  },
+  "realRemotePiGeneration": "not_run",
+  "nativeEscAfterFix": "passed",
+  "configBeforeAfter": {
+    "providers": 3,
+    "models": 8,
+    "hash": "2c34b2aa2937b0236c0a8ee97cb2394cc0e6c46acc1342a41800d399d3dea54d",
+    "unchanged": true
+  },
+  "buildId": "c2a7ef50-dirty-937901a85e98",
+  "nativeEscChecks": [
+    "help_only",
+    "four_format_menu_only",
+    "custom_effort_only",
+    "cancel_preserves_persisted_config"
+  ]
+}

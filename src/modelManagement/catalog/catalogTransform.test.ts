@@ -11,23 +11,24 @@ function makeWire(providers: WireCatalog): WireCatalog {
 
 describe("catalogTransform", () => {
   describe("transformWireToCatalog()", () => {
-    describe("npm → providerType mapping", () => {
-      it.each([
-        ["@ai-sdk/anthropic", "anthropic"],
-        ["@ai-sdk/google", "google"],
-        ["@ai-sdk/openai-compatible", "openai-compatible"],
-        ["@ai-sdk/openai", "openai-compatible"],
-        [undefined, "openai-compatible"],
-        ["something-unknown", "openai-compatible"],
-      ])("maps npm=%s → providerType=%s", (npm, expected) => {
-        const wire = makeWire({
-          p: { id: "p", name: "P", api: "https://p.example", npm },
-        });
-        const result = transformWireToCatalog(wire);
-        expect(result).toHaveLength(1);
-        expect(result[0].providerType).toBe(expected);
-      });
-    });
+    it.each([
+      "@ai-sdk/anthropic",
+      "@ai-sdk/google",
+      "@ai-sdk/openai-compatible",
+      "@ai-sdk/openai",
+      undefined,
+      "something-unknown",
+    ])(
+      "preserves raw npm=%s without inventing a protocol (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)",
+      (npm) => {
+        const [provider] = transformWireToCatalog(
+          makeWire({ p: { id: "p", api: "https://p.example/v1", npm } })
+        );
+        expect(provider.npm).toBe(npm);
+        expect(provider.api).toBe("https://p.example/v1");
+        expect(provider.providerType).toBeUndefined();
+      }
+    );
 
     it("falls back to wire.id for displayName when name is missing, omits defaultBaseUrl when api absent", () => {
       const wire = makeWire({ ghost: { id: "ghost" } });
@@ -249,7 +250,7 @@ describe("catalogTransform", () => {
       expect(result.map((p) => p.displayName)).toEqual(["Alpha", "Mid", "Zeta"]);
     });
 
-    it("drops Amazon Bedrock rather than letting it fall through to openai-compatible (https://github.com/logancyang/obsidian-copilot/issues/2928)", () => {
+    it("retains unsupported Bedrock metadata for the capability policy to classify (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
       const wire = makeWire({
         "amazon-bedrock": {
           id: "amazon-bedrock",
@@ -259,18 +260,20 @@ describe("catalogTransform", () => {
         },
         openai: { id: "openai", name: "OpenAI", npm: "@ai-sdk/openai" },
       });
-      expect(transformWireToCatalog(wire).map((p) => p.id)).toEqual(["openai"]);
+      expect(transformWireToCatalog(wire).every((p) => p.providerType === undefined)).toBe(true);
+      expect(transformWireToCatalog(wire)).toHaveLength(Object.keys(wire).length);
     });
 
-    it("drops an unlisted provider id that ships an unroutable npm package, so a renamed or newly published Azure row is excluded on arrival (https://github.com/logancyang/obsidian-copilot/issues/2932)", () => {
+    it("preserves renamed Azure metadata without assigning a supported protocol (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
       const wire = makeWire({
         "azure-foundry": { id: "azure-foundry", name: "Azure AI Foundry", npm: "@ai-sdk/azure" },
         openai: { id: "openai", name: "OpenAI", npm: "@ai-sdk/openai" },
       });
-      expect(transformWireToCatalog(wire).map((p) => p.id)).toEqual(["openai"]);
+      expect(transformWireToCatalog(wire).every((p) => p.providerType === undefined)).toBe(true);
+      expect(transformWireToCatalog(wire)).toHaveLength(Object.keys(wire).length);
     });
 
-    it("drops both Azure catalog rows rather than reclassifying them as openai-compatible (https://github.com/logancyang/obsidian-copilot/issues/2932)", () => {
+    it("retains both Azure rows for policy-based exclusion without guessing their protocol (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
       const wire = makeWire({
         azure: { id: "azure", name: "Azure", npm: "@ai-sdk/azure" },
         "azure-cognitive-services": {
@@ -280,7 +283,8 @@ describe("catalogTransform", () => {
         },
         openai: { id: "openai", name: "OpenAI", npm: "@ai-sdk/openai" },
       });
-      expect(transformWireToCatalog(wire).map((p) => p.id)).toEqual(["openai"]);
+      expect(transformWireToCatalog(wire).every((p) => p.providerType === undefined)).toBe(true);
+      expect(transformWireToCatalog(wire)).toHaveLength(Object.keys(wire).length);
     });
   });
 });

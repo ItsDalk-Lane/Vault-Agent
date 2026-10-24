@@ -57,6 +57,19 @@ const renderWithProvider = (ui: React.ReactElement) =>
 
 describe("ByokGlobalTable", () => {
   describe("ByokGlobalTable()", () => {
+    it("keeps a disabled provider available for editing and labels its status https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      renderWithProvider(
+        <ByokGlobalTable
+          groups={[{ ...group, provider: { ...group.provider, enabled: false }, models: [] }]}
+          onConfigure={jest.fn()}
+          onRemove={jest.fn()}
+        />
+      );
+      expect(screen.getByText("Anthropic")).toBeTruthy();
+      expect(screen.getByText("Provider disabled")).toBeTruthy();
+      expect(screen.queryByText("Claude Sonnet 4.5")).toBeNull();
+    });
+
     it("shows the empty state when there are no groups", () => {
       renderWithProvider(
         <ByokGlobalTable groups={[]} onConfigure={jest.fn()} onRemove={jest.fn()} />

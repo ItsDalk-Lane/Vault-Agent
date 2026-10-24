@@ -1,5 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
+import type { PrimitiveAtom } from "jotai";
+import type { Provider } from "@/modelManagement/types/persisted";
+import { settingsStore } from "@/settings/model";
+import { visibleByokProvidersAtom, configuredModelsAtom } from "@/modelManagement/state/atoms";
 
 const mockEnsureLoaded = jest.fn().mockResolvedValue(undefined);
 const mockGetAllProviders = jest.fn().mockReturnValue([]);
@@ -113,6 +117,34 @@ describe("ByokPanel", () => {
 
       fireEvent.click(providerCard);
       expect(await screen.findByText("Claude Sonnet 4.5")).toBeTruthy();
+    });
+
+    it("hides disabled provider models while keeping its editable provider row and restores models on re-enable (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", async () => {
+      const atom = visibleByokProvidersAtom as PrimitiveAtom<readonly Provider[]>;
+      const originalProviders = settingsStore.get(atom);
+      const originalModels = settingsStore.get(configuredModelsAtom);
+      const view = render(<ByokPanel />);
+      await screen.findAllByText("Verified");
+      fireEvent.click(screen.getByText("Anthropic"));
+      expect(screen.getByText("Claude Sonnet 4.5")).toBeTruthy();
+      try {
+        act(() =>
+          settingsStore.set(
+            atom,
+            originalProviders.map((provider) =>
+              provider.providerId === "p1" ? { ...provider, enabled: false } : provider
+            )
+          )
+        );
+        expect(screen.queryByText("Claude Sonnet 4.5")).toBeNull();
+        expect(screen.getByText("Anthropic")).toBeTruthy();
+        expect(settingsStore.get(configuredModelsAtom)).toBe(originalModels);
+        act(() => settingsStore.set(atom, originalProviders));
+        expect(screen.getByText("Claude Sonnet 4.5")).toBeTruthy();
+      } finally {
+        view.unmount();
+        settingsStore.set(atom, originalProviders);
+      }
     });
 
     it("opens the Add Provider modal from the add button", async () => {

@@ -8,6 +8,7 @@ export interface ListProviderModelsOptions {
   apiKey?: string | null;
   extras?: Record<string, unknown>;
   timeoutMs?: number;
+  catalogProviderId?: string;
 }
 
 export async function listProviderModels(
@@ -23,11 +24,20 @@ export async function listProviderModels(
         apiKey: opts.apiKey,
         openAIOrgId,
         timeoutMs: opts.timeoutMs,
+        catalogProviderId: opts.catalogProviderId,
       });
     }
     case "anthropic":
-      return listAnthropicModels(baseUrl, { apiKey: opts.apiKey, timeoutMs: opts.timeoutMs });
+      return listAnthropicModels(baseUrl, {
+        apiKey: opts.apiKey,
+        timeoutMs: opts.timeoutMs,
+        catalogProviderId: opts.catalogProviderId,
+      });
     case "google":
-      return listGoogleModels(baseUrl, { apiKey: opts.apiKey, timeoutMs: opts.timeoutMs });
+      return listGoogleModels(baseUrl, {
+        apiKey: opts.apiKey,
+        timeoutMs: opts.timeoutMs,
+        catalogProviderId: opts.catalogProviderId,
+      });
   }
 }

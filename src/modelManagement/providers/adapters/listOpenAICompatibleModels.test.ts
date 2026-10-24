@@ -109,5 +109,29 @@ describe("listOpenAICompatibleModels", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).not.toMatch(/add it to the base URL/);
     });
+
+    it("suggests the locked-SDK endpoint when the catalog address returns 404", async () => {
+      mockSafeFetch.mockResolvedValue(fakeResponse(404, undefined, "Not Found"));
+      const result = await listOpenAICompatibleModels(
+        "https://opencode.ai/inference/go/openai/v1",
+        { catalogProviderId: "opencode-go" }
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.status).toBe(404);
+        expect(result.message).toContain("https://opencode.ai/inference/go/v1");
+        expect(result.message).not.toMatch(/add it to the base URL/);
+      }
+    });
+
+    it("explains a provider that exposes no model list instead of reporting a wrong address", async () => {
+      mockSafeFetch.mockResolvedValue(fakeResponse(404, undefined, "Not Found"));
+      const result = await listOpenAICompatibleModels(
+        "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1",
+        { catalogProviderId: "oci" }
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/model IDs manually/i);
+    });
   });
 });

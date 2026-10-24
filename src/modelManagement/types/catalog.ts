@@ -6,6 +6,11 @@ export interface ModelInfo {
   description?: string;
   modalities?: { input?: string[]; output?: string[] };
   limits?: { context?: number; output?: number; input?: number };
+  capabilities?: {
+    structuredOutput?: boolean;
+    nativeWebSearch?: boolean;
+    midConversationSystemMessages?: boolean;
+  };
   reasoning?: boolean;
   reasoningEfforts?: readonly string[];
   toolCall?: boolean;
@@ -18,6 +23,8 @@ export interface CatalogProvider {
   id: string;
   displayName: string;
   defaultBaseUrl?: string;
-  providerType: ProviderType;
+  providerType?: ProviderType;
+  npm?: string;
+  api?: string;
   models: Record<string, ModelInfo>;
 }

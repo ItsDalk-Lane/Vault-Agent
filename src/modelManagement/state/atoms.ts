@@ -1,3 +1,4 @@
+import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
 import { atom } from "jotai";
 
 import { settingsAtom } from "@/settings/model";
@@ -56,20 +57,35 @@ export const visibleByokProvidersAtom = atom<readonly Provider[]>((get) => {
   return [...selfHosted, ...cloud];
 });
 
-export const chatBackendPickerAtom = atom<readonly EnabledBackendEntry[]>((get) => {
-  const config = get(backendsAtom).chat ?? { enabledModels: [] };
-  const models = get(configuredModelsAtom);
-  const providers = get(providersAtom);
-  const enableSelfHostMode = get(selfHostModeAtom);
-  if (config.enabledModels.length === 0) return EMPTY_PICKER_ENTRIES;
-  return config.enabledModels.map<EnabledBackendEntry>((configuredModelId) => {
-    const configuredModel = models.find((m) => m.configuredModelId === configuredModelId);
-    const provider = configuredModel ? providers[configuredModel.providerId] : undefined;
-    if (configuredModel && provider) {
-      const needsSelfHostWarning =
-        enableSelfHostMode && providerNeedsSelfHostWarning(provider, { enableSelfHostMode });
-      return { configuredModelId, state: "ok", configuredModel, provider, needsSelfHostWarning };
-    }
-    return { configuredModelId, state: "broken" };
+function backendPickerAtom(backend: "chat" | "pi") {
+  return atom<readonly EnabledBackendEntry[]>((get) => {
+    const config = get(backendsAtom)[backend] ?? { enabledModels: [] };
+    const models = get(configuredModelsAtom);
+    const providers = get(providersAtom);
+    const enableSelfHostMode = get(selfHostModeAtom);
+    if (config.enabledModels.length === 0) return EMPTY_PICKER_ENTRIES;
+    const enabledIds = config.enabledModels.filter((id) => {
+      const model = models.find((candidate) => candidate.configuredModelId === id);
+      const provider = model ? providers[model.providerId] : undefined;
+      // 命令只能选择实际聊天可用的模型，向量和无工具模型不能伪装成可运行选项。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+      if (backend === "pi" && (model?.info.isEmbedding || model?.info.toolCall === false))
+        return false;
+      // 保留旧模型配置供兼容读取，当前菜单仅使用用户配置的供应商。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      return !provider || (provider.origin.kind === "byok" && isProviderEnabled(provider));
+    });
+    if (enabledIds.length === 0) return EMPTY_PICKER_ENTRIES;
+    return enabledIds.map<EnabledBackendEntry>((configuredModelId) => {
+      const configuredModel = models.find((m) => m.configuredModelId === configuredModelId);
+      const provider = configuredModel ? providers[configuredModel.providerId] : undefined;
+      if (configuredModel && provider) {
+        const needsSelfHostWarning =
+          enableSelfHostMode && providerNeedsSelfHostWarning(provider, { enableSelfHostMode });
+        return { configuredModelId, state: "ok", configuredModel, provider, needsSelfHostWarning };
+      }
+      return { configuredModelId, state: "broken" };
+    });
   });
-});
+}
+
+export const chatBackendPickerAtom = backendPickerAtom("chat");
+export const agentBackendPickerAtom = backendPickerAtom("pi");

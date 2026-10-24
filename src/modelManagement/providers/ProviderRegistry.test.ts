@@ -39,9 +39,6 @@ function makeFakeApp(): { app: App; secrets: SecretStore } {
 const anthropicStub: ProviderAdapter = {
   providerType: "anthropic",
   extrasSchema: z.object({}).strict(),
-  buildLangChainClient: () => {
-    throw new Error("not used in test");
-  },
   verifyCredentials: async () => ({
     ok: true,
     message: "stub-ok",
@@ -120,7 +117,25 @@ describe("ProviderRegistry", () => {
   });
 
   describe("update()", () => {
-    it("applies the patch but keeps providerId, addedAt, providerType, and origin unchanged", async () => {
+    it("saves a supported API format and the supplier enabled state https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const id = await registry.add({
+        providerType: "anthropic",
+        displayName: "A",
+        origin: { kind: "byok" },
+      });
+      await registry.update(id, {
+        providerType: "openai-compatible",
+        extras: { useResponsesApi: true },
+        enabled: false,
+      });
+      expect(registry.get(id)).toMatchObject({
+        providerType: "openai-compatible",
+        extras: { useResponsesApi: true },
+        enabled: false,
+      });
+    });
+
+    it("applies the patch but keeps identity and origin unchanged and ignores an invalid API format", async () => {
       const id = await registry.add({
         providerType: "anthropic",
         displayName: "Original",
@@ -288,6 +303,15 @@ describe("ProviderRegistry", () => {
     });
   });
 
+  describe("notifyConfigChanged()", () => {
+    it("notifies consumers after an atomic provider draft save https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      const listener = jest.fn();
+      registry.subscribe(listener);
+      registry.notifyConfigChanged("saved-provider");
+      expect(listener).toHaveBeenCalledWith("saved-provider");
+    });
+  });
+
   describe("list()", () => {
     it("returns stable references while settings are unchanged", async () => {
       await registry.add({
@@ -307,10 +331,24 @@ describe("ProviderRegistry", () => {
   });
 
   describe("verify()", () => {
+    it("refuses a legacy unknown endpoint before an adapter can borrow its native host https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const id = await registry.add({
+        providerType: "anthropic",
+        displayName: "Unknown service",
+        origin: { kind: "byok" },
+      });
+      await registry.setApiKey(id, "private-key");
+      await expect(registry.verify(id)).resolves.toMatchObject({
+        ok: false,
+        code: "missing_base_url",
+      });
+    });
+
     it("returns the adapter result for the provider's type", async () => {
       const id = await registry.add({
         providerType: "anthropic",
         displayName: "A",
+        baseUrl: "https://api.anthropic.com",
         origin: { kind: "byok" },
       });
       await registry.setApiKey(id, "sk-x");
@@ -349,6 +387,7 @@ describe("ProviderRegistry", () => {
         displayName: "Local",
         origin: { kind: "byok" },
         requiresApiKey: false,
+        baseUrl: "http://localhost:1234/v1",
       });
       expect(await registry.verify(id)).toMatchObject({ ok: true });
       await registry.setApiKey(id, "old-key");

@@ -6,6 +6,7 @@ import { logError, logInfo, logWarn } from "@/logger";
 import type { CatalogProvider } from "@/modelManagement/types/catalog";
 import { transformWireToCatalog } from "./catalogTransform";
 import { isPlainObject } from "./modelsDevWire";
+import { getProviderCapability, getProviderUnsupportedReason } from "./providerCapability";
 
 const CACHE_DIR = ".copilot";
 const CACHE_FILENAME = "model-catalog-cache.json";
@@ -129,7 +130,6 @@ export class CatalogDownloadService {
     this.swapMemory(parsed);
     this.failedAutoAttempts = 0;
     this.emit();
-    logInfo(`[modelsCatalog] refreshed: ${this.providers.length} providers`);
     return { ok: true, providerCount: this.providers.length };
   }
 
@@ -211,6 +211,20 @@ export class CatalogDownloadService {
   private swapMemory(wire: unknown): void {
     this.providers = transformWireToCatalog(wire);
     this.byId = new Map(this.providers.map((p) => [p.id, p]));
+    const supported = this.providers.filter(
+      (provider) => getProviderCapability(provider) !== null
+    ).length;
+    const warnings = new Set<string>();
+    for (const provider of this.providers) {
+      if (getProviderCapability(provider)) continue;
+      const reason = getProviderUnsupportedReason(provider) ?? "No executable provider capability";
+      if (warnings.has(reason)) continue;
+      warnings.add(reason);
+      logWarn(`[modelsCatalog] unsupported: ${reason}`);
+    }
+    logInfo(
+      `[modelsCatalog] capabilities: ${supported} addable, ${this.providers.length - supported} unsupported`
+    );
   }
 
   private emit(): void {

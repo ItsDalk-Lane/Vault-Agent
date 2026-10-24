@@ -1,6 +1,7 @@
 import { ReactModal } from "@/components/modals/ReactModal";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { cn } from "@/lib/utils";
+import { getProviderCapability } from "@/modelManagement/catalog/providerCapability";
 import type { CatalogProvider, ProviderType } from "@/modelManagement/types/catalog";
 import type { ProviderDefinition } from "@/modelManagement/types/runtime";
 import { Plus } from "lucide-react";
@@ -25,13 +26,15 @@ function providerTypeHint(providerType: ProviderType): string {
 }
 
 function catalogToDefinition(catalog: CatalogProvider): ProviderDefinition {
+  const capability = getProviderCapability(catalog)!;
   return {
     id: catalog.id,
     displayName: catalog.displayName,
-    providerType: catalog.providerType,
-    defaultBaseUrl: catalog.defaultBaseUrl,
-    requiresApiKey: true,
-    modelInputHint: providerTypeHint(catalog.providerType),
+    providerType: capability.providerType,
+    defaultBaseUrl: capability.defaultBaseUrl,
+    requiresApiKey: capability.requiresApiKey,
+    useResponsesApi: capability.useResponsesApi,
+    modelInputHint: providerTypeHint(capability.providerType),
     catalogProviderId: catalog.id,
   };
 }
@@ -58,12 +61,15 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
   const [query, setQuery] = useState("");
 
   const { recommended, local, more } = useMemo(() => {
-    const byId = new Map(catalogProviders.map((p) => [p.id, p]));
+    const supported = catalogProviders.filter(
+      (provider) => getProviderCapability(provider) !== null
+    );
+    const byId = new Map(supported.map((p) => [p.id, p]));
     const recommended = RECOMMENDED_IDS.map((id) => byId.get(id)).filter(
       (p): p is CatalogProvider => p !== undefined && matchesQuery(p, query)
     );
     const local = localTemplates.filter((t) => matchesQuery(t, query));
-    const more = catalogProviders
+    const more = supported
       .filter((p) => !RECOMMENDED_IDS.includes(p.id) && matchesQuery(p, query))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
     return { recommended, local, more };

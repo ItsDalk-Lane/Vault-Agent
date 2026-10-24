@@ -143,5 +143,21 @@ describe("openaiCompatibleAdapter", () => {
         expect(mockSafeFetch).not.toHaveBeenCalled();
       }
     );
+
+    it("suggests the locked-SDK endpoint when the configured catalog address returns 404", async () => {
+      respondWith(404);
+
+      const result = await openaiCompatibleAdapter.verifyCredentials({
+        provider: provider({
+          baseUrl: "https://opencode.ai/inference/go/openai/v1",
+          origin: { kind: "byok", catalogProviderId: "opencode-go" },
+        }),
+        apiKey: "k",
+        extras: {},
+      });
+
+      expect(result).toMatchObject({ ok: false, code: "http_error", status: 404 });
+      expect(result.message).toContain("https://opencode.ai/inference/go/v1");
+    });
   });
 });

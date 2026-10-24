@@ -1,5 +1,6 @@
 import {
   chatBackendPickerAtom,
+  agentBackendPickerAtom,
   providerRequiresApiKey,
   resolveChatModelSelectionId,
 } from "@/modelManagement";
@@ -17,8 +18,13 @@ export interface ChatBackendModelOptions {
   resolveSelectionId: (selection: string | undefined) => string | undefined;
 }
 
-export function useChatBackendModelOptions(fallbackToFirst = true): ChatBackendModelOptions {
-  const entries = useAtomValue(chatBackendPickerAtom, { store: settingsStore });
+export function useChatBackendModelOptions(
+  fallbackToFirst = true,
+  backend: "chat" | "pi" = "chat"
+): ChatBackendModelOptions {
+  const entries = useAtomValue(backend === "pi" ? agentBackendPickerAtom : chatBackendPickerAtom, {
+    store: settingsStore,
+  });
   const options = useMemo(() => {
     const result: ChatBackendModelOption[] = [];
     for (const entry of entries) {
