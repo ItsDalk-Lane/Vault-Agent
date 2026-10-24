@@ -26,7 +26,6 @@ const group: ByokTableGroup = {
     requiresApiKey: true,
     apiKeyKeychainId: "key1",
   },
-  verification: { ok: true, checkedAt: 0 },
   models: [
     {
       configuredModelId: "m1",
@@ -105,24 +104,11 @@ describe("ByokGlobalTable", () => {
       expect(screen.getByText("Sends requests to: A server on this computer")).toBeTruthy();
     });
 
-    it("shows the model count and a Verified badge for a verified provider", () => {
+    it("shows the configured model count without a network verification badge", () => {
       renderWithProvider(
         <ByokGlobalTable groups={[group]} onConfigure={jest.fn()} onRemove={jest.fn()} />
       );
       expect(screen.getByText("2 models")).toBeTruthy();
-      expect(screen.getByText("Verified")).toBeTruthy();
-    });
-
-    it("shows No key instead of Verified when verification reports a missing key (https://github.com/logancyang/obsidian-copilot/issues/3147)", () => {
-      const noKeyGroup: ByokTableGroup = {
-        provider: { ...group.provider, apiKeyKeychainId: undefined },
-        models: group.models,
-        verification: { ok: false, code: "missing_api_key", checkedAt: 0 },
-      };
-      renderWithProvider(
-        <ByokGlobalTable groups={[noKeyGroup]} onConfigure={jest.fn()} onRemove={jest.fn()} />
-      );
-      expect(screen.getByText("No key")).toBeTruthy();
       expect(screen.queryByText("Verified")).toBeNull();
     });
 
@@ -133,19 +119,6 @@ describe("ByokGlobalTable", () => {
       );
       expect(screen.getByText("No models added")).toBeTruthy();
       expect(screen.queryByText("0 models")).toBeNull();
-      expect(screen.getByText("Verified")).toBeTruthy();
-    });
-
-    it("shows Checking… instead of Verified for a keyless provider until verification returns (https://github.com/logancyang/obsidian-copilot/issues/3147)", () => {
-      const localGroup: ByokTableGroup = {
-        provider: { ...group.provider, displayName: "Ollama", requiresApiKey: false },
-        models: [],
-      };
-      renderWithProvider(
-        <ByokGlobalTable groups={[localGroup]} onConfigure={jest.fn()} onRemove={jest.fn()} />
-      );
-      expect(screen.getByText("Local models on your machine")).toBeTruthy();
-      expect(screen.getByText("Checking…")).toBeTruthy();
       expect(screen.queryByText("Verified")).toBeNull();
     });
 

@@ -10,7 +10,6 @@ import {
   resolveProviderBaseUrl,
 } from "@/modelManagement/catalog/providerCapability";
 import type { ModelManagementApi } from "@/modelManagement/createModelManagement";
-import { listProviderModels } from "@/modelManagement/providers/adapters/listProviderModels";
 import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
 import { providerRequiresApiKey } from "@/modelManagement/providers/providerRequiresApiKey";
 import {
@@ -19,7 +18,7 @@ import {
   configuredModelsAtom,
 } from "@/modelManagement/state/atoms";
 import type { ModelInfo, ProviderType } from "@/modelManagement/types/catalog";
-import type { ConfiguredModel, Provider } from "@/modelManagement/types/persisted";
+import type { ConfiguredModel } from "@/modelManagement/types/persisted";
 import type { ProviderDefinition } from "@/modelManagement/types/runtime";
 import {
   ModelManagementProvider,
@@ -36,6 +35,7 @@ import { ConfigureProviderEditor } from "./ConfigureProviderEditor";
 import { createModelDraft, mergeDeclaredModelInfo, type ProviderDraft } from "./providerDraft";
 
 const EMPTY_MODELS: readonly ConfiguredModel[] = Object.freeze([]);
+const EMPTY_CATALOG_MODELS: readonly ModelInfo[] = Object.freeze([]);
 
 export type ConfigureState =
   | { mode: "new"; source: ProviderDefinition }
@@ -98,7 +98,6 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
         : undefined;
   const resolveModelInfo = useCallback(
     async (id: string): Promise<Partial<ModelInfo> | undefined> => {
-      await api.catalogService.ensureLoaded();
       const catalog = catalogId ? api.catalogService.getProvider(catalogId)?.models[id] : undefined;
       const declared = api.resolveDeclaredModelCapabilities?.(catalogId ?? "", id);
       return catalog || declared
@@ -112,37 +111,17 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
     },
     [api, catalogId]
   );
-  const fetchModels = useCallback(
-    async (draft: ProviderDraft): Promise<ModelInfo[]> => {
-      const result = await listProviderModels(
-        draft.providerType,
-        normalizeBaseUrlForProtocol(draft.baseUrl, draft.providerType) ?? "",
-        {
-          apiKey: draft.apiKey || null,
-          extras: draft.extras,
-          catalogProviderId: catalogId,
-        }
-      );
-      if (!result.ok) throw new Error(result.message);
-      await api.catalogService.ensureLoaded();
-      const catalogModels = catalogId
-        ? api.catalogService.getProvider(catalogId)?.models
-        : undefined;
-      return [...new Set(result.modelIds)].map((id) => {
-        const declared = api.resolveDeclaredModelCapabilities?.(catalogId ?? "", id);
-        const catalog = catalogModels?.[id];
-        return {
-          id,
-          displayName: id,
-          ...catalog,
-          ...declared,
-          modalities: { ...catalog?.modalities, ...declared?.modalities },
-          capabilities: { ...catalog?.capabilities, ...declared?.capabilities },
-        };
-      });
-    },
-    [api, catalogId]
-  );
+  const catalogModels = useMemo(() => {
+    const models = catalogId ? api.catalogService.getProvider(catalogId)?.models : undefined;
+    return models
+      ? Object.values(models).map((model) =>
+          mergeDeclaredModelInfo(
+            model,
+            api.resolveDeclaredModelCapabilities?.(catalogId ?? "", model.id)
+          )
+        )
+      : EMPTY_CATALOG_MODELS;
+  }, [api, catalogId]);
   if (state.mode === "edit" && (!provider || !keyResolved))
     return (
       <div className="tw-flex tw-h-full tw-items-center tw-justify-center">
@@ -152,7 +131,7 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
   if (keyError)
     return (
       <div role="alert" className="tw-space-y-3 tw-text-error">
-        {t("ui.model.couldNotVerify")}
+        {t("ui.model.keyReadFailed")}
         <Button
           variant="secondary"
           onClick={() => {
@@ -167,7 +146,7 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
     );
   const source = state.mode === "new" ? state.source : undefined;
   const capability = catalogId
-    ? getProviderCapability(api.catalogService.getProvider(catalogId) ?? { id: catalogId })
+    ? getProviderCapability(api.catalogService.getProvider(catalogId) ?? {})
     : null;
   const type =
     provider?.providerType ??
@@ -221,31 +200,6 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
     ];
   };
   const save = async (draft: ProviderDraft): Promise<void> => {
-    const changedKey = draft.apiKey !== (apiKey ?? "");
-    if (draft.apiKey && (state.mode === "new" || changedKey)) {
-      const synthetic: Provider = {
-        ...(provider ?? {
-          providerId: "draft",
-          origin: { kind: "byok" as const },
-          addedAt: Date.now(),
-        }),
-        providerType: draft.providerType,
-        displayName: draft.displayName,
-        baseUrl: normalizeBaseUrlForProtocol(draft.baseUrl, draft.providerType),
-        requiresApiKey,
-        extras: draft.extras,
-      };
-      const result = await api.adapters.verifyCredentials(draft.providerType, {
-        provider: synthetic,
-        apiKey: draft.apiKey,
-        extras: draft.extras,
-      });
-      if (
-        !result.ok &&
-        ["invalid_api_key", "missing_api_key", "missing_base_url"].includes(result.code ?? "")
-      )
-        throw new Error(result.message || t("ui.model.verificationFailed"));
-    }
     await api.setup.byok.saveProviderDraft({
       providerId,
       catalogProviderId: catalogId,
@@ -286,7 +240,7 @@ export function ConfigureProviderForm({ state, onClose, onSaved }: ConfigureProv
       requiresApiKey={requiresApiKey}
       editing={state.mode === "edit"}
       defaultBaseUrl={protocolDefault}
-      onFetchModels={fetchModels}
+      catalogModels={catalogModels}
       onTestModel={async (draft, model, signal) => {
         if (!api.testModelConnection) throw new Error(t("ui.byok.testUnavailable"));
         await api.testModelConnection({

@@ -20,7 +20,6 @@ import { formatContextWindow } from "@/modelManagement/ui/utils/formatModelMetad
 import {
   Check,
   ChevronDown,
-  Download,
   Hexagon,
   HelpCircle,
   Loader2,
@@ -57,7 +56,7 @@ export interface ConfigureProviderEditorProps {
   requiresApiKey: boolean;
   editing?: boolean;
   defaultBaseUrl: (type: ProviderType, responses: boolean) => string;
-  onFetchModels: (draft: ProviderDraft) => Promise<ModelInfo[]>;
+  catalogModels: readonly ModelInfo[];
   onTestModel: (draft: ProviderDraft, model: ModelInfo, signal: AbortSignal) => Promise<void>;
   resolveModelInfo?: (id: string) => Promise<Partial<ModelInfo> | undefined>;
   supportsMaxEffort?: (id: string) => boolean;
@@ -71,7 +70,7 @@ export function ConfigureProviderEditor({
   requiresApiKey,
   editing = false,
   defaultBaseUrl,
-  onFetchModels,
+  catalogModels,
   onTestModel,
   resolveModelInfo,
   supportsMaxEffort,
@@ -125,7 +124,7 @@ export function ConfigureProviderEditor({
       cancelled = true;
     };
   }, [deleting, draft.models]);
-  const fetchButton = useRef<HTMLButtonElement>(null);
+  const catalogButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2200);
@@ -238,6 +237,7 @@ export function ConfigureProviderEditor({
       <header className="tw-space-y-1">
         <h2 className="tw-m-0 tw-text-lg tw-font-semibold">{t("ui.byok.title")}</h2>
         <p className="tw-m-0 tw-text-sm tw-text-muted">{t("ui.byok.subtitle")}</p>
+        <p className="tw-m-0 tw-text-xs tw-text-muted">{t("ui.model.catalogSource")}</p>
       </header>
       <div className="tw-min-h-0 tw-flex-1 tw-overflow-y-auto tw-rounded-xl tw-border tw-border-solid tw-border-border tw-bg-secondary">
         <div className="tw-flex tw-items-center tw-gap-3 tw-border-b tw-border-border tw-p-3 @[561px]/byok:tw-p-4">
@@ -347,14 +347,13 @@ export function ConfigureProviderEditor({
             <span className="tw-text-sm tw-font-medium">{t("ui.model.models")}</span>
             <div className="tw-flex tw-flex-wrap tw-gap-2">
               <Button
-                ref={fetchButton}
+                ref={catalogButton}
                 variant="secondary"
                 size="sm"
                 className="tw-border tw-border-solid tw-border-border"
                 onClick={() => setSelectOpen(true)}
               >
-                <Download className="tw-size-3.5" />
-                {t("ui.byok.fetchModels")}
+                {t("ui.byok.chooseBuiltinModels")}
               </Button>
               <Button
                 variant="secondary"
@@ -468,15 +467,15 @@ export function ConfigureProviderEditor({
       {selectOpen && (
         <ModelSelectionDialog
           draft={draft}
-          onFetch={onFetchModels}
+          models={catalogModels}
           onClose={() => {
             setSelectOpen(false);
-            fetchButton.current?.focus();
+            catalogButton.current?.focus();
           }}
           onAdd={(models) => {
             patch({ models: [...draft.models, ...models.map((info) => createModelDraft(info))] });
             setSelectOpen(false);
-            fetchButton.current?.focus();
+            catalogButton.current?.focus();
             setToast(t("ui.byok.modelsAdded", { count: models.length }));
           }}
         />
@@ -971,42 +970,21 @@ function HelpLabel({
 
 interface ModelSelectionDialogProps {
   draft: ProviderDraft;
-  onFetch: (draft: ProviderDraft) => Promise<ModelInfo[]>;
+  models: readonly ModelInfo[];
   onClose: () => void;
   onAdd: (models: ModelInfo[]) => void;
 }
-function ModelSelectionDialog({ draft, onFetch, onClose, onAdd }: ModelSelectionDialogProps) {
-  const [models, setModels] = useState<readonly ModelInfo[]>([]);
+function ModelSelectionDialog({ draft, models, onClose, onAdd }: ModelSelectionDialogProps) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [request, setRequest] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const draftRef = useRef(draft);
-  useEffect(() => {
-    let cancelled = false;
-    void onFetch(draftRef.current)
-      .then(
-        (result) => {
-          if (!cancelled) setModels(result);
-        },
-        (reason) => {
-          if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
-        }
-      )
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [onFetch, request]);
   useEffect(() => {
     dialogRef.current?.querySelector<HTMLInputElement>("input")?.focus();
   }, []);
   const existing = new Set(draft.models.map((model) => model.info.id.trim()));
-  const filtered = models.filter((model) => model.id.toLowerCase().includes(query.toLowerCase()));
+  const filtered = models.filter((model) =>
+    `${model.id} ${model.displayName}`.toLowerCase().includes(query.toLowerCase())
+  );
   const available = filtered.filter((model) => !existing.has(model.id));
   const allSelected = available.length > 0 && available.every((model) => selected.has(model.id));
   return (
@@ -1081,29 +1059,9 @@ function ModelSelectionDialog({ draft, onFetch, onClose, onAdd }: ModelSelection
           {t(allSelected ? "ui.byok.deselectAll" : "ui.byok.selectAll")}
         </Button>
         <div className="tw-min-h-24 tw-overflow-y-auto">
-          {loading ? (
-            <Loader2
-              aria-label={t("ui.model.loadingModels")}
-              className="tw-mx-auto tw-size-5 tw-animate-spin"
-            />
-          ) : error ? (
-            <div role="alert" className="tw-space-y-2 tw-text-sm tw-text-error">
-              {error}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setLoading(true);
-                  setError("");
-                  setRequest((current) => current + 1);
-                }}
-              >
-                {t("ui.byok.retry")}
-              </Button>
-            </div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="tw-p-3 tw-text-center tw-text-sm tw-text-muted">
-              {t("ui.byok.noMatches")}
+              {t(models.length === 0 ? "ui.byok.noBuiltinModels" : "ui.byok.noMatches")}
             </div>
           ) : (
             filtered.map((model) => (
@@ -1140,7 +1098,7 @@ function ModelSelectionDialog({ draft, onFetch, onClose, onAdd }: ModelSelection
             {t("common.cancel")}
           </Button>
           <Button
-            disabled={loading || Boolean(error) || selected.size === 0}
+            disabled={selected.size === 0}
             onClick={() => onAdd(models.filter((model) => selected.has(model.id)))}
           >
             {t("ui.byok.addSelected", { count: selected.size })}

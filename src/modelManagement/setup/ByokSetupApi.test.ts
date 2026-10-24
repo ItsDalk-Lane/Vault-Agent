@@ -7,7 +7,6 @@ import {
 import { ProviderRegistry } from "@/modelManagement/providers/ProviderRegistry";
 import { ConfiguredModelRegistry } from "@/modelManagement/models/ConfiguredModelRegistry";
 import { BackendConfigRegistry } from "@/modelManagement/backends/BackendConfigRegistry";
-import { ProviderAdapterRegistry } from "@/modelManagement/providers/adapters/ProviderAdapterRegistry";
 import type { App } from "obsidian";
 import { ByokSetupApi } from "./ByokSetupApi";
 import type { BackendType } from "@/modelManagement/types/persisted";
@@ -56,7 +55,7 @@ function draftSetup() {
       keys.delete(id);
     }),
   };
-  const providers = new ProviderRegistry({} as App, new ProviderAdapterRegistry());
+  const providers = new ProviderRegistry({} as App);
   const models = new ConfiguredModelRegistry();
   const backends = new BackendConfigRegistry(providers, models);
   return {
@@ -142,11 +141,11 @@ describe("ByokSetupApi", () => {
         const { api, backends } = draftSetup();
         const first = await api.saveProviderDraft(DRAFT);
         await backends.enableModel("chat", "unrelated");
-        await backends.enableModel("codex", first.configuredModelIds[0]);
+        await backends.enableModel("pi", first.configuredModelIds[0]);
         await api.saveProviderDraft({ ...DRAFT, providerId: first.providerId, models: [] });
         expect(getSettings().configuredModels).toEqual([]);
         expect(backends.get("chat").enabledModels).toEqual(["unrelated"]);
-        expect(backends.get("codex").enabledModels).toEqual([]);
+        expect(backends.get("pi").enabledModels).toEqual([]);
       });
       it.each(["", "shown"])(
         "rejects blank or duplicate id %p before persistence https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
@@ -203,7 +202,7 @@ describe("ByokSetupApi", () => {
         expect(result.configuredModelIds).toEqual(["configured-0", "configured-1"]);
         expect(enabled.get("chat")).toEqual(["existing", "configured-0"]);
         expect(enabled.get("pi")).toEqual(["configured-0"]);
-        expect(enabled.has("opencode")).toBe(false);
+        expect([...enabled.keys()]).toEqual(["chat", "pi"]);
         expect(keys.get("provider")).toBe("test-key");
       });
       it("honors an explicit backend enrollment selection", async () => {

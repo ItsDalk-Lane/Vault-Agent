@@ -1,9 +1,3 @@
-import type { Provider } from "@/modelManagement/types/persisted";
-
-export function isSelfHostedProvider(provider: Provider): boolean {
-  return isSelfHostedUrl(provider.baseUrl);
-}
-
 export function isSelfHostedUrl(raw: string | undefined): boolean {
   const host = parseHost(raw);
   if (!host) return false;

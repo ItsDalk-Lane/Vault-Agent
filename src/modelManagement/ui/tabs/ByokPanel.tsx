@@ -5,16 +5,11 @@ import { useApp } from "@/context";
 import { logError } from "@/logger";
 import { t } from "@/i18n";
 import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
-import { getProviderCapability } from "@/modelManagement/catalog/providerCapability";
 import {
   CUSTOM_OPENAI_DEFINITION,
   LOCAL_PROVIDER_DEFINITIONS,
 } from "@/modelManagement/catalog/builtinDefinitions";
-import { configuredModelsAtom, visibleByokProvidersAtom } from "@/modelManagement/state/atoms";
-import { providerNeedsSelfHostWarning } from "@/modelManagement/providers/selfHostPolicy";
-import type { CatalogProvider } from "@/modelManagement/types/catalog";
-import type { VerificationResult } from "@/modelManagement/types/runtime";
-import { ProviderVerificationProgress } from "@/modelManagement/ui/components/ProviderVerificationStatus";
+import { byokProvidersAtom, configuredModelsAtom } from "@/modelManagement/state/atoms";
 import type { ConfiguredModel } from "@/modelManagement/types/persisted";
 import { useModelManagement } from "@/modelManagement/ui/ModelManagementContext";
 import {
@@ -23,89 +18,23 @@ import {
 } from "@/modelManagement/ui/components/ByokGlobalTable";
 import { AddProviderModal } from "@/modelManagement/ui/dialogs/AddProviderDialog";
 import { ConfigureProviderModal } from "@/modelManagement/ui/dialogs/ConfigureProviderDialog";
-import { settingsStore, useSettingsValue } from "@/settings/model";
+import { settingsStore } from "@/settings/model";
 import { useAtomValue } from "jotai";
-import { Plus, ShieldCheck } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Notice } from "obsidian";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-const EMPTY_VERIFICATION: Readonly<Record<string, VerificationResult>> = Object.freeze({});
-const EMPTY_CATALOG: readonly CatalogProvider[] = Object.freeze([]);
 const EMPTY_MODELS: readonly ConfiguredModel[] = Object.freeze([]);
 
 export const ByokPanel: React.FC = () => {
   const api = useModelManagement();
   const app = useApp();
 
-  const providers = useAtomValue(visibleByokProvidersAtom, { store: settingsStore });
+  const providers = useAtomValue(byokProvidersAtom, { store: settingsStore });
   const configuredModels = useAtomValue(configuredModelsAtom, { store: settingsStore });
-  const selfHostOn = useSettingsValue().enableSelfHostMode;
 
-  const [catalogProviders, setCatalogProviders] =
-    useState<readonly CatalogProvider[]>(EMPTY_CATALOG);
+  const catalogProviders = api.catalogService.getAllProviders();
   const [query, setQuery] = useState("");
-  const [verification, setVerification] =
-    useState<Readonly<Record<string, VerificationResult>>>(EMPTY_VERIFICATION);
-  const [verificationProviders, setVerificationProviders] = useState(() =>
-    api.providerRegistry.listByOrigin("byok")
-  );
-  const pendingChecks = verificationProviders.length - Object.keys(verification).length;
-  const refreshVerification = (): void => {
-    setVerification(EMPTY_VERIFICATION);
-    setVerificationProviders([...api.providerRegistry.listByOrigin("byok")]);
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    // https://github.com/logancyang/obsidian-copilot/issues/3147:
-    // Check completed saves, including CORS-only edits. Registry events can fire
-    // between key and endpoint writes and would send the new key to the old URL.
-
-    for (const provider of verificationProviders) {
-      void api.providerRegistry
-        .verify(provider.providerId)
-        .catch(
-          (): VerificationResult => ({
-            ok: false,
-            message: t("ui.model.couldNotVerify"),
-            checkedAt: Date.now(),
-          })
-        )
-        .then((result) => {
-          if (cancelled) return;
-          setVerification((results) => ({ ...results, [provider.providerId]: result }));
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [api, verificationProviders]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const sync = (): void => {
-      if (!cancelled)
-        setCatalogProviders(
-          api.catalogService
-            .getAllProviders()
-            .filter((provider) => getProviderCapability(provider) !== null)
-        );
-    };
-    const unsub = api.catalogService.onChange(sync);
-    api.catalogService
-      .ensureLoaded()
-      .then(() => {
-        if (cancelled) return;
-        sync();
-      })
-      .catch((err) => {
-        logError("[ByokPanel] catalog ensureLoaded failed", err);
-      });
-    return () => {
-      cancelled = true;
-      unsub();
-    };
-  }, [api]);
 
   const groups = useMemo<ByokTableGroup[]>(() => {
     const byProvider = new Map<string, ConfiguredModel[]>();
@@ -119,29 +48,17 @@ export const ByokPanel: React.FC = () => {
     const q = query.trim().toLowerCase();
     return providers
       .map((provider) => {
-        const needsSelfHostWarning =
-          selfHostOn && providerNeedsSelfHostWarning(provider, { enableSelfHostMode: selfHostOn });
         const all = byProvider.get(provider.providerId) ?? (EMPTY_MODELS as ConfiguredModel[]);
         if (!q || provider.displayName.toLowerCase().includes(q)) {
-          return {
-            provider,
-            models: all,
-            needsSelfHostWarning,
-            verification: verification[provider.providerId],
-          };
+          return { provider, models: all };
         }
         const models = all.filter(
           (m) => m.info.displayName.toLowerCase().includes(q) || m.info.id.toLowerCase().includes(q)
         );
-        return {
-          provider,
-          models,
-          needsSelfHostWarning,
-          verification: verification[provider.providerId],
-        };
+        return { provider, models };
       })
       .filter((g) => !q || g.models.length > 0 || g.provider.displayName.toLowerCase().includes(q));
-  }, [providers, configuredModels, query, selfHostOn, verification]);
+  }, [providers, configuredModels, query]);
 
   const handleAddProvider = (): void => {
     new AddProviderModal(app, {
@@ -152,7 +69,6 @@ export const ByokPanel: React.FC = () => {
         new ConfigureProviderModal(app, {
           state: { mode: "new", source },
           api,
-          onSaved: refreshVerification,
         }).open(),
     }).open();
   };
@@ -180,7 +96,6 @@ export const ByokPanel: React.FC = () => {
 
   return (
     <div className="tw-relative tw-flex tw-flex-col tw-gap-4 tw-py-4">
-      <ProviderVerificationProgress pending={pendingChecks} />
       <div className="tw-flex tw-items-start tw-justify-between tw-gap-4">
         <div className="tw-flex tw-flex-col tw-gap-1">
           <div className="tw-text-xl tw-font-bold tw-text-normal">{t("ui.model.byokTitle")}</div>
@@ -191,16 +106,6 @@ export const ByokPanel: React.FC = () => {
           {t("ui.model.addProvider")}
         </Button>
       </div>
-
-      {selfHostOn && (
-        <div className="tw-flex tw-items-start tw-gap-2 tw-rounded-lg tw-border tw-border-solid tw-px-3 tw-py-2.5 tw-text-xs tw-text-normal tw-bg-interactive-accent/10 tw-border-interactive-accent/30">
-          <ShieldCheck className="tw-mt-0.5 tw-size-4 tw-shrink-0 tw-text-accent" />
-          <div className="tw-leading-relaxed">
-            <span className="tw-font-semibold">{t("ui.model.selfHostOnTitle")}</span>{" "}
-            {t("ui.model.selfHostOnBody")}
-          </div>
-        </div>
-      )}
 
       <SearchBar value={query} onChange={setQuery} placeholder={t("ui.model.searchProviders")} />
 
@@ -214,7 +119,6 @@ export const ByokPanel: React.FC = () => {
             new ConfigureProviderModal(app, {
               state: { mode: "edit", providerId: id },
               api,
-              onSaved: refreshVerification,
             }).open()
           }
           onRemove={handleRemove}

@@ -1,5 +1,3 @@
-import { ProviderVerificationStatus } from "@/modelManagement/ui/components/ProviderVerificationStatus";
-import type { VerificationResult } from "@/modelManagement/types/runtime";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { t } from "@/i18n";
@@ -10,7 +8,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { DestinationIcon } from "@/components/ui/DestinationIcon";
 import { isProviderEnabled } from "@/modelManagement/providers/providerAvailability";
 import { providerDestination } from "@/modelManagement/providers/providerDestination";
@@ -28,8 +25,6 @@ import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 export interface ByokTableGroup {
   provider: Provider;
   models: ConfiguredModel[];
-  verification?: VerificationResult;
-  needsSelfHostWarning?: boolean;
 }
 
 interface ByokGlobalTableProps {
@@ -168,12 +163,10 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
                   {provider.displayName}
                 </span>
                 <DestinationIcon destination={providerDestination(provider)} />
-                {group.needsSelfHostWarning && <SelfHostCloudWarningIcon />}
               </span>
               <span className="tw-text-xs tw-text-muted">{getSubLine()}</span>
             </div>
             <div className="tw-flex-1" />
-            <ProviderVerificationStatus result={group.verification} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

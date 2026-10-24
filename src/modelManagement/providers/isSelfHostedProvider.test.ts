@@ -1,5 +1,4 @@
-import type { Provider } from "@/modelManagement/types/persisted";
-import { isLoopbackUrl, isSelfHostedProvider, isSelfHostedUrl } from "./isSelfHostedProvider";
+import { isLoopbackUrl, isSelfHostedUrl } from "./isSelfHostedProvider";
 
 describe("isSelfHostedProvider", () => {
   describe("isSelfHostedUrl()", () => {
@@ -56,23 +55,6 @@ describe("isSelfHostedProvider", () => {
       [undefined, false],
     ])("reports whether %s is this computer", (url, expected) => {
       expect(isLoopbackUrl(url)).toBe(expected);
-    });
-  });
-
-  describe("isSelfHostedProvider()", () => {
-    const provider = (baseUrl?: string): Provider => ({
-      providerId: "p1",
-      providerType: "openai-compatible",
-      displayName: "Test",
-      baseUrl,
-      origin: { kind: "byok" },
-      addedAt: 0,
-    });
-
-    it("classifies a provider by its base URL", () => {
-      expect(isSelfHostedProvider(provider("http://localhost:11434/v1"))).toBe(true);
-      expect(isSelfHostedProvider(provider("https://api.openai.com/v1"))).toBe(false);
-      expect(isSelfHostedProvider(provider(undefined))).toBe(false);
     });
   });
 });

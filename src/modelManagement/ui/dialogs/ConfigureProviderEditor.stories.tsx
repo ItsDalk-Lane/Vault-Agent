@@ -18,7 +18,7 @@ const base: ConfigureProviderEditorProps = {
   },
   requiresApiKey: true,
   defaultBaseUrl: () => "https://models.example/v1",
-  onFetchModels: async () => [
+  catalogModels: [
     {
       id: "example-vision",
       displayName: "Example vision",
@@ -87,16 +87,8 @@ export const Disabled: StoryObj<ConfigureProviderEditorProps> = {
     },
   },
 };
-export const FetchError: StoryObj<ConfigureProviderEditorProps> = {
-  args: {
-    ...base,
-    onFetchModels: async () => {
-      throw new Error("The provider could not be reached.");
-    },
-  },
-};
-export const FetchLoading: StoryObj<ConfigureProviderEditorProps> = {
-  args: { ...base, onFetchModels: () => new Promise(() => {}) },
+export const NoBuiltinModels: StoryObj<ConfigureProviderEditorProps> = {
+  args: { ...base, catalogModels: [] },
 };
 
 export const ModelTestError: StoryObj<ConfigureProviderEditorProps> = {

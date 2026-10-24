@@ -1,3 +1,4 @@
+export { BuiltinModelCatalog } from "./catalog/BuiltinModelCatalog";
 export type { CatalogProvider, ModelInfo, ProviderType } from "./types/catalog";
 export type {
   BackendConfig,
@@ -10,9 +11,7 @@ export type { EnabledBackendEntry } from "./types/runtime";
 
 export { isProviderEnabled } from "./providers/providerAvailability";
 export { ProviderRegistry } from "./providers/ProviderRegistry";
-export { isSelfHostedProvider } from "./providers/isSelfHostedProvider";
 export { providerDestination, urlDestination } from "./providers/providerDestination";
-export { providerNeedsSelfHostWarning } from "./providers/selfHostPolicy";
 export {
   providerNeedsResolvedApiKey,
   providerRequiresApiKey,

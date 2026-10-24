@@ -37,7 +37,7 @@ function mount() {
       }}
       requiresApiKey={false}
       defaultBaseUrl={() => ""}
-      onFetchModels={async () => []}
+      catalogModels={[]}
       onTestModel={async () => {}}
       onSave={async () => {}}
       onClose={jest.fn()}
@@ -83,11 +83,15 @@ describe("providerModalKeyboard", () => {
     });
     it(`closes model selection through the native scope and restores its opening button focus (${ISSUE})`, async () => {
       const view = mount();
-      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
-      await screen.findByText("No matching models");
+      fireEvent.click(screen.getByRole("button", { name: "Choose built-in models" }));
+      await screen.findByText(
+        "No built-in models for this provider. Close this list and add a model ID manually."
+      );
       act(() => pressScopeEscape(view.scope));
       expect(screen.queryByRole("dialog")).toBeNull();
-      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Get model list" }));
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Choose built-in models" })
+      );
       expect(view.close).not.toHaveBeenCalled();
       expect(view.parentClose).not.toHaveBeenCalled();
     });

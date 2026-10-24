@@ -1,12 +1,10 @@
 import { resetSettings, getSettings, setSettings } from "@/settings/model";
 import { KeychainService } from "@/services/keychainService";
 
-import type { ProviderAdapter } from "./adapters/ProviderAdapter";
-import { ProviderAdapterRegistry } from "./adapters/ProviderAdapterRegistry";
 import { ProviderRegistry } from "./ProviderRegistry";
+import type { Provider } from "@/modelManagement/types/persisted";
 
 import type { App } from "obsidian";
-import { z } from "zod";
 
 jest.mock("@/logger", () => ({
   logInfo: jest.fn(),
@@ -36,20 +34,9 @@ function makeFakeApp(): { app: App; secrets: SecretStore } {
   return { app, secrets };
 }
 
-const anthropicStub: ProviderAdapter = {
-  providerType: "anthropic",
-  extrasSchema: z.object({}).strict(),
-  verifyCredentials: async () => ({
-    ok: true,
-    message: "stub-ok",
-    checkedAt: 42,
-  }),
-};
-
 describe("ProviderRegistry", () => {
   let app: App;
   let secrets: SecretStore;
-  let adapters: ProviderAdapterRegistry;
   let registry: ProviderRegistry;
 
   beforeEach(() => {
@@ -60,9 +47,7 @@ describe("ProviderRegistry", () => {
     app = fake.app;
     secrets = fake.secrets;
     KeychainService.getInstance(app);
-    adapters = new ProviderAdapterRegistry();
-    adapters.register(anthropicStub);
-    registry = new ProviderRegistry(app, adapters);
+    registry = new ProviderRegistry(app);
   });
 
   describe("add()", () => {
@@ -105,15 +90,29 @@ describe("ProviderRegistry", () => {
         displayName: "A",
         origin: { kind: "byok" },
       });
-      await registry.add({
-        providerType: "anthropic",
-        displayName: "B",
-        origin: { kind: "agent", agentType: "claude" },
-      });
       const rows = registry.listByOrigin("byok");
       expect(registry.listByOrigin("byok")).toBe(rows);
       expect(rows).toHaveLength(1);
     });
+
+    it.each(["agent", "retired"])(
+      "excludes loaded %s sources from current provider selection https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
+      async (kind) => {
+        const id = await registry.add({
+          providerType: "anthropic",
+          displayName: "Current",
+          origin: { kind: "byok" },
+        });
+        const unavailable = {
+          ...registry.get(id),
+          providerId: "unavailable",
+          origin: { kind },
+        } as unknown as Provider;
+        setSettings({ providers: { ...getSettings().providers, unavailable } });
+        expect(registry.listByOrigin("byok").map((row) => row.providerId)).toEqual([id]);
+        expect(getSettings().providers.unavailable).toBe(unavailable);
+      }
+    );
   });
 
   describe("update()", () => {
@@ -150,7 +149,7 @@ describe("ProviderRegistry", () => {
           providerId: "hacked",
           addedAt: 1,
           providerType: "openai",
-          origin: { kind: "agent", agentType: "claude" },
+          origin: { kind: "unsupported" },
         } as Record<string, unknown>),
       });
       const row = registry.get(id)!;
@@ -322,77 +321,11 @@ describe("ProviderRegistry", () => {
       await registry.add({
         providerType: "anthropic",
         displayName: "B",
-        origin: { kind: "agent", agentType: "claude" },
+        origin: { kind: "byok" },
       });
       const rows = registry.list();
       expect(registry.list()).toBe(rows);
       expect(rows).toHaveLength(2);
-    });
-  });
-
-  describe("verify()", () => {
-    it("refuses a legacy unknown endpoint before an adapter can borrow its native host https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
-      const id = await registry.add({
-        providerType: "anthropic",
-        displayName: "Unknown service",
-        origin: { kind: "byok" },
-      });
-      await registry.setApiKey(id, "private-key");
-      await expect(registry.verify(id)).resolves.toMatchObject({
-        ok: false,
-        code: "missing_base_url",
-      });
-    });
-
-    it("returns the adapter result for the provider's type", async () => {
-      const id = await registry.add({
-        providerType: "anthropic",
-        displayName: "A",
-        baseUrl: "https://api.anthropic.com",
-        origin: { kind: "byok" },
-      });
-      await registry.setApiKey(id, "sk-x");
-      const result = await registry.verify(id);
-      expect(result.ok).toBe(true);
-      expect(result.message).toBe("stub-ok");
-    });
-
-    it("rejects an unknown providerId", async () => {
-      await expect(registry.verify("nope")).rejects.toThrow(/unknown/);
-    });
-
-    it.each([null, "", "   "])(
-      "rejects a missing stored key (%p) without probing a public endpoint (https://github.com/logancyang/obsidian-copilot/issues/3147)",
-      async (secret) => {
-        const id = await registry.add({
-          providerType: "anthropic",
-          displayName: "A",
-          origin: { kind: "byok" },
-          requiresApiKey: true,
-        });
-        await registry.setApiKey(id, "old-key");
-        const pointer = registry.get(id)!.apiKeyKeychainId!;
-        if (secret === null) KeychainService.getInstance(app).deleteSecretById(pointer);
-        else KeychainService.getInstance(app).setSecretById(pointer, secret);
-        const probe = jest.spyOn(adapters, "verifyCredentials");
-        expect(await registry.verify(id)).toMatchObject({ ok: false, code: "missing_api_key" });
-        expect(probe).not.toHaveBeenCalled();
-        expect(registry.get(id)!.apiKeyKeychainId).toBe(pointer);
-      }
-    );
-
-    it("verifies an optional-auth endpoint without a key but rejects its dangling stored credential (https://github.com/logancyang/obsidian-copilot/issues/3147)", async () => {
-      const id = await registry.add({
-        providerType: "anthropic",
-        displayName: "Local",
-        origin: { kind: "byok" },
-        requiresApiKey: false,
-        baseUrl: "http://localhost:1234/v1",
-      });
-      expect(await registry.verify(id)).toMatchObject({ ok: true });
-      await registry.setApiKey(id, "old-key");
-      KeychainService.getInstance(app).deleteSecretById(registry.get(id)!.apiKeyKeychainId!);
-      expect(await registry.verify(id)).toMatchObject({ ok: false, code: "missing_api_key" });
     });
   });
 

@@ -18,15 +18,15 @@ const initialDraft = (): ProviderDraft => ({
 });
 function mount(overrides: Partial<ConfigureProviderEditorProps> = {}) {
   const onSave = jest.fn().mockResolvedValue(undefined);
-  const onFetchModels = jest.fn().mockResolvedValue([
+  const catalogModels = [
     { id: "a", displayName: "A" },
     { id: "b", displayName: "B" },
-  ]);
+  ];
   const props = {
     initialDraft: initialDraft(),
     requiresApiKey: false,
     defaultBaseUrl: () => "https://service.example/v1",
-    onFetchModels,
+    catalogModels,
     onTestModel: jest.fn().mockResolvedValue(undefined),
     onSave,
     onClose: jest.fn(),
@@ -197,15 +197,14 @@ describe("ConfigureProviderEditor", () => {
         expect(screen.getByRole("button", { name }).hasAttribute("disabled")).toBe(true);
       expect(screen.getByText(/Video cannot be sent yet/)).toBeTruthy();
     });
-    it(`fetches real models only on request, filters duplicates, searches and resets selection on reopen (${ISSUE})`, async () => {
-      const props = mount({
+    it(`selects built-in models, disables duplicates, searches and resets selection on reopen (${ISSUE})`, async () => {
+      mount({
         initialDraft: {
           ...initialDraft(),
           models: [createModelDraft({ id: "a", displayName: "A" })],
         },
       });
-      expect(props.onFetchModels).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
+      fireEvent.click(screen.getByRole("button", { name: "Choose built-in models" }));
       const dialog = await screen.findByRole("dialog");
       await waitFor(() =>
         expect(within(dialog).getByRole("checkbox", { name: "a" }).hasAttribute("disabled")).toBe(
@@ -220,7 +219,7 @@ describe("ConfigureProviderEditor", () => {
       expect(within(dialog).getByRole("button", { name: "Add selected (1)" })).toBeTruthy();
       fireEvent.keyDown(dialog, { key: "Escape" });
       expect(screen.queryByRole("dialog")).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
+      fireEvent.click(screen.getByRole("button", { name: "Choose built-in models" }));
       await screen.findByRole("checkbox", { name: "b" });
       expect(
         screen.getByRole("button", { name: "Add selected (0)" }).hasAttribute("disabled")
@@ -229,21 +228,22 @@ describe("ConfigureProviderEditor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Add selected (1)" }));
       expect(screen.getByRole("button", { name: "b" })).toBeTruthy();
     });
-    it(`shows a fetch failure inline and retries instead of adding fake models (${ISSUE})`, async () => {
-      const fetch = jest
-        .fn()
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockResolvedValueOnce([{ id: "real", displayName: "real" }]);
-      mount({ onFetchModels: fetch });
-      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
-      expect(await screen.findByRole("alert")).toHaveProperty(
-        "textContent",
-        expect.stringContaining("offline")
+    it(`keeps manual entry available when a provider has no built-in models (${ISSUE})`, () => {
+      mount({ catalogModels: [] });
+      fireEvent.click(screen.getByRole("button", { name: "Choose built-in models" }));
+      expect(
+        screen.getByText(
+          "No built-in models for this provider. Close this list and add a model ID manually."
+        )
+      ).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Close model selection" }));
+      addModel("local-model");
+      expect(screen.getByRole("textbox", { name: "Model ID" })).toHaveProperty(
+        "value",
+        "local-model"
       );
-      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-      expect(await screen.findByRole("checkbox", { name: "real" })).toBeTruthy();
     });
-    it(`tests a real reply with unsaved edits and reports request failure even when model listing succeeds (${ISSUE})`, async () => {
+    it(`tests a real reply with unsaved edits and reports request failure without changing the built-in catalog (${ISSUE})`, async () => {
       let finish!: () => void;
       const test = jest
         .fn()
@@ -272,7 +272,6 @@ describe("ConfigureProviderEditor", () => {
         expect.objectContaining({ id: "unsaved-model" }),
         expect.any(AbortSignal)
       );
-      expect(props.onFetchModels).not.toHaveBeenCalled();
       expect(props.onSave).not.toHaveBeenCalled();
       act(() => finish());
       await waitFor(() =>
@@ -304,7 +303,7 @@ describe("ConfigureProviderEditor", () => {
           }}
           requiresApiKey={false}
           defaultBaseUrl={() => ""}
-          onFetchModels={jest.fn()}
+          catalogModels={[]}
           onTestModel={test}
           onSave={jest.fn()}
           onClose={jest.fn()}
@@ -525,7 +524,7 @@ describe("ConfigureProviderEditor", () => {
           initialDraft={initialDraft()}
           requiresApiKey={false}
           defaultBaseUrl={() => ""}
-          onFetchModels={jest.fn()}
+          catalogModels={[]}
           onTestModel={jest.fn()}
           onSave={onSave}
           onClose={onClose}

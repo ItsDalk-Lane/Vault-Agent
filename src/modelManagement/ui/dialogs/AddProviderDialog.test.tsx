@@ -12,13 +12,9 @@ function makeCatalog(id: string, displayName: string): CatalogProvider {
   return {
     id,
     displayName,
-    providerType: id === "anthropic" ? "anthropic" : "openai-compatible",
-    npm:
-      id === "anthropic"
-        ? "@ai-sdk/anthropic"
-        : id === "google"
-          ? "@ai-sdk/google"
-          : "@ai-sdk/openai-compatible",
+    providerType:
+      id === "anthropic" ? "anthropic" : id === "google" ? "google" : "openai-compatible",
+    defaultBaseUrl: `https://${id}.example/v1`,
     models: {},
   };
 }
@@ -84,8 +80,8 @@ describe("AddProviderDialog", () => {
     it("hides unsupported and unknown families in recommended rows and search (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
       renderDialog({
         catalogProviders: [
-          { ...makeCatalog("anthropic", "Anthropic"), npm: "@ai-sdk/azure" },
-          { ...makeCatalog("new-provider", "Unknown Provider"), npm: "unknown-sdk" },
+          { ...makeCatalog("anthropic", "Anthropic"), providerType: undefined },
+          { ...makeCatalog("new-provider", "Unknown Provider"), providerType: undefined },
           makeCatalog("groq", "Groq"),
         ],
       });

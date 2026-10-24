@@ -1,28 +1,12 @@
 import type { ProviderType } from "./catalog";
 import type { ConfiguredModel, Provider } from "./persisted";
 
-export interface VerificationResult {
-  ok: boolean;
-  message?: string;
-  code?: string;
-  status?: number;
-  checkedAt: number;
-}
-
-export interface RefreshResult {
-  ok: boolean;
-  source: "live" | "disk" | "memory";
-  fetchedAt: number | null;
-  error?: string;
-}
-
 export type EnabledBackendEntry =
   | {
       configuredModelId: string;
       state: "ok";
       configuredModel: ConfiguredModel;
       provider: Provider;
-      needsSelfHostWarning?: boolean;
     }
   | {
       configuredModelId: string;

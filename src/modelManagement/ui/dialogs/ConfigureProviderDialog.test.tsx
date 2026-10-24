@@ -1,9 +1,11 @@
 import type { ModelConnectionTestInput } from "@/types/modelConnectionTest";
-import type { VerificationResult } from "@/modelManagement/types/runtime";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-const mockVerifyCredentials = jest.fn<Promise<VerificationResult>, [string, unknown]>();
+const mockNetworkRequest = jest.fn();
+const obsidianMock = jest.requireMock<{
+  __setRequestUrlImpl: (impl: unknown) => void;
+}>("obsidian");
 const mockSetupProvider = jest
   .fn<Promise<{ providerId: string; configuredModelIds: string[] }>, [unknown]>()
   .mockResolvedValue({ providerId: "p-new", configuredModelIds: ["cm1"] });
@@ -26,7 +28,6 @@ const mockTestModelConnection = jest
 jest.mock("@/modelManagement/ui/ModelManagementContext", () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real `useModelManagement` hook; the name must match the export
   useModelManagement: () => ({
-    adapters: { verifyCredentials: mockVerifyCredentials },
     testModelConnection: mockTestModelConnection,
     setup: { byok: { setupProvider: mockSetupProvider, saveProviderDraft: mockSaveProviderDraft } },
     resolveDeclaredModelCapabilities: mockResolveDeclared,
@@ -41,8 +42,6 @@ jest.mock("@/modelManagement/ui/ModelManagementContext", () => ({
     coordinator: { removeProvider: jest.fn() },
     catalogService: {
       getProvider: mockGetProvider,
-      ensureLoaded: jest.fn().mockResolvedValue(undefined),
-      onChange: jest.fn().mockReturnValue(() => {}),
     },
   }),
 }));
@@ -106,11 +105,6 @@ jest.mock("@/components/ui/password-input", () => ({
     <input data-testid="api-key" value={value} onChange={(e) => onChange?.(e.target.value)} />
   ),
 }));
-const mockListProviderModels = jest.fn<Promise<unknown>, unknown[]>();
-jest.mock("@/modelManagement/providers/adapters/listProviderModels", () => ({
-  listProviderModels: (...args: unknown[]) => mockListProviderModels(...args),
-}));
-
 import type { ProviderDefinition } from "@/modelManagement/types/runtime";
 import { CUSTOM_OPENAI_DEFINITION } from "@/modelManagement/catalog/builtinDefinitions";
 import { ConfigureProviderForm } from "./ConfigureProviderDialog";
@@ -137,9 +131,8 @@ const local: ProviderDefinition = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetApiKey.mockResolvedValue("existing-key");
-  mockVerifyCredentials.mockResolvedValue({ ok: true, checkedAt: 1 });
+  obsidianMock.__setRequestUrlImpl(mockNetworkRequest);
   mockSaveProviderDraft.mockResolvedValue({ providerId: "new", configuredModelIds: [] });
-  mockListProviderModels.mockResolvedValue({ ok: true, modelIds: [] });
   mockGetProvider.mockReturnValue(undefined);
   mockResolveDeclared.mockReturnValue(undefined);
 });
@@ -147,14 +140,22 @@ function manualAdd(id: string) {
   fireEvent.click(screen.getByRole("button", { name: "Add model" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Model ID" }), { target: { value: id } });
 }
-async function fetchAndAdd(id: string) {
-  fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
+async function selectAndAdd(id: string) {
+  fireEvent.click(screen.getByRole("button", { name: "Choose built-in models" }));
   fireEvent.click(await screen.findByRole("checkbox", { name: id }));
   fireEvent.click(screen.getByRole("button", { name: "Add selected (1)" }));
 }
 
 describe("ConfigureProviderDialog", () => {
   describe("ConfigureProviderForm()", () => {
+    it(`saves a newly entered key without making a provider-list or verification request (${ISSUE})`, async () => {
+      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
+      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "offline-key" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(mockSaveProviderDraft).toHaveBeenCalled());
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
+      expect(mockTestModelConnection).not.toHaveBeenCalled();
+    });
     it(`tests the selected model with unsaved endpoint and key without saving the provider (${ISSUE})`, async () => {
       render(
         <ConfigureProviderForm state={{ mode: "edit", providerId: "p1" }} onClose={jest.fn()} />
@@ -177,7 +178,7 @@ describe("ConfigureProviderDialog", () => {
         apiKey: "unsaved-key-fixture",
       });
       expect(sent.signal).toBeInstanceOf(AbortSignal);
-      expect(mockListProviderModels).not.toHaveBeenCalled();
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
       expect(mockSaveProviderDraft).not.toHaveBeenCalled();
     });
     it.each(["OpenAI Responses", "Anthropic Messages"])(
@@ -214,9 +215,9 @@ describe("ConfigureProviderDialog", () => {
         "https://generativelanguage.googleapis.com/v1beta"
       );
     });
-    it(`does not contact the provider until the model list is requested (${ISSUE})`, () => {
+    it(`opens provider configuration without contacting any service (${ISSUE})`, () => {
       render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
-      expect(mockListProviderModels).not.toHaveBeenCalled();
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
       expect(screen.getByRole("textbox", { name: "Base URL" })).toHaveProperty(
         "value",
         "https://api.anthropic.com"
@@ -239,31 +240,9 @@ describe("ConfigureProviderDialog", () => {
           expect.objectContaining({ baseUrl: "https://custom.example/v1", apiKey: "", models: [] })
         )
       );
-      expect(mockVerifyCredentials).not.toHaveBeenCalled();
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
     });
-    it(`fetches models using the draft endpoint and saved key without rewriting the key (${ISSUE})`, async () => {
-      mockGetApiKey.mockResolvedValue("saved-secret");
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["work-model"] });
-      render(
-        <ConfigureProviderForm
-          state={{ mode: "edit", providerId: "p-custom" }}
-          onClose={jest.fn()}
-        />
-      );
-      await screen.findByDisplayValue("saved-secret");
-      fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
-        target: { value: "https://new.example/v1" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Get model list" }));
-      await screen.findByRole("checkbox", { name: "work-model" });
-      expect(mockListProviderModels).toHaveBeenCalledWith(
-        "openai-compatible",
-        "https://new.example/v1",
-        expect.objectContaining({ apiKey: "saved-secret" })
-      );
-      expect(mockSetApiKey).not.toHaveBeenCalled();
-    });
-    it(`merges real list results with catalog and Pi declarations before adding model cards (${ISSUE})`, async () => {
+    it(`combines built-in names and Pi capabilities before adding offline model cards (${ISSUE})`, async () => {
       mockGetProvider.mockReturnValue({
         models: {
           a: {
@@ -278,10 +257,9 @@ describe("ConfigureProviderDialog", () => {
         capabilities: { structuredOutput: true },
         reasoningEfforts: ["low", "high"],
       });
-      mockListProviderModels.mockResolvedValue({ ok: true, modelIds: ["a"] });
       render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
       fireEvent.change(screen.getByTestId("api-key"), { target: { value: "secret" } });
-      await fetchAndAdd("a");
+      await selectAndAdd("a");
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
       await waitFor(() =>
         expect(mockSaveProviderDraft).toHaveBeenCalledWith(
@@ -399,37 +377,9 @@ describe("ConfigureProviderDialog", () => {
         />
       );
       expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
-      expect(mockListProviderModels).not.toHaveBeenCalled();
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
     });
-    it(`rejects an invalid key on Save and reports the real verification error (${ISSUE})`, async () => {
-      mockVerifyCredentials.mockResolvedValue({
-        ok: false,
-        code: "invalid_api_key",
-        message: "Authentication failed",
-        checkedAt: 1,
-      });
-      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "bad-key" } });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      expect(await screen.findByRole("alert")).toHaveProperty(
-        "textContent",
-        "Authentication failed"
-      );
-      expect(mockSaveProviderDraft).not.toHaveBeenCalled();
-    });
-    it(`allows saving when verification is inconclusive due to network failure (${ISSUE})`, async () => {
-      mockVerifyCredentials.mockResolvedValue({
-        ok: false,
-        code: "network",
-        message: "offline",
-        checkedAt: 1,
-      });
-      render(<ConfigureProviderForm state={{ mode: "new", source }} onClose={jest.fn()} />);
-      fireEvent.change(screen.getByTestId("api-key"), { target: { value: "secret" } });
-      fireEvent.click(screen.getByRole("button", { name: "Save" }));
-      await waitFor(() => expect(mockSaveProviderDraft).toHaveBeenCalled());
-    });
-    it(`does not reverify an unchanged saved key and only reports success after persistence (${ISSUE})`, async () => {
+    it(`reports a saved configuration only after persistence succeeds (${ISSUE})`, async () => {
       let finish!: () => void;
       mockSaveProviderDraft.mockImplementationOnce(
         () =>
@@ -449,13 +399,13 @@ describe("ConfigureProviderDialog", () => {
       await screen.findByDisplayValue("existing-key");
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
       await waitFor(() => expect(mockSaveProviderDraft).toHaveBeenCalled());
-      expect(mockVerifyCredentials).not.toHaveBeenCalled();
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
       expect(onSaved).not.toHaveBeenCalled();
       act(() => finish());
       await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
       expect(onClose).toHaveBeenCalledTimes(1);
     });
-    it(`verifies changed credentials against the draft endpoint before saving (${ISSUE})`, async () => {
+    it(`saves changed credentials and the draft endpoint without a network request (${ISSUE})`, async () => {
       render(
         <ConfigureProviderForm
           state={{ mode: "edit", providerId: "p-custom" }}
@@ -468,14 +418,12 @@ describe("ConfigureProviderDialog", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
       await waitFor(() =>
-        expect(mockVerifyCredentials).toHaveBeenCalledWith(
-          "openai-compatible",
-          expect.objectContaining({
-            apiKey: "new-key",
-            provider: expect.objectContaining({ baseUrl: "https://new.example/v1" }) as unknown,
-          })
+        expect(mockSaveProviderDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ apiKey: "new-key", baseUrl: "https://new.example/v1" })
         )
       );
+      expect(mockNetworkRequest).not.toHaveBeenCalled();
+      expect(mockTestModelConnection).not.toHaveBeenCalled();
     });
   });
 });

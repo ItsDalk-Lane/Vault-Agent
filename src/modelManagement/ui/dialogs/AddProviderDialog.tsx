@@ -79,7 +79,10 @@ export const AddProviderContent: React.FC<AddProviderContentProps> = ({
 
   return (
     <div className="tw-flex tw-h-full tw-min-h-0 tw-flex-col tw-gap-4 tw-overflow-hidden tw-px-2">
-      <div className="tw-text-sm tw-text-muted">{t("ui.model.pickProvider")}</div>
+      <div className="tw-text-sm tw-text-muted">
+        {t("ui.model.pickProvider")}
+        <p className="tw-mb-0 tw-mt-1 tw-text-xs">{t("ui.model.catalogSource")}</p>
+      </div>
 
       <SearchBar value={query} onChange={setQuery} placeholder={t("ui.model.searchProviders")} />
 

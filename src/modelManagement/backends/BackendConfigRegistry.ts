@@ -2,7 +2,6 @@ import { isProviderEnabled } from "@/modelManagement/providers/providerAvailabil
 import { logError } from "@/logger";
 import { getSettings, setSettings } from "@/settings/model";
 
-import { providerNeedsSelfHostWarning } from "@/modelManagement/providers/selfHostPolicy";
 import type { BackendConfig, BackendType } from "@/modelManagement/types/persisted";
 import type { EnabledBackendEntry } from "@/modelManagement/types/runtime";
 import type { ConfiguredModelRegistry } from "@/modelManagement/models/ConfiguredModelRegistry";
@@ -70,7 +69,8 @@ export class BackendConfigRegistry {
     const enabledIds = config.enabledModels.filter((id) => {
       const model = this.#models.get(id);
       const provider = model ? this.#providers.get(model.providerId) : undefined;
-      return !provider || isProviderEnabled(provider);
+      // 已保存的非当前来源不能重新进入可运行模型列表。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+      return !provider || (provider.origin.kind === "byok" && isProviderEnabled(provider));
     });
     if (enabledIds.length === 0) return EMPTY_RESOLVED;
     return enabledIds.map((configuredModelId): EnabledBackendEntry => {
@@ -79,9 +79,7 @@ export class BackendConfigRegistry {
         ? this.#providers.get(configuredModel.providerId)
         : undefined;
       if (configuredModel && provider) {
-        const needsSelfHostWarning =
-          settings.enableSelfHostMode && providerNeedsSelfHostWarning(provider, settings);
-        return { configuredModelId, state: "ok", configuredModel, provider, needsSelfHostWarning };
+        return { configuredModelId, state: "ok", configuredModel, provider };
       }
       return { configuredModelId, state: "broken" };
     });

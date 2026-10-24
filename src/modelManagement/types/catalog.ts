@@ -24,7 +24,6 @@ export interface CatalogProvider {
   displayName: string;
   defaultBaseUrl?: string;
   providerType?: ProviderType;
-  npm?: string;
-  api?: string;
+  useResponsesApi?: boolean;
   models: Record<string, ModelInfo>;
 }

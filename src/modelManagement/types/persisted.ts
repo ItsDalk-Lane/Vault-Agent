@@ -1,15 +1,11 @@
 import type { ModelInfo, ProviderType } from "./catalog";
 
-export type LegacyAgentType = "opencode" | "claude" | "codex";
+export type BackendType = "chat" | "pi";
 
-export type BackendType = LegacyAgentType | "chat" | "pi";
-
-export type ProviderOrigin =
-  | {
-      kind: "byok";
-      catalogProviderId?: string;
-    }
-  | { kind: "agent"; agentType: LegacyAgentType };
+export interface ProviderOrigin {
+  kind: "byok";
+  catalogProviderId?: string;
+}
 
 export interface Provider {
   providerId: string;

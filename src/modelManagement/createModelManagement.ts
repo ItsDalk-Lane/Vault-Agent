@@ -4,12 +4,8 @@ import type { ModelConnectionTestInput } from "@/types/modelConnectionTest";
 import type { ModelInfo } from "@/modelManagement/types/catalog";
 
 import { BackendConfigRegistry } from "@/modelManagement/backends/BackendConfigRegistry";
-import { CatalogDownloadService } from "@/modelManagement/catalog/CatalogDownloadService";
+import { BuiltinModelCatalog } from "@/modelManagement/catalog/BuiltinModelCatalog";
 import { ConfiguredModelRegistry } from "@/modelManagement/models/ConfiguredModelRegistry";
-import {
-  createDefaultAdapterRegistry,
-  ProviderAdapterRegistry,
-} from "@/modelManagement/providers/adapters/ProviderAdapterRegistry";
 import { ProviderRegistry } from "@/modelManagement/providers/ProviderRegistry";
 import { ByokSetupApi } from "@/modelManagement/setup/ByokSetupApi";
 
@@ -28,11 +24,10 @@ export interface ModelManagementApi {
     providerId: string,
     modelId: string
   ) => Partial<ModelInfo> | undefined;
-  catalogService: CatalogDownloadService;
+  catalogService: BuiltinModelCatalog;
   providerRegistry: ProviderRegistry;
   configuredModelRegistry: ConfiguredModelRegistry;
   backendConfigRegistry: BackendConfigRegistry;
-  adapters: ProviderAdapterRegistry;
   setup: {
     byok: ByokSetupApi;
   };
@@ -73,10 +68,8 @@ export class ModelManagementCoordinator {
 export function createModelManagement(input: CreateModelManagementInput): ModelManagementApi {
   const { app } = input;
 
-  const adapters = createDefaultAdapterRegistry();
-
-  const catalogService = new CatalogDownloadService({ app });
-  const providerRegistry = new ProviderRegistry(app, adapters);
+  const catalogService = new BuiltinModelCatalog();
+  const providerRegistry = new ProviderRegistry(app);
   const configuredModelRegistry = new ConfiguredModelRegistry();
   const backendConfigRegistry = new BackendConfigRegistry(
     providerRegistry,
@@ -103,7 +96,6 @@ export function createModelManagement(input: CreateModelManagementInput): ModelM
     providerRegistry,
     configuredModelRegistry,
     backendConfigRegistry,
-    adapters,
     setup,
     coordinator,
     dispose: () => {},

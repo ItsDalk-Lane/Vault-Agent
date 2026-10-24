@@ -1,23 +1,17 @@
-import { resolveProviderBaseUrl } from "@/modelManagement/catalog/providerCapability";
 import type { App } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
 
-import { providerNeedsResolvedApiKey } from "@/modelManagement/providers/providerRequiresApiKey";
 import { logError } from "@/logger";
 import { KeychainService, providerKeychainName } from "@/services/keychainService";
 import { getSettings, setSettings } from "@/settings/model";
 import { frozenOr, sliceMemo, sliceMemoByKey } from "@/utils/sliceCache";
 
 import type { Provider, ProviderOrigin } from "@/modelManagement/types/persisted";
-import type { VerificationResult } from "@/modelManagement/types/runtime";
-import type { ProviderAdapterRegistry } from "./adapters/ProviderAdapterRegistry";
-import { t } from "@/i18n";
 
 const EMPTY_LIST: readonly Provider[] = Object.freeze([]);
 
 export class ProviderRegistry {
   readonly #app: App;
-  readonly #adapters: ProviderAdapterRegistry;
 
   readonly #list = sliceMemo((source: Record<string, Provider>) =>
     frozenOr(Object.values(source), EMPTY_LIST)
@@ -32,9 +26,8 @@ export class ProviderRegistry {
 
   readonly #listeners = new Set<(providerId: string) => void>();
 
-  constructor(app: App, adapters: ProviderAdapterRegistry) {
+  constructor(app: App) {
     this.#app = app;
-    this.#adapters = adapters;
   }
 
   subscribe(listener: (providerId: string) => void): () => void {
@@ -194,40 +187,5 @@ export class ProviderRegistry {
       this.#setApiKeyKeychainId(providerId, null);
       this.#emit(providerId);
     }
-  }
-
-  async verify(providerId: string): Promise<VerificationResult> {
-    const provider = this.get(providerId);
-    if (!provider) {
-      throw new Error(
-        `[modelManagement] ProviderRegistry.verify: unknown providerId ${providerId}`
-      );
-    }
-    const apiKey = await this.getApiKey(providerId);
-    // https://github.com/logancyang/obsidian-copilot/issues/3147:
-    // A public models endpoint must not mask a missing stored credential.
-    if (providerNeedsResolvedApiKey(provider) && !apiKey?.trim()) {
-      return {
-        ok: false,
-        code: "missing_api_key",
-        message: t("ui.model.err.missingApiKey"),
-        checkedAt: Date.now(),
-      };
-    }
-    const baseUrl = resolveProviderBaseUrl(provider);
-    // 凭据校验也必须遵守地址策略，不能把第三方旧密钥送往协议默认主机。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
-    if (!baseUrl) {
-      return {
-        ok: false,
-        code: "missing_base_url",
-        message: t("ui.byok.requiredBaseUrl"),
-        checkedAt: Date.now(),
-      };
-    }
-    return this.#adapters.verifyCredentials(provider.providerType, {
-      provider: { ...provider, baseUrl },
-      apiKey,
-      extras: provider.extras ?? {},
-    });
   }
 }

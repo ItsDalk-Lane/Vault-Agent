@@ -7,14 +7,37 @@ const meta = {
   parameters: { gallery: { host: "modal", layout: "padded" } },
   args: {
     catalogProviders: [
-      { id: "anthropic", displayName: "Anthropic", npm: "@ai-sdk/anthropic", models: {} },
-      { id: "openai", displayName: "OpenAI", npm: "@ai-sdk/openai", models: {} },
-      { id: "google", displayName: "Google", npm: "@ai-sdk/google", models: {} },
-      { id: "groq", displayName: "Groq", npm: "@ai-sdk/groq", models: {} },
+      {
+        id: "anthropic",
+        displayName: "Anthropic",
+        providerType: "anthropic",
+        defaultBaseUrl: "https://api.anthropic.com",
+        models: {},
+      },
+      {
+        id: "openai",
+        displayName: "OpenAI",
+        providerType: "openai-compatible",
+        defaultBaseUrl: "https://api.openai.com/v1",
+        models: {},
+      },
+      {
+        id: "google",
+        displayName: "Google",
+        providerType: "google",
+        defaultBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+        models: {},
+      },
+      {
+        id: "groq",
+        displayName: "Groq",
+        providerType: "openai-compatible",
+        defaultBaseUrl: "https://api.groq.com/openai/v1",
+        models: {},
+      },
       {
         id: "unsupported",
         displayName: "Unavailable Provider",
-        npm: "unclassified-package",
         models: {},
       },
     ],
