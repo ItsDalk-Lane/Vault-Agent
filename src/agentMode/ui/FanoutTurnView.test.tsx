@@ -13,10 +13,14 @@ jest.mock("@/agentMode/ui/AgentMarkdownText", () => ({
 jest.mock("@/agentMode/backends/registry", () => {
   const Icon = () => null;
   return {
-    backendRegistry: {
-      opencode: { id: "opencode", displayName: "opencode", Icon },
-      claude: { id: "claude", displayName: "Claude", Icon },
-    },
+    describeBackendForHistory: (id: string) => ({
+      id,
+      label:
+        ({ opencode: "opencode", claude: "Claude", codex: "Codex" } as Record<string, string>)[
+          id
+        ] ?? id,
+      Icon: ["opencode", "claude", "codex"].includes(id) ? Icon : undefined,
+    }),
   };
 });
 
@@ -52,6 +56,22 @@ const Harness: React.FC<{ t: FanoutTurn }> = ({ t }) => {
 const renderView = (t: FanoutTurn) => render(<Harness t={t} />);
 
 describe("FanoutTurnView", () => {
+  it("explains that a saved comparison has not started instead of claiming its budget ran out https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    const queued = {
+      ...turn([answer("claude", "paused"), answer("opencode", "paused")], "", "paused"),
+      checkpoint: {
+        fanoutId: "queued",
+        mainModelKey: "claude",
+        originalPromptText: "Compare",
+        prompt: [],
+        awaitingAdmission: true,
+      },
+    };
+    renderView(queued);
+    expect(screen.getByText(/not started/i)).toBeTruthy();
+    expect(screen.queryByText(/task limit/i)).toBeNull();
+  });
+
   it("https://github.com/Brevilabs/obsidian-copilot-private/issues/481 shows only the sole mentioned agent and its answer", () => {
     renderView(turn([answer("claude", "done", "Claude answered directly")]));
 
@@ -80,6 +100,12 @@ describe("FanoutTurnView", () => {
     }
   );
 
+  it("shows a paused state beside retained partial text without a streaming indicator https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    renderView(turn([answer("model-a", "paused", "Partial answer")], "", "paused"));
+    expect(screen.getByText("Partial answer")).toBeTruthy();
+    expect(screen.getByText(/Paused at the task limit/)).toBeTruthy();
+    expect(screen.queryByText("Thinking…")).toBeNull();
+  });
   it("shows a pending placeholder when the summary has no text yet", () => {
     const t = turn([answer("opencode", "running"), answer("claude", "running")], "", "pending");
     renderView(t);

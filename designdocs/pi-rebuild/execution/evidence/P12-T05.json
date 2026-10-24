@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P12-T05",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P12-T05.json",
+    "reason": "生产网页资料工具尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P12-T05-01", "SC-P12-T05-02", "SC-P12-T05-03", "SC-P12-T05-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 10,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P12-T05",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/WebFetch.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 10,
+      "durationSeconds": 2.396,
+      "logPath": "/tmp/vault-agent-detailed-p12-t05.log",
+      "logSha256": "038599afe7018eef15c2f149fa782d728950f47b51ea7d1bd5c14e3f640e93ed",
+      "testFile": "src/agentMode/sdk/pi/tools/WebFetch.test.ts",
+      "testSourceSha256": "f7cc02921a5fbefd5eab9a6eec6f531f019355e8a0d53b50a488f94fc02313a2",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P12-T05-01",
+      "requirement": "重定向到localhost被挡",
+      "result": "passed",
+      "evidence": "生产WebFetch复用逐跳校验算法，指定模块模拟重定向至localhost后拒绝；实际PiWebFetch另固定经检查DNS地址，拒绝私网。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T05-02",
+      "requirement": "超时停止读取",
+      "result": "passed",
+      "evidence": "生产WebFetch使用真实AbortSignal和Node请求，定向模块在deadline触发后终止reader并报告timeout，非返回假成功。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T05-03",
+      "requirement": "网页指令不改policy",
+      "result": "passed",
+      "evidence": "实际web_fetch只返回资料output和details，无修改mode/policy接口；WebFetch模块对恶意网页返回untrusted材料。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T05-04",
+      "requirement": "fetch卡显示真实目标与失败",
+      "result": "passed",
+      "evidence": "生产web_fetch实际注册把url保留在kind=fetch的请求/rawInput；拒绝返回PERMISSION_DENIED且isError=true，经实际ToolTask/Translator投影成失败卡，原目标不被替换；WebFetch直接用例另检实际目标/超时错误。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际技能、资料预算与来源、私有图片、完整图片备份重载、受控网页及快捷命令已接入；未编造网络结果。",
+    "actualRuntimeReferences": ["production:web_denial_without_network"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

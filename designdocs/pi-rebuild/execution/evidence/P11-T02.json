@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P11-T02",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P11-T02.json",
+    "reason": "生产只读候选任务尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P11-T02-01", "SC-P11-T02-02", "SC-P11-T02-03", "SC-P11-T02-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "taskId": "P11-T02",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/fanout/FanoutRunner.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 9,
+      "durationSeconds": 3.567,
+      "logPath": "/tmp/vault-agent-detailed-p11-t02.log",
+      "logSha256": "7e740f2c5b28eb53763b7b5334d98857949444a417532233f43926530ec1e809",
+      "testFile": "src/agentMode/sdk/pi/features/fanout/FanoutRunner.test.ts",
+      "testSourceSha256": "317f6ec2203ba5727ce02d064c3eff4bc9c5bfe83aab84faed8b6b44fb8577da",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P11-T02-01",
+      "requirement": "候选拒绝写工具",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：never gives a candidate a write tool or write effect。实际生产接线复核：AgentChatInput/mention modelKey → AgentSession.runFanoutPath → AgentSessionManager.runFanoutTurn → FanoutOrchestrator -> PiBackendProcess → shared parent Harness independent child Conversations → FanoutMessageCard。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P11-T02-02",
+      "requirement": "一个失败不抹其他结果",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：keeps the other results when one candidate fails。实际生产接线复核：AgentChatInput/mention modelKey → AgentSession.runFanoutPath → AgentSessionManager.runFanoutTurn → FanoutOrchestrator -> PiBackendProcess → shared parent Harness independent child Conversations → FanoutMessageCard。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P11-T02-03",
+      "requirement": "真正不同模型被调用",
+      "result": "not_run",
+      "evidence": "实际查询LM Studio /api/v1/models清单仅qwen/qwen3.8-27b是llm且loaded=1，另nomic是embedding且loaded=0；两个configuredModelKey/同模型另id/embedding均不能冒充第二实际对话模型。需第二个已授权可用的真实LLM；未下载或虚构模型。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P11-T02-04",
+      "requirement": "取消不留隐藏任务",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：cancels every unfinished candidate and leaves no hidden task。实际生产接线复核：AgentChatInput/mention modelKey → AgentSession.runFanoutPath → AgentSessionManager.runFanoutTurn → FanoutOrchestrator -> PiBackendProcess → shared parent Harness independent child Conversations → FanoutMessageCard。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [
+    "SC-P11-T02-03：实际查询LM Studio /api/v1/models清单仅qwen/qwen3.8-27b是llm且loaded=1，另nomic是embedding且loaded=0；两个configuredModelKey/同模型另id/embedding均不能冒充第二实际对话模型。需第二个已授权可用的真实LLM；未下载或虚构模型。",
+    "原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"
+  ],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际不同modelKey候选、只读限制、单次综合与完成候选恢复零请求已回归；材料与用户问题分离，恢复快照材料有预算。",
+    "actualRuntimeReferences": [
+      "fanout:two_saved_models_reach_real_runtime",
+      "fanout:independent_read_only_sessions"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "modelIdentityLimit": "两个配置ID的路由已验证；不同实际推理模型未验证。",
+    "acceptanceStatus": "specific_assertions_not_yet_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": ["SC-P11-T02-03"],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

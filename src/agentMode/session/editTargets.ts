@@ -1,4 +1,4 @@
-import { isAbsolutePath, toVaultRelative } from "@/utils/vaultPath";
+import { toVaultRelative } from "@/utils/vaultPath";
 
 export interface EditTargetSource {
   locations?: ReadonlyArray<{ path?: string | null }> | null;
@@ -18,7 +18,7 @@ export function diffTargetPaths(
   return [...paths];
 }
 
-// One file must map to one capture key, and backslashes must not slip hidden or outside paths past capture.
+// 同一文件的展示路径需要统一分隔符，避免工具卡片显示重复位置。
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/347
 export function toVaultTargetPath(path: string, vaultBase: string | null): string {
   return toVaultRelative(path, vaultBase).replace(/\\/g, "/");
@@ -40,24 +40,4 @@ export function primaryEditTargetPath(
   const diffPaths = source.diffPaths ?? [];
   if (diffPaths.length === 1) return toVaultTargetPath(diffPaths[0], vaultBase);
   return null;
-}
-
-export function editTargetPaths(source: EditTargetSource, vaultBase: string | null): string[] {
-  const paths = new Set<string>();
-  for (const loc of source.locations ?? []) {
-    if (typeof loc?.path === "string" && loc.path.length > 0) {
-      paths.add(toVaultTargetPath(loc.path, vaultBase));
-    }
-  }
-  const primary = primaryEditTargetPath({ input: source.input }, vaultBase);
-  if (primary) paths.add(primary);
-  for (const diffPath of source.diffPaths ?? []) {
-    paths.add(toVaultTargetPath(diffPath, vaultBase));
-  }
-  return [...paths];
-}
-
-export function isCapturableVaultPath(path: string): boolean {
-  if (path.length === 0 || isAbsolutePath(path)) return false;
-  return !path.split("/").some((segment) => segment.startsWith("."));
 }

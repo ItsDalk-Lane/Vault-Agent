@@ -1,46 +1,40 @@
 import type { App } from "obsidian";
 import type VaultAgentPlugin from "@/main";
 import type { VaultAgentSettings } from "@/settings/model";
-import type { InstallState } from "./session/types";
+import type { BackendDescriptor } from "./session/types";
 import type { BuiltinSkillRuntime } from "./skills/SkillManager";
-import { createAgentSessionManager } from "./index";
+import { applyVaultAgentDefaultModel, createAgentSessionManager } from "./index";
 import { reconcileBuiltinSkills } from "./skills/builtin/reconcileBuiltinSkills";
-import { BackendConfigRegistry } from "@/modelManagement";
+import { AgentModelPreloader } from "./session/AgentModelPreloader";
+import { seedVaultAgentDefaultModel } from "./session/vaultAgentDefaultModel";
 
+jest.mock("@/agentMode/sdk/pi/models/DeclaredModelCapabilities", () => ({
+  lookupDeclaredModelCapabilities: jest.fn(),
+}));
 jest.mock("@/constants", () => ({}));
 jest.mock("@/logger", () => ({ logError: jest.fn() }));
-jest.mock("@/modelManagement", () => ({
-  BackendConfigRegistry: jest.requireActual("@/modelManagement/backends/BackendConfigRegistry")
-    .BackendConfigRegistry,
-}));
 jest.mock("@/settings/model", () => ({
   getSettings: () => mockSettings,
-  setSettings: (update: (settings: VaultAgentSettings) => Partial<VaultAgentSettings>) => {
-    emitSettingsChange(mockSettings, { ...mockSettings, ...update(mockSettings) });
-  },
   subscribeToSettingsChange: (callback: SettingsSubscriber) => {
     mockSettingsSubscribers.push(callback);
     return () => {};
   },
 }));
 jest.mock("@/settings/vaultAgentFolder", () => ({
-  deriveSkillsFolder: () => "vault-agent/skills",
+  deriveSkillsFolder: (settings: VaultAgentSettings) => `${settings.vaultAgentFolder}/skills`,
 }));
 jest.mock("@/settings/builtinSkillPreferences", () => ({ saveBuiltinPreferences: jest.fn() }));
-jest.mock("@/system-prompts/state", () => ({ subscribeToSystemPromptChange: jest.fn() }));
 jest.mock("@/utils/appPaths", () => ({
-  vaultAgentAppDataDir: () => "/tmp/copilot",
+  vaultAgentAppDataDir: () => "/tmp/vault-agent",
   getVaultId: () => "test-vault",
 }));
-jest.mock("./backends/shared/agentSystemPrompt", () => ({
-  buildAgentSystemPrompt: (id: string) =>
-    `prompt:${id}:${JSON.stringify(mockSettings.agentMode.skills.builtinPreferences ?? {})}:${mockSettings.agentMode.offerFeedbackCards}`,
-}));
-jest.mock("./backends/shared/builtinSkillEnv", () => ({
-  getBuiltinSkillEnvRestartPolicy: () => "none",
-}));
 jest.mock("./backends/registry", () => ({
-  backendRegistry: {},
+  backendRegistry: {
+    get pi() {
+      return mockDescriptor;
+    },
+  },
+  CREATABLE_BACKEND_IDS: Object.freeze(["pi"]),
   listBackendDescriptors: () => mockDescriptors,
 }));
 jest.mock("./session/AgentChatPersistenceManager", () => ({
@@ -53,82 +47,63 @@ jest.mock("./session/AgentSessionManager", () => ({
   AgentSessionManager: jest.fn(() => mockManager),
 }));
 jest.mock("./session/vaultAgentDefaultModel", () => ({ seedVaultAgentDefaultModel: jest.fn() }));
+jest.mock("./session/feedback/feedbackMcpServer", () => ({ createFeedbackMcpServer: jest.fn() }));
 jest.mock("./skills", () => ({
   SkillManager: {
-    initialize: (_app: App, _dirs: unknown, runtime: BuiltinSkillRuntime) => {
+    initialize: jest.fn((_app: App, runtime: BuiltinSkillRuntime) => {
       mockRuntime = runtime;
-      return { refresh: mockRefresh, subscribeToSkillSetChange: jest.fn() };
-    },
+      return { refresh: mockRefresh };
+    }),
   },
 }));
-jest.mock("./skills/builtin/reconcileBuiltinSkills", () => ({
-  ...jest.requireActual("./skills/builtin/reconcileBuiltinSkills"),
-  reconcileBuiltinSkills: jest.fn(),
-}));
+jest.mock("./skills/builtin/reconcileBuiltinSkills", () => ({ reconcileBuiltinSkills: jest.fn() }));
 jest.mock("./skills/builtin/vaultSeedFs", () => ({ buildBuiltinSeedFs: jest.fn() }));
 jest.mock("./ui/permissionPrompter", () => ({
   createDefaultPermissionPrompter: jest.fn(),
   createDefaultAskUserQuestionPrompter: jest.fn(),
 }));
 jest.mock("./ui/VaultAgentView", () => ({}));
-jest.mock("./ui/useBackendDescriptor", () => ({}));
-jest.mock("./backends/opencode/opencodeProbePartition", () => ({}));
-jest.mock("./backends/opencode/opencodeModelResolve", () => ({}));
-jest.mock("./ui/AgentDefaultModelSetting", () => ({}));
 jest.mock("@/components/ui/ModelEnableList", () => ({}));
 jest.mock("./ui/PlanPreviewView", () => ({}));
 jest.mock("./ui/ReportIssueModal", () => ({}));
 jest.mock("./session/debugSink", () => ({}));
-jest.mock("./backends/shared/ui/AgentBackendHeader", () => ({}));
-jest.mock("./session/useBackendAuthState", () => ({}));
+jest.mock("./backends/pi/PiSettingsPanel", () => ({}));
+jest.mock("./backends/pi/PiMcpSettingsPanel", () => ({}));
 
-const ISSUE = "https://github.com/logancyang/obsidian-copilot/issues/3022";
-const LINEUP_ISSUE = "https://github.com/Brevilabs/obsidian-copilot-private/issues/319";
-const RELOAD_ISSUE = "https://github.com/Brevilabs/obsidian-copilot-private/issues/475";
+const ISSUE = "https://github.com/ItsDalk-Lane/Vault-Agent/issues/1";
 type SettingsSubscriber = (prev: VaultAgentSettings, next: VaultAgentSettings) => void;
 const mockSettingsSubscribers: SettingsSubscriber[] = [];
 let mockSettings: VaultAgentSettings;
 let mockRuntime: BuiltinSkillRuntime;
-const mockStates: Record<string, InstallState> = {};
-const mockInstallListeners: Record<string, () => void> = {};
-const mockDescriptors = ["claude", "opencode"].map((id) => ({
-  id,
-  onPluginLoad: jest.fn(async (_plugin: VaultAgentPlugin) => {}),
-  skillsProjectDir: `.${id}/skills`,
-  restartOnProviderConfigChange: id === "opencode",
-  restartOnSystemPromptChange: id === "opencode",
-  getInstallState: () => mockStates[id],
-  subscribeInstallState: (_plugin: unknown, listener: () => void) => {
-    mockInstallListeners[id] = listener;
-  },
-}));
+const mockDescriptor = {
+  id: "pi",
+  restartOnProviderConfigChange: true,
+} as unknown as BackendDescriptor;
+const mockDescriptors = Object.freeze([mockDescriptor]);
 const mockRefresh = jest.fn<Promise<unknown>, unknown[]>();
 const mockManager = {
   preloadModels: jest.fn(async () => {}),
   restartBackend: jest.fn(async (_id: string, _reason: string) => {}),
   noteSpawnConfigChanged: jest.fn(async (_id: string, _reason: string) => {}),
   registerPreload: jest.fn<void, [string, Promise<void>]>(),
-  onInstallStateChanged: jest.fn(async (_id: string) => {}),
 };
 let plugin: VaultAgentPlugin;
 const reconcile = jest.mocked(reconcileBuiltinSkills);
-function settingsWith(overrides: Record<string, unknown>): VaultAgentSettings {
+
+function settingsWith(overrides: Record<string, unknown> = {}): VaultAgentSettings {
   return {
-    agentMode: { skills: {} },
+    vaultAgentFolder: "vault-agent",
+    agentMode: { skills: {}, backends: {} },
     providers: {
-      plus: { providerId: "plus", origin: { kind: "copilot-plus" } },
-      claude: { providerId: "claude", origin: { kind: "agent", agentType: "claude" } },
-      native: { providerId: "native", origin: { kind: "agent", agentType: "opencode" } },
-      "unused-byok": { providerId: "unused-byok", origin: { kind: "byok" } },
+      byok: { providerId: "byok", origin: { kind: "byok" } },
+      archived: { providerId: "archived", origin: { kind: "agent", agentType: "claude" } },
+      unused: { providerId: "unused", origin: { kind: "byok" } },
     },
-    backends: {
-      opencode: { enabledModels: ["configured-1"] },
-      claude: { enabledModels: ["claude-haiku"] },
-    },
+    backends: { pi: { enabledModels: ["configured-1"] } },
     configuredModels: [
       {
         configuredModelId: "configured-1",
-        providerId: "plus",
+        providerId: "byok",
         configuredAt: 0,
         info: { id: "glm-5.2", displayName: "GLM-5.2", ...overrides },
       },
@@ -150,326 +125,146 @@ function deferred() {
 }
 
 describe("agentMode", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSettingsSubscribers.length = 0;
+    mockSettings = settingsWith({ reasoning: true });
+    reconcile.mockResolvedValue(undefined);
+    mockRefresh.mockImplementation(() => mockRuntime.prepare("vault-agent/skills"));
+    plugin = {
+      modelManagement: { providerRegistry: { subscribe: jest.fn() } },
+    } as unknown as VaultAgentPlugin;
+  });
+
+  describe("applyVaultAgentDefaultModel()", () => {
+    it(`seeds a selected model only into the current engine ${ISSUE}`, () => {
+      jest.mocked(seedVaultAgentDefaultModel).mockReturnValueOnce(["pi"]);
+      expect(applyVaultAgentDefaultModel("configured-1")).toEqual(["pi"]);
+      expect(seedVaultAgentDefaultModel).toHaveBeenCalledWith(mockDescriptors, "configured-1");
+    });
+  });
+
   describe("createAgentSessionManager()", () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-      mockStates.claude = { kind: "ready", source: "custom" };
-      mockStates.opencode = { kind: "absent" };
-      reconcile.mockResolvedValue(undefined);
-      mockRefresh.mockImplementation(() => mockRuntime.prepare("vault-agent/skills"));
-      mockSettingsSubscribers.length = 0;
-      mockSettings = settingsWith({ reasoning: true });
-      plugin = {
-        modelManagement: {
-          providerRegistry: { subscribe: jest.fn() },
-          backendConfigRegistry: new BackendConfigRegistry(
-            {} as ConstructorParameters<typeof BackendConfigRegistry>[0],
-            {} as ConstructorParameters<typeof BackendConfigRegistry>[1]
-          ),
-        },
-      } as unknown as VaultAgentPlugin;
-    });
-
-    it("waits for each backend upgrade before preloading while other agents remain usable (https://github.com/Brevilabs/obsidian-copilot-private/issues/530)", async () => {
-      const upgrade = deferred();
-      mockStates.opencode = { kind: "ready", source: "managed" };
-      mockDescriptors[1].onPluginLoad.mockReturnValueOnce(upgrade.promise);
-      createAgentSessionManager({} as App, plugin);
-      await mockManager.registerPreload.mock.calls.find(([id]) => id === "claude")![1];
-      expect(mockManager.preloadModels).toHaveBeenCalledWith("claude");
-      expect(mockManager.preloadModels).not.toHaveBeenCalledWith("opencode");
-      upgrade.resolve();
-      await mockManager.registerPreload.mock.calls.find(([id]) => id === "opencode")![1];
-      expect(mockManager.preloadModels).toHaveBeenCalledWith("opencode");
-    });
-
-    it("does not restart a backend for installation writes while its upgrade owns startup (https://github.com/Brevilabs/obsidian-copilot-private/issues/530)", async () => {
-      const upgrade = deferred();
-      mockDescriptors[1].onPluginLoad.mockReturnValueOnce(upgrade.promise);
-      createAgentSessionManager({} as App, plugin);
-      mockInstallListeners.opencode();
-      upgrade.resolve();
-      await mockManager.registerPreload.mock.calls.find(([id]) => id === "opencode")![1];
-      expect(mockManager.onInstallStateChanged).not.toHaveBeenCalled();
-    });
-    it("preloads a repaired installation after the upgrade makes it ready (https://github.com/Brevilabs/obsidian-copilot-private/issues/530)", async () => {
-      mockStates.opencode = {
-        kind: "incompatible",
-        source: "managed",
-        currentVersion: "1",
-        minVersion: "2",
-        message: "Upgrade required",
-      };
-      mockDescriptors[1].onPluginLoad.mockImplementationOnce(async () => {
-        mockStates.opencode = { kind: "ready", source: "managed" };
-      });
-      createAgentSessionManager({} as App, plugin);
-      await mockManager.registerPreload.mock.calls.find(([id]) => id === "opencode")![1];
-      expect(mockManager.preloadModels).toHaveBeenCalledWith("opencode");
-    });
-    it(`waits for initial skill reconciliation before preloading ready agents ${ISSUE}`, async () => {
+    it(`waits for canonical skills before preloading the bundled engine ${ISSUE}`, async () => {
       const gate = deferred();
-      reconcile.mockReturnValue(gate.promise);
+      reconcile.mockReturnValueOnce(gate.promise);
       expect(createAgentSessionManager({} as App, plugin)).toBe(mockManager);
       expect(reconcile).toHaveBeenCalledWith(
-        expect.objectContaining({ availableAgents: ["claude"] })
+        expect.objectContaining({
+          availableAgents: ["pi"],
+          registeredAgents: ["pi"],
+          folder: "vault-agent/skills",
+        })
       );
+      expect(mockRuntime.availableAgents()).toEqual(["pi"]);
+      expect(mockRuntime.availableAgents()).toBe(mockRuntime.availableAgents());
+      expect(mockManager.registerPreload.mock.calls.map(([id]) => id)).toEqual(["pi"]);
       expect(mockManager.preloadModels).not.toHaveBeenCalled();
+      const beforeStart = jest.mocked(AgentModelPreloader).mock.calls[0][3]!;
+      const startup = beforeStart("pi");
       gate.resolve();
+      await startup;
       await mockManager.registerPreload.mock.calls[0][1];
-      expect(mockManager.preloadModels).toHaveBeenCalledTimes(1);
-      expect(mockManager.preloadModels).toHaveBeenCalledWith("claude");
+      expect(mockManager.preloadModels).toHaveBeenCalledWith("pi");
     });
 
     it.each(["reported", "rejected"])(
-      `still preloads available agents after a %s initial refresh failure ${ISSUE}`,
+      `keeps the engine available after a %s skill refresh failure ${ISSUE}`,
       async (failure) => {
         if (failure === "reported") mockRefresh.mockResolvedValueOnce({ ok: false });
         else mockRefresh.mockRejectedValueOnce(new Error("Disk unavailable"));
         createAgentSessionManager({} as App, plugin);
         await mockManager.registerPreload.mock.calls[0][1];
-        expect(mockManager.preloadModels).toHaveBeenCalledWith("claude");
+        expect(mockManager.preloadModels).toHaveBeenCalledWith("pi");
       }
     );
 
-    it(`settles new-agent skills before refreshing that agent's installation ${ISSUE}`, async () => {
+    it.each([
+      [{ reasoningEfforts: ["low", "high"] }, { reasoningEfforts: ["medium", "high"] }],
+      [{ toolCall: true }, { toolCall: false }],
+    ])(
+      `refreshes the current model catalog when usable capabilities change ${ISSUE}`,
+      (prev, next) => {
+        createAgentSessionManager({} as App, plugin);
+        emitSettingsChange(settingsWith(prev), settingsWith(next));
+        expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
+          "pi",
+          "model config changed"
+        );
+      }
+    );
+
+    it(`refreshes when the current model is disabled or its provider disappears ${ISSUE}`, () => {
       createAgentSessionManager({} as App, plugin);
-      await mockManager.registerPreload.mock.calls[0][1];
-      const gate = deferred();
-      const handled = deferred();
-      reconcile.mockReturnValueOnce(gate.promise);
-      mockManager.onInstallStateChanged.mockImplementationOnce(async () => handled.resolve());
-      mockStates.opencode = { kind: "ready", source: "custom" };
-      mockInstallListeners.opencode();
-      expect(reconcile).toHaveBeenLastCalledWith(
-        expect.objectContaining({ availableAgents: ["claude", "opencode"] })
-      );
-      expect(mockManager.onInstallStateChanged).not.toHaveBeenCalled();
-      gate.resolve();
-      await handled.promise;
-      expect(mockManager.onInstallStateChanged).toHaveBeenCalledWith("opencode");
+      emitSettingsChange(mockSettings, {
+        ...mockSettings,
+        backends: { ...mockSettings.backends, pi: { enabledModels: [] } },
+      });
+      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith("pi", "model config changed");
+      mockManager.noteSpawnConfigChanged.mockClear();
+      emitSettingsChange(settingsWith(), { ...settingsWith(), providers: {} });
+      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith("pi", "model config changed");
     });
 
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/599 offers an OpenCode reload after a builtin skill opt-out is reconciled and changes its system prompt", async () => {
-      createAgentSessionManager({} as App, plugin);
-      await mockManager.registerPreload.mock.calls[0][1];
-      const reconciled = deferred();
-      const noted = deferred();
-      reconcile.mockReturnValueOnce(reconciled.promise);
-      mockManager.noteSpawnConfigChanged.mockImplementationOnce(async () => noted.resolve());
+    it.each([
+      ["byok", true],
+      ["archived", false],
+      ["unused", false],
+    ])(
+      `refreshes for provider %s only when it supplies an enabled model ${ISSUE}`,
+      (providerId, reload) => {
+        createAgentSessionManager({} as App, plugin);
+        const subscriber = jest.mocked(plugin.modelManagement.providerRegistry.subscribe).mock
+          .calls[0][0];
+        subscriber(providerId);
+        if (reload)
+          expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
+            "pi",
+            "provider config changed"
+          );
+        else expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
+      }
+    );
 
+    it(`ignores display metadata and stored settings of removed agents ${ISSUE}`, () => {
+      createAgentSessionManager({} as App, plugin);
+      emitSettingsChange(
+        settingsWith({ description: "Before" }),
+        settingsWith({ description: "After" })
+      );
       emitSettingsChange(mockSettings, {
         ...mockSettings,
         agentMode: {
           ...mockSettings.agentMode,
-          skills: {
-            builtinPreferences: { "copilot-web-search": { disabledAgents: ["opencode"] } },
-          },
+          backends: { claude: { envOverrides: { CLAUDE_CONFIG_DIR: "/old" } } },
         },
-      } as unknown as VaultAgentSettings);
-
-      expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-      reconciled.resolve();
-      await noted.promise;
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledTimes(1);
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "system prompt changed"
-      );
-    });
-
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 offers an OpenCode reload when feedback cards are turned off, so new chats drop the feedback prompt line", () => {
-      const withCards = (offerFeedbackCards: boolean) => ({
-        ...mockSettings,
-        agentMode: { ...mockSettings.agentMode, offerFeedbackCards },
       });
-      mockSettings = withCards(true);
-      createAgentSessionManager({} as App, plugin);
-
-      emitSettingsChange(withCards(true), withCards(false));
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledTimes(1);
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "system prompt changed"
-      );
-    });
-
-    it(`refreshes a spawn-config backend when a model's published effort levels change ${LINEUP_ISSUE}`, () => {
-      createAgentSessionManager({} as App, plugin);
-
-      emitSettingsChange(
-        settingsWith({ reasoning: true, reasoningEfforts: ["none", "low", "high"] }),
-        settingsWith({ reasoning: true, reasoningEfforts: ["none", "medium", "high"] })
-      );
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledTimes(1);
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "model config changed"
-      );
-    });
-
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/557 offers an OpenCode reload when enabled model tool support changes", () => {
-      createAgentSessionManager({} as App, plugin);
-
-      emitSettingsChange(settingsWith({ toolCall: true }), settingsWith({ toolCall: false }));
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "model config changed"
-      );
-    });
-
-    it(`leaves a running agent alone when only a model's display metadata changes ${LINEUP_ISSUE}`, () => {
-      createAgentSessionManager({} as App, plugin);
-
-      emitSettingsChange(
-        settingsWith({ reasoning: true, description: "A frontier open model." }),
-        settingsWith({ reasoning: true, description: "A frontier open-weight model." })
-      );
-
       expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
       expect(mockManager.restartBackend).not.toHaveBeenCalled();
     });
 
-    it(`offers an OpenCode reload when its enabled models change ${RELOAD_ISSUE}`, async () => {
-      createAgentSessionManager({} as App, plugin);
-
-      await plugin.modelManagement.backendConfigRegistry.disableModel("opencode", "configured-1");
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledTimes(1);
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "model config changed"
-      );
-    });
-
-    it(`does not offer an OpenCode reload when a Claude model is disabled or re-enabled ${RELOAD_ISSUE}`, async () => {
-      createAgentSessionManager({} as App, plugin);
-
-      await plugin.modelManagement.backendConfigRegistry.disableModel("claude", "claude-haiku");
-      expect(plugin.modelManagement.backendConfigRegistry.get("claude").enabledModels).toEqual([]);
-      expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-
-      await plugin.modelManagement.backendConfigRegistry.enableModel("claude", "claude-haiku");
-      expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-    });
-
-    it(`ignores model metadata changes outside OpenCode's enabled list ${RELOAD_ISSUE}`, () => {
-      createAgentSessionManager({} as App, plugin);
-      const prev = settingsWith({ reasoning: true });
-      const next = {
-        ...prev,
-        configuredModels: [
-          ...prev.configuredModels,
-          {
-            ...prev.configuredModels[0],
-            configuredModelId: "claude-haiku",
-            providerId: "claude",
-          },
-        ],
-      };
-
-      emitSettingsChange(prev, next);
-
-      expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-    });
-
-    it(`ignores native model toggles because the agent already owns their configuration ${RELOAD_ISSUE}`, async () => {
-      mockSettings.configuredModels.push({
-        ...mockSettings.configuredModels[0],
-        configuredModelId: "native-model",
-        providerId: "native",
-      });
-      createAgentSessionManager({} as App, plugin);
-
-      await plugin.modelManagement.backendConfigRegistry.enableModel("opencode", "native-model");
-      await plugin.modelManagement.backendConfigRegistry.disableModel("opencode", "native-model");
-
-      expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-    });
-
-    it.each([
-      ["plus", true],
-      ["claude", false],
-      ["native", false],
-      ["unused-byok", false],
-    ])(
-      `offers a reload for provider %s only when it feeds the backend's config ${RELOAD_ISSUE}`,
-      (providerId, reload) => {
-        mockSettings.configuredModels.push(
-          {
-            ...mockSettings.configuredModels[0],
-            configuredModelId: "native-model",
-            providerId: "native",
-          },
-          {
-            ...mockSettings.configuredModels[0],
-            configuredModelId: "unused-model",
-            providerId: "unused-byok",
-          }
-        );
-        mockSettings.backends.opencode!.enabledModels.push("native-model");
+    it.each(["preferences", "folder"])(
+      `refreshes canonical skills when their %s change ${ISSUE}`,
+      async (change) => {
         createAgentSessionManager({} as App, plugin);
-        const notifyProvider = jest.mocked(plugin.modelManagement.providerRegistry.subscribe).mock
-          .calls[0][0];
-
-        notifyProvider(providerId);
-
-        if (reload) {
-          expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-            "opencode",
-            "provider config changed"
-          );
-        } else {
-          expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
-        }
+        await mockManager.registerPreload.mock.calls[0][1];
+        const next =
+          change === "folder"
+            ? { ...mockSettings, vaultAgentFolder: "other" }
+            : {
+                ...mockSettings,
+                agentMode: {
+                  ...mockSettings.agentMode,
+                  skills: {
+                    ...mockSettings.agentMode.skills,
+                    builtinPreferences: { "obsidian-cli": { disabledAgents: ["pi"] } },
+                  },
+                },
+              };
+        emitSettingsChange(mockSettings, next);
+        expect(mockRefresh).toHaveBeenCalledTimes(2);
+        expect(mockManager.noteSpawnConfigChanged).not.toHaveBeenCalled();
       }
     );
-
-    it(`offers a reload when an injected provider is removed ${RELOAD_ISSUE}`, () => {
-      createAgentSessionManager({} as App, plugin);
-
-      emitSettingsChange(mockSettings, { ...mockSettings, providers: {} });
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "opencode",
-        "model config changed"
-      );
-    });
-
-    it(`routes a Claude environment change only to Claude ${RELOAD_ISSUE}`, () => {
-      createAgentSessionManager({} as App, plugin);
-      const next = {
-        ...mockSettings,
-        agentMode: {
-          ...mockSettings.agentMode,
-          backends: { claude: { envOverrides: { CLAUDE_CONFIG_DIR: "/test-profile" } } },
-        },
-      } as VaultAgentSettings;
-
-      emitSettingsChange(mockSettings, next);
-
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledTimes(1);
-      expect(mockManager.noteSpawnConfigChanged).toHaveBeenCalledWith(
-        "claude",
-        "env overrides changed"
-      );
-    });
-
-    it(`retains only previously ready agents during compatibility checks ${ISSUE}`, async () => {
-      createAgentSessionManager({} as App, plugin);
-      await mockManager.registerPreload.mock.calls[0][1];
-      mockStates.claude = { kind: "checking", source: "custom" };
-      mockStates.opencode = { kind: "checking", source: "custom" };
-      const handled = deferred();
-      mockManager.onInstallStateChanged.mockImplementationOnce(async () => handled.resolve());
-      mockInstallListeners.claude();
-      await handled.promise;
-      expect(reconcile).toHaveBeenLastCalledWith(
-        expect.objectContaining({ availableAgents: ["claude"] })
-      );
-    });
   });
 });

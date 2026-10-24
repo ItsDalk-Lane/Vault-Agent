@@ -5,6 +5,7 @@ import type {
   AskUserQuestionPrompt,
   CurrentPlan,
   PermissionPrompt,
+  RecoveryStateUpdate,
 } from "@/agentMode/session/types";
 import type { FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
 import { useEffect, useRef, useState } from "react";
@@ -19,6 +20,7 @@ export interface AgentChatRuntimeState {
   pendingToolPermissions: PermissionPrompt[];
   pendingAskUserQuestions: AskUserQuestionPrompt[];
   feedbackOffer: FeedbackOffer | null;
+  recovery: RecoveryStateUpdate | null;
 }
 
 interface BackendRuntimeSnapshot {
@@ -39,6 +41,7 @@ function readBackendRuntimeSnapshot(backend: AgentChatBackend): BackendRuntimeSn
       pendingToolPermissions: backend.getPendingToolPermissions(),
       pendingAskUserQuestions: backend.getPendingAskUserQuestions(),
       feedbackOffer: backend.getFeedbackOffer(),
+      recovery: backend.getRecoveryState?.() ?? null,
     },
   };
 }

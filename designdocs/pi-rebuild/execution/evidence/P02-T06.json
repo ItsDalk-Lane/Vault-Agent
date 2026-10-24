@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T06",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/HistoryReader.ts",
+    "src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T06.json"
+  ],
+  "scenarioIds": ["SC-P02-T06-01", "SC-P02-T06-02", "SC-P02-T06-03", "SC-P02-T06-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/HistoryReader.ts src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-explicit-any、no-unused-vars、referential-stability 相关惯例均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1171 file(s)：HistoryReader 无 Pi SDK 或跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 storage/HistoryReader.ts + test 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 9,
+      "durationSeconds": 2.56,
+      "logPath": "/tmp/vault-agent-required-current/33.log",
+      "logSha256": "584e11bb6787911ace5ee0465e8d4558232d93e5370631667d80f4012c264258",
+      "testFile": "src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+      "testSourceSha256": "5c30e482d6d36f4154da0351c74b95bfa464fc1ce8cb0c1e2e67c3f6cf4ce53f",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T06-01",
+      "requirement": "压缩前旧消息仍返回",
+      "result": "passed",
+      "evidence": "readHistory 只追加所有 entry，不按 active snapshot/reset 截断，也不跳过 compaction 之前的 entry；测试在 pi.user 之后放 pi.compaction 再放后续消息，结果返回 [e1,e2,e3] 且 compacted=true，说明旧消息未被压缩标记隐藏。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T06-02",
+      "requirement": "分页交界不重复",
+      "result": "passed",
+      "evidence": "按 nextCursor 逐页读取，跨页 entry 用 Set<EntryId> 全局去重；测试既覆盖正常两页 [e1,e2]+[e3,e4] 恰好一次，也覆盖后端在交界重复返回 e2 时结果仍为 [e1,e2,e3]；fork 祖先与子会话共享 p2 时也只出现一次。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T06-03",
+      "requirement": "读取历史无模型请求",
+      "result": "passed",
+      "evidence": "HistoryReader 只依赖 resolveConversation→entries/forkParentId 端口，接口中不存在 submit/wait/resume/models；测试断言调用序列只有 resolve/parent/entries，fake run task 的 cancel 计数为 0，没有任何模型请求面。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T06-04",
+      "requirement": "取消读取不取消运行任务",
+      "result": "passed",
+      "evidence": "readHistory 接收只读的 HistoryReadCancellation（只有 aborted 字段），在每一页开始前检查；测试在第一页读取后把 aborted 置真，结果 kind=cancelled 且只返回第一页条目、没有请求第二页；运行任务对象从未传给 reader，cancelCalls 保持 0。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "HistoryReader 依赖注入的 Conversation 端口：真实 Durable Conversation.entries 接线与 Cursor 形状适配属 P03 runtime 任务；本任务用等价端口验证算法，未跑真实 Harness 分页。",
+    "fork 祖先通过注入的 forkParentId 解析；真实 Durable fork 关系字段（来源 conversationId）如何取得需在接线时确认，不能靠猜测。",
+    "compacted 标记仅识别 pi.compaction kind；若后续引入 pi.reset/其他上下文标记，需扩展并补测试（本任务只按设计 04 验证压缩场景）。",
+    "附件引用目前从 entry.data.attachments[].path 读取；真实附件引用格式（附件存储任务）确定后需要适配，且缺失附件当前只报告不提供 UI 占位。",
+    "取消仅在页边界检查；单页 entries 调用本身若挂起，需要依赖底层分页端口的取消语义（接线时传入只读 cancellation）。",
+    "未运行全仓测试；未接真实存储/平台；无端到端证据。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T06 完成；下一任务 P02-T07（实现根运行时池和有界 store 生命周期，依赖 P02-T06）：先读卡片与 design/04（4.3 存储实现、4.4 lease）、design/16；新增 src/agentMode/sdk/pi/runtime/RuntimePool.ts（同 root 重复打开复用句柄；最多 2 个活跃根 store，超出排队；空闲且无观察者 60 秒后关闭；popout 只能订阅不产生第二 writer；active 任务不被 LRU 关闭）与 src/agentMode/sdk/pi/storage/StoreSizePolicy.ts（读取真实 store 大小：16MiB 建议新会话、32MiB 在下个安全边界禁止接纳新 run 但允许取消/完成挂起/导出/读取；滚动归档只在所有前后台任务结束边界进行；压缩不减少 JSONL 文件大小，UI 文案不得声称变小）。先写失败测试 src/agentMode/sdk/pi/runtime/RuntimePool.test.ts（popout 不产生第二 writer、active 任务不被 LRU 关闭、32MiB 不再接纳新 run 但可取消、压缩不伪减少文件大小），注入 store 打开器/时钟/任务检查/大小读取端口，不 mock 核心判定、禁止 sleep（用可控时钟/deferred）。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/RuntimePool.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

@@ -1,3 +1,4 @@
+import type { CommandDraftContext } from "@/types/commandDraft";
 import type { BackendId, PromptContent } from "@/agentMode/session/types";
 import type { MessageContext } from "@/types/message";
 import type { App, TFile } from "obsidian";
@@ -9,6 +10,8 @@ export interface QueuedAgentMessage {
   context?: MessageContext;
   promptContent?: PromptContent[];
   mentionedAgents?: ReadonlyArray<BackendId>;
+  commandModelId?: string;
+  commandContext?: CommandDraftContext;
 }
 
 export interface AgentInputDraft {
@@ -19,6 +22,7 @@ export interface AgentInputDraft {
   includeActiveWebTab: boolean;
   loading: boolean;
   queue: QueuedAgentMessage[];
+  commandContext?: CommandDraftContext;
 }
 
 export class AgentInputDraftStore {

@@ -5,11 +5,10 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/utils/formatBytes";
 import { type AttachmentResult, type ReportIssueDraft } from "@/utils/issueReport";
-import { type ReportUploadAttempt } from "@/utils/reportUpload";
 import { AlertTriangle, Check, FileArchive, X, type LucideIcon } from "lucide-react";
 import React from "react";
 
-export type ReportSourceId = "screenshot" | "activityLog" | "chatLog" | "opencodeLog";
+export type ReportSourceId = "screenshot" | "activityLog" | "chatLog";
 
 export interface ReportSourceOption {
   id: ReportSourceId;
@@ -24,7 +23,7 @@ export interface PreparedReport {
   zipDir: string;
   zipPath: string;
   zipName: string;
-  uploadAttempt: ReportUploadAttempt;
+  bytes: number;
   issueDraft: ReportIssueDraft;
   manualIssueUrl: string;
   attachments: AttachmentResult[];
@@ -68,9 +67,7 @@ export function ReportIssueFlow(props: ReportIssueFlowProps) {
     try {
       const result = await prepare(note, selected);
       if (!mountedRef.current) {
-        // Nobody will ever upload this zip, and it is plaintext prompts and
-        // note contents sitting in the OS temp folder with no UI left to name it
-        // (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
+        // 窗口关闭后不遗留无人接管的明文报告。https://github.com/Brevilabs/obsidian-copilot-private/issues/202
         void discardReport(result);
         return;
       }
@@ -255,7 +252,7 @@ function ReviewPage({ report, openIssuePage, revealFile, onCancel }: ReviewPageP
               tone="success"
               icon={FileArchive}
               name={report.zipName}
-              size={formatBytes(report.uploadAttempt.body.byteLength)}
+              size={formatBytes(report.bytes)}
             />
           </ul>
         ) : (

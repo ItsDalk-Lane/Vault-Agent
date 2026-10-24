@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T04",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/ProductDocs.ts",
+    "src/agentMode/sdk/pi/storage/ProductEntries.ts",
+    "src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T04.json"
+  ],
+  "scenarioIds": ["SC-P02-T04-01", "SC-P02-T04-02", "SC-P02-T04-03", "SC-P02-T04-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/ProductDocs.ts src/agentMode/sdk/pi/storage/ProductEntries.ts src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-explicit-any、no-unused-vars、switch exhaustiveness 等规则通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1166 file(s)：产品文档/事件模块无 Pi SDK 或跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 ProductDocs.ts / ProductEntries.ts / ProductDocs.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 16,
+      "durationSeconds": 2.52,
+      "logPath": "/tmp/vault-agent-required-current/35.log",
+      "logSha256": "9ae49012e0ff7e717fedb9752c88d224511684df69427f3a2b78d0bc5da3f622",
+      "testFile": "src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+      "testSourceSha256": "d6700ace73c75c70f2cb78fd90db8eb0c33f7fcd494f46e24770796d88ec24c6",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T04-01",
+      "requirement": "事务失败无半份状态",
+      "result": "passed",
+      "evidence": "commitProductDocChange 只在 commit 端口成功时落文档与 va.state entry；测试让 commit 抛 transaction aborted，断言 store 仍保存原文档对象且 entries 为空（document 与 entry 同一提交，失败时两者都不存在）。builder 返回非法文档或在 commit 前抛错时同样不会写入。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T04-02",
+      "requirement": "fork不继承一次授权",
+      "result": "passed",
+      "evidence": "forkProductDocs 按 PRODUCT_FORK_POLICIES：va.approvals / va.questions / va.subagents / va.run 为 initial（结果中不存在）；va.plan 复制正文但 approval 重置 unapproved、feedback 清空；va.budget 归零；va.skills 复制选择但 verifiedAtMs=null 需重新校验。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T04-03",
+      "requirement": "事件和文档revision一致",
+      "result": "passed",
+      "evidence": "commit 成功后 entry.data.revision === doc.revision === previous.revision+1；新建文档 revision=1 且 change=created；entry.data.docKind/atMs 与 doc.kind/doc.updatedAtMs 一致；entry 类型为被动 va.state（不含 model，不会送入模型上下文）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T04-04",
+      "requirement": "unknown schema拒绝",
+      "result": "passed",
+      "evidence": "parseProductDoc 对未知 kind 返回 invalid/unknown-kind，对非对象返回 invalid/not-an-object，对 version≠1 返回 unsupported/foundVersion（不猜测、不迁移），对缺字段/错类型返回 invalid/invalid-shape；commit 端口在写入前用 parseProductDoc 复核候选文档，非法即抛 ProductEntryError 且不提交。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "产品文档的“同提交”通过注入的 commit 端口验证单元语义；尚未接入真实 Durable transaction（tx.doc/append entry）与真实 document snapshot，真实事务读后写约束留给 P05/P06 的接线任务。",
+    "文档 schema 为 v1 的合理最小实现：字段按设计 04.5 列表与 contracts 形状定义，但部分嵌套（如 approval binding 细节、fanout 评估数据、skills 引用清单）将在对应功能任务中扩展/细化；扩展时应升 version 或保持向后兼容校验。",
+    "forkProductDocs 只产生内存文档集合，没有真实 fork/复制到 Durable conversation 的提交步骤；fork 后 UI 展示与只读历史由后续任务实现。",
+    "va.state entry 目前不写入 model 字段（被动 entry），但尚未与真实 Durable EntryDraft/Tx 对接，也未验证 UI 投影消费。",
+    "未运行全仓测试；未接真实存储/平台；无端到端证据。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T04 完成；下一任务 P02-T05（实现请求与工具稳定 ID，依赖 P02-T04）：先读卡片与 design/04（4.6 稳定 ID 和去重）、design/16；新增 src/agentMode/sdk/pi/runtime/Identity.ts（namespaced 工具 UI ID = host 编码 conversationId + 原 SDK toolCallId；稳定 operationId = rootId+conversationId+taskId+callId 的稳定 hash，恢复不变；不可拆解 SDK 内部 ID 格式）与 src/agentMode/sdk/pi/storage/SubmissionAdmission.ts（发送草稿分配并保存 requestId；Durable submit 复用同一 requestId 幂等去重；相同内容的新用户发送仍可新 requestId；校验已有记录与 root/conversation 归属）。先写失败测试 src/agentMode/sdk/pi/runtime/Identity.test.ts（重复提交仅一个 user entry、两会话相同 toolCallId 不冲突、恢复 operationId 不变、不同新发送不误去重），注入 hash/ID 存储依赖，不 mock 核心判定。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/Identity.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

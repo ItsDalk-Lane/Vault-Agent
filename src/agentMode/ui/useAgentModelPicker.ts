@@ -1,14 +1,12 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { ModelSelectorEntry } from "@/components/ui/ModelSelector";
 import { useSettingsValue } from "@/settings/model";
-import { listBackendDescriptors } from "@/agentMode/backends/registry";
+import { creatableBackendDescriptors } from "@/agentMode/backends/registry";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { modelStateSignature } from "@/agentMode/session/translateBackendState";
 import type { BackendDescriptor } from "@/agentMode/session/types";
-import { useBackendInstallStates } from "@/agentMode/ui/useBackendDescriptor";
 import { buildAgentModelPicker } from "./agentModelPickerHelpers";
 import { useManagerSubscribe } from "./useManagerSubscribe";
-import type VaultAgentPlugin from "@/main";
 
 export interface AgentModelPickerOverride {
   models: ModelSelectorEntry[];
@@ -27,7 +25,7 @@ export interface AgentModelPickerOverride {
 
 function useAgentModelSignal(
   manager: AgentSessionManager | null,
-  descriptors: BackendDescriptor[]
+  descriptors: readonly BackendDescriptor[]
 ): string {
   const subscribe = useManagerSubscribe(manager);
 
@@ -51,16 +49,13 @@ function useAgentModelSignal(
 }
 
 export function useAgentModelPicker(
-  manager: AgentSessionManager | null,
-  plugin: VaultAgentPlugin
+  manager: AgentSessionManager | null
 ): AgentModelPickerOverride | null {
   const settings = useSettingsValue();
-  const descriptors = useMemo(() => listBackendDescriptors(), []);
-  const installStates = useBackendInstallStates(plugin);
+  const descriptors = useMemo(() => creatableBackendDescriptors(), []);
   const signal = useAgentModelSignal(manager, descriptors);
   return useMemo(() => {
     void signal;
-    void installStates;
-    return buildAgentModelPicker({ manager, descriptors, settings });
-  }, [manager, descriptors, settings, signal, installStates]);
+    return buildAgentModelPicker({ manager, descriptor: descriptors[0], settings });
+  }, [manager, descriptors, settings, signal]);
 }

@@ -624,7 +624,7 @@ export const DEFAULT_SETTINGS: VaultAgentSettings = {
   defaultSystemPromptTitle: "",
   agentMode: {
     byok: {},
-    activeBackend: "opencode",
+    activeBackend: "pi",
     backends: {},
     debugFullFrames: true,
     offerFeedbackCards: true,

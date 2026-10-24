@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T04",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "eslint.config.mjs",
+    "src/agentMode/AGENTS.md",
+    "scripts/check-pi-boundaries.mjs",
+    "src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T04.json"
+  ],
+  "scenarioIds": ["SC-P01-T04-01", "SC-P01-T04-02", "SC-P01-T04-03"],
+  "commands": [
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1147 file(s)：当前仓库无 Pi SDK 越界/私有 import/legacy 进程 import。"
+    },
+    {
+      "command": "probe=src/agentMode/ui/BoundaryProbe.tmp.ts; printf 'import { Harness } from \"@earendil-works/pi-durable\";\\nexport const h = Harness;\\n' > \"$probe\"; out=$(npx eslint \"$probe\" 2>&1 || true); rm -f \"$probe\"; printf '%s\\n' \"$out\" | grep -q \"no-restricted-imports\" && echo \"expected failure confirmed\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "expected failure confirmed: UI importing Harness 被 no-restricted-imports 拒绝（ESLint 负例实测，命令自身以断言方式返回 0）。"
+    },
+    {
+      "command": "probe=src/agentMode/sdk/pi/BoundaryProbe.tmp.ts; printf 'import type { Context } from \"@earendil-works/chord\";\\nimport { openNodeJsonlStorage } from \"@earendil-works/pi-durable/storage/jsonl/node\";\\nexport type C = Context;\\nexport const open = openNodeJsonlStorage;\\n' > \"$probe\"; npx eslint \"$probe\"; rc=$?; rm -f \"$probe\"; test \"$rc\" -eq 0 && echo \"positive probe confirmed\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "positive probe confirmed: sdk/pi 内 import 公共 Pi subpath 通过 ESLint，未被误拦。"
+    },
+    {
+      "command": "npx eslint src/agentMode",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "整个 src/agentMode 在新增规则下 0 error，说明没有误伤既有 ACP/session/ui/backend 代码。"
+    },
+    {
+      "command": "npx eslint eslint.config.mjs scripts/check-pi-boundaries.mjs src/agentMode/sdk/pi/sdkContract.test.ts src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "配置与新增脚本/测试均通过 lint（含 issue-linked-comments 规则）；脚本 JSDoc 按仓库规则移除，仅保留带 #1 URL 的决策注释。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551：与 P01-T01 登记的 P00 构建产物一致，边界配置改动不影响产物，P00 未被重置。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "M eslint.config.mjs、M package-lock.json、M package.json、M src/agentMode/AGENTS.md、?? scripts/check-pi-boundaries.mjs、?? src/agentMode/sdk/pi/、?? designdocs/pi-rebuild/；用户 PoC 工件未动。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "eslint.config.mjs +74/−?、src/agentMode/AGENTS.md +23、package.json +4、package-lock.json +1167/−31（后两者为 P01-T03 遗留未提交）；没有生产执行代码改动。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 8,
+      "durationSeconds": 2.84,
+      "logPath": "/tmp/vault-agent-required-current/01.log",
+      "logSha256": "e48d641fb9cbc9f3198402241f65091d59c29af41b4b9bc47e4b38dd38c1be9a",
+      "testFile": "src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+      "testSourceSha256": "2d8b3d1fee9520d2a86b6296ad5b8667e2a0b318379db161e5e4c24dbbc5b355",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T04-01",
+      "requirement": "UI直接importHarness的负例失败",
+      "result": "passed",
+      "evidence": "jest 用例 fails when a UI module imports Harness directly from the locked SDK 通过（scanner 返回 status 1、reason=pi-sdk-import-outside-sdk-pi）；ESLint 负例探针实测被 no-restricted-imports 拒绝。两者都真实失败，不是 mock。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T04-02",
+      "requirement": "sdk/pi合法import通过",
+      "result": "passed",
+      "evidence": "jest 用例 passes for public subpath imports inside sdk/pi 与 passes on the current repository 通过；ESLint 正例探针通过；真实仓库扫描 1147 files / 0 violations。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T04-03",
+      "requirement": "注释中的包名不触发假阳性",
+      "result": "passed",
+      "evidence": "jest 用例 ignores package names that appear only in comments 通过：line comment 与 block comment 中各写一条 import 形态的 Pi SDK 语句，scanner 先剥离注释再解析 import，结果 0 violations。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "扫描器是静态的：只检查 import/export/动态 import/require 说明符，不追踪经中间模块转导出后的间接使用；注释剥离状态机不解析 regex literal，极端文件可能出现漏报（当前仓库为 0 violations）。",
+    "jest 测试覆盖的是扫描脚本；ESLint 规则本身通过两个手工探针与 `npx eslint src/agentMode` 实测，未写成 jest 用例（ESLint 需要 typed parser + 真实文件，启动成本高）。",
+    "本任务只跑边界测试、build:esbuild 与定向 lint；全仓 npm test / 完整 build（含 tailwind）/ review:obsidian 未运行，属于 P01 阶段 gate。",
+    "P01-T03 的 package.json/package-lock.json 改动在本任务开始时仍未提交；gitCommitBefore 仍为 c2a7ef5，未创建新 commit（gitCommitAfter=null）。",
+    "legacy 边界只禁止进程模块 import；如果未来 legacy 读取器用其他 Node API 启动进程（如 process.binding），需要在该任务实现时补充检测。"
+  ],
+  "handoff": "P01-T04 完成；下一任务 P01-T05（添加最小供应商无关领域事件，依赖 P01-T04）：先读卡片与 design 00–03/16；在 src/agentMode/session/types.ts 复用现有 Prompt/Tool/Permission 类型，新增 projection(session_projection)/todo_update/plan_proposal_update/approval_state/recovery_state/run_state/budget_update 等显式领域事件，声明稳定 ID、source、unknown 用量语义，不把 Pi 原生类型放进公开 interface；在 src/agentMode/sdk/pi/types.ts 放私有 SDK 类型映射；逐个更新穷尽 switch 使旧后端仍编译；先写失败测试 src/agentMode/session/piDomainContract.test.ts（旧 SessionEvent 消费者编译通过、未知状态不能默认成功、SDK 类型不穿透 UI），运行 npm test -- --runInBand --runTestsByPath src/agentMode/session/piDomainContract.test.ts 与 npm run build:esbuild，然后写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

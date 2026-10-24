@@ -1,15 +1,21 @@
 import type { FeedbackDraft } from "@/agentMode/session/feedback/feedbackMcpServer";
 
+export type { FeedbackDraft };
+
 export interface FeedbackEvidence {
   backendId: string;
   model: string | null;
   sessionId: string | null;
   raisedAt: string;
+  source?: "pi" | "legacy";
+  runId?: string | null;
+  errorCodes?: readonly string[];
 }
 
 export type FeedbackOfferStatus = "open" | "dismissed" | "reported";
 
 export interface FeedbackOffer {
+  id?: string;
   draft: FeedbackDraft;
   evidence: FeedbackEvidence;
   afterUserMessageId: string | null;

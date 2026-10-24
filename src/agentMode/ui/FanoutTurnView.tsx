@@ -72,7 +72,7 @@ const FanoutStatusDot: React.FC<FanoutStatusDotProps> = ({ state }) => {
   if (state === "error") {
     return <AlertTriangle className="tw-size-3 tw-shrink-0 tw-text-error" />;
   }
-  if (state === "cancelled" || state === "empty") {
+  if (state === "cancelled" || state === "empty" || state === "paused") {
     return <CircleSlash className="tw-size-3 tw-shrink-0 tw-text-muted" />;
   }
   return null;
@@ -126,6 +126,19 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
         </FanoutTerminalState>
       );
     }
+    if (turn.summary.status === "paused")
+      return (
+        <FanoutTerminalState app={app} partialText={turn.summary.text}>
+          <FanoutStatusLine
+            icon={<CircleSlash className="tw-size-4 tw-text-muted" />}
+            text={t(
+              turn.checkpoint?.awaitingAdmission
+                ? "agentChat.fanout.notStarted"
+                : "agentChat.fanout.paused"
+            )}
+          />
+        </FanoutTerminalState>
+      );
     if (turn.summary.text) {
       return <FanoutSlotBody text={turn.summary.text} app={app} />;
     }
@@ -144,6 +157,17 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
             icon={<ThinkingSpinner />}
             text={t("agentChat.fanout.waitingForAnswers")}
             shimmer
+          />
+        );
+      case "paused":
+        return (
+          <FanoutStatusLine
+            icon={<CircleSlash className="tw-size-4 tw-text-muted" />}
+            text={t(
+              turn.checkpoint?.awaitingAdmission
+                ? "agentChat.fanout.notStarted"
+                : "agentChat.fanout.paused"
+            )}
           />
         );
       case "cancelled":
@@ -166,6 +190,20 @@ const FanoutTurnBody: React.FC<FanoutTurnBodyProps> = ({ turn, value, app }) => 
 
   const answer = selectedAnswer(turn, value);
   if (!answer) return null;
+
+  if (answer.status === "paused")
+    return (
+      <FanoutTerminalState app={app} partialText={answer.text}>
+        <FanoutStatusLine
+          icon={<CircleSlash className="tw-size-4 tw-text-muted" />}
+          text={t(
+            turn.checkpoint?.awaitingAdmission
+              ? "agentChat.fanout.notStarted"
+              : "agentChat.fanout.paused"
+          )}
+        />
+      </FanoutTerminalState>
+    );
 
   if (answer.status === "error" || answer.status === "cancelled") {
     const isError = answer.status === "error";

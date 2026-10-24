@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P03",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "taskIds": [
+    "P03-T01",
+    "P03-T02",
+    "P03-T03",
+    "P03-T04",
+    "P03-T05",
+    "P03-T06",
+    "P03-T07",
+    "P03-T08",
+    "P03-T09"
+  ],
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-P03.json",
+    "reason": "必需生产接线/验收尚未完成，原 passed 声明撤销；阶段定义与门槛保持不变。"
+  },
+  "commands": [
+    {
+      "command": "npm run lint",
+      "warnings": 2,
+      "warningScope": "既有测试mock函数use前缀告警，零error。",
+      "source": "/tmp/vault-agent-pi-final3-lint.log",
+      "sourceSha256": "e2fc91fd828608e619b78d149b1a0147bbd96bcf16b35a8d9be2f9ce338316d8",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "scope": "真实test:vault已执行的嵌套命令；日志含build/esbuild/tsc。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    }
+  ],
+  "manualChecks": [
+    {
+      "check": "真实BYOK最小聊天可运行",
+      "required": true,
+      "result": "passed",
+      "evidence": "PiSmoke空CLI PATH、1BYOK/1Qwen/W16384，最终5d包实际UI发送回答；真实Runtime与生产provider分发已通过全量回归。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "Keychain无明文",
+      "required": true,
+      "result": "passed",
+      "evidence": "KeychainCredentialStore模块及实际Obsidian唯一非秘密临时key跨完整进程重开保留/删除通过，data.json无明文key；该实证按15f2历史范围保留，credential实现未更换。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "停止取消真实请求",
+      "required": true,
+      "result": "passed",
+      "evidence": "c07实际UI写后后续文字流Stop，冷重开0请求且partial/cancelled/原COMMITTEDDiff保留；最终5d包冷重开再次实际检查。另当前SDK两个实际AbortSignal与重复Stop诊断通过。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "new/load/resume语义正确",
+      "required": true,
+      "result": "passed",
+      "evidence": "实际Backend/SDK前台create-before-submit、后台report-before-checkpoint、unknown kind/version、正常shutdown与只读冷重开均12项诊断通过；UI明确Continue才运行，稳定requestId不重复。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "currentLocalProgress": "本阶段原任务、必需命令与原阶段演示均有明确实证；旧撤销记录保留历史，不以文档检查器当插件通过。",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json",
+  "currentBuildIdentity": "c2a7ef50-dirty-4b2f879642c3"
+}

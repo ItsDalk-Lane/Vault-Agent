@@ -1,162 +1,73 @@
-import {
-  EMPTY_AGENT_BRANDS,
-  EMPTY_ANSWERERS,
-  isFanout,
-  listInstalledAgentBrands,
-  resolveAnswerers,
-  useInstalledAgentBrands,
-} from "@/agentMode/ui/mentionedAgents";
-import type { BackendDescriptor, InstallState } from "@/agentMode/session/types";
-import type VaultAgentPlugin from "@/main";
+import { EMPTY_AGENT_BRANDS, listFanoutModelBrands, useFanoutModelBrands } from "./mentionedAgents";
 import type { VaultAgentSettings } from "@/settings/model";
-import { act, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 
-const Icon = () => null;
+let mockSettings = {} as VaultAgentSettings;
+jest.mock("@/settings/model", () => ({ useSettingsValue: () => mockSettings }));
 
-jest.mock("@/agentMode/backends/registry", () => ({
-  listBackendDescriptors: jest.fn(),
-  backendNeedsSelfHostWarning: (
-    descriptor: { selfHostable?: boolean },
-    settings: { enableSelfHostMode?: boolean }
-  ) => Boolean(settings.enableSelfHostMode) && !descriptor.selfHostable,
-}));
-
-jest.mock("@/settings/model", () => ({
-  useSettingsValue: () => ({}),
-}));
-
-import { listBackendDescriptors } from "@/agentMode/backends/registry";
-
-const mockedList = listBackendDescriptors as jest.MockedFunction<typeof listBackendDescriptors>;
-
-function descriptor(id: string, install: InstallState, selfHostable = true): BackendDescriptor {
+function settings(): VaultAgentSettings {
   return {
-    id,
-    displayName: id[0].toUpperCase() + id.slice(1),
-    Icon,
-    selfHostable,
-    getInstallState: () => install,
-  } as unknown as BackendDescriptor;
+    backends: { pi: { enabledModels: ["cm-a", "cm-b"] } },
+    configuredModels: [
+      { configuredModelId: "cm-a", providerId: "a", info: { id: "claude", displayName: "Claude" } },
+      { configuredModelId: "cm-b", providerId: "b", info: { id: "gpt", displayName: "GPT" } },
+    ],
+    providers: {
+      a: {
+        providerType: "anthropic",
+        displayName: "Anthropic",
+        apiKeyKeychainId: "key-a",
+        origin: { kind: "byok" },
+      },
+      b: {
+        providerType: "openai-compatible",
+        displayName: "OpenAI",
+        apiKeyKeychainId: "key-b",
+        origin: { kind: "byok" },
+      },
+    },
+  } as unknown as VaultAgentSettings;
 }
 
-const settings = {} as VaultAgentSettings;
-const selfHostSettings = { enableSelfHostMode: true } as VaultAgentSettings;
 describe("mentionedAgents", () => {
-  describe("listInstalledAgentBrands()", () => {
-    it("offers only ready backends; excludes absent, checking, incompatible, and errored", () => {
-      mockedList.mockReturnValue([
-        descriptor("opencode", { kind: "ready", source: "managed" }),
-        descriptor("claude", { kind: "absent" }),
-        descriptor("codex", { kind: "error", message: "boom" }),
-        descriptor("checking", { kind: "checking", source: "custom" }),
-        descriptor("old", {
-          kind: "incompatible",
-          source: "custom",
-          currentVersion: "1.0.0",
-          minVersion: "2.0.0",
-          message: "too old",
-        }),
+  describe("listFanoutModelBrands()", () => {
+    it("offers saved model selections on Pi instead of the engine name https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const brands = listFanoutModelBrands(settings());
+      expect(brands.map((brand) => brand.id)).toEqual(["cm-a", "cm-b"]);
+      expect(brands.map((brand) => brand.displayName)).toEqual([
+        "Claude · Anthropic",
+        "GPT · OpenAI",
       ]);
-
-      const brands = listInstalledAgentBrands(settings);
-      expect(brands.map((b) => b.id)).toEqual(["opencode"]);
-      expect(brands[0]).toMatchObject({ id: "opencode", displayName: "Opencode", Icon });
     });
-
-    it("returns the frozen empty constant when nothing is installed", () => {
-      mockedList.mockReturnValue([descriptor("opencode", { kind: "absent" })]);
-      expect(listInstalledAgentBrands(settings)).toBe(EMPTY_AGENT_BRANDS);
+    it("omits models without a key and keeps local providers that need none https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const input = settings();
+      input.providers.a.apiKeyKeychainId = null;
+      input.providers.b.apiKeyKeychainId = null;
+      input.providers.b.requiresApiKey = false;
+      expect(listFanoutModelBrands(input).map((brand) => brand.id)).toEqual(["cm-b"]);
     });
-
-    it("does not flag any brand when Self-Host Mode is off", () => {
-      mockedList.mockReturnValue([
-        descriptor("opencode", { kind: "ready", source: "managed" }, true),
-        descriptor("claude", { kind: "ready", source: "managed" }, false),
-      ]);
-      const byId = new Map(listInstalledAgentBrands(settings).map((b) => [b.id, b]));
-      expect(byId.get("opencode")?.needsSelfHostWarning).toBe(false);
-      expect(byId.get("claude")?.needsSelfHostWarning).toBe(false);
-    });
-
-    it("flags cloud agents (not opencode) when Self-Host Mode is on", () => {
-      mockedList.mockReturnValue([
-        descriptor("opencode", { kind: "ready", source: "managed" }, true),
-        descriptor("claude", { kind: "ready", source: "managed" }, false),
-        descriptor("codex", { kind: "ready", source: "managed" }, false),
-      ]);
-      const byId = new Map(listInstalledAgentBrands(selfHostSettings).map((b) => [b.id, b]));
-      expect(byId.get("opencode")?.needsSelfHostWarning).toBe(false);
-      expect(byId.get("claude")?.needsSelfHostWarning).toBe(true);
-      expect(byId.get("codex")?.needsSelfHostWarning).toBe(true);
-    });
-  });
-
-  describe("useInstalledAgentBrands()", () => {
-    it("re-lists a backend whose readiness settles without a settings write", () => {
-      let install: InstallState = { kind: "checking", source: "managed" };
-      const listeners = new Set<() => void>();
-      mockedList.mockReturnValue([
-        {
-          id: "claude",
-          displayName: "Claude",
-          Icon,
-          getInstallState: () => install,
-          subscribeInstallState: (_plugin: VaultAgentPlugin, cb: () => void) => {
-            listeners.add(cb);
-            return () => listeners.delete(cb);
-          },
-        } as unknown as BackendDescriptor,
-      ]);
-
-      const { result, unmount } = renderHook(() => useInstalledAgentBrands({} as VaultAgentPlugin));
-      expect(result.current).toBe(EMPTY_AGENT_BRANDS);
-
-      act(() => {
-        install = { kind: "ready", source: "managed" };
-        listeners.forEach((cb) => cb());
-      });
-      expect(result.current.map((b) => b.id)).toEqual(["claude"]);
-
-      unmount();
-      expect(listeners.size).toBe(0);
-    });
-  });
-
-  describe("resolveAnswerers()", () => {
-    const installed = new Set(["opencode", "claude", "codex"]);
-
-    it("returns the frozen empty constant when nothing is mentioned (main is NOT auto-included)", () => {
-      expect(resolveAnswerers({ mentionedAgentIds: [], installedAgentIds: installed })).toBe(
-        EMPTY_ANSWERERS
-      );
-    });
-
-    it("returns mentions in order (keeping an explicitly-mentioned main), dedup'd", () => {
+    it("returns the frozen empty snapshot when no model is configured", () => {
       expect(
-        resolveAnswerers({
-          mentionedAgentIds: ["claude", "opencode", "claude"],
-          installedAgentIds: installed,
-        })
-      ).toEqual(["claude", "opencode"]);
-    });
-
-    it("drops mentions of uninstalled agents", () => {
-      expect(
-        resolveAnswerers({
-          mentionedAgentIds: ["claude", "ghost"],
-          installedAgentIds: new Set(["opencode", "claude"]),
-        })
-      ).toEqual(["claude"]);
+        listFanoutModelBrands({
+          configuredModels: [],
+          providers: {},
+        } as unknown as VaultAgentSettings)
+      ).toBe(EMPTY_AGENT_BRANDS);
     });
   });
-
-  describe("isFanout()", () => {
-    it("routes single-vs-fan-out: collapses to single-agent only when no non-main answerer exists", () => {
-      expect(isFanout([], "claude")).toBe(false);
-      expect(isFanout(["claude"], "claude")).toBe(false);
-      expect(isFanout(["opencode"], "claude")).toBe(true);
-      expect(isFanout(["opencode", "codex"], "claude")).toBe(true);
-      expect(isFanout(["claude", "opencode"], "claude")).toBe(true);
+  describe("useFanoutModelBrands()", () => {
+    it("updates mentions after model settings change and keeps stable references otherwise", () => {
+      mockSettings = settings();
+      const { result, rerender } = renderHook(() => useFanoutModelBrands());
+      const before = result.current;
+      rerender();
+      expect(result.current).toBe(before);
+      mockSettings = {
+        ...mockSettings,
+        configuredModels: mockSettings.configuredModels.slice(0, 1),
+      };
+      rerender();
+      expect(result.current.map((brand) => brand.id)).toEqual(["cm-a"]);
     });
   });
 });

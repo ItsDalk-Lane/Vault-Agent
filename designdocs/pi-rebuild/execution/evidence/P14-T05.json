@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T05",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T05.json",
+    "reason": "Windows/Linux 与真实 Obsidian/Keychain/生命周期均未执行，必需断言不满足。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T05-01", "SC-P14-T05-02", "SC-P14-T05-03", "SC-P14-T05-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final3-unit.json",
+      "testSuites": 517,
+      "testCount": 5781,
+      "pendingTests": 0,
+      "durationSeconds": 102.896,
+      "source": "/tmp/vault-agent-pi-final3-unit.json",
+      "sourceSha256": "31e9af7ed200520ea527be2d064b2619633515d9c974117fed63fd088d17e2c2",
+      "consoleLog": {
+        "source": "/tmp/vault-agent-pi-final3-unit.log",
+        "sourceSha256": "ffdda648bbfaf30ec37d3f1b5edeaa58ebda48d941eeb586c44dd6e45e2eca61"
+      },
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "本轮实际执行的记录一致性检查；不能证明插件功能完成。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "c5d134ae6a97fdc7abc1b28019ff28a5445d3f87fa88f46a2e0b94c44a991552",
+      "exitCode": 0,
+      "result": "passed"
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T05-01",
+      "requirement": "Windowsjunction/ADS受控",
+      "result": "not_run",
+      "evidence": "相关保护已实现，Mac生产访问链已验；本条仅指Windows路径保护，不包含密钥/停止/重启。 尚缺：Windows上的真实Obsidian/PiSmoke，通过实际访问链检查junction和ADS；平台生命周期另归T05-04及任务必需步骤。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T05-02",
+      "requirement": "mac卷大小写准确",
+      "result": "passed",
+      "evidence": "实际darwin两类卷均走原production platformPath runner：当前不敏感卷alias与root相同dev16777229/ino335639715；自有/tmp Case-sensitive APFS真实镜像敏感卷root dev16777239/ino19，初次异大小写alias ENOENT，建立不同目录后isPathWithin明确false，6项边界全部通过。创建/挂载/diskutil/runner/卸载命令与原输出完整保存；镜像已卸载删除，仅留log/evidence。该结果不冒充Windows/Linux或新增Obsidian库。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T05-03",
+      "requirement": "Linuxsymlink受控",
+      "result": "not_run",
+      "evidence": "路径与链接规则已实现，Mac生产链接访问已验；本条不包含密钥/停止/重启。 尚缺：Linux上的真实Obsidian/PiSmoke，通过实际访问链检查越界链接与回库链接均被拒绝；生命周期另归T05-04。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T05-04",
+      "requirement": "三平台核心路径各有证据",
+      "result": "not_run",
+      "evidence": "Mac路径、密钥保存、停止与重启恢复已有分范围实证；不是一个新增功能。 尚缺：补齐Windows/Linux实际版本、路径、密钥、停止、退出重开证据；当前本机没有已可用的目标执行环境。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [
+    "SC-P14-T05-01：相关保护已实现，Mac生产访问链已验；本条仅指Windows路径保护，不包含密钥/停止/重启。 尚缺：Windows上的真实Obsidian/PiSmoke，通过实际访问链检查junction和ADS；平台生命周期另归T05-04及任务必需步骤。",
+    "SC-P14-T05-03：路径与链接规则已实现，Mac生产链接访问已验；本条不包含密钥/停止/重启。 尚缺：Linux上的真实Obsidian/PiSmoke，通过实际访问链检查越界链接与回库链接均被拒绝；生命周期另归T05-04。",
+    "SC-P14-T05-04：Mac路径、密钥保存、停止与重启恢复已有分范围实证；不是一个新增功能。 尚缺：补齐Windows/Linux实际版本、路径、密钥、停止、退出重开证据；当前本机没有已可用的目标执行环境。",
+    "依赖/前阶段门槛仍未齐，不将自身局部证据批量提升为done。"
+  ],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "Mac真实两类卷及分范围生命周期已有证据；Windows/Linux单项路径断言与全平台生命周期汇总分开记录。",
+    "actualRuntimeReferences": ["mac-local-model"],
+    "currentModuleTestAvailable": false,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "specific_assertions_not_yet_verified",
+    "acceptedAssertions": 1,
+    "remainingAssertions": ["SC-P14-T05-01", "SC-P14-T05-03", "SC-P14-T05-04"],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

@@ -1,3 +1,4 @@
+import { sha256 } from "@/utils/hash";
 import type { TAbstractFile } from "obsidian";
 import {
   prepareChatImagesForSave,
@@ -5,8 +6,12 @@ import {
   updateChatTranscript,
 } from "@/utils/chatImagePersistence";
 import { serializeFanoutComposite } from "@/agentMode/session/fanout/fanoutTypes";
+import {
+  LEGACY_TEXT_ONLY_NOTICE,
+  LegacyHistoryReader,
+} from "@/agentMode/session/legacy/LegacyHistoryReader";
 import { AGENT_CHAT_MODE, AI_SENDER, VAULT_AGENT_CONVERSATION_TAG, USER_SENDER } from "@/constants";
-import { logError, logInfo, logWarn } from "@/logger";
+import { logError, logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
 import { FormattedDateTime } from "@/types/message";
@@ -65,18 +70,40 @@ export interface LoadedAgentChat {
   usage?: SessionUsage;
 }
 
+const TRANSCRIPT_EMBED = /!\[\[([^\]]+)\]\]|!\[[^\]]*\]\(([^)]+)\)/g;
+
+/** A missing attachment must not block the rest of the history: a resolvable embed stays as it is,
+ * while an unavailable one becomes an explicit placeholder that still names its original path.
+ * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+ */
+export function placeholderMissingAttachments(
+  text: string,
+  isAvailable: (target: string) => boolean
+): string {
+  return text.replace(TRANSCRIPT_EMBED, (embed, wiki?: string, markdown?: string) => {
+    const target = wiki ?? markdown ?? "";
+    if (target.length === 0 || isAvailable(target)) return embed;
+    return `[missing attachment: ${target}]`;
+  });
+}
+
 export class AgentChatPersistenceManager {
   private readonly loadedTranscripts = new Map<TAbstractFile | string, string>();
 
   constructor(private readonly app: App) {}
 
-  private async updateTranscript(path: string, render: (current: string) => string): Promise<void> {
+  private async updateTranscript(
+    path: string,
+    render: (current: string) => string,
+    finalize?: (text: string) => string
+  ): Promise<void> {
     const key = this.app.vault.getAbstractFileByPath(path) ?? path;
     const baseline = await updateChatTranscript(
       this.app,
       path,
       render,
-      this.loadedTranscripts.get(key)
+      this.loadedTranscripts.get(key),
+      finalize
     );
     this.loadedTranscripts.set(key, baseline);
   }
@@ -102,21 +129,47 @@ export class AgentChatPersistenceManager {
 
       await ensureFolderExists(this.app.vault, conversationsFolder);
 
-      const existingFile = options?.existingPath
+      const canonicalKey =
+        backendId === "pi" && options?.sessionId
+          ? sha256(JSON.stringify([backendId, options.sessionId]))
+          : undefined;
+      const requestedFile = options?.existingPath
         ? this.resolveExistingFile(options.existingPath)
         : null;
+      let existingFile =
+        requestedFile &&
+        (!canonicalKey ||
+          (await this.writableSessionPath(requestedFile, backendId, options!.sessionId!)))
+          ? requestedFile
+          : null;
+      // 冷开沿原有聊天目录查找同根正式副本，首次仍使用用户的文件名模板，避免把设置变成无效项。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (canonicalKey && !existingFile) {
+        for (const file of listMarkdownFiles(this.app, conversationsFolder).sort((a, b) =>
+          a.path.localeCompare(b.path)
+        )) {
+          if (await this.writableSessionPath(file, backendId, options!.sessionId!)) {
+            existingFile = file;
+            break;
+          }
+        }
+      }
+      const preferredFileName =
+        existingFile?.path ??
+        this.generateFileName(messages, firstMessageEpoch, conversationsFolder);
 
-      const preferredFileName = existingFile
-        ? existingFile.path
-        : this.generateFileName(messages, firstMessageEpoch, conversationsFolder);
-
+      const preferredFile = existingFile ?? this.resolveExistingFile(preferredFileName);
+      const imageBaseline =
+        preferredFile &&
+        (existingFile ||
+          (canonicalKey &&
+            (await this.writableSessionPath(preferredFile, backendId, options!.sessionId!))))
+          ? await this.app.vault.read(preferredFile)
+          : "";
       const preparedMessages = await prepareChatImagesForSave(
         this.app,
         messages,
         conversationsFolder,
-        (await this.app.vault.adapter.exists(preferredFileName))
-          ? await this.app.vault.adapter.read(preferredFileName)
-          : "",
+        imageBaseline,
         preferredFileName
       );
       const chatContent = this.formatChatContent(preparedMessages);
@@ -130,48 +183,103 @@ export class AgentChatPersistenceManager {
         projectId: options?.projectId,
         usage: options?.usage,
       });
+      const finalize = canonicalKey
+        ? (content: string) => {
+            const { body } = this.splitFrontmatter(content);
+            return `${mergeFrontmatter(content, [
+              ["canonicalCopyFor", `canonicalCopyFor: "${canonicalKey}"`],
+              ["canonicalBodyHash", `canonicalBodyHash: "${sha256(body)}"`],
+            ])}\n\n${body}`;
+          }
+        : undefined;
       const renderNote = (current: string) =>
         `${mergeFrontmatter(current, updates)}\n\n${chatContent}`;
-      // Autosave rewrites only the keys it owns, from the note as it is at write time, so renames, pins, and user properties survive; a new chat colliding with another note's name must not inherit its session.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/698
-      const rewriteNote = (path: string) =>
-        this.updateTranscript(path, (current) =>
-          renderNote(path === options?.existingPath ? current : "")
+      const rewriteNote = async (path: string) => {
+        await this.updateTranscript(
+          path,
+          (current) => {
+            // 副本归属与正文校验必须在实际写入时重验，不能覆盖附件准备期间被用户修改的文件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+            if (canonicalKey && !this.ownsCanonicalCopy(current, backendId, options!.sessionId!))
+              throw new Error("聊天副本已被修改，原件已保留，未覆盖内容。");
+            return renderNote(current);
+          },
+          finalize
         );
-
+      };
       if (existingFile) {
         await rewriteNote(existingFile.path);
         return { path: existingFile.path };
       }
-
-      try {
-        const created = await this.app.vault.create(preferredFileName, renderNote(""));
-        return { path: created.path };
-      } catch (err) {
-        if (isFileAlreadyExistsError(err)) {
-          await rewriteNote(preferredFileName);
-          return { path: preferredFileName };
-        }
-        if (isNameTooLongError(err)) {
-          logWarn("[AgentChatPersistenceManager] Filename too long, falling back to minimal name");
-          const fallback = `${conversationsFolder}/${AGENT_FILENAME_PREFIX}chat-${firstMessageEpoch}.md`;
-          try {
-            const created = await this.app.vault.create(fallback, renderNote(""));
-            return { path: created.path };
-          } catch (fallbackErr) {
-            if (isFileAlreadyExistsError(fallbackErr)) {
-              await rewriteNote(fallback);
-              return { path: fallback };
+      const createCopy = async (preferred: string): Promise<{ path: string }> => {
+        for (let suffix = 0; ; suffix++) {
+          const target = suffix === 0 ? preferred : preferred.replace(/\.md$/, `-${suffix}.md`);
+          const occupied = this.app.vault.getAbstractFileByPath(target);
+          const existing = occupied instanceof TFile ? occupied : null;
+          if (occupied) {
+            if (
+              existing &&
+              canonicalKey &&
+              (await this.writableSessionPath(existing, backendId, options!.sessionId!))
+            ) {
+              await rewriteNote(target);
+              return { path: target };
             }
-            throw fallbackErr;
+            continue;
+          }
+          try {
+            const content = renderNote("");
+            const created = await this.app.vault.create(
+              target,
+              finalize ? finalize(content) : content
+            );
+            return { path: created.path };
+          } catch (error) {
+            if (!isFileAlreadyExistsError(error)) throw error;
+            // 同名目录或尚未进入索引的文件也必须保留，碰撞后只核对一次，再选择下一名称。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+            const raced = this.resolveExistingFile(target);
+            if (
+              raced &&
+              canonicalKey &&
+              (await this.writableSessionPath(raced, backendId, options!.sessionId!))
+            ) {
+              await rewriteNote(target);
+              return { path: target };
+            }
           }
         }
-        throw err;
+      };
+      try {
+        return await createCopy(preferredFileName);
+      } catch (error) {
+        if (!isNameTooLongError(error)) throw error;
+        return await createCopy(
+          `${conversationsFolder}/${AGENT_FILENAME_PREFIX}chat-${firstMessageEpoch}.md`
+        );
       }
     } catch (error) {
       logError("[AgentChatPersistenceManager] Error saving session:", error);
       return null;
     }
+  }
+
+  async writableSessionPath(
+    file: TFile,
+    backendId: BackendId,
+    sessionId: string
+  ): Promise<string | undefined> {
+    return this.ownsCanonicalCopy(await this.app.vault.read(file), backendId, sessionId)
+      ? file.path
+      : undefined;
+  }
+
+  private ownsCanonicalCopy(content: string, backendId: BackendId, sessionId: string): boolean {
+    const { frontmatter, body } = this.splitFrontmatter(content);
+    return (
+      frontmatter.backendId === backendId &&
+      frontmatter.sessionId === sessionId &&
+      frontmatter.canonicalCopyFor === sha256(JSON.stringify([backendId, sessionId])) &&
+      frontmatter.canonicalBodyHash === sha256(body)
+    );
   }
 
   async loadFile(file: TFile): Promise<LoadedAgentChat> {
@@ -287,7 +395,7 @@ export class AgentChatPersistenceManager {
         : `loaded-${messages.length}`;
       messages.push({
         id,
-        message: stripChatImageReceipts(messageText),
+        message: this.renderLoadedMessage(messageText),
         sender,
         isVisible: true,
         timestamp,
@@ -295,6 +403,48 @@ export class AgentChatPersistenceManager {
     }
     return messages;
   }
+
+  /** Off by default: the Pi runtime enables placeholders so a missing persisted attachment shows its
+   * original path instead of a broken embed.
+   * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+   */
+  /** Legacy Markdown carries no tool history; the Pi runtime enables this so the loaded chat says so
+   * instead of implying a full restore.
+   * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+   */
+  setLegacyTextOnlyNoticeEnabled(value: boolean): void {
+    this.legacyTextOnlyNoticeEnabled = value;
+  }
+
+  setMissingAttachmentPlaceholders(value: boolean): void {
+    this.missingAttachmentPlaceholders = value;
+  }
+
+  private renderLoadedMessage(text: string): string {
+    const stripped = stripChatImageReceipts(text);
+    if (this.legacyTextOnlyNoticeEnabled && this.legacyReader.needsTextOnlyNotice(text)) {
+      return `${stripped}\n\n[${LEGACY_TEXT_ONLY_NOTICE}]`;
+    }
+    if (!this.missingAttachmentPlaceholders) return stripped;
+    const vault = this.app?.vault as
+      | { getAbstractFileByPath?: (path: string) => unknown }
+      | undefined;
+    if (typeof vault?.getAbstractFileByPath !== "function") return stripped;
+    const lookup = vault.getAbstractFileByPath.bind(vault);
+    return placeholderMissingAttachments(stripped, (target) => {
+      try {
+        return lookup(target) !== null && lookup(target) !== undefined;
+      } catch {
+        return true;
+      }
+    });
+  }
+
+  private missingAttachmentPlaceholders = false;
+  private legacyTextOnlyNoticeEnabled = false;
+  private readonly legacyReader = new LegacyHistoryReader({
+    ports: { listFiles: async () => [], isTombstoned: async () => false },
+  });
 
   private splitFrontmatter(content: string): {
     frontmatter: Record<string, string>;

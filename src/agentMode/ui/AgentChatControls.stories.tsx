@@ -1,4 +1,6 @@
 import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
+import { confirmSessionRollover } from "@/agentMode/ui/confirmSessionRollover";
+import { useApp } from "@/context";
 import { UsageMeter } from "@/agentMode/ui/AgentContextMeter";
 import type { ChatBookmarkState } from "@/agentMode/ui/hooks/useAgentHistoryControls";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
@@ -51,6 +53,9 @@ const meta = {
   args: {
     onNewChat: () => undefined,
     onSaveAsNote: () => undefined,
+    onExportArchive: () => undefined,
+    onRolloverSession: () => undefined,
+    onImportArchive: async () => undefined,
     chatHistoryItems: CHAT_HISTORY,
     onLoadChat: async () => {},
     onUpdateChatTitle: async () => {},
@@ -88,4 +93,25 @@ export const MoreActionsBookmarksOff: Story = {
 
 export const MoreActionsEmptyChat: Story = {
   args: { openMoreActions: true, getChatBookmarkState: undefined, onCopyChatLink: undefined },
+};
+
+export const RolloverWhileRunning: Story = {
+  args: { openMoreActions: true, rolloverDisabled: true },
+};
+
+export const RolloverConfirmation: Story = {
+  args: { openMoreActions: true },
+  render: function RolloverConfirmation(args) {
+    const app = useApp();
+    return (
+      <ControlsStory
+        {...args}
+        onRolloverSession={() => confirmSessionRollover(app, async () => undefined)}
+      />
+    );
+  },
+};
+
+export const PauseWhileRunning: Story = {
+  args: { openMoreActions: true, rolloverDisabled: true, onPause: async () => undefined },
 };

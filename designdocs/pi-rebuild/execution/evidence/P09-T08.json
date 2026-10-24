@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P09-T08",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P09-T08.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P09-T08-01", "SC-P09-T08-02", "SC-P09-T08-03", "SC-P09-T08-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 10,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/StdioTransportFactory.test.ts",
+      "testFile": "src/agentMode/sdk/pi/mcp/StdioTransportFactory.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 11,
+      "elapsedSeconds": 4.092,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/08.log",
+      "logSha256": "2cb324b3edbd33375e29a61e9764ee0bc3195cabfe26abd8dcfdfb79a68b886b",
+      "testSourceSha256": "6020cacf85a6abd85ddba98235d3bcf4c805fe1ac31537d1b1522f832bcd9e7a",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P09-T08-01",
+      "requirement": "模型APIKey不继承",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：inherits no model API key and only injects this server's granted secrets。实际生产接线复核：descriptor.SettingsPanel/PiSettingsPanel → createPiMcpTools → PiMcpService → real MCP SDK transport/client + ToolGateway。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P09-T08-02",
+      "requirement": "npx命令被拒绝",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：rejects an auto-downloading launcher and a relative command。实际生产接线复核：descriptor.SettingsPanel/PiSettingsPanel → createPiMcpTools → PiMcpService → real MCP SDK transport/client + ToolGateway。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P09-T08-03",
+      "requirement": "路径失效不PATH兜底",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：does not fall back to PATH when the absolute command is missing。实际生产接线复核：descriptor.SettingsPanel/PiSettingsPanel → createPiMcpTools → PiMcpService → real MCP SDK transport/client + ToolGateway。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P09-T08-04",
+      "requirement": "关闭执行真实进程清理",
+      "result": "passed",
+      "evidence": "darwin真实2个OS PID：生产PiMcpService→Manager→SDK StdioTransport initialize/list/call及Factory.close；服务stdin关仍存活，SDK SIGTERM后nonce/pid退出凭据与ESRCH、0孤儿。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "生产MCP目录、实际本机HTTP调用、进度、具体参数审批、停止与禁用撤销及deferred搜索有回归；远程许可/OAuth仍不能由本机测试替代。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

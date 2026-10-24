@@ -19,10 +19,7 @@ const prepared: PreparedReport = {
   zipDir: "/tmp/reports",
   zipPath: "/tmp/reports/copilot-report-20260615-101500-abcd.zip",
   zipName: "copilot-report-20260615-101500-abcd.zip",
-  uploadAttempt: {
-    body: new ArrayBuffer(4096),
-    idempotencyKey: "5d41c9b2-7e3a-4f8b-9c1d-2a6e8f4b0d37",
-  },
+  bytes: 4096,
   issueDraft: { title: "it exploded", body: "## What went wrong" },
   manualIssueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new?title=manual",
   attachments: [included("report", "report.md"), included("screenshot", "screenshot.png")],
@@ -49,7 +46,6 @@ function renderFlow(overrides: Partial<ReportIssueFlowProps> = {}) {
         defaultChecked: true,
       },
       { id: "chatLog", label: "Vault Agent log", defaultChecked: false },
-      { id: "opencodeLog", label: "OpenCode backend log", defaultChecked: false },
     ],
     prepare: jest.fn().mockResolvedValue(prepared),
     discardReport: jest.fn().mockResolvedValue(undefined),
@@ -78,7 +74,7 @@ describe("ReportIssueFlow", () => {
       it("starts with the source defaults applied and the descriptions and consent copy visible", () => {
         renderFlow();
 
-        expect(checkedStates()).toEqual(["checked", "checked", "unchecked", "unchecked"]);
+        expect(checkedStates()).toEqual(["checked", "checked", "unchecked"]);
         expect(screen.getByText("Newest 2 MB of the log")).toBeTruthy();
         expect(screen.getByText(/screenshots are not automatically redacted/)).toBeTruthy();
         expect(screen.getByText(/never leaves it/)).toBeTruthy();

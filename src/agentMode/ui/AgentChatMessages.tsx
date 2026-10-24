@@ -1,6 +1,8 @@
 import { AgentTrail } from "@/agentMode/ui/AgentTrailView";
 import { AskUserQuestionCard } from "@/agentMode/ui/AskUserQuestionCard";
 import { FanoutMessageCard } from "@/agentMode/ui/FanoutMessageCard";
+import { SubagentHistoryOpenerContext } from "@/agentMode/ui/SubAgentCard";
+import { SubagentHistoryModal } from "@/agentMode/ui/SubagentHistoryModal";
 import { PlanProposalCard } from "@/agentMode/ui/PlanProposalCard";
 import { FeedbackCard, findFeedbackCardIndex } from "@/agentMode/ui/FeedbackCard";
 import { openReportIssueModal } from "@/agentMode/ui/ReportIssueModal";
@@ -11,6 +13,7 @@ import { openTurnDiff } from "@/agentMode/ui/TurnDiffView";
 import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndicator";
 import ChatSingleMessage from "@/components/chat-components/ChatSingleMessage";
 import { ChatTranscriptViewport } from "@/components/chat-components/ui/ChatTranscriptViewport";
+import { Button } from "@/components/ui/button";
 import { USER_SENDER } from "@/constants";
 import { useChatScrolling } from "@/hooks/useChatScrolling";
 import { t } from "@/i18n";
@@ -20,11 +23,23 @@ import type {
   AskUserQuestionPrompt,
   CurrentPlan,
   PermissionPrompt,
+  TurnFileChange,
+  FileChangeRevertResult,
+  AgentMessagePart,
 } from "@/agentMode/session/types";
 import type { ChatMessage } from "@/types/message";
 import { logError } from "@/logger";
 import { App, Plugin } from "obsidian";
-import React, { memo, useMemo } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
+
+const HISTORY_PAGE_SIZE = 50;
+const EMPTY_MESSAGE_PARTS: AgentMessagePart[] = [];
+Object.freeze(EMPTY_MESSAGE_PARTS);
+
+interface HistoryWindow {
+  backend: AgentChatBackend;
+  firstMessageId?: string;
+}
 
 interface AgentChatMessagesProps {
   messages: AgentChatMessage[];
@@ -63,7 +78,7 @@ function findToolCallTitle(messages: AgentChatMessage[], toolCallId: string): st
 
 function lastAssistant(visible: AgentChatMessage[]): AgentChatMessage | undefined {
   for (let i = visible.length - 1; i >= 0; i--) {
-    if (visible[i].sender !== USER_SENDER) return visible[i];
+    if (visible[i].sender !== USER_SENDER && !visible[i].isAuxiliary) return visible[i];
   }
   return undefined;
 }
@@ -77,6 +92,9 @@ interface AgentMessageRowProps {
   isStreaming: boolean;
   minHeight?: number;
   trailingCard?: React.ReactNode;
+  onResumeFanout?: (messageId: string) => void;
+  isBusy?: boolean;
+  onRevertFileChange?: (change: TurnFileChange) => Promise<FileChangeRevertResult>;
 }
 
 // Completed messages retain their object identity across streaming updates, so
@@ -91,12 +109,16 @@ const AgentMessageRow = memo(function AgentMessageRow({
   isStreaming,
   minHeight,
   trailingCard,
+  onResumeFanout,
+  isBusy,
+  onRevertFileChange,
 }: AgentMessageRowProps) {
   const adaptedMessage = toChatMessageView(message);
   const isAssistant = message.sender !== USER_SENDER;
   const hasParts = (message.parts?.length ?? 0) > 0;
-  const renderTrail = isAssistant && hasParts;
-  const completedTurnDurationMs = isLatestAssistant ? message.turnDurationMs : undefined;
+  const renderTrail = isAssistant && (hasParts || (message.fileChanges?.length ?? 0) > 0);
+  // 每条已完成消息都显示自己的时长，不再只有最新一条。https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
+  const completedTurnDurationMs = message.turnDurationMs;
   const runningTurnStartedAtMs =
     isLatestAssistant && isStreaming ? message.timestamp?.epoch : undefined;
   const completedTurnDuration =
@@ -123,6 +145,8 @@ const AgentMessageRow = memo(function AgentMessageRow({
             turn={fanoutTurn}
             app={app}
             footerStart={completedTurnDuration}
+            onResume={onResumeFanout ? () => onResumeFanout(message.id) : undefined}
+            isRunning={isBusy}
           />
           {runningTurnDuration}
         </div>
@@ -131,7 +155,7 @@ const AgentMessageRow = memo(function AgentMessageRow({
       ) : renderTrail ? (
         <div className="tw-px-3 tw-pt-2">
           <AgentTrail
-            parts={message.parts!}
+            parts={message.parts ?? EMPTY_MESSAGE_PARTS}
             isStreaming={isStreaming}
             turnStartedAtMs={runningTurnStartedAtMs}
             turnDurationMs={completedTurnDurationMs}
@@ -140,6 +164,8 @@ const AgentMessageRow = memo(function AgentMessageRow({
             turnStopReason={message.turnStopReason}
             errorText={message.isErrorMessage ? message.message : undefined}
             fileChanges={message.fileChanges}
+            onRevertFileChange={onRevertFileChange}
+            isBusy={isBusy}
             onOpenFileChange={(change) =>
               void openTurnDiff(app, change, message.id).catch((error: unknown) =>
                 logError("[AgentChatMessages] failed to open the turn diff", error)
@@ -177,8 +203,44 @@ const AgentChatMessages = memo(
     feedbackOffer,
   }: AgentChatMessagesProps) => {
     const { app } = plugin;
+    const handleOpenSubagentHistory = useCallback(
+      async function openHistory(conversationId: string): Promise<void> {
+        if (!chatBackend.readSubagentHistory)
+          throw new Error(t("agentChat.subAgent.historyUnavailable"));
+        const saved = await chatBackend.readSubagentHistory(conversationId);
+        new SubagentHistoryModal(app, saved, openHistory).open();
+      },
+      [app, chatBackend]
+    );
+    const handleRevertFileChange = useCallback(
+      (change: TurnFileChange) => {
+        if (!chatBackend.revertFileChange) throw new Error("此历史不能回退文件。");
+        return chatBackend.revertFileChange(change);
+      },
+      [chatBackend]
+    );
+    const handleResumeFanout = useCallback(
+      (messageId: string) => {
+        void chatBackend
+          .resumeFanout?.(messageId)
+          .catch((error: unknown) => logError("[AgentChatMessages] fan-out resume failed", error));
+      },
+      [chatBackend]
+    );
     const visible = useMemo(() => messages.filter((m) => m.isVisible), [messages]);
-    const adapted = useMemo(() => visible.map(toChatMessageView), [visible]);
+    // 千条历史一次挂载会阻塞真实 Obsidian 主线程，先显示最近一页，原始消息与同轮工具卡仍可逐页展开。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    const [historyWindow, setHistoryWindow] = useState<HistoryWindow>({ backend: chatBackend });
+    const anchoredStart = useMemo(
+      () =>
+        historyWindow.backend === chatBackend && historyWindow.firstMessageId
+          ? visible.findIndex((message) => message.id === historyWindow.firstMessageId)
+          : -1,
+      [historyWindow, chatBackend, visible]
+    );
+    const firstVisibleIndex =
+      anchoredStart >= 0 ? anchoredStart : Math.max(0, visible.length - HISTORY_PAGE_SIZE);
+    const displayed = useMemo(() => visible.slice(firstVisibleIndex), [visible, firstVisibleIndex]);
+    const adapted = useMemo(() => displayed.map(toChatMessageView), [displayed]);
     const {
       containerMinHeight,
       scrollContainerCallbackRef,
@@ -224,7 +286,6 @@ const AgentChatMessages = memo(
               openReportIssueModal(plugin, {
                 activeBackend: feedbackOffer.evidence.backendId,
                 initialNote: formatFeedbackNote(feedbackOffer),
-                preselectAllSources: true,
                 onReported: (report) => chatBackend.markFeedbackReported(report),
               })
             }
@@ -244,64 +305,97 @@ const AgentChatMessages = memo(
     const streamingMessageId = isLoading ? latestAssistant?.id : undefined;
 
     return (
-      <div className="tw-flex tw-h-full tw-flex-1 tw-flex-col tw-overflow-hidden">
-        <ChatTranscriptViewport
-          scrollContainerRef={scrollContainerCallbackRef}
-          contentRef={contentCallbackRef}
-          onScroll={onScroll}
-          isScrollPaused={isScrollPaused}
-          scrollToEnd={scrollToEnd}
-        >
-          {visible.map((message, index) => {
-            const shouldApplyMinHeight =
-              index === visible.length - 1 && message.sender !== USER_SENDER && !showPlanCard;
-            const messageKey = getMessageKey(adapted[index], index);
-
-            return (
-              <AgentMessageRow
-                key={messageKey}
-                messageKey={messageKey}
-                message={message}
-                app={app}
-                sourcePath={sourcePath}
-                isLatestAssistant={
-                  message.sender !== USER_SENDER && message.id === latestAssistant?.id
-                }
-                isStreaming={message.id === streamingMessageId}
-                minHeight={shouldApplyMinHeight ? containerMinHeight : undefined}
-                trailingCard={index === feedbackCardIndex ? feedbackCard : undefined}
-              />
-            );
-          })}
-          {inlinePlanCard}
-        </ChatTranscriptViewport>
-        {pendingActionId ? (
-          <div
-            role="region"
-            aria-label={t("agentChat.chatMessages.pendingActions")}
-            data-testid="agent-action-rail"
-            // A verbose question can exceed a short chat pane. Bound and scroll
-            // the rail so its resolution controls remain reachable.
-            // https://github.com/logancyang/obsidian-copilot/issues/2948
-            className="tw-max-h-full tw-w-full tw-overflow-y-auto tw-bg-primary"
+      <SubagentHistoryOpenerContext.Provider
+        value={chatBackend.readSubagentHistory ? handleOpenSubagentHistory : null}
+      >
+        <div className="tw-flex tw-h-full tw-flex-1 tw-flex-col tw-overflow-hidden">
+          <ChatTranscriptViewport
+            scrollContainerRef={scrollContainerCallbackRef}
+            contentRef={contentCallbackRef}
+            onScroll={onScroll}
+            isScrollPaused={isScrollPaused}
+            scrollToEnd={scrollToEnd}
           >
-            <div key={pendingActionId} data-action-id={pendingActionId}>
-              {pendingQuestion ? (
-                <AskUserQuestionCard
-                  request={pendingQuestion}
-                  onResolve={chatBackend.resolveAskUserQuestion.bind(chatBackend)}
+            {firstVisibleIndex > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="tw-mx-3 tw-my-2"
+                onClick={() =>
+                  setHistoryWindow({
+                    backend: chatBackend,
+                    firstMessageId: visible[Math.max(0, firstVisibleIndex - HISTORY_PAGE_SIZE)]?.id,
+                  })
+                }
+              >
+                {t("controls.loadEarlierMessages", { count: firstVisibleIndex })}
+              </Button>
+            )}
+            {displayed.map((message, index) => {
+              const shouldApplyMinHeight =
+                index === displayed.length - 1 && message.sender !== USER_SENDER && !showPlanCard;
+              const messageKey = getMessageKey(adapted[index], index);
+
+              return (
+                <AgentMessageRow
+                  key={messageKey}
+                  messageKey={messageKey}
+                  message={message}
+                  app={app}
+                  sourcePath={sourcePath}
+                  isLatestAssistant={
+                    message.sender !== USER_SENDER && message.id === latestAssistant?.id
+                  }
+                  isStreaming={message.id === streamingMessageId}
+                  minHeight={shouldApplyMinHeight ? containerMinHeight : undefined}
+                  trailingCard={
+                    index + firstVisibleIndex === feedbackCardIndex ? feedbackCard : undefined
+                  }
+                  onResumeFanout={
+                    // 只读快照仅供核对，不能用比较卡重新排入执行名额。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+                    chatBackend.resumeFanout && !chatBackend.getBackendState()?.readOnly
+                      ? handleResumeFanout
+                      : undefined
+                  }
+                  isBusy={isLoading}
+                  onRevertFileChange={
+                    chatBackend.revertFileChange && !chatBackend.getBackendState()?.readOnly
+                      ? handleRevertFileChange
+                      : undefined
+                  }
                 />
-              ) : pendingPermission ? (
-                <ToolPermissionCard
-                  request={pendingPermission}
-                  toolName={pendingToolName}
-                  onResolve={chatBackend.resolveToolPermission.bind(chatBackend)}
-                />
-              ) : null}
+              );
+            })}
+            {inlinePlanCard}
+          </ChatTranscriptViewport>
+          {pendingActionId ? (
+            <div
+              role="region"
+              aria-label={t("agentChat.chatMessages.pendingActions")}
+              data-testid="agent-action-rail"
+              // A verbose question can exceed a short chat pane. Bound and scroll
+              // the rail so its resolution controls remain reachable.
+              // https://github.com/logancyang/obsidian-copilot/issues/2948
+              className="tw-max-h-full tw-w-full tw-overflow-y-auto tw-bg-primary"
+            >
+              <div key={pendingActionId} data-action-id={pendingActionId}>
+                {pendingQuestion ? (
+                  <AskUserQuestionCard
+                    request={pendingQuestion}
+                    onResolve={chatBackend.resolveAskUserQuestion.bind(chatBackend)}
+                  />
+                ) : pendingPermission ? (
+                  <ToolPermissionCard
+                    request={pendingPermission}
+                    toolName={pendingToolName}
+                    onResolve={chatBackend.resolveToolPermission.bind(chatBackend)}
+                  />
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      </SubagentHistoryOpenerContext.Provider>
     );
   }
 );

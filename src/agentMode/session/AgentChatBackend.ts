@@ -11,8 +11,11 @@ import type {
   PermissionPrompt,
   PlanDecisionAction,
   PromptContent,
+  RecoveryStateUpdate,
   PlanUsage,
   SessionUsage,
+  TurnFileChange,
+  FileChangeRevertResult,
 } from "./types";
 
 export interface AgentChatBackend {
@@ -24,12 +27,21 @@ export interface AgentChatBackend {
     mentionedAgents?: ReadonlyArray<BackendId>
   ): { id: string; turn: Promise<void> };
   cancel(): Promise<void>;
+  pause?(): Promise<void>;
+  canSteer?(): boolean;
+  steerMessage?(text: string): Promise<void>;
+  resumeFanout?(messageId: string): Promise<void>;
+  readSubagentHistory?(conversationId: string): Promise<readonly AgentChatMessage[]>;
+  getRecoveryState?(): RecoveryStateUpdate | null;
+  recoverSession?(action: "continue" | "abort" | "reconcile"): Promise<void>;
+  revertFileChange?(change: TurnFileChange): Promise<FileChangeRevertResult>;
   deleteMessage(id: string): Promise<boolean>;
   clearMessages(): void;
   getMessages(): AgentChatMessage[];
 
   isStarting(): boolean;
   isTurnInFlight(): boolean;
+  getActiveBackgroundTaskCount?(): number;
 
   getBackendState(): BackendState | null;
   canSwitchModel(): boolean | null;

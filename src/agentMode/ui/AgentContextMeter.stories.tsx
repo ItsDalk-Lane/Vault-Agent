@@ -56,6 +56,24 @@ export const ContextOnly: StoryObj<UsageMeterProps> = {
   args: { usage: CONTEXT, contextWindow: 200_000, planUsage: null },
 };
 
+export const LocalRunBudget: StoryObj<UsageMeterProps> = {
+  args: {
+    usage: CONTEXT,
+    contextWindow: 200_000,
+    planUsage: {
+      windows: [
+        {
+          id: "local_requests",
+          label: "Local budget · requests",
+          percent: 9,
+          source: "local_budget",
+        },
+      ],
+      updatedAt: NOW,
+    },
+  },
+};
+
 export const CapsWithoutContextWindow: StoryObj<UsageMeterProps> = {
   args: {
     usage: { usedTokens: 12_400, updatedAt: NOW },

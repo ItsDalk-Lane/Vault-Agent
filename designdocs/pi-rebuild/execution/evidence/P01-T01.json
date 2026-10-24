@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T01",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "designdocs/pi-rebuild/execution/BASELINE.md",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/evidence/P01-T01.json"
+  ],
+  "scenarioIds": ["SC-P01-T01-01", "SC-P01-T01-02", "SC-P01-T01-03"],
+  "commands": [
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "输出只有 `?? designdocs/pi-rebuild/`；BASELINE/HANDOFF/STATE/evidence 写入前后一致，已跟踪文件无改动。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "输出为空：工作树没有已跟踪文件的修改。"
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "c2a7ef50539397627a6e4446283d791ad423aff6（与分析快照相同；origin/main 同步）。"
+    },
+    {
+      "command": "node -e 'const s=require(\"./designdocs/pi-rebuild/execution/STATE.json\"); console.log(JSON.stringify({phase0:s.phase0?.status,currentTaskId:s.currentTaskId,nextTaskId:s.nextTaskId,task:s.tasks[\"P01-T01\"],updatedAt:s.updatedAt}))'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"phase0\":\"accepted_user_report\",\"currentTaskId\":null,\"nextTaskId\":\"P01-T02\",\"task\":{\"status\":\"done\",\"evidencePath\":\"execution/evidence/P01-T01.json\"},\"updatedAt\":\"2026-10-21\"}"
+    },
+    {
+      "command": "shasum -a 256 main.js \"/Users/study_superior/Desktop/Project/houde/.obsidian/plugins/vault-agent/main.js\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "两个路径均为 a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551，说明该 vault 实际加载的是本仓库工作树构建产物。"
+    },
+    {
+      "command": "/usr/libexec/PlistBuddy -c \"Print :CFBundleShortVersionString\" /Applications/Obsidian.app/Contents/Info.plist",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "1.12.7（与 Pi 兼容性 PoC 的 RESULTS.md 记录一致，macOS arm64）。"
+    },
+    {
+      "command": "gh issue create --title \"Pi 原生引擎重构跟踪：单一 pi-durable 1.3.0 运行时\" --body-file /tmp/pi-tracking-issue.md --label enhancement",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "https://github.com/ItsDalk-Lane/Vault-Agent/issues/1（仓库此前无 issue；已登记进 BASELINE.md）。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "本轮实际执行的记录一致性检查；不能证明插件功能完成。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "c5d134ae6a97fdc7abc1b28019ff28a5445d3f87fa88f46a2e0b94c44a991552",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T01-01",
+      "requirement": "已有未提交修改内容保持不变",
+      "result": "passed",
+      "evidence": "编辑前后 git status --short 均只显示 `?? designdocs/pi-rebuild/`，git diff --stat 为空；未执行 git reset/clean/checkout；用户 PoC 工件（vault-agent-pi-spike、houde vault 插件目录）未被修改或删除。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T01-02",
+      "requirement": "P00仍为完成",
+      "result": "passed",
+      "evidence": "STATE.json 的 phase0.status 保持 accepted_user_report；check-plan.mjs 的 P00 断言通过；本任务没有重跑 P00，也没有把它改写成工具测试通过。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T01-03",
+      "requirement": "原PoC无路径时明确标用户确认而非失败",
+      "result": "passed",
+      "evidence": "BASELINE.md 明确写 P00 状态来源是用户确认、本任务未重跑，并列出仓库外可见工件（spike 目录、houde 插件安装目录与会话记录）作为佐证，而非工具产生的 passed。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "P00 的通过来自用户确认与仓库外工件；本任务没有重跑打包、安装或真实模型请求。",
+    "本任务为 documentationOnly，未运行 npm test / build / lint；不声称这些检查通过。",
+    "未创建 git commit：gitCommitAfter=null（执行包整体仍为未跟踪，按任务约定不编造 SHA）。",
+    "Obsidian 低于 1.12.7 的宿主与 Windows/Linux 未验证；manifest 的 minAppVersion 1.11.4 尚未按 design/14 校正。",
+    "执行包 CHECKSUMS.sha256 是交付时快照；本任务按流程修改了 BASELINE/HANDOFF/STATE/evidence 后不再与其匹配，仓库内没有脚本校验该文件。",
+    "P00 实际运行的是 ecb53543-dirty 构建（早于当前 HEAD c2a7ef5），不是 HEAD 构建。"
+  ],
+  "handoff": "P01-T01 完成；下一任务 P01-T02：沿 src/agentMode/ui/AgentChatMessages.tsx、src/agentMode/ui/AgentTrailView.tsx 读取消息/轨迹组件，逐分支核对 fixtures/feature-matrix.json 的组件名与 producer，补记真实工作树新增功能、标记旧后端专属解析与纯展示逻辑，输出组件→事件→最终任务登记表；文档/人工验收，不改生产逻辑；完成时同样写 evidence、更新 STATE 与 HANDOFF 并运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

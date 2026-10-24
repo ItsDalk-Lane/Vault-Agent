@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P13-T04",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P13-T04.json",
+    "reason": "完整导出没有产品入口。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P13-T04-01", "SC-P13-T04-02", "SC-P13-T04-03", "SC-P13-T04-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 28,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P13-T04",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/SessionExport.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 28,
+      "durationSeconds": 2.969,
+      "logPath": "/tmp/vault-agent-detailed-p13-t04.log",
+      "logSha256": "7f2876bd754095cc89c58c265377d00ed9691425e1b4ba2c1ff65718aca4d8de",
+      "testFile": "src/agentMode/sdk/pi/storage/SessionExport.test.ts",
+      "testSourceSha256": "4b08e6a1c0c863404fa58639ebc5a892efe927fe251828b351e63853b1dafdb9",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P13-T04-01",
+      "requirement": "导出重读顺序一致",
+      "result": "passed",
+      "evidence": "真实完整备份经公共importSessionBackup只读恢复原user/ai顺序，再导出仍保留原历史；schema/version/hash/大小验证28项通过。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T04-02",
+      "requirement": "敏感字段不出现",
+      "result": "passed",
+      "evidence": "生产exportSession直接调用同一SessionExport.redactSecrets，定向fixture含多层凭据字段并断言无Authorization/keychain秘密。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T04-03",
+      "requirement": "MCP token未导出",
+      "result": "passed",
+      "evidence": "SessionExport测试明确无MCPtoken/Bearer串；MCP实际本地HTTP回显token也在持久化前脱敏，本机token非远程OAuth证明。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T04-04",
+      "requirement": "旧Markdown读者仍可用",
+      "result": "passed",
+      "evidence": "生产Markdown导出真实历史，SessionExport.toMarkdown生成内容经既有LegacyHistoryReader重读角色和顺序一致。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。",
+    "actualRuntimeReferences": [
+      "production:full_backup_round_trip_read_only",
+      "production:markdown_export_real_history",
+      "production:image_private_blob_and_full_export_receipt"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

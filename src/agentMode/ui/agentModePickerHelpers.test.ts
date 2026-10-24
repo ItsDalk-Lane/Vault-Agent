@@ -42,6 +42,16 @@ function makeManager(opts: {
 }
 describe("agentModePickerHelpers", () => {
   describe("buildAgentModePicker()", () => {
+    it("keeps historical records free of executable mode controls https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      expect(
+        buildAgentModePicker({
+          manager: {
+            getActiveSession: () => ({ isHistoricalOnly: () => true }),
+          } as unknown as AgentSessionManager,
+        })
+      ).toBeNull();
+    });
+
     it("returns null when manager is null", () => {
       expect(buildAgentModePicker({ manager: null })).toBeNull();
     });

@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "note": "resolvedZone、actor、trustedTool是宿主解析结果，不是模型可提交字段。路径解析单独测试。错误码可在16目录中增补，但不能改变判定。",
+  "cases": [
+    {
+      "id": "POL-01",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "read",
+      "inScope": true,
+      "expected": "allow",
+      "reason": "项目范围内普通读取"
+    },
+    {
+      "id": "POL-02",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "inScope": true,
+      "expected": "ask",
+      "reason": "普通写入需要审批"
+    },
+    {
+      "id": "POL-03",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "plan",
+      "effect": "write",
+      "code": "READ_ONLY_MODE",
+      "expected": "deny",
+      "reason": "只读模式不写用户资源"
+    },
+    {
+      "id": "POL-04",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "auto",
+      "effect": "write",
+      "scopeGranted": true,
+      "expected": "allow",
+      "reason": "已授权scope低风险内容修改"
+    },
+    {
+      "id": "POL-05",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "auto",
+      "effect": "delete",
+      "scopeGranted": true,
+      "expected": "ask",
+      "reason": "auto也不免删除审批"
+    },
+    {
+      "id": "POL-06",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "auto",
+      "effect": "rename",
+      "scopeGranted": true,
+      "expected": "ask",
+      "reason": "auto也不免重命名审批"
+    },
+    {
+      "id": "POL-07",
+      "toolFamily": "native_file",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "read",
+      "code": "USE_VAULT_TOOL",
+      "expected": "deny",
+      "reason": "工具族错误"
+    },
+    {
+      "id": "POL-08",
+      "toolFamily": "native_file",
+      "resolvedZone": "protected",
+      "mode": "auto",
+      "effect": "read",
+      "code": "PROTECTED_PATH",
+      "expected": "deny",
+      "reason": "私有state保护"
+    },
+    {
+      "id": "POL-09",
+      "toolFamily": "native_file",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "read",
+      "inScope": false,
+      "code": "PATH_OUT_OF_SCOPE",
+      "expected": "deny",
+      "reason": "未授权外部根"
+    },
+    {
+      "id": "POL-10",
+      "toolFamily": "native_file",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "read",
+      "inScope": true,
+      "expected": "allow",
+      "reason": "已授权外部读取"
+    },
+    {
+      "id": "POL-11",
+      "toolFamily": "native_file",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "write",
+      "inScope": true,
+      "expected": "ask",
+      "reason": "外部写必须有具体许可"
+    },
+    {
+      "id": "POL-12",
+      "toolFamily": "host_process",
+      "resolvedZone": "external",
+      "mode": "auto",
+      "effect": "execute",
+      "hostExecution": "strict",
+      "code": "OPAQUE_EXECUTION_DISABLED",
+      "expected": "deny",
+      "reason": "strict不运行opaque"
+    },
+    {
+      "id": "POL-13",
+      "toolFamily": "host_process",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "execute",
+      "hostExecution": "trusted_host",
+      "expected": "ask",
+      "reason": "可信宿主仍逐次确认"
+    },
+    {
+      "id": "POL-14",
+      "toolFamily": "host_process",
+      "resolvedZone": "external",
+      "mode": "plan",
+      "effect": "execute",
+      "hostExecution": "trusted_host",
+      "code": "READ_ONLY_MODE",
+      "expected": "deny",
+      "reason": "plan不执行宿主命令"
+    },
+    {
+      "id": "POL-15",
+      "toolFamily": "mcp",
+      "resolvedZone": "remote",
+      "mode": "default",
+      "effect": "unknown",
+      "readOnlyHint": true,
+      "expected": "ask",
+      "reason": "未知MCP效果不信任hint"
+    },
+    {
+      "id": "POL-16",
+      "toolFamily": "mcp",
+      "resolvedZone": "remote",
+      "mode": "plan",
+      "effect": "unknown",
+      "readOnlyHint": true,
+      "code": "READ_ONLY_MODE",
+      "expected": "deny",
+      "reason": "未知MCP无法证明只读"
+    },
+    {
+      "id": "POL-17",
+      "toolFamily": "mcp",
+      "resolvedZone": "remote",
+      "mode": "plan",
+      "effect": "read",
+      "trustedTool": true,
+      "inScope": true,
+      "expected": "allow",
+      "reason": "经过宿主明确信任的只读远端工具"
+    },
+    {
+      "id": "POL-18",
+      "toolFamily": "control",
+      "resolvedZone": "vault",
+      "mode": "plan",
+      "effect": "state",
+      "toolId": "todo_set",
+      "expected": "allow",
+      "reason": "私有todo状态不属于用户Vault写入"
+    },
+    {
+      "id": "POL-19",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "allowRule": true,
+      "denyRule": true,
+      "code": "PERMISSION_DENIED",
+      "expected": "deny",
+      "reason": "拒绝规则优先"
+    },
+    {
+      "id": "POL-20",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "priorApproval": true,
+      "argumentsChanged": true,
+      "expected": "ask",
+      "reason": "approval参数变动必须新批准"
+    },
+    {
+      "id": "POL-21",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "priorApproval": true,
+      "expired": true,
+      "expected": "ask",
+      "reason": "审批过期"
+    },
+    {
+      "id": "POL-22",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "approved": true,
+      "cancelled": true,
+      "code": "TOOL_CANCELLED",
+      "expected": "deny",
+      "reason": "已取消run不可开始I/O"
+    },
+    {
+      "id": "POL-23",
+      "toolFamily": "native_file",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "write",
+      "inScope": true,
+      "nlink": 2,
+      "code": "UNSAFE_FILE_ALIAS",
+      "expected": "deny",
+      "reason": "硬链接目标不能写"
+    },
+    {
+      "id": "POL-24",
+      "toolFamily": "vault",
+      "resolvedZone": "protected",
+      "mode": "default",
+      "effect": "read",
+      "code": "PROTECTED_PATH",
+      "expected": "deny",
+      "reason": "配置目录不是普通笔记"
+    },
+    {
+      "id": "POL-25",
+      "toolFamily": "vault",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "write",
+      "actor": "subagent",
+      "childReadOnly": true,
+      "code": "READ_ONLY_MODE",
+      "expected": "deny",
+      "reason": "只读子代理不能继承父写能力"
+    },
+    {
+      "id": "POL-26",
+      "toolFamily": "mcp",
+      "resolvedZone": "remote",
+      "mode": "auto",
+      "effect": "read",
+      "callable": false,
+      "code": "TOOL_DISABLED",
+      "expected": "deny",
+      "reason": "hidden从callable去除"
+    },
+    {
+      "id": "POL-27",
+      "toolFamily": "control",
+      "resolvedZone": "vault",
+      "mode": "default",
+      "effect": "state",
+      "caller": "tools",
+      "toolId": "delegate_task",
+      "code": "CALLER_NOT_ALLOWED",
+      "expected": "deny",
+      "reason": "脚本不能调用model-only委派工具"
+    },
+    {
+      "id": "POL-28",
+      "toolFamily": "native_file",
+      "resolvedZone": "external",
+      "mode": "default",
+      "effect": "write",
+      "requestedExternal": true,
+      "realTargetZone": "vault",
+      "code": "USE_VAULT_TOOL",
+      "expected": "deny",
+      "reason": "重解析后发现真实路径回Vault"
+    }
+  ]
+}

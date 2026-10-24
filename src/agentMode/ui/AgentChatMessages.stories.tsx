@@ -131,6 +131,82 @@ export const QueuedActions: StoryObj<AgentChatMessagesProps> = {
   render: () => <QueuedActionsDemo {...actionRailArgs} />,
 };
 
+export const PausedDraft: StoryObj<AgentChatMessagesProps> = {
+  args: {
+    messages: [
+      { ...message, id: "paused-goal", sender: "user", message: "请核对资料并整理结果。" },
+      {
+        ...message,
+        id: "paused-draft",
+        isAuxiliary: true,
+        message: `未完成草稿（暂停时保存，任务尚未完成）\n\n已经核对第一份资料，另外两份仍待检查。`,
+        parts: [
+          {
+            kind: "text",
+            text: `未完成草稿（暂停时保存，任务尚未完成）\n\n已经核对第一份资料，另外两份仍待检查。`,
+          },
+        ],
+      },
+    ],
+    pendingToolPermissions: [],
+    pendingAskUserQuestions: [],
+    isLoading: false,
+  },
+  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+};
+
+export const UnavailableHistory: StoryObj<AgentChatMessagesProps> = {
+  args: {
+    ...actionRailArgs,
+    messages: [
+      {
+        ...message,
+        id: "restore-unavailable",
+        isAuxiliary: true,
+        isErrorMessage: true,
+        message:
+          "原会话暂时无法恢复，原始记录和未发送输入已保留。修复问题后，请关闭此只读标签，再从历史记录重新打开。",
+      },
+    ],
+    pendingToolPermissions: [],
+    pendingAskUserQuestions: [],
+    isLoading: false,
+  },
+  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+};
+
+export const ImportedTextHistory: StoryObj<AgentChatMessagesProps> = {
+  args: {
+    ...actionRailArgs,
+    messages: [
+      {
+        ...message,
+        id: "imported-text-history",
+        sender: "user",
+        message:
+          "已导入的历史聊天（仅文字）\n\n**旧问题**\n**user**: 苹果有几颗？\n**assistant**: 三颗。",
+      },
+    ],
+    pendingToolPermissions: [],
+    pendingAskUserQuestions: [],
+    isLoading: false,
+  },
+  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+};
+
+export const LocalCommandCompleted: StoryObj<AgentChatMessagesProps> = {
+  args: {
+    ...actionRailArgs,
+    messages: [
+      { ...message, id: "local-command", sender: "user", message: "/skill canonical:review" },
+    ],
+    pendingToolPermissions: [],
+    pendingAskUserQuestions: [],
+    isLoading: false,
+  },
+  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+};
+
 export const LongResponse: StoryObj<AgentChatMessagesProps> = {
   args: {
     ...actionRailArgs,
@@ -149,6 +225,22 @@ export const LongResponse: StoryObj<AgentChatMessagesProps> = {
       },
     ],
     isLoading: true,
+  },
+  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+};
+
+export const ThousandMessageHistory: StoryObj<AgentChatMessagesProps> = {
+  args: {
+    ...actionRailArgs,
+    pendingToolPermissions: [],
+    pendingAskUserQuestions: [],
+    isLoading: false,
+    messages: Array.from({ length: 1000 }, (_, index) => ({
+      ...message,
+      id: `archive-${index}`,
+      sender: index % 2 === 0 ? "user" : "ai",
+      message: index === 999 ? "历史中的完整长回答。\n\n".repeat(3_000) : `历史消息 ${index + 1}`,
+    })),
   },
   render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
 };

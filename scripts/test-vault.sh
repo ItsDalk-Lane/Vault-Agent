@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian}"
+OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian-cli}"
 
 if [[ -z "${COPILOT_TEST_VAULT_PATH:-}" ]]; then
   cat >&2 <<'EOF'
@@ -52,6 +52,34 @@ EOF
     ;;
 esac
 
+VAULT_NAME="$(basename "$VAULT_REAL")"
+VAULT_IDENTITY_JSON=""
+if [[ -x "$OBSIDIAN_BIN" ]]; then
+  echo "==> Verifying the running Obsidian vault before deployment"
+  IDENTITY_CODE='JSON.stringify({name:app.vault.getName(),path:app.vault.adapter.getBasePath()})'
+  if ! VAULT_IDENTITY_JSON="$(cd "$VAULT_PATH" && "$OBSIDIAN_BIN" "vault=$VAULT_NAME" eval code="$IDENTITY_CODE")"; then
+    echo "error: could not verify the running test vault; refusing deployment and reload." >&2
+    exit 1
+  fi
+  if ! VAULT_IDENTITY_JSON="$(node -e '
+    const fs = require("node:fs");
+    const path = require("node:path");
+    try {
+      const target = JSON.parse(process.argv[1].trim().replace(/^=>\s*/, ""));
+      if (target?.name !== process.argv[3] || typeof target.path !== "string" ||
+          !path.isAbsolute(target.path) || fs.realpathSync(target.path) !== process.argv[2]) {
+        throw new Error("running vault does not match the configured test vault: " + JSON.stringify(target));
+      }
+      process.stdout.write(JSON.stringify({ name: target.name, path: target.path }));
+    } catch (error) {
+      process.stderr.write("error: refusing a different or unverified vault; " + error.message + "\n");
+      process.exit(1);
+    }
+  ' "$VAULT_IDENTITY_JSON" "$VAULT_REAL" "$VAULT_NAME")"; then
+    exit 1
+  fi
+fi
+
 echo "==> Installing dependencies"
 npm install --prefer-offline --no-audit --no-fund
 
@@ -76,6 +104,7 @@ if [[ -z "$PLUGIN_ID" ]]; then
   echo "error: could not read plugin id from manifest.json" >&2
   exit 1
 fi
+PLUGIN_ID_JSON="$(node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$PLUGIN_ID")"
 
 PLUGIN_DIR="$VAULT_PATH/.obsidian/plugins/$PLUGIN_ID"
 mkdir -p "$PLUGIN_DIR"
@@ -170,26 +199,19 @@ if [[ -n "$GALLERY_ID" ]]; then
   fi
 fi
 
-# Reload by toggling disable -> enable, NOT `plugin:reload`. On this setup
-# `plugin:reload` returns success but does NOT re-run the plugin's onload, so the
-# freshly deployed main.js never executes. A disable+enable cycle re-runs onload.
-#
-# CRITICAL: the Obsidian CLI picks its TARGET VAULT from the current working
-# directory (it resolves the vault enclosing $PWD; `vault=` does NOT override
-# this). So we MUST run the CLI from inside the target vault's directory, or the
-# reload silently hits whatever vault the caller's cwd sits in (e.g. the
-# repo/worktree vault) instead of the deploy target. Hence the `cd "$VAULT_PATH"`.
+# CLI 的连接可能在部署期间改变；同一次求值先复核实际库，再重载，避免误停其他库的插件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 echo "==> Reloading plugin in Obsidian (vault dir: $VAULT_PATH)"
 if [[ ! -x "$OBSIDIAN_BIN" ]]; then
   echo "warning: Obsidian CLI not found at $OBSIDIAN_BIN; skipping reload." >&2
 else
-  ( cd "$VAULT_PATH" && "$OBSIDIAN_BIN" plugin:disable id="$PLUGIN_ID" >/dev/null 2>&1 ) || true
-  if ( cd "$VAULT_PATH" && "$OBSIDIAN_BIN" plugin:enable id="$PLUGIN_ID" >/dev/null 2>&1 ); then
+  RELOAD_CODE="(async()=>{const target=$VAULT_IDENTITY_JSON;if(app.vault.getName()!==target.name||app.vault.adapter.getBasePath()!==target.path)throw new Error('Refusing to reload a different vault');const id=$PLUGIN_ID_JSON;await app.plugins.loadManifests();if(app.plugins.plugins[id])await app.plugins.disablePlugin(id);await app.plugins.enablePluginAndSave(id);return 'reloaded';})()"
+  if (cd "$VAULT_PATH" && "$OBSIDIAN_BIN" "vault=$VAULT_NAME" eval code="$RELOAD_CODE" >/dev/null 2>&1); then
     echo "    reloaded (onload re-ran). Note: the sidebar manifest label only"
     echo "    refreshes on a full Obsidian restart; use a dev-console marker to"
     echo "    confirm the loaded build, not the label."
   else
-    echo "warning: could not reload via the CLI. Is Obsidian running with this vault open? The plugin will load on next open." >&2
+    echo "error: reload failed or the running vault changed; no other vault will be selected." >&2
+    exit 1
   fi
 fi
 

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T01",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T01.json",
+    "reason": "原测试只检查目录和证据自报结果，没有完成 producer→组件→恢复验收。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T01-01", "SC-P14-T01-02", "SC-P14-T01-03", "SC-P14-T01-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 5,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5,
+      "durationSeconds": 2.45,
+      "logPath": "/tmp/vault-agent-required-current/03.log",
+      "logSha256": "34617c3d2fbaffd7df644c001ae726789b02f19a36fbdcd7947fdc3499821556",
+      "testFile": "src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+      "testSourceSha256": "22bb21a0901882f90a3a9ab2ddcb6b9c9d6c54ffc47ef3d43ac33d10e376752b",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T01-01",
+      "requirement": "全部feature有非story-only证据",
+      "result": "passed",
+      "evidence": "46行功能逐行均有实际生产producer→Session/Store→原UI的代码接线及非story回归；记录具体函数/任务/SC与Runtime实证，模型/平台外部限制另列，不用featureCoverage检查通过冒充功能通过。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T01-02",
+      "requirement": "不存在frontend-only功能",
+      "result": "passed",
+      "evidence": "原frontend-only缺口已由真实Runtime/工具/文档/权限接线取代；待验的是外部实机/模型或精确故障组合而非只存在空UI。46行目录保留，不能隐藏失败项。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T01-03",
+      "requirement": "所有终态区分真实失败",
+      "result": "passed",
+      "evidence": "实际partial provider error、工具拒绝/取消/unknown、stale compaction、MCP isError与storage fail均有真实SDK/Host/JSONL producer断言，投影保留失败/取消，不以wrapper结束默认成功。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T01-04",
+      "requirement": "功能ID不遗漏",
+      "result": "passed",
+      "evidence": "featureCoverage仅校验F01-F46目录/场景契约；本次46行逐行复核不漏ID，功能真实性独立绑定，不依赖其自报status。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "验收检查器改为逐scenario校验，featureCoverage仅目录契约，空PATH检查走实际生产入口；最终逐功能/恢复矩阵、真实性与跨平台仍须原门槛证据。",
+    "actualRuntimeReferences": ["production", "fanout", "mcp", "subagents", "native", "compaction"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

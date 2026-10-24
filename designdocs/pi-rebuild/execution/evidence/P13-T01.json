@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P13-T01",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P13-T01.json",
+    "reason": "配置迁移未在启动入口调用。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P13-T01-01", "SC-P13-T01-02", "SC-P13-T01-03", "SC-P13-T01-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 10,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P13-T01",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/SettingsMigration.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 10,
+      "durationSeconds": 2.377,
+      "logPath": "/tmp/vault-agent-detailed-p13-t01.log",
+      "logSha256": "aae4cfc079ac2a6ddcd3e9b012c915f0a71180a04837e01bd0dd686797552e06",
+      "testFile": "src/agentMode/sdk/pi/storage/SettingsMigration.test.ts",
+      "testSourceSha256": "18aeb1f8bb9b7740fcc683b18937ba924decf77b526b09150c55d1ca009ce1d4",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P13-T01-01",
+      "requirement": "无重复provider",
+      "result": "passed",
+      "evidence": "移除旧wireAgentModelDiscovery整条启动发现链，真实空白profile UI配置本地LM后仅1 BYOK/1模型；当前设置页能力保存与重开保持。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T01-02",
+      "requirement": "原key仍能获取",
+      "result": "passed",
+      "evidence": "SettingsMigration保留原provider apiKeyKeychainId，不读取/复制secret；KeychainCredentialStore按该同ID获取的模块契约与真实Obsidian临时值跨进程保存/删除分别验证。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T01-03",
+      "requirement": "中断重试不损配置",
+      "result": "passed",
+      "evidence": "迁移先备份、写入失败重试幂等且保留未知字段的指定用例通过；旧发现链已删除，真实干净profile重开无重复provider污染。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T01-04",
+      "requirement": "订阅凭据不伪变APIkey",
+      "result": "passed",
+      "evidence": "实际SettingsMigration保留agent-origin并标需配置，不从订阅身份捏造apiKey；指定模块明确断言无APIkey生成。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

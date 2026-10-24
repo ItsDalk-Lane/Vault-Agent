@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T05",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/runtime/Identity.ts",
+    "src/agentMode/sdk/pi/storage/SubmissionAdmission.ts",
+    "src/agentMode/sdk/pi/runtime/Identity.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T05.json"
+  ],
+  "scenarioIds": ["SC-P02-T05-01", "SC-P02-T05-02", "SC-P02-T05-03", "SC-P02-T05-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/runtime/Identity.ts src/agentMode/sdk/pi/runtime/Identity.test.ts src/agentMode/sdk/pi/storage/SubmissionAdmission.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（no-restricted-syntax 路径别名、issue-linked comments、no-unused-vars、no-direct-node-imports 均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1169 file(s)：identity/submission 模块无 Pi SDK 或跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 runtime/Identity.ts、storage/SubmissionAdmission.ts、runtime/Identity.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/Identity.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 13,
+      "durationSeconds": 2.52,
+      "logPath": "/tmp/vault-agent-required-current/29.log",
+      "logSha256": "281091efcc9944eb77bf05a895b5618475d2ff3e1b013ee56927a1646c315e65",
+      "testFile": "src/agentMode/sdk/pi/runtime/Identity.test.ts",
+      "testSourceSha256": "fac5a589760e542cb3287a7243da1c5222db301db0bddcf5642461b76a002df2",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T05-01",
+      "requirement": "重复提交仅一个user entry",
+      "result": "passed",
+      "evidence": "同一 draftKey 连续两次 submitDraft：第一次 save requestId→find 无记录→submit 一次→save record；第二次复用已保存 requestId，find 命中现有记录即返回 duplicate，submissions.submit 总调用次数=1，两个结果 entryId 相同（真实 Durable 会按该 requestId 幂等接纳）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T05-02",
+      "requirement": "两会话相同toolCallId不冲突",
+      "result": "passed",
+      "evidence": "toolUiIdFor 以 `tool-ui:<conversationId>:<原样 toolCallId>` 命名：conversation-a 与 conversation-b 使用 call-1 得到不同 UI ID，且各自包含自己的会话与原始 SDK id；SDK 内部 id 不被解析或改写（含 : 与 / 的原样保留测试通过）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T05-03",
+      "requirement": "恢复operationId不变",
+      "result": "passed",
+      "evidence": "operationIdFor 对 {rootId, conversationId, taskId, callId} 做固定顺序 JSON 序列化后 SHA-256，无随机源/时间戳；同一身份重复计算及用新 createIdentity 实例重建均得到同一 64 位 hex；任一字段变化都会产生不同 id。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T05-04",
+      "requirement": "不同新发送不误去重",
+      "result": "passed",
+      "evidence": "相同 content、不同 draftKey 的第二次发送分配新的 requestId（req-minted-2），submissions.submit 调用两次、records 两条；去重键是 requestId 而非内容 hash（contentHash 仅审计记录）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "SubmissionPort/DraftStorePort 是注入端口：尚未接入真实 AgentInputDraftStore 与 Durable SubmissionDraft（P03 接线）；真实 SDK 对 duplicate requestId 的幂等行为在本任务用端口语义模拟，未跑真实 Harness 重复 submit。",
+    "content 以字符串传入并只用于审计 hash；真实 prompt 内容块（图片/附件/选择引用）如何参与 hash 与去重留给后续接入任务，届时不得用内容做去重键。",
+    "toolUiIdFor 采用不转义的冒号分隔；若将来需要从 UI ID 反解 conversationId，必须改为长度前缀或编码方案（当前设计明确不拆解 UI ID，只作为不透明键）。",
+    "operationId 的输入身份由调用方提供；尚未在真实工具调用/恢复路径中接线，也未与 MutationCoordinator 的 operationId 合并。",
+    "未运行全仓测试；未接真实存储/平台；无端到端证据。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T05 完成；下一任务 P02-T06（分页读取完整历史而非 active snapshot，依赖 P02-T05）：先读卡片与 design/04、design/16；新增 src/agentMode/sdk/pi/storage/HistoryReader.ts：使用 Conversation.entries 按 ascending 分页读取完整历史（不是 active snapshot，压缩前旧消息仍返回）；按 EntryId 去重并处理 fork 祖先链；提供只读游标与取消（取消只取消读取，不取消运行任务）；绝不调用 submit/wait/resume；附件缺失记录但不阻断正文读取。先写失败测试 src/agentMode/sdk/pi/storage/HistoryReader.test.ts（压缩前旧消息仍返回、分页交界不重复、读取历史无模型请求、取消读取不取消运行任务），注入 entries 分页端口/取消信号，不 mock 核心逻辑、禁止 sleep。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/HistoryReader.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

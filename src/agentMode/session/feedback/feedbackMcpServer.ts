@@ -47,12 +47,9 @@ Write only facts from this session, in English except user_said. Quote the user 
     },
     required: ["title", "what_happened", "repro"],
   },
-  // Codex asks the user to approve MCP calls unless the tool is read-only, and drafting a card changes nothing.
+  // 起草反馈只显示本地卡片，不修改内容或发送报告。
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  // Claude Code defers MCP tools behind tool search, hiding the description that says when to call it.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-  _meta: { "anthropic/alwaysLoad": true },
 });
 
 export interface FeedbackDraft {

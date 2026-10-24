@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T03",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/DurableStore.ts",
+    "src/agentMode/sdk/pi/storage/StoreMetadata.ts",
+    "src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T03.json"
+  ],
+  "scenarioIds": ["SC-P02-T03-01", "SC-P02-T03-02", "SC-P02-T03-03", "SC-P02-T03-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/DurableStore.ts src/agentMode/sdk/pi/storage/StoreMetadata.ts src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-unused-vars、no-direct-node-imports 通过；node:fs 经 requireNodeModule 延迟取得，Pi 子路径为公开 exports）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1163 file(s)：dynamic import 指向 @earendil-works/pi-durable/storage/jsonl/node 公开子路径，import 位置合法。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 DurableStore.ts / StoreMetadata.ts / DurableStore.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 17,
+      "durationSeconds": 2.66,
+      "logPath": "/tmp/vault-agent-required-current/32.log",
+      "logSha256": "d71811bddea1ec2898abd318b6c2f910377be7e87713cfbeadf2eb86132b2a18",
+      "testFile": "src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+      "testSourceSha256": "0bd24254d43ebb58c2f8d7d47a3c31bd940c1ba73a27b3b1169cd55c0c722d5e",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T03-01",
+      "requirement": "fsync选项传入真实存储",
+      "result": "passed",
+      "evidence": "DurableStore.open() 调用注入的 openStorage(storeDir, context, {fsync:true})，测试引擎记录到 options={fsync:true}；openPiJsonlStorage 适配器被单测 mock 校验：确实调用 openNodeJsonlStorage(STORE_DIR, CONTEXT, {fsync:true})；另在子 Node 进程用 esbuild 打包真实 openPiJsonlStorage，对真实临时目录执行 openNodeJsonlStorage(..., {fsync:true}) 并 close 成功（155ms），证明公开子路径与参数形状被真实存储接受。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T03-02",
+      "requirement": "关闭重开记录一致",
+      "result": "passed",
+      "evidence": "close() 先 await storage.close(context)（等待已提交数据落盘）再 lease.release(token)，事件顺序测试为 [storage.close, lease.release:t1] 且第二次 close 幂等；reopen 测试中写入的 committed-record 在关闭后由新 DurableStore 重新打开仍存在，两次 open 均带 fsync:true，已有 header 不被重写（metadata.writes 保持 1 次）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T03-03",
+      "requirement": "unsupported版本不写",
+      "result": "passed",
+      "evidence": "header schemaVersion=9 时 open() 返回 {kind:\"unsupported_version\", code:\"STORE_VERSION_UNSUPPORTED\", foundVersion:9}，engine.openCalls 为空、metadata.writes 为空、lease 立即释放；没有打开 store，也没有把旧版本重写为当前版本。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T03-04",
+      "requirement": "open失败清理自己的lease",
+      "result": "passed",
+      "evidence": "openStorage 抛错时 DurableStore 抛 STORAGE_FAILED 且以 token t1 调用 lease.release（releasedTokens=[\"t1\"]），openCalls 恰为 1 次（无 MemoryStorage/第二次尝试）；header 写失败时同样关闭已打开 storage（closeCalls=1）并释放 lease 后抛错。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "单元测试经注入的 fake storage/engine/lease/metadata 端口验证编排；真实 openNodeJsonlStorage 集成仅在子 Node 进程验证 open/close 与参数，未以真实 StoreLease/真实 meta.json 文件系统跑完整 DurableStore.open()。真实接线属 P02-T07/P03。",
+    "默认 metadata 文件适配器（requireNodeModule fs，flag=wx）未被单元测试执行；真实磁盘上 meta.json 的创建/权限行为留给 runtime 集成任务验证。",
+    "unsupported 版本目前返回只读结果且不打开 store；实际只读查看/导出入口与 UI 属后续任务，本任务只保证“不写”。",
+    "Chord Context 未在测试中构造真实取消语义，仅作为不透明参数透传；取消/中止行为在运行时任务验证。",
+    "DurableStore/DurableStoreHandle 尚未被生产入口引用，bundle 哈希与 P01 gate 相同，无端到端存储证据。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T03 完成；下一任务 P02-T04（定义产品状态文档及自定义事件，依赖 P02-T03）：先读卡片与 design/04（4.5 产品文档表与 fork 策略、4.6 稳定 ID）、design/16；新增 src/agentMode/sdk/pi/storage/ProductDocs.ts（session/run/todos/plan/approvals/questions/mutations/subagents/fanout/skills/budget 的 v1 kind、version=1、schema 校验、fork 策略：initial / as-of 复制 / 重新未批准等，损坏数据错误）与 src/agentMode/sdk/pi/storage/ProductEntries.ts（状态变化同提交写 va.* 被动 entry；先读后写避免 ReadAfterWrite；事件与文档 revision 一致）。先写失败测试 src/agentMode/sdk/pi/storage/ProductDocs.test.ts（事务失败无半份状态、fork 不继承一次授权、事件和文档 revision 一致、unknown schema 拒绝），依赖注入、不 mock 核心逻辑。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/ProductDocs.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

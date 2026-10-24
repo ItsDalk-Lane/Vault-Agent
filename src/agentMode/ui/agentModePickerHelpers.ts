@@ -27,6 +27,8 @@ export function buildAgentModePicker(args: {
 }): AgentModePickerOverride | null {
   const { manager } = args;
   if (!manager) return null;
+  // 历史记录只能查看或导入，不能通过模式选择恢复旧执行器。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  if (manager.getActiveSession()?.isHistoricalOnly?.()) return null;
   const ctx = collectModeActiveContext(manager);
   const { activeBackendId, activeMode, activeChatUIState } = ctx;
   if (!activeBackendId || !activeMode) return null;

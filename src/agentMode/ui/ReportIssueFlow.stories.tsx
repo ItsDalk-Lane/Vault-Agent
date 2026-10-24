@@ -16,22 +16,13 @@ const SOURCES: ReportSourceOption[] = [
     description: "includes Agent Mode backend errors",
     defaultChecked: true,
   },
-  {
-    id: "opencodeLog",
-    label: "OpenCode backend log",
-    description: "may include unrelated sessions",
-    defaultChecked: false,
-  },
 ];
 
 const REPORT: PreparedReport = {
   zipDir: "/tmp/copilot-report-a1b2c3",
   zipPath: "/tmp/copilot-report-a1b2c3/copilot-report-a1b2c3.zip",
   zipName: "copilot-report-a1b2c3.zip",
-  uploadAttempt: {
-    body: new ArrayBuffer(4_404_019),
-    idempotencyKey: "3f2a1d9e-8b4c-4f6d-9e2a-7c5b3a1d9e8f",
-  },
+  bytes: 4_404_019,
   issueDraft: { title: "Agent stops mid-turn", body: "It stops after the first tool call." },
   manualIssueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new",
   attachments: [
@@ -125,7 +116,7 @@ export const DraftedNote: StoryObj<ReportIssueFlowProps> = {
         "",
         "Steps to reproduce: 1. Type a garbled 'commit and push'. 2. Observe a Swedish reply.",
         "",
-        "Evidence: backend opencode · model deepseek-v4-pro · session ses_8f2a · 2026-10-12T17:42:05Z",
+        "Evidence: engine Vault Agent · model deepseek-v4-pro · session ses_8f2a · 2026-10-12T17:42:05Z",
       ].join("\n")}
     />
   ),

@@ -1,5 +1,7 @@
+import { canSendFollowUpDuringRecovery } from "@/agentMode/session/RecoveryPolicy";
 import { AI_SENDER, USER_SENDER, WEB_SELECTED_TEXT_TAG } from "@/constants";
 import { t } from "@/i18n";
+import { isHistoricalBackendId } from "@/agentMode/session/legacy/historicalBackends";
 import { logInfo, logWarn } from "@/logger";
 import { AgentMessageStore } from "@/agentMode/session/AgentMessageStore";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
@@ -7,7 +9,6 @@ import {
   AgentChatMessage,
   AgentMcpServer,
   AgentMessagePart,
-  AgentToolKind,
   AgentPlanEntry,
   AgentQuestionAnswers,
   AgentTodoListEntry,
@@ -17,12 +18,14 @@ import {
   BackendId,
   BackendProcess,
   BackendState,
+  BudgetUpdate,
   VaultAgentMode,
   CompactionSnapshot,
   CurrentPlan,
   EnabledModelEntry,
   ModelSelection,
   NewAgentChatMessage,
+  OpenSessionOutput,
   PERMISSION_ALLOW_KINDS,
   PERMISSION_REJECT_KINDS,
   PermissionDecision,
@@ -33,16 +36,21 @@ import {
   PromptContent,
   PromptInput,
   PromptOutput,
+  RecoveryStateUpdate,
   SessionEvent,
   SessionId,
+  SessionProjection,
+  StreamCursor,
+  RunStateUpdate,
+  isRunTerminal,
   PlanUsage,
   SessionUsage,
   StopReason,
   ToolCallContent,
   ToolCallDelta,
   ToolCallSnapshot,
-  TurnDiff,
   TurnFileChange,
+  FileChangeRevertResult,
 } from "@/agentMode/session/types";
 import {
   isNoteSelectedTextContext,
@@ -50,21 +58,7 @@ import {
   MessageContext,
 } from "@/types/message";
 import { err2String, formatDateTime, type FormattedDateTime } from "@/utils";
-import type { App, DataAdapter } from "obsidian";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
-import {
-  diffTargetPaths,
-  editTargetPaths,
-  isCapturableVaultPath,
-  toVaultTargetPath,
-  type EditTargetSource,
-} from "@/agentMode/session/editTargets";
-import {
-  buildTurnFileChange,
-  filePatchesByVaultPath,
-  revertFilePatch,
-} from "@/agentMode/session/turnFileChanges";
-import { getVaultBase } from "@/utils/vaultPath";
 import { deriveChatTitleFromMessages } from "@/agentMode/session/chatHistoryMerge";
 import { isCompactCommand } from "@/commands/compactCommand";
 import { ContextProcessor } from "@/contextProcessor";
@@ -72,17 +66,10 @@ import { escapeXml } from "@/LLMProviders/chainRunner/utils/xmlParsing";
 import type { FanoutRunInput } from "@/agentMode/session/fanout/FanoutOrchestrator";
 import { isFanout } from "@/agentMode/session/fanout/answerers";
 import {
-  buildConversationHistoryBlock,
-  CONVERSATION_HISTORY_MAX_CHARS,
-} from "@/agentMode/session/conversationHistory";
-import {
-  buildPriorFanoutContextBlock,
   FANOUT_READONLY_PREAMBLE,
   isDirectAnswerTurn,
-  renderFanoutComposite,
   serializeFanoutComposite,
   type FanoutTurn,
-  type PendingFanoutContext,
 } from "@/agentMode/session/fanout/fanoutTypes";
 import { v4 as uuidv4 } from "uuid";
 import { getSettings } from "@/settings/model";
@@ -104,33 +91,11 @@ export type RunFanoutTurn = (input: FanoutRunInput) => Promise<FanoutTurn>;
 
 export const DEFAULT_TITLE_PREFIX = "New session";
 const MAX_TOOL_OUTPUT_TEXT_CHARS = 256_000;
-const CANCELLED_TURN_QUIET_MS = 1_000;
 const EMPTY_PERMISSIONS: PermissionPrompt[] = [];
 const EMPTY_QUESTIONS: AskUserQuestionPrompt[] = [];
 const EMPTY_ANSWERS: AgentQuestionAnswers = Object.freeze({});
+const EMPTY_BACKGROUND_TASK_IDS: readonly string[] = Object.freeze([]);
 const EMPTY_BACKEND_IDS: ReadonlyArray<BackendId> = Object.freeze([]);
-
-interface TurnFileCapture {
-  edited: boolean;
-  snapshot: Promise<string | null>;
-  writeTimeBefore?: string | null;
-}
-
-function toolCallTarget(call: ToolCallSnapshot | ToolCallDelta): EditTargetSource {
-  return {
-    locations: call.locations,
-    input: call.rawInput,
-    diffPaths: diffTargetPaths(call.content),
-  };
-}
-
-async function readVaultText(adapter: DataAdapter, path: string): Promise<string | null> {
-  try {
-    return await adapter.read(path);
-  } catch {
-    return null;
-  }
-}
 
 export type AgentSessionStatus =
   | "starting"
@@ -178,7 +143,6 @@ export interface AgentSessionStartOptions extends ProjectContextUpdatesHooks {
   getDescriptor?: () => BackendDescriptor | undefined;
   runFanoutTurn?: RunFanoutTurn;
   getDisplayName?: (backendId: BackendId) => string;
-  getApp?: () => App;
   getProjectContextBlock?: () => string;
   mcpServers?: ReadonlyArray<AgentMcpServer>;
 }
@@ -196,7 +160,6 @@ export interface AgentSessionStateOptions extends ProjectContextUpdatesHooks {
   getDescriptor?: () => BackendDescriptor | undefined;
   runFanoutTurn?: RunFanoutTurn;
   getDisplayName?: (backendId: BackendId) => string;
-  getApp?: () => App;
 }
 
 export class AgentSession {
@@ -204,10 +167,10 @@ export class AgentSession {
   readonly internalId: string;
   readonly chatInputId: string;
   readonly backendId: BackendId;
-  readonly planFeedbackDelivery: "permission" | "next_turn";
   readonly projectId: ProjectScopeId;
   readonly ready: Promise<void>;
   private backendSessionId: SessionId | null = null;
+  private isActive = false;
   private readonly backend: BackendProcess;
   readonly cwd: string | null;
   private readonly getProjectContextBlockFn: (() => string) | null;
@@ -216,7 +179,6 @@ export class AgentSession {
   private readonly getDescriptor: (() => BackendDescriptor | undefined) | null;
   private readonly runFanoutTurn: RunFanoutTurn | null;
   private readonly getDisplayName: ((backendId: BackendId) => string) | null;
-  private readonly getApp: (() => App) | null;
   private readonly getProjectContextUpdatesFn: (() => ProjectContextUpdates | null) | null;
   private readonly markProjectContextUpdatesDeliveredFn: ((epoch: number) => void) | null;
   private cachedStatus: AgentSessionStatus = "starting";
@@ -224,10 +186,8 @@ export class AgentSession {
   private startupSettled = false;
   private lastTurnError = false;
   private lastMentionedAgents: ReadonlyArray<BackendId> = EMPTY_BACKEND_IDS;
-  private pendingFanoutContext: PendingFanoutContext[] = [];
-  private resendSavedHistory = false;
   private placeholderId: string | null = null;
-  private turnFiles = new Map<string, TurnFileCapture>();
+  private pendingUserMessageId: string | null = null;
   private currentTurnHadRoutedToolActivity = false;
   private currentMessageIds = new Set<string>();
   private settledStream: {
@@ -235,8 +195,9 @@ export class AgentSession {
     messageIds: Set<string>;
     turnStartedAtMs: number;
   } | null = null;
+  private pendingCancellation: Promise<void> | null = null;
+  private activeBackgroundTaskIds: readonly string[] = EMPTY_BACKGROUND_TASK_IDS;
   private cancelledPromptDrain: Promise<void> | null = null;
-  private cancelledTurnActivity = 0;
   private cancelledMessageIds = new Set<string>();
   private abortController: AbortController | null = null;
   private listeners = new Set<AgentSessionListener>();
@@ -245,6 +206,8 @@ export class AgentSession {
   private label: string | null = null;
   private labelSource: "user" | "agent" | null = null;
   private disposed = false;
+  private readonly initializationController = new AbortController();
+  private initializationPending = false;
   private resumeSelection: ModelSelection | undefined;
   private resumeMode: VaultAgentMode | null | undefined;
   private settleReady: () => void = () => {};
@@ -253,6 +216,10 @@ export class AgentSession {
     null;
   private historyAiId: string | null = null;
   private historyTurnStartedAt: number | undefined;
+  private projectionCursor: StreamCursor | null = null;
+  private recoveredPermissions: readonly PermissionPrompt[] = EMPTY_PERMISSIONS;
+  private recoveredQuestions: readonly AskUserQuestionPrompt[] = EMPTY_QUESTIONS;
+  private readonly projectionIdAliases = new Map<string, string>();
   private pendingPlanResolvers = new Map<
     string,
     {
@@ -278,7 +245,10 @@ export class AgentSession {
   private currentTodoList: AgentTodoListEntry[] | null = null;
   private currentTodoListSignature: string | null = null;
   private currentUsage: SessionUsage | null = null;
+  private currentRun: RunStateUpdate | null = null;
+  private currentBudget: BudgetUpdate | null = null;
   private feedbackOffer: FeedbackOffer | null = null;
+  private recoveryState: RecoveryStateUpdate | null = null;
 
   private currentPlanUsage: PlanUsage | null = null;
   private planSeq = 0;
@@ -292,13 +262,11 @@ export class AgentSession {
     this.internalId = opts.internalId;
     this.chatInputId = opts.chatInputId ?? uuidv4();
     this.backendId = opts.backendId;
-    this.planFeedbackDelivery = opts.getDescriptor?.()?.planFeedbackDelivery ?? "permission";
     this.projectId = opts.projectId ?? GLOBAL_SCOPE;
     this.cwd = opts.cwd ?? null;
     this.getDescriptor = opts.getDescriptor ?? null;
     this.runFanoutTurn = opts.runFanoutTurn ?? null;
     this.getDisplayName = opts.getDisplayName ?? null;
-    this.getApp = opts.getApp ?? null;
     this.getProjectContextUpdatesFn = opts.getProjectContextUpdates ?? null;
     this.markProjectContextUpdatesDeliveredFn = opts.markProjectContextUpdatesDelivered ?? null;
     this.getProjectContextBlockFn =
@@ -318,6 +286,7 @@ export class AgentSession {
       });
     } else {
       this.currentState = null;
+      this.initializationPending = true;
       this.ready = this.initialize(opts);
     }
   }
@@ -331,7 +300,7 @@ export class AgentSession {
       this.settleReady();
     };
     const selection = this.resumeSelection ?? state?.model?.current;
-    if (!selection || !state) return settle();
+    if (!selection || !state || state.readOnly === true) return settle();
     void this.applyStartupSelection(selection, this.resumeMode)
       // A resumed chat stays open to pick an enabled model; sends on any other model are refused.
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
@@ -347,15 +316,118 @@ export class AgentSession {
     return this.backendSessionId;
   }
 
+  setIsActive(active: boolean): void {
+    if (this.disposed || this.isActive === active) return;
+    this.isActive = active;
+    if (this.backendSessionId) {
+      this.backend.setSessionObserved?.({
+        sessionId: this.backendSessionId,
+        observed: active,
+      });
+    }
+  }
+
+  isHistoricalOnly(): boolean {
+    return isHistoricalBackendId(this.backendId) || this.currentState?.readOnly === true;
+  }
+
+  async readSubagentHistory(conversationId: string): Promise<readonly AgentChatMessage[]> {
+    await this.ready;
+    if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
+    if (!this.backend.readSubagentHistory) throw new MethodUnsupportedError("readSubagentHistory");
+    return this.backend.readSubagentHistory({ sessionId: this.backendSessionId, conversationId });
+  }
+
+  getRecoveryState(): RecoveryStateUpdate | null {
+    return this.recoveryState;
+  }
+
+  async recoverSession(action: "continue" | "abort" | "reconcile"): Promise<void> {
+    await this.ready;
+    if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
+    const recovery = this.recoveryState;
+    if (!recovery || recovery.status === "none") return;
+    const canContinue =
+      recovery.status === "available" ||
+      recovery.status === "interrupted" ||
+      (recovery.status === "read_only" && recovery.crashLoopTripped);
+    if (action === "continue" && !canContinue) {
+      throw new Error("此记录目前只读，请先导出，并使用兼容版本恢复。");
+    }
+    const queuedFanout =
+      action === "continue"
+        ? this.store
+            .getDisplayMessages()
+            .find(
+              (message) =>
+                message.fanout?.checkpoint?.awaitingAdmission && !message.fanout.summary.complete
+            )
+        : undefined;
+    // 未获得执行名额的多模型工作没有 SDK 输入可重放，继续须交还原比较卡片的统一入口。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (queuedFanout) {
+      await this.resumeFanout(queuedFanout.id);
+      return;
+    }
+    if (!this.backend.recoverSession) throw new MethodUnsupportedError("recoverSession");
+    await this.backend.recoverSession({ sessionId: this.backendSessionId, action });
+  }
+
+  async rolloverSession(): Promise<OpenSessionOutput> {
+    await this.ready;
+    if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
+    if (this.isHistoricalOnly()) throw new Error("只读历史不能整理成新的执行聊天。");
+    const status = this.getStatus();
+    if (status !== "idle" && status !== "error") throw new Error("请先等待当前工作结束。");
+    if (!this.backend.rolloverSession) throw new MethodUnsupportedError("rolloverSession");
+    const controller = new AbortController();
+    this.abortController = controller;
+    this.recomputeStatusIfChanged();
+    try {
+      return await this.backend.rolloverSession({ sessionId: this.backendSessionId });
+    } finally {
+      if (this.abortController === controller) this.abortController = null;
+      this.recomputeStatusIfChanged();
+    }
+  }
+
+  async revertFileChange(change: TurnFileChange): Promise<FileChangeRevertResult> {
+    await this.ready;
+    if (this.disposed || !this.backendSessionId) throw new Error("此聊天已关闭。");
+    if (this.isHistoricalOnly()) throw new Error("只读历史不能回退文件。");
+    const status = this.getStatus();
+    if (status !== "idle" && status !== "error") throw new Error("请等待当前工作结束后再回退。");
+    if (!this.backend.revertFileChange) throw new MethodUnsupportedError("revertFileChange");
+    if (!change.mutationOperationIds?.length)
+      throw new Error("这条旧记录没有可核验的回退凭据，请手动检查文件。");
+    const controller = new AbortController();
+    this.abortController = controller;
+    this.lastTurnError = false;
+    this.recomputeStatusIfChanged();
+    try {
+      return await this.backend.revertFileChange({
+        sessionId: this.backendSessionId,
+        operationIds: change.mutationOperationIds,
+        signal: controller.signal,
+      });
+    } finally {
+      if (this.abortController === controller) this.abortController = null;
+      this.recomputeStatusIfChanged();
+    }
+  }
+
   private async initialize(opts: AgentSessionStartOptions): Promise<void> {
     const { backend, cwd, defaultModelSelection } = opts;
     try {
       const resp = await backend.newSession({
         cwd,
+        signal: this.initializationController.signal,
         projectId: this.projectId,
         mcpServers: opts.mcpServers,
       });
-      if (this.disposed) return;
+      if (this.disposed || this.initializationController.signal.aborted) {
+        await backend.closeSession?.({ sessionId: resp.sessionId });
+        return;
+      }
       const modelLog = resp.state.model
         ? `model=${resp.state.model.current.baseModelId} (available: ${resp.state.model.availableModels
             .map((m) => m.baseModelId)
@@ -372,6 +444,7 @@ export class AgentSession {
         this.unregisterSessionHandler = null;
         return;
       }
+      this.backend.setSessionObserved?.({ sessionId: resp.sessionId, observed: this.isActive });
       this.recomputeStatusIfChanged();
       this.notifyModelChanged();
 
@@ -380,11 +453,13 @@ export class AgentSession {
       this.startupSettled = true;
       this.recomputeStatusIfChanged();
     } catch (err) {
-      if (this.disposed) return;
+      if (this.disposed || this.initializationController.signal.aborted) return;
       logWarn(`[AgentMode] session/new failed for ${this.internalId}`, err);
       this.startupFailed = true;
       this.recomputeStatusIfChanged();
       throw err instanceof Error ? err : new Error(err2String(err));
+    } finally {
+      this.initializationPending = false;
     }
   }
 
@@ -433,9 +508,7 @@ export class AgentSession {
     }
   }
 
-  // OpenCode answers session/new before Copilot's models and modes load and lists them in a later
-  // update, so wait for them; a chat must never show or run a model the user did not enable.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
+  // 模型状态尚未到达时需等候确认，不能选用用户未启用的模型。https://github.com/Brevilabs/obsidian-copilot-private/issues/625
   private async settleOnEnabledModel(
     descriptor: BackendDescriptor,
     seed: ModelSelection,
@@ -528,7 +601,6 @@ export class AgentSession {
     if (this.getStatus() === "starting") return false;
     const descriptor = this.getDescriptor?.();
     if (!descriptor) return null;
-    if (descriptor.wire.effortConfigFor) return this.backend.isSetSessionConfigOptionSupported();
     return this.currentState?.model?.apply.kind === "setConfigOption"
       ? this.backend.isSetSessionConfigOptionSupported()
       : this.backend.isSetSessionModelSupported();
@@ -542,8 +614,7 @@ export class AgentSession {
     if (!sample) return null;
     const spec = mode.apply[sample.value];
     if (!spec) return null;
-    // One picker choice may need both Codex collaboration and approval settings.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/551
+    // 组合模式需确认每一步都受支持，才能向用户提供切换。https://github.com/Brevilabs/obsidian-copilot-private/issues/551
     const steps = spec.kind === "sequence" ? spec.steps : [spec];
     const capabilities = steps.map((step) =>
       step.kind === "setConfigOption"
@@ -553,6 +624,10 @@ export class AgentSession {
     if (capabilities.includes(false)) return false;
     if (capabilities.includes(null)) return null;
     return true;
+  }
+
+  getActiveBackgroundTaskCount(): number {
+    return this.activeBackgroundTaskIds.length;
   }
 
   getStatus(): AgentSessionStatus {
@@ -568,6 +643,13 @@ export class AgentSession {
       return "awaiting_permission";
     }
     if (this.abortController !== null) return "running";
+    if (!this.recoveryState || this.recoveryState.status === "none") {
+      const status = this.currentRun?.status;
+      if (status === "awaiting_permission" || status === "awaiting_question")
+        return "awaiting_permission";
+      if (status === "accepting" || status === "running" || status === "cancelling")
+        return "running";
+    }
     if (this.lastTurnError) return "error";
     return "idle";
   }
@@ -605,10 +687,6 @@ export class AgentSession {
   loadDisplayMessages(messages: AgentChatMessage[]): void {
     this.store.loadMessages(messages);
     this.notifyMessages();
-  }
-
-  resendSavedHistoryOnNextTurn(): void {
-    this.resendSavedHistory = true;
   }
 
   getLabel(): string | null {
@@ -660,12 +738,42 @@ export class AgentSession {
     return () => this.listeners.delete(listener);
   }
 
+  canSteer(): boolean {
+    const status = this.getStatus();
+    return Boolean(
+      this.backend.steerSession &&
+      !this.isHistoricalOnly() &&
+      (!this.recoveryState || this.recoveryState.status === "none") &&
+      (status === "running" || status === "awaiting_permission")
+    );
+  }
+
+  async steerPrompt(text: string): Promise<void> {
+    if (!text.trim() || /^\s*\//.test(text))
+      throw new Error("补充当前工作仅支持普通文字；命令请等本轮结束后发送。");
+    if (!this.canSteer() || !this.backendSessionId || !this.backend.steerSession)
+      throw new Error("未补充：当前工作不能接收补充，请重新发送。");
+    await this.backend.steerSession({
+      sessionId: this.backendSessionId,
+      requestId: `steer-${uuidv4()}`,
+      text,
+    });
+  }
+
   sendPrompt(
     displayText: string,
     context?: MessageContext,
     promptContent?: PromptContent[],
     mentionedAgents?: ReadonlyArray<BackendId>
   ): { userMessageId: string; turn: Promise<StopReason> } {
+    if (
+      this.recoveryState &&
+      this.recoveryState.status !== "none" &&
+      !canSendFollowUpDuringRecovery(this.recoveryState)
+    ) {
+      throw new Error("上次工作尚未处理，请先选择继续或结束未完成的工作。");
+    }
+    if (this.isHistoricalOnly()) throw new Error("此旧聊天仅供只读查看，请先导入为新聊天后继续。");
     // Agents only compact when /compact is the whole prompt, so nothing rides along with it.
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/634
     const sendsCompact = isCompactCommand(displayText);
@@ -695,6 +803,7 @@ export class AgentSession {
       content: buildUserDisplayContent(displayText, promptContent),
     };
     const userMessageId = this.store.addMessage(userMessage);
+    this.pendingUserMessageId = userMessageId;
 
     const turnStartedAtMs = Date.now();
     const placeholder: NewAgentChatMessage = {
@@ -707,7 +816,6 @@ export class AgentSession {
     this.placeholderId = this.store.addMessage(placeholder);
     this.currentMessageIds = new Set();
     this.currentTurnHadRoutedToolActivity = false;
-    this.turnFiles = new Map();
     this.notifyMessages();
 
     if (this.label === null && !this.backendSummarizesTitle()) {
@@ -744,6 +852,9 @@ export class AgentSession {
     const sessionId = this.backendSessionId!;
     const signal = this.abortController!.signal;
     try {
+      // 后台 Stop 与下一次明确输入可以同时到达界面，旧取消必须先结算才可提交新请求。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      const cancellation = this.pendingCancellation;
+      if (cancellation) await cancellation;
       const priorPromptDrain = this.cancelledPromptDrain;
       if (priorPromptDrain) {
         await Promise.race([
@@ -779,52 +890,25 @@ export class AgentSession {
         isFanout(this.lastMentionedAgents, this.backendId) &&
         placeholderId
       ) {
-        const historyBlock = buildConversationHistoryBlock(
-          this.priorDisplayMessages(userMessageId, placeholderId),
-          CONVERSATION_HISTORY_MAX_CHARS
-        );
-        const promptBlocks = buildPromptBlocks(
+        return await this.runFanoutPath(
+          placeholderId,
           displayText,
-          context,
-          promptContent,
-          webTabBlock,
-          projectContextBlock,
-          historyBlock,
-          projectContextUpdatesBlock
+          buildPromptBlocks(displayText, promptContent),
+          turnStartedAtMs,
+          buildPromptContext(context, webTabBlock, projectContextBlock, projectContextUpdatesBlock)
         );
-        return await this.runFanoutPath(placeholderId, displayText, promptBlocks, turnStartedAtMs);
       }
 
-      // A reopened chat whose agent session is gone from this device sends its saved turns once.
-      // https://github.com/logancyang/obsidian-copilot/issues/3643
-      const sendsSavedHistory = this.resendSavedHistory && !sendsCompact;
-      const historyBlock = sendsSavedHistory
-        ? buildConversationHistoryBlock(
-            this.priorDisplayMessages(userMessageId, placeholderId),
-            CONVERSATION_HISTORY_MAX_CHARS
-          )
-        : null;
-      const leadingContextBlock = sendsCompact
-        ? null
-        : [historyBlock, buildPriorFanoutContextBlock(this.pendingFanoutContext)]
-            .filter(Boolean)
-            .join("\n\n") || null;
-      // The agent keeps every earlier turn, so resending an unchanged page fills its context
-      // window with copies. https://github.com/Brevilabs/obsidian-copilot-private/issues/667
       const webTabPromptBlock = webTabBlock === this.lastSentWebTabBlock ? "" : webTabBlock;
-      const promptBlocks = buildPromptBlocks(
-        displayText,
-        context,
-        promptContent,
-        webTabPromptBlock,
-        projectContextBlock,
-        leadingContextBlock,
-        projectContextUpdatesBlock
-      );
-
       const req: PromptInput = {
         sessionId,
-        prompt: promptBlocks,
+        prompt: buildPromptBlocks(displayText, promptContent),
+        context: buildPromptContext(
+          context,
+          webTabPromptBlock,
+          projectContextBlock,
+          projectContextUpdatesBlock
+        ),
       };
       const promptStarted = !signal.aborted;
       let resp: PromptOutput = { stopReason: "cancelled" };
@@ -839,19 +923,11 @@ export class AgentSession {
           }),
         ]);
         if (signal.aborted) {
-          const settledPrompt = backingPrompt.then(
+          // SDK 请求的完成承诺是旧事件已提交的边界，不能再用静默计时猜测执行是否结束。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+          const drain = backingPrompt.then(
             () => undefined,
             () => undefined
           );
-          const drain = settledPrompt.then(async () => {
-            let activity: number;
-            do {
-              activity = this.cancelledTurnActivity;
-              await new Promise<void>((resolve) =>
-                window.setTimeout(resolve, CANCELLED_TURN_QUIET_MS)
-              );
-            } while (activity !== this.cancelledTurnActivity);
-          });
           this.cancelledPromptDrain = drain;
           void drain.then(() => {
             if (this.cancelledPromptDrain === drain) this.cancelledPromptDrain = null;
@@ -859,11 +935,16 @@ export class AgentSession {
           resp = { stopReason: "cancelled" };
         }
       }
-      if (leadingContextBlock !== null && resp.stopReason !== "cancelled") {
-        this.pendingFanoutContext = [];
-      }
-      if (sendsSavedHistory && resp.stopReason !== "cancelled") {
-        this.resendSavedHistory = false;
+      // 本地命令没有模型回答，不能展示空回复错误，也不能提前消费下一次真正请求的上下文。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (resp.handledLocally) {
+        if (placeholderId && !this.store.hasAssistantActivity(placeholderId)) {
+          this.store.deleteMessage(placeholderId);
+        }
+        this.currentMessageIds = new Set();
+        if (this.placeholderId === placeholderId) this.placeholderId = null;
+        this.settledStream = null;
+        this.notifyMessages();
+        return resp.stopReason;
       }
       if (isFirstTurn && promptStarted) this.firstPromptSent = true;
       if (webTabBlock && promptStarted) this.lastSentWebTabBlock = webTabBlock;
@@ -883,10 +964,13 @@ export class AgentSession {
         this.store.markMessageError(placeholderId, message);
       }
       if (placeholderId) this.store.settleOpenCompactions(placeholderId);
-      if (placeholderId) await this.finalizeTurnFileChanges(placeholderId, resp.turnDiff);
       if (
         placeholderId &&
-        this.store.markTurnComplete(placeholderId, resp.stopReason, Date.now() - turnStartedAtMs)
+        this.store.markTurnComplete(
+          placeholderId,
+          resp.stopReason,
+          this.turnDurationFromRun(turnStartedAtMs)
+        )
       ) {
         this.notifyMessages();
       }
@@ -918,6 +1002,7 @@ export class AgentSession {
       if (this.placeholderId === placeholderId) this.placeholderId = null;
       throw err;
     } finally {
+      if (this.pendingUserMessageId === userMessageId) this.pendingUserMessageId = null;
       this.abortController = null;
       this.recomputeStatusIfChanged();
     }
@@ -936,13 +1021,19 @@ export class AgentSession {
     placeholderId: string,
     originalPromptText: string,
     promptBlocks: PromptContent[],
-    turnStartedAtMs: number
+    turnStartedAtMs: number,
+    promptContext?: PromptInput["context"]
   ): Promise<StopReason> {
     const signal = this.abortController?.signal ?? new AbortController().signal;
     const input: FanoutRunInput = {
       agents: this.lastMentionedAgents,
       mainAgent: this.backendId,
+      fanoutId: `${this.backendSessionId}:${placeholderId}`,
+      parentSessionId: this.backendSessionId ?? undefined,
+      mainModelKey: this.currentState?.model?.current.baseModelId,
+      projectId: this.projectId,
       prompt: withReadOnlyPreamble(promptBlocks),
+      ...(promptContext ? { context: promptContext } : {}),
       originalPromptText,
       signal,
       onChange: (turn) => {
@@ -966,16 +1057,6 @@ export class AgentSession {
     if (hasContent) {
       const composite = serializeFanoutComposite(turn, (id) => this.displayNameFor(id));
       this.store.appendAgentText(placeholderId, composite);
-      const summaryText = turn.summary.text.trim();
-      const replay =
-        turn.summary.complete && summaryText.length > 0
-          ? summaryText
-          : hasAnswerText
-            ? renderFanoutComposite(turn, (id) => this.displayNameFor(id))
-            : "";
-      if (replay) {
-        this.pendingFanoutContext.push({ question: originalPromptText, summary: replay });
-      }
     }
     if (this.store.markTurnComplete(placeholderId, stopReason, Date.now() - turnStartedAtMs)) {
       this.notifyMessages();
@@ -984,43 +1065,119 @@ export class AgentSession {
     return stopReason;
   }
 
-  private priorDisplayMessages(
-    userMessageId: string,
-    placeholderId: string | null
-  ): readonly AgentChatMessage[] {
-    return this.store
-      .getDisplayMessages()
-      .filter((m) => m.id !== userMessageId && m.id !== placeholderId);
+  async resumeFanout(messageId: string): Promise<void> {
+    const previous = this.store.getMessage(messageId)?.fanout;
+    const checkpoint = previous?.checkpoint;
+    const status = this.getStatus();
+    // 继续按钮是恢复收费工作的明确授权，查看旧聊天本身不会执行。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (
+      this.isHistoricalOnly() ||
+      this.backendId !== "pi" ||
+      !checkpoint ||
+      !this.runFanoutTurn ||
+      (status !== "idle" && status !== "error")
+    )
+      return;
+    this.abortController = new AbortController();
+    this.lastTurnError = false;
+    this.recomputeStatusIfChanged();
+    try {
+      // 继续预算暂停时先恢复原 SDK 检查点，再读取同一候选；不能重新提交用户问题。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (
+        !checkpoint.awaitingAdmission &&
+        (previous.summary.status === "paused" ||
+          Object.values(previous.answers).some((answer) => answer.status === "paused")) &&
+        this.backendSessionId
+      ) {
+        if (!this.backend.recoverSession) throw new MethodUnsupportedError("recoverSession");
+        await this.backend.recoverSession({ sessionId: this.backendSessionId, action: "continue" });
+      }
+
+      const turn = await this.runFanoutTurn({
+        agents: Object.keys(previous.answers),
+        mainAgent: "pi",
+        fanoutId: checkpoint.fanoutId,
+        parentSessionId: this.backendSessionId ?? undefined,
+        mainModelKey: checkpoint.mainModelKey,
+        projectId: this.projectId,
+        prompt: checkpoint.prompt,
+        ...(checkpoint.context ? { context: checkpoint.context } : {}),
+        originalPromptText: checkpoint.originalPromptText,
+        resumeTurn: previous,
+        signal: this.abortController.signal,
+        onChange: (next) => {
+          this.store.setFanout(messageId, next);
+          this.notifyMessages();
+        },
+      });
+      this.store.setFanout(messageId, turn);
+    } finally {
+      this.abortController = null;
+      this.notifyMessages();
+      this.recomputeStatusIfChanged();
+    }
   }
 
   private displayNameFor(backendId: BackendId): string {
     return this.getDisplayName?.(backendId) ?? backendId;
   }
 
+  async pause(): Promise<void> {
+    if (!this.backend.pauseSession || !this.backendSessionId)
+      throw new Error("当前聊天不支持暂停。");
+    await this.backend.pauseSession({ sessionId: this.backendSessionId });
+  }
+
   async cancel(): Promise<void> {
+    if (this.pendingCancellation) {
+      // 旧 Stop 等待期间的新输入仍可被明确停止，复用后端取消也不能吞掉这次用户操作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      this.abortController?.abort();
+      return this.pendingCancellation;
+    }
     const status = this.getStatus();
-    if (status !== "running" && status !== "awaiting_permission") return;
+    // 父回合结束后后台仍可运行，停止入口按持久子任务快照开放而不阻塞普通新输入。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (
+      status !== "running" &&
+      status !== "awaiting_permission" &&
+      !this.activeBackgroundTaskIds.length
+    )
+      return;
     if (!this.backendSessionId) return;
-    this.abortController?.abort();
-    this.settledStream = null;
-    for (const messageId of this.currentMessageIds) this.cancelledMessageIds.add(messageId);
-    this.currentMessageIds = new Set();
-    if (this.pendingToolResolvers.size > 0) {
-      this.flushResolvers(this.pendingToolResolvers);
-      this.notifyMessages();
-    }
-    if (this.pendingQuestionResolvers.size > 0) {
-      this.flushQuestionResolvers();
-      this.notifyMessages();
-    }
+    let release!: () => void;
+    const cancellation = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.pendingCancellation = cancellation;
     try {
-      await this.backend.cancel({ sessionId: this.backendSessionId });
-    } catch (e) {
-      logWarn(`[AgentMode] cancel notification failed`, e);
+      this.abortController?.abort();
+      this.settledStream = null;
+      for (const messageId of this.currentMessageIds) this.cancelledMessageIds.add(messageId);
+      this.currentMessageIds = new Set();
+      if (this.pendingToolResolvers.size > 0) {
+        this.flushResolvers(this.pendingToolResolvers);
+        this.notifyMessages();
+      }
+      if (this.pendingQuestionResolvers.size > 0) {
+        this.flushQuestionResolvers();
+        this.notifyMessages();
+      }
+      try {
+        await this.backend.cancel({ sessionId: this.backendSessionId });
+      } catch (e) {
+        logWarn(`[AgentMode] cancel notification failed`, e);
+      }
+    } finally {
+      if (this.pendingCancellation === cancellation) this.pendingCancellation = null;
+      release();
     }
   }
 
   async releaseBackendSession(): Promise<void> {
+    if (!this.backendSessionId && this.initializationPending) {
+      this.initializationController.abort();
+      await this.ready.catch(() => undefined);
+      if (!this.backendSessionId) return;
+    }
     const backendSessionId = this.backendSessionId;
     if (!backendSessionId || !this.backend.closeSession) {
       throw new Error(t("agentInfra.session.closeUnsupported"));
@@ -1036,7 +1193,10 @@ export class AgentSession {
   }
 
   async dispose(): Promise<void> {
+    this.setIsActive(false);
     this.disposed = true;
+    this.initializationController.abort();
+    if (this.initializationPending) await this.ready.catch(() => undefined);
     this.unregisterSessionHandler?.();
     this.unregisterSessionHandler = null;
     this.flushResolvers(this.pendingPlanResolvers);
@@ -1056,6 +1216,7 @@ export class AgentSession {
   }
 
   handlePlanProposalPermission(request: PermissionPrompt): Promise<PermissionDecision> {
+    if (request.signal?.aborted) return Promise.resolve({ outcome: { outcome: "cancelled" } });
     const toolCallId = request.toolCall.toolCallId;
     const exitPlan = tryReadExitPlanModeCall({
       kind: request.toolCall.kind,
@@ -1066,15 +1227,57 @@ export class AgentSession {
       this.publishGatedPlan(toolCallId, exitPlan);
     }
     return new Promise<PermissionDecision>((resolve) => {
-      this.pendingPlanResolvers.set(toolCallId, { request, resolve });
-      this.recomputeStatusIfChanged();
-      this.notifyMessages();
+      const entry = {
+        request,
+        resolve: (decision: PermissionDecision) => {
+          request.signal?.removeEventListener("abort", onAbort);
+          resolve(decision);
+        },
+      };
+      const onAbort = () => {
+        // 关闭只撤原窗口，计划决定仍以持久记录为准，不能取消已保存计划或同编号的新窗口。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        const current = this.pendingPlanResolvers.get(toolCallId) === entry;
+        if (current) this.pendingPlanResolvers.delete(toolCallId);
+        entry.resolve({ outcome: { outcome: "cancelled" } });
+        if (current) {
+          this.recomputeStatusIfChanged();
+          this.notifyMessages();
+        }
+      };
+      this.pendingPlanResolvers.set(toolCallId, entry);
+      request.signal?.addEventListener("abort", onAbort, { once: true });
+      if (request.signal?.aborted) onAbort();
+      else {
+        this.recomputeStatusIfChanged();
+        this.notifyMessages();
+      }
     });
   }
 
-  resolvePlanProposalPermission(toolCallId: string, allow: boolean, denyMessage?: string): void {
+  async resolvePlanProposalPermission(
+    toolCallId: string,
+    allow: boolean,
+    denyMessage?: string
+  ): Promise<void> {
     const entry = this.pendingPlanResolvers.get(toolCallId);
-    if (!entry) return;
+    if (!entry) {
+      const plan = this.currentPlan;
+      if (
+        !plan ||
+        plan.pendingToolCallId !== toolCallId ||
+        !this.backend.decidePendingPlan ||
+        !this.backendSessionId
+      )
+        return;
+      await this.backend.decidePendingPlan({
+        sessionId: this.backendSessionId,
+        planId: plan.id,
+        revision: plan.revision,
+        action: allow ? "approve" : denyMessage?.trim() ? "feedback" : "reject",
+        ...(denyMessage ? { feedback: denyMessage } : {}),
+      });
+      return;
+    }
     this.pendingPlanResolvers.delete(toolCallId);
     const base = decisionFor(
       entry.request,
@@ -1126,7 +1329,22 @@ export class AgentSession {
 
   dismissFeedbackOffer(): void {
     if (this.feedbackOffer?.status !== "open") return;
+    const offerId = this.feedbackOffer.id;
     this.feedbackOffer = { ...this.feedbackOffer, status: "dismissed" };
+    if (this.backendSessionId && offerId) {
+      void this.backend
+        .setFeedbackStatus?.({ sessionId: this.backendSessionId, offerId, status: "dismissed" })
+        .catch((error: unknown) =>
+          logWarn("[AgentMode] could not persist feedback dismissal", error)
+        );
+      if (getSettings().agentMode.offerFeedbackCards === false) {
+        void this.backend
+          .setFeedbackEnabled?.({ sessionId: this.backendSessionId, enabled: false })
+          .catch((error: unknown) =>
+            logWarn("[AgentMode] could not persist feedback preference", error)
+          );
+      }
+    }
     this.notifyMessages();
   }
 
@@ -1135,6 +1353,17 @@ export class AgentSession {
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
     if (this.feedbackOffer?.status !== "open") return;
     this.feedbackOffer = { ...this.feedbackOffer, status: "reported", report };
+    if (this.backendSessionId && this.feedbackOffer.id) {
+      void this.backend
+        .setFeedbackStatus?.({
+          sessionId: this.backendSessionId,
+          offerId: this.feedbackOffer.id,
+          status: "reported",
+        })
+        .catch((error: unknown) =>
+          logWarn("[AgentMode] could not persist reported feedback", error)
+        );
+    }
     this.notifyMessages();
   }
 
@@ -1196,6 +1425,39 @@ export class AgentSession {
     this.notifyMessages();
   }
 
+  // A run and a turn are different clocks: intermediate turn ends never close the loading state,
+  // and the completed turn takes its duration from the run's persisted start/end, not render time:
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  private applyRunState(run: RunStateUpdate): void {
+    this.currentRun = run;
+    if (run.status === "failed") this.lastTurnError = true;
+    else if (run.status === "accepting" || run.status === "running") this.lastTurnError = false;
+    this.recomputeStatusIfChanged();
+  }
+
+  private applyBudgetUpdate(budget: BudgetUpdate): void {
+    this.currentBudget = budget;
+    // A provider budget with unknown usage must not overwrite a known reading with zeros:
+    // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (budget.usage !== null) this.applyUsageUpdate(budget.usage);
+  }
+
+  getRunState(): RunStateUpdate | null {
+    return this.currentRun;
+  }
+
+  getBudget(): BudgetUpdate | null {
+    return this.currentBudget;
+  }
+
+  private turnDurationFromRun(fallbackStartedAtMs: number): number {
+    const run = this.currentRun;
+    if (run !== null && isRunTerminal(run.status) && run.endedAtMs !== undefined) {
+      return Math.max(0, run.endedAtMs - run.startedAtMs);
+    }
+    return Date.now() - fallbackStartedAtMs;
+  }
+
   // Compaction reports the new context size directly, so it bypasses applyUsageUpdate's guards.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/635
   private applyCompactedUsage(compaction: CompactionSnapshot): boolean {
@@ -1249,6 +1511,31 @@ export class AgentSession {
     return true;
   }
 
+  private applyPlanProposal(plan: CurrentPlan): boolean {
+    const prev = this.currentPlan;
+    if (prev !== null && prev.id === plan.id) {
+      if (prev.revision > plan.revision) return false;
+      if (
+        prev.revision === plan.revision &&
+        prev.decision !== "pending" &&
+        plan.decision === "pending"
+      ) {
+        return false;
+      }
+      if (
+        prev.revision === plan.revision &&
+        prev.decision === plan.decision &&
+        prev.body === plan.body &&
+        prev.pendingToolCallId === plan.pendingToolCallId
+      ) {
+        return false;
+      }
+    }
+    this.currentPlan = { ...plan };
+    this.notifyCurrentPlanChanged();
+    return true;
+  }
+
   private setCurrentPlan(next: Omit<CurrentPlan, "id" | "revision" | "decision">): void {
     if (!this.currentPlan) {
       this.planSeq += 1;
@@ -1284,11 +1571,15 @@ export class AgentSession {
     if (!this.currentPlan) return;
     const descriptor = this.getDescriptor?.();
     if (!descriptor) return;
+    // 独立保存的计划不能因恢复模型设置而被误当成退出计划模式并拒绝。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (descriptor.planLifecycle === "independent") return;
     if (!descriptor.getModeMapping) return;
     if (this.isCurrentlyInPlanMode()) return;
     const pending = this.currentPlan.pendingToolCallId;
     if (pending) {
-      this.resolvePlanProposalPermission(pending, false);
+      void this.resolvePlanProposalPermission(pending, false).catch((error) =>
+        logWarn("[AgentSession] plan rejection failed", error)
+      );
       this.decidedPlanToolCallIds.add(pending);
     }
     this.currentPlan = null;
@@ -1296,22 +1587,59 @@ export class AgentSession {
   }
 
   hasPendingPlanPermission(): boolean {
-    return this.pendingPlanResolvers.size > 0;
+    return (
+      this.pendingPlanResolvers.size > 0 ||
+      (this.currentPlan?.decision === "pending" && !!this.backend.decidePendingPlan)
+    );
   }
 
   handleToolPermission(request: PermissionPrompt): Promise<PermissionDecision> {
+    if (request.signal?.aborted) return Promise.resolve({ outcome: { outcome: "cancelled" } });
     const toolCallId = request.toolCall.toolCallId;
-    this.observeToolCall(request.toolCall.kind, toolCallTarget(request.toolCall));
     return new Promise<PermissionDecision>((resolve) => {
-      this.pendingToolResolvers.set(toolCallId, { request, resolve });
-      this.recomputeStatusIfChanged();
-      this.notifyMessages();
+      const entry = {
+        request,
+        resolve: (decision: PermissionDecision) => {
+          request.signal?.removeEventListener("abort", onAbort);
+          resolve(decision);
+        },
+      };
+      const onAbort = () => {
+        // 旧窗口撤销只移除自己的临时回调，不能覆盖同编号的新提示或重新提交持久决定。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        const current = this.pendingToolResolvers.get(toolCallId) === entry;
+        if (current) this.pendingToolResolvers.delete(toolCallId);
+        entry.resolve({ outcome: { outcome: "cancelled" } });
+        if (current) {
+          this.recomputeStatusIfChanged();
+          this.notifyMessages();
+        }
+      };
+      this.pendingToolResolvers.set(toolCallId, entry);
+      request.signal?.addEventListener("abort", onAbort, { once: true });
+      if (request.signal?.aborted) onAbort();
+      else {
+        this.recomputeStatusIfChanged();
+        this.notifyMessages();
+      }
     });
   }
 
-  resolveToolPermission(toolCallId: string, optionId: string): void {
+  async resolveToolPermission(toolCallId: string, optionId: string): Promise<void> {
     const entry = this.pendingToolResolvers.get(toolCallId);
-    if (!entry) return;
+    if (!entry) {
+      if (
+        !this.recoveredPermissions.some((request) => request.toolCall.toolCallId === toolCallId) ||
+        !this.backend.decidePermission ||
+        !this.backendSessionId
+      )
+        return;
+      await this.backend.decidePermission({
+        sessionId: this.backendSessionId,
+        requestId: toolCallId,
+        decision: { outcome: { outcome: "selected", optionId } },
+      });
+      return;
+    }
     this.pendingToolResolvers.delete(toolCallId);
     entry.resolve({ outcome: { outcome: "selected", optionId } });
     this.recomputeStatusIfChanged();
@@ -1319,30 +1647,60 @@ export class AgentSession {
   }
 
   getPendingToolPermissions(): PermissionPrompt[] {
-    if (this.pendingToolResolvers.size === 0) return EMPTY_PERMISSIONS;
-    return Array.from(this.pendingToolResolvers.values(), (e) => e.request);
+    const requests = new Map(
+      this.recoveredPermissions.map((request) => [request.toolCall.toolCallId, request])
+    );
+    for (const [id, entry] of this.pendingToolResolvers) requests.set(id, entry.request);
+    return requests.size ? [...requests.values()] : EMPTY_PERMISSIONS;
   }
 
   handleAskUserQuestion(request: AskUserQuestionPrompt): Promise<AgentQuestionAnswers> {
     const requestId = request.requestId;
     if (request.signal?.aborted) return Promise.resolve(EMPTY_ANSWERS);
     return new Promise<AgentQuestionAnswers>((resolve) => {
-      this.pendingQuestionResolvers.set(requestId, { request, resolve });
-      // ACP timeout and cancellation withdraw the card without an answer.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/551
-      request.signal?.addEventListener(
-        "abort",
-        () => this.resolveAskUserQuestion(requestId, EMPTY_ANSWERS),
-        { once: true }
-      );
-      this.recomputeStatusIfChanged();
-      this.notifyMessages();
+      const entry = {
+        request,
+        resolve: (answers: AgentQuestionAnswers) => {
+          request.signal?.removeEventListener("abort", onAbort);
+          resolve(answers);
+        },
+      };
+      const onAbort = () => {
+        // 终态关闭只撤销同一临时问题，不能向已答复的持久问题再提交空答案或误删新窗口。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        const current = this.pendingQuestionResolvers.get(requestId) === entry;
+        if (current) this.pendingQuestionResolvers.delete(requestId);
+        entry.resolve(EMPTY_ANSWERS);
+        if (current) {
+          this.recomputeStatusIfChanged();
+          this.notifyMessages();
+        }
+      };
+      this.pendingQuestionResolvers.set(requestId, entry);
+      request.signal?.addEventListener("abort", onAbort, { once: true });
+      if (request.signal?.aborted) onAbort();
+      else {
+        this.recomputeStatusIfChanged();
+        this.notifyMessages();
+      }
     });
   }
 
-  resolveAskUserQuestion(requestId: string, answers: AgentQuestionAnswers): void {
+  async resolveAskUserQuestion(requestId: string, answers: AgentQuestionAnswers): Promise<void> {
     const entry = this.pendingQuestionResolvers.get(requestId);
-    if (!entry) return;
+    if (!entry) {
+      if (
+        !this.recoveredQuestions.some((request) => request.requestId === requestId) ||
+        !this.backend.answerPendingQuestion ||
+        !this.backendSessionId
+      )
+        return;
+      await this.backend.answerPendingQuestion({
+        sessionId: this.backendSessionId,
+        requestId,
+        answers,
+      });
+      return;
+    }
     this.pendingQuestionResolvers.delete(requestId);
     const responses = entry.request.questions.flatMap((question) => {
       const answer = answers[question.answerKey ?? question.question];
@@ -1378,8 +1736,11 @@ export class AgentSession {
   }
 
   getPendingAskUserQuestions(): AskUserQuestionPrompt[] {
-    if (this.pendingQuestionResolvers.size === 0) return EMPTY_QUESTIONS;
-    return Array.from(this.pendingQuestionResolvers.values(), (e) => e.request);
+    const requests = new Map(
+      this.recoveredQuestions.map((request) => [request.requestId, request])
+    );
+    for (const [id, entry] of this.pendingQuestionResolvers) requests.set(id, entry.request);
+    return requests.size ? [...requests.values()] : EMPTY_QUESTIONS;
   }
 
   private flushResolvers(
@@ -1402,6 +1763,25 @@ export class AgentSession {
 
   private handleSessionEvent(event: SessionEvent): void {
     const update = event.update;
+    if (update.sessionUpdate === "recovery_state") {
+      this.recoveryState = update.recovery;
+      this.recomputeStatusIfChanged();
+      this.notifyMessages();
+      return;
+    }
+    if (update.sessionUpdate === "feedback_offer") {
+      this.feedbackOffer = update.offer;
+      this.notifyMessages();
+      return;
+    }
+    if (update.sessionUpdate === "session_projection") {
+      this.applySessionProjection(update.projection);
+      return;
+    }
+    if (update.sessionUpdate === "plan_proposal_update") {
+      this.applyPlanProposal(update.plan);
+      return;
+    }
     // A user message echoed outside the replay is already shown from the prompt that sent it. https://github.com/Brevilabs/obsidian-copilot-private/issues/602
     if (update.sessionUpdate === "user_message_chunk" && !this.historyOpen) return;
     if (this.historyOpen && this.appendHistory(update, event.occurredAt)) {
@@ -1424,7 +1804,6 @@ export class AgentSession {
       switch (update.sessionUpdate) {
         case "agent_message_chunk":
         case "agent_thought_chunk":
-          this.cancelledTurnActivity += 1;
           if (update.messageId) this.cancelledMessageIds.add(update.messageId);
           logWarn(
             `[AgentMode] dropping ${update.sessionUpdate} from cancelled turn ${this.internalId}`
@@ -1433,14 +1812,12 @@ export class AgentSession {
         case "tool_call":
         case "plan":
         case "compaction":
-          this.cancelledTurnActivity += 1;
           logWarn(
             `[AgentMode] dropping ${update.sessionUpdate} from cancelled turn ${this.internalId}`
           );
           return;
         case "tool_call_update":
           if (isPriorToolUpdate) break;
-          this.cancelledTurnActivity += 1;
           logWarn(
             `[AgentMode] dropping ${update.sessionUpdate} from cancelled turn ${this.internalId}`
           );
@@ -1453,7 +1830,7 @@ export class AgentSession {
     }
 
     if (update.sessionUpdate === "session_info_update") {
-      // An update that omits `title` (opencode's compaction and retry markers) leaves the title alone; only an explicit null clears it. https://github.com/Brevilabs/obsidian-copilot-private/issues/632
+      // 未提供标题的状态更新保留原名，只有明确的空值才能清除标题。https://github.com/Brevilabs/obsidian-copilot-private/issues/632
       if (update.title !== undefined && this.backendSummarizesTitle()) {
         this.applyAgentLabel(update.title);
       }
@@ -1474,6 +1851,14 @@ export class AgentSession {
     }
     if (update.sessionUpdate === "usage_update") {
       this.applyUsageUpdate(update.usage);
+      return;
+    }
+    if (update.sessionUpdate === "run_state") {
+      this.applyRunState(update.run);
+      return;
+    }
+    if (update.sessionUpdate === "budget_update") {
+      this.applyBudgetUpdate(update.budget);
       return;
     }
     if (update.sessionUpdate === "plan_usage_update") {
@@ -1515,7 +1900,6 @@ export class AgentSession {
 
     switch (update.sessionUpdate) {
       case "tool_call": {
-        this.observeToolCall(update.kind, toolCallTarget(update));
         const exitPlan = tryReadExitPlanModeCall({
           kind: update.kind,
           rawInput: update.rawInput,
@@ -1537,19 +1921,6 @@ export class AgentSession {
         if (targetMessageId !== placeholderId) this.currentTurnHadRoutedToolActivity = true;
         const existing = this.findToolCallPart(targetMessageId, update.toolCallId);
         const merged = mergeToolCallUpdate(existing, update);
-        // A late update to an earlier turn's call must not count as this turn's edit.
-        // https://github.com/Brevilabs/obsidian-copilot-private/issues/347
-        if (!isPriorToolUpdate && merged.kind === "tool_call") {
-          this.observeToolCall(
-            merged.toolKind,
-            {
-              locations: merged.locations,
-              input: merged.input,
-              diffPaths: diffTargetPaths(merged.output),
-            },
-            update.originalFiles
-          );
-        }
         if (merged.kind === "tool_call") {
           const exitPlan = tryReadExitPlanModeCall({
             kind: update.kind ?? merged.toolKind,
@@ -1571,6 +1942,18 @@ export class AgentSession {
         }
         return;
       }
+      case "todo_update": {
+        const entries: AgentPlanEntry[] = update.todo.items.map((item) => ({
+          content: item.text,
+          priority: item.priority,
+          status: item.status,
+        }));
+        if (this.store.upsertAgentPart(targetMessageId, planToPart({ entries }))) {
+          this.scheduleNotifyMessages();
+        }
+        if (this.applyCurrentTodoList(entries)) this.notifyCurrentTodoListChanged();
+        return;
+      }
       case "compaction": {
         const upserted = this.upsertCompactionPart(targetMessageId, update);
         const metered = this.applyCompactedUsage(update);
@@ -1582,6 +1965,150 @@ export class AgentSession {
           `[AgentMode] ignoring session/update kind=${(update as { sessionUpdate: string }).sessionUpdate}`
         );
         return;
+    }
+  }
+
+  // The projection is the authoritative display snapshot for a resynced conversation: a newer
+  // frame replaces the loaded window in one batch, an older frame is dropped, and the optimistic
+  // user turn keeps its UI id/context while the live assistant card adopts the projected answer:
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  private applySessionProjection(projection: SessionProjection): void {
+    if (!this.acceptProjectionCursor(projection.cursor)) return;
+    if (this.historyOpen) this.discardHistoryReplay();
+    const messages = projection.messages.map((message) => ({ ...message }));
+    if (projection.mode === "prepend") {
+      if (this.store.prependMessages(messages)) this.notifyMessages();
+      return;
+    }
+    const backgroundTaskIds = projection.activeBackgroundTaskIds ?? EMPTY_BACKGROUND_TASK_IDS;
+    const backgroundChanged =
+      this.activeBackgroundTaskIds.length !== backgroundTaskIds.length ||
+      this.activeBackgroundTaskIds.some((id, index) => id !== backgroundTaskIds[index]);
+    this.activeBackgroundTaskIds = backgroundTaskIds;
+    const recoveryChanged = this.recoveryState !== projection.pending.recovery;
+    const pendingChanged =
+      JSON.stringify({
+        permissions: this.recoveredPermissions,
+        questions: this.recoveredQuestions,
+        plan: this.currentPlan,
+      }) !==
+      JSON.stringify({
+        permissions: projection.pending.permissions,
+        questions: projection.pending.questions,
+        plan: projection.pending.plan,
+      });
+    this.recoveredPermissions = projection.pending.permissions;
+    this.recoveredQuestions = projection.pending.questions;
+    this.currentPlan = projection.pending.plan;
+    this.recoveryState = projection.pending.recovery;
+    if (recoveryChanged || pendingChanged) this.recomputeStatusIfChanged();
+    if (
+      this.store.replaceMessages(this.reconcileReplacementMessages(messages)) ||
+      recoveryChanged ||
+      pendingChanged ||
+      backgroundChanged
+    ) {
+      this.notifyMessages();
+    }
+  }
+
+  private acceptProjectionCursor(cursor: StreamCursor): boolean {
+    const accepted = this.projectionCursor;
+    if (
+      accepted !== null &&
+      accepted.streamEpoch === cursor.streamEpoch &&
+      cursor.frameIndex <= accepted.frameIndex
+    ) {
+      return false;
+    }
+    this.projectionCursor = cursor;
+    return true;
+  }
+
+  private discardHistoryReplay(): void {
+    this.historyUser = null;
+    this.historyAiId = null;
+    this.historyTurnStartedAt = undefined;
+    this.historyOpen = false;
+  }
+
+  private reconcileReplacementMessages(messages: AgentChatMessage[]): AgentChatMessage[] {
+    const display = this.store.getDisplayMessages();
+    const storedById = new Map(display.map((message) => [message.id, message]));
+    for (const message of messages) {
+      const alias = message.isAuxiliary ? undefined : this.projectionIdAliases.get(message.id);
+      if (alias !== undefined) message.id = alias;
+      const stored = storedById.get(message.id);
+      // 后续快照复用已绑定消息键时仍须保留宿主选区对象，不能只在首次别名绑定时复制。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (message.sender === USER_SENDER && stored?.sender === USER_SENDER) {
+        message.context = message.context ?? stored.context;
+        message.timestamp = message.timestamp ?? stored.timestamp;
+        message.content = message.content ?? stored.content;
+      }
+    }
+    const displayedIds = new Set(display.map((message) => message.id));
+    this.bindOptimisticUserMessages(messages, displayedIds, display);
+    const pendingUserId = this.pendingUserMessageId;
+    if (pendingUserId !== null) {
+      if (
+        messages.some((message) => message.sender === USER_SENDER && message.id === pendingUserId)
+      ) {
+        this.pendingUserMessageId = null;
+      } else {
+        // 资料、预算记录可先于 pi.user 触发旧历史快照，新问题要等真实入库后再交接身份。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        const pending = storedById.get(pendingUserId);
+        if (pending) messages.push(pending);
+      }
+    }
+    this.bindLiveAssistantMessage(messages, displayedIds);
+    if (this.placeholderId !== null && !messages.some((m) => m.id === this.placeholderId)) {
+      const live = this.store.getMessage(this.placeholderId);
+      if (live !== undefined) messages.push(live);
+      else this.placeholderId = null;
+    }
+    return messages;
+  }
+
+  private bindOptimisticUserMessages(
+    messages: AgentChatMessage[],
+    displayedIds: ReadonlySet<string>,
+    display: readonly AgentChatMessage[]
+  ): void {
+    const projectedIds = new Set(messages.map((message) => message.id));
+    const unmatchedStored = display.filter(
+      (message) => message.sender === USER_SENDER && !projectedIds.has(message.id)
+    );
+    const unmatchedProjected = messages.filter(
+      (message) => message.sender === USER_SENDER && !displayedIds.has(message.id)
+    );
+    const count = Math.min(unmatchedStored.length, unmatchedProjected.length);
+    for (let offset = 1; offset <= count; offset += 1) {
+      const stored = unmatchedStored[unmatchedStored.length - offset];
+      const projected = unmatchedProjected[unmatchedProjected.length - offset];
+      this.projectionIdAliases.set(projected.id, stored.id);
+      projected.id = stored.id;
+      projected.context = projected.context ?? stored.context;
+      projected.timestamp = projected.timestamp ?? stored.timestamp;
+      projected.content = projected.content ?? stored.content;
+    }
+  }
+
+  private bindLiveAssistantMessage(
+    messages: AgentChatMessage[],
+    displayedIds: ReadonlySet<string>
+  ): void {
+    const placeholderId = this.placeholderId;
+    if (placeholderId === null || !displayedIds.has(placeholderId)) return;
+    if (messages.some((message) => message.id === placeholderId && !message.isAuxiliary)) return;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.sender === USER_SENDER) return;
+      // 批准和补发的文件凭据是独立记录，不能抢占本轮回答的临时卡而留下半句重复文本。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (message.isAuxiliary) continue;
+      if (displayedIds.has(message.id)) return;
+      this.projectionIdAliases.set(message.id, placeholderId);
+      message.id = placeholderId;
+      return;
     }
   }
 
@@ -1636,6 +2163,20 @@ export class AgentSession {
         // The last replayed task list is the one the chat closed with, so the project popover shows it again. https://github.com/Brevilabs/obsidian-copilot-private/issues/643
         if (this.applyCurrentTodoList(update.entries)) this.notifyCurrentTodoListChanged();
         return true;
+      case "todo_update": {
+        const entries: AgentPlanEntry[] = update.todo.items.map((item) => ({
+          content: item.text,
+          priority: item.priority,
+          status: item.status,
+        }));
+        if (
+          this.store.upsertAgentPart(this.historyAiBubbleId(occurredAt), planToPart({ entries }))
+        ) {
+          this.scheduleNotifyMessages();
+        }
+        if (this.applyCurrentTodoList(entries)) this.notifyCurrentTodoListChanged();
+        return true;
+      }
       case "compaction": {
         // A replayed compaction is already over, so one that never reports an end settles as cancelled rather than spinning. https://github.com/Brevilabs/obsidian-copilot-private/issues/638
         const settled: CompactionSnapshot =
@@ -1723,72 +2264,6 @@ export class AgentSession {
     return placeholderId;
   }
 
-  private observeToolCall(
-    kind: AgentToolKind | undefined,
-    target: EditTargetSource,
-    originalFiles?: Readonly<Record<string, string | null>>
-  ): void {
-    const changes = kind === "edit" || kind === "delete";
-    if (!changes && kind !== "read") return;
-    const app = this.getApp?.();
-    const adapter = app?.vault?.adapter;
-    if (!app || !adapter) return;
-    const vaultBase = getVaultBase(app);
-    const originals = new Map(
-      Object.entries(originalFiles ?? {}).map(([path, text]) => [
-        toVaultTargetPath(path, vaultBase),
-        text,
-      ])
-    );
-    for (const path of editTargetPaths(target, vaultBase)) {
-      if (!isCapturableVaultPath(path)) continue;
-      let capture = this.turnFiles.get(path);
-      if (!capture) {
-        // Read as the call is announced; an Auto-mode write can land first, so a write-time original wins.
-        // https://github.com/Brevilabs/obsidian-copilot-private/issues/687
-        capture = { edited: false, snapshot: readVaultText(adapter, path) };
-        this.turnFiles.set(path, capture);
-      }
-      if (!changes) continue;
-      capture.edited = true;
-      // Later results report text this turn already changed; the first is the turn's starting file.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/347
-      if (capture.writeTimeBefore === undefined) capture.writeTimeBefore = originals.get(path);
-    }
-  }
-
-  // Before text comes from a source that saw the file at write time; the first-mention snapshot
-  // is only the fallback. https://github.com/Brevilabs/obsidian-copilot-private/issues/347
-  private async finalizeTurnFileChanges(
-    messageId: string,
-    turnDiff: TurnDiff | undefined
-  ): Promise<void> {
-    const edited = [...this.turnFiles].filter(([, capture]) => capture.edited);
-    this.turnFiles = new Map();
-    const app = this.getApp?.();
-    const adapter = app?.vault?.adapter;
-    if (edited.length === 0 || !app || !adapter) return;
-    const turnPatches = turnDiff ? filePatchesByVaultPath(turnDiff, getVaultBase(app)) : undefined;
-    const changes = (
-      await Promise.all(
-        edited.map(async ([path, capture]) => {
-          const after = await readVaultText(adapter, path);
-          const patch = turnPatches?.get(path);
-          if (capture.writeTimeBefore === undefined && patch) {
-            capture.writeTimeBefore = revertFilePatch(patch, after);
-          }
-          const before =
-            capture.writeTimeBefore === undefined
-              ? await capture.snapshot
-              : capture.writeTimeBefore;
-          return buildTurnFileChange(path, before, after);
-        })
-      )
-    ).filter((change): change is TurnFileChange => change !== null);
-    if (changes.length === 0) return;
-    if (this.store.setFileChanges(messageId, changes)) this.notifyMessages();
-  }
-
   private findToolCallPart(messageId: string, toolCallId: string): AgentMessagePart | undefined {
     const msg = this.store.getMessage(messageId);
     return msg?.parts?.find((p) => p.kind === "tool_call" && p.id === toolCallId);
@@ -1799,8 +2274,14 @@ export class AgentSession {
     info: { plan: string; planFilePath?: string }
   ): void {
     if (this.decidedPlanToolCallIds.has(toolCallId)) return;
+    // 批准请求可能晚于原始计划文档到达，不能从正文重建标题并覆盖已保存的身份和版本：https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (this.currentPlan?.pendingToolCallId === toolCallId && this.currentPlan.body === info.plan)
+      return;
     const stale = this.currentPlan?.pendingToolCallId;
-    if (stale && stale !== toolCallId) this.resolvePlanProposalPermission(stale, false);
+    if (stale && stale !== toolCallId)
+      void this.resolvePlanProposalPermission(stale, false).catch((error) =>
+        logWarn("[AgentSession] old plan rejection failed", error)
+      );
     const title = derivePlanTitleFromMarkdown(info.plan);
     this.setCurrentPlan({
       body: info.plan,
@@ -2017,30 +2498,39 @@ export function buildUserDisplayContent(
   return content;
 }
 
-export function buildPromptBlocks(
-  displayText: string,
+function buildPromptBlocks(displayText: string, content?: PromptContent[]): PromptContent[] {
+  return [{ type: "text", text: displayText }, ...(content ?? [])];
+}
+
+export function buildPromptContext(
   context?: MessageContext,
-  content?: PromptContent[],
   webTabBlock?: string,
   projectContextBlock?: string | null,
-  leadingContextBlock?: string | null,
   projectContextUpdatesBlock?: string | null
-): PromptContent[] {
-  const sections = [
-    projectContextBlock?.trim() || null,
-    projectContextUpdatesBlock?.trim() || null,
-    leadingContextBlock?.trim() || null,
-    buildContextEnvelope(context),
-    buildWebSelectionBlocks(context),
-    webTabBlock?.trim() || null,
-  ].filter((s): s is string => Boolean(s));
-  const head = sections.length > 0 ? sections.join("\n\n") : null;
-  const headText = head
-    ? `${head}\n\n<user-message>\n${displayText}\n</user-message>`
-    : displayText;
-  const extras = content ?? [];
-  if (extras.length === 0) return [{ type: "text", text: headText }];
-  return [{ type: "text", text: headText }, ...extras];
+): NonNullable<PromptInput["context"]> {
+  const materials: NonNullable<PromptInput["context"]>["materials"][number][] = [];
+  const notes = buildContextEnvelope(context);
+  if (notes)
+    materials.push({
+      origin: "note",
+      text: notes,
+      ...(context?.notes.length === 1 ? { sourcePath: context.notes[0]?.path } : {}),
+    });
+  const selections = buildWebSelectionBlocks(context);
+  if (selections) materials.push({ origin: "web", text: selections });
+  if (webTabBlock?.trim()) materials.push({ origin: "web", text: webTabBlock });
+  const project = [projectContextBlock, projectContextUpdatesBlock].filter(Boolean).join("\n\n");
+  return {
+    materials,
+    ...(project
+      ? {
+          project: {
+            text: project,
+            ...(!projectContextBlock && projectContextUpdatesBlock ? { updateOnly: true } : {}),
+          },
+        }
+      : {}),
+  };
 }
 
 export function withReadOnlyPreamble(blocks: PromptContent[]): PromptContent[] {

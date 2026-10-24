@@ -1,0 +1,1302 @@
+{
+  "schemaVersion": 1,
+  "baseline": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "features": [
+    {
+      "id": "F01",
+      "name": "普通回答与Markdown",
+      "component": "AgentChatMessages / ChatSingleMessage / AgentMarkdownText",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeProjection.ts",
+      "taskIds": ["P04-T07"],
+      "scenarioIds": ["SC-P04-T07-01", "SC-P04-T07-02", "SC-P04-T07-03", "SC-P04-T07-04"],
+      "acceptance": "真实回答的文字、代码、数学与链接维持原渲染，重载一致。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/HistoryProjector.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F01"
+    },
+    {
+      "id": "F02",
+      "name": "公开思考与时长",
+      "component": "ReasoningBlock",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeProjection.ts",
+      "taskIds": ["P04-T04"],
+      "scenarioIds": ["SC-P04-T04-01", "SC-P04-T04-02", "SC-P04-T04-03", "SC-P04-T04-04"],
+      "acceptance": "仅公开thinking流驱动，无数据不伪造。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/ThinkingProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F02"
+    },
+    {
+      "id": "F03",
+      "name": "工具状态卡",
+      "component": "ActionCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/events/EventTranslator.ts",
+      "taskIds": ["P04-T05"],
+      "scenarioIds": ["SC-P04-T05-01", "SC-P04-T05-02", "SC-P04-T05-03", "SC-P04-T05-04"],
+      "acceptance": "pending/执行/成功/失败反映实际授权与结果。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/ToolProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F03"
+    },
+    {
+      "id": "F04",
+      "name": "工具输出与截断",
+      "component": "ActionCard / 工具详情",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/events/EventTranslator.ts",
+      "taskIds": ["P04-T05"],
+      "scenarioIds": ["SC-P04-T05-01", "SC-P04-T05-02", "SC-P04-T05-03", "SC-P04-T05-04"],
+      "acceptance": "trim/set正确，不无限拼接，不隐藏真实错误。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/ToolProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F04"
+    },
+    {
+      "id": "F05",
+      "name": "连续活动分组与运行提示",
+      "component": "ActivityGroupCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P04-T06"],
+      "scenarioIds": ["SC-P04-T06-01", "SC-P04-T06-02", "SC-P04-T06-03", "SC-P04-T06-04"],
+      "acceptance": "一run多turn不提前结束，活动计时真实。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/RunProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F05"
+    },
+    {
+      "id": "F06",
+      "name": "子代理树",
+      "component": "SubAgentCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiSubagentTools.ts",
+      "taskIds": ["P10-T04"],
+      "scenarioIds": ["SC-P10-T04-01", "SC-P10-T04-02", "SC-P10-T04-03", "SC-P10-T04-04"],
+      "acceptance": "稳定父子ID，子工具可见，打开子历史不重新执行。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/SubagentProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F06"
+    },
+    {
+      "id": "F07",
+      "name": "任务清单轨迹",
+      "component": "PlanPill",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T01"],
+      "scenarioIds": ["SC-P08-T01-01", "SC-P08-T01-02", "SC-P08-T01-03", "SC-P08-T01-04"],
+      "acceptance": "todo状态来自可恢复文档，不仅工具名装饰。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Todos.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F07"
+    },
+    {
+      "id": "F08",
+      "name": "项目任务进度",
+      "component": "ProjectInfoPopover.ProgressSection",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T01"],
+      "scenarioIds": ["SC-P08-T01-01", "SC-P08-T01-02", "SC-P08-T01-03", "SC-P08-T01-04"],
+      "acceptance": "getCurrentTodoList在运行和重启后均有真实值。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Todos.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F08"
+    },
+    {
+      "id": "F09",
+      "name": "计划正文与版本",
+      "component": "PlanProposalCard / PlanPreviewView",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T02"],
+      "scenarioIds": ["SC-P08-T02-01", "SC-P08-T02-02", "SC-P08-T02-03", "SC-P08-T02-04"],
+      "acceptance": "计划revision和正文准确，待审批可恢复。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Plans.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F09"
+    },
+    {
+      "id": "F10",
+      "name": "计划批准拒绝反馈",
+      "component": "PlanProposalCard / PlanPreviewView / CurrentPlan",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T03"],
+      "scenarioIds": ["SC-P08-T03-01", "SC-P08-T03-02", "SC-P08-T03-03", "SC-P08-T03-04"],
+      "acceptance": "决定真实驱动后端，批准不等于免权限。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/PlanDecision.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F10"
+    },
+    {
+      "id": "F11",
+      "name": "用户提问多选与其他",
+      "component": "AskUserQuestionCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T04"],
+      "scenarioIds": ["SC-P08-T04-01", "SC-P08-T04-02", "SC-P08-T04-03", "SC-P08-T04-04"],
+      "acceptance": "用户答案持久化、恢复、取消都可用。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Questions.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F11"
+    },
+    {
+      "id": "F12",
+      "name": "工具权限弹窗与卡片",
+      "component": "ToolPermissionCard / 既有权限Modal",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeApprovals.ts",
+      "taskIds": ["P05-T06"],
+      "scenarioIds": ["SC-P05-T06-01", "SC-P05-T06-02", "SC-P05-T06-03", "SC-P05-T06-04"],
+      "acceptance": "实际执行等待持久化授权，拒绝无副作用。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/policy/PermissionBridge.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F12"
+    },
+    {
+      "id": "F13",
+      "name": "历史压缩行",
+      "component": "CompactionRow",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P08-T05"],
+      "scenarioIds": ["SC-P08-T05-01", "SC-P08-T05-02", "SC-P08-T05-03", "SC-P08-T05-04"],
+      "acceptance": "手动自动真实压缩，区分完成失败取消跳过。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Compaction.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F13"
+    },
+    {
+      "id": "F14",
+      "name": "仅压缩消息渲染",
+      "component": "AgentTrailView compaction-only",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeProjection.ts",
+      "taskIds": ["P08-T05"],
+      "scenarioIds": ["SC-P08-T05-01", "SC-P08-T05-02", "SC-P08-T05-03", "SC-P08-T05-04"],
+      "acceptance": "不伪造普通回答，旧历史仍完整。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Compaction.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F14"
+    },
+    {
+      "id": "F15",
+      "name": "文件变化摘要",
+      "component": "FilesChangedCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/tools/VaultHostTools.ts",
+      "taskIds": ["P06-T09"],
+      "scenarioIds": ["SC-P06-T09-01", "SC-P06-T09-02", "SC-P06-T09-03", "SC-P06-T09-04"],
+      "acceptance": "只展示实际已提交或明确未知的变化。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/MutationProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F15"
+    },
+    {
+      "id": "F16",
+      "name": "差异窗口",
+      "component": "TurnDiffView / openTurnDiff",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/tools/VaultHostTools.ts",
+      "taskIds": ["P06-T09"],
+      "scenarioIds": ["SC-P06-T09-01", "SC-P06-T09-02", "SC-P06-T09-03", "SC-P06-T09-04"],
+      "acceptance": "before/after取实际receipt，审批变更与落地一致。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/MutationProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F16"
+    },
+    {
+      "id": "F17",
+      "name": "变更回退",
+      "component": "既有文件变更回退操作",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/tools/VaultHostTools.ts",
+      "taskIds": ["P06-T10"],
+      "scenarioIds": ["SC-P06-T10-01", "SC-P06-T10-02", "SC-P06-T10-03", "SC-P06-T10-04"],
+      "acceptance": "后续用户编辑不被覆盖，回退也是受控mutation。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/tools/RevertMutation.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F17"
+    },
+    {
+      "id": "F18",
+      "name": "并行回答候选",
+      "component": "FanoutMessageCard",
+      "kind": "existing",
+      "producer": "src/agentMode/session/fanout/FanoutOrchestrator.ts",
+      "taskIds": ["P11-T04"],
+      "scenarioIds": ["SC-P11-T04-01", "SC-P11-T04-02", "SC-P11-T04-03", "SC-P11-T04-04"],
+      "acceptance": "候选来自独立真实模型，有部分失败状态。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/FanoutProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F18"
+    },
+    {
+      "id": "F19",
+      "name": "并行回答综合",
+      "component": "FanoutMessageCard 综合区域",
+      "kind": "existing",
+      "producer": "src/agentMode/session/fanout/FanoutOrchestrator.ts",
+      "taskIds": ["P11-T03"],
+      "scenarioIds": ["SC-P11-T03-01", "SC-P11-T03-02", "SC-P11-T03-03", "SC-P11-T03-04"],
+      "acceptance": "只有真实候选进入综合，全失败不伪生成。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/fanout/FanoutSynthesis.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F19"
+    },
+    {
+      "id": "F20",
+      "name": "并行任务只读限制",
+      "component": "现有fan-out工作流",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P11-T02"],
+      "scenarioIds": ["SC-P11-T02-01", "SC-P11-T02-02", "SC-P11-T02-03", "SC-P11-T02-04"],
+      "acceptance": "所有候选不可写Vault，后续写另起权限流程。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/fanout/FanoutRunner.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F20"
+    },
+    {
+      "id": "F21",
+      "name": "模型选择器",
+      "component": "既有模型选择UI / BackendState.model",
+      "kind": "existing",
+      "producer": "src/agentMode/backends/pi/descriptor.ts",
+      "taskIds": ["P03-T09"],
+      "scenarioIds": ["SC-P03-T09-01", "SC-P03-T09-02", "SC-P03-T09-03", "SC-P03-T09-04"],
+      "acceptance": "多provider由一Pi引擎执行，busy不半切换。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/backends/pi/descriptor.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F21"
+    },
+    {
+      "id": "F22",
+      "name": "推理强度选择",
+      "component": "既有effort选项",
+      "kind": "existing",
+      "producer": "src/agentMode/backends/pi/descriptor.ts",
+      "taskIds": ["P03-T09"],
+      "scenarioIds": ["SC-P03-T09-01", "SC-P03-T09-02", "SC-P03-T09-03", "SC-P03-T09-04"],
+      "acceptance": "按模型实际能力，缺能力不显示无效选项。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/backends/pi/descriptor.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F22"
+    },
+    {
+      "id": "F23",
+      "name": "模式切换",
+      "component": "既有mode选择UI",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P05-T04"],
+      "scenarioIds": ["SC-P05-T04-01", "SC-P05-T04-02", "SC-P05-T04-03", "SC-P05-T04-04"],
+      "acceptance": "plan/default/auto均有代码规则。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/policy/PolicyEngine.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F23"
+    },
+    {
+      "id": "F24",
+      "name": "Token与上下文用量",
+      "component": "既有usage显示",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P08-T07"],
+      "scenarioIds": ["SC-P08-T07-01", "SC-P08-T07-02", "SC-P08-T07-03", "SC-P08-T07-04"],
+      "acceptance": "当前context与总消费分离，未知值不写0。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/BudgetProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F24"
+    },
+    {
+      "id": "F25",
+      "name": "用量窗口/预算",
+      "component": "既有PlanUsage窗口",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P08-T07"],
+      "scenarioIds": ["SC-P08-T07-01", "SC-P08-T07-02", "SC-P08-T07-03", "SC-P08-T07-04"],
+      "acceptance": "BYOK未知订阅额度不伪造，本地预算有来源标签。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/BudgetProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F25"
+    },
+    {
+      "id": "F26",
+      "name": "耗时与运行指示",
+      "component": "AgentTurnDurationIndicator",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P04-T06"],
+      "scenarioIds": ["SC-P04-T06-01", "SC-P04-T06-02", "SC-P04-T06-03", "SC-P04-T06-04"],
+      "acceptance": "使用持久化时间，重载不重新计时。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/RunProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F26"
+    },
+    {
+      "id": "F27",
+      "name": "停止与取消状态",
+      "component": "既有Stop及取消提示",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P03-T08"],
+      "scenarioIds": ["SC-P03-T08-01", "SC-P03-T08-02", "SC-P03-T08-03", "SC-P03-T08-04"],
+      "acceptance": "取消真实网络和工作，保留已发生副作用。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/runtime/Cancellation.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F27"
+    },
+    {
+      "id": "F28",
+      "name": "错误与重试呈现",
+      "component": "AgentChatMessages错误路径",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntime.ts",
+      "taskIds": ["P04-T06"],
+      "scenarioIds": ["SC-P04-T06-01", "SC-P04-T06-02", "SC-P04-T06-03", "SC-P04-T06-04"],
+      "acceptance": "有真实原因、不覆盖先前轨迹、不重复用户消息。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/RunProjection.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F28"
+    },
+    {
+      "id": "F29",
+      "name": "会话索引标题项目与墓碑",
+      "component": "AgentSessionIndex / 会话列表",
+      "kind": "existing",
+      "producer": "src/agentMode/session/legacy/LegacyHistoryReader.ts",
+      "taskIds": ["P13-T02"],
+      "scenarioIds": ["SC-P13-T02-01", "SC-P13-T02-02", "SC-P13-T02-03", "SC-P13-T02-04"],
+      "acceptance": "历史来源、用户标题和删除墓碑不丢。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/session/legacy/LegacyHistoryReader.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F29"
+    },
+    {
+      "id": "F30",
+      "name": "会话历史恢复",
+      "component": "AgentMessageStore / AgentChatMessages",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeProjection.ts",
+      "taskIds": ["P04-T02"],
+      "scenarioIds": ["SC-P04-T02-01", "SC-P04-T02-02", "SC-P04-T02-03", "SC-P04-T02-04"],
+      "acceptance": "压缩旧历史不被snapshot清空，无重复条目。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/ProjectionReducer.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F30"
+    },
+    {
+      "id": "F31",
+      "name": "Markdown聊天保存",
+      "component": "AgentChatPersistenceManager",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/storage/SessionExport.ts",
+      "taskIds": ["P13-T04"],
+      "scenarioIds": ["SC-P13-T04-01", "SC-P13-T04-02", "SC-P13-T04-03", "SC-P13-T04-04"],
+      "acceptance": "现有格式可读，完整执行历史由Durable保存。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/storage/SessionExport.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F31"
+    },
+    {
+      "id": "F32",
+      "name": "图片与附件",
+      "component": "ChatSingleMessage附件路径",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeInput.ts",
+      "taskIds": ["P12-T04"],
+      "scenarioIds": ["SC-P12-T04-01", "SC-P12-T04-02", "SC-P12-T04-03", "SC-P12-T04-04"],
+      "acceptance": "真实模型图片输入、保存与缺失占位。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Attachments.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F32"
+    },
+    {
+      "id": "F33",
+      "name": "笔记路径和跳转",
+      "component": "工具locations / 既有笔记链接",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/tools/VaultHostTools.ts",
+      "taskIds": ["P06-T08"],
+      "scenarioIds": ["SC-P06-T08-01", "SC-P06-T08-02", "SC-P06-T08-03", "SC-P06-T08-04"],
+      "acceptance": "受控目标打开正确leaf，不改变其他窗口。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/tools/ObsidianActions.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F33"
+    },
+    {
+      "id": "F34",
+      "name": "当前选区与上下文",
+      "component": "既有编辑器选区输入",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeInput.ts",
+      "taskIds": ["P12-T03"],
+      "scenarioIds": ["SC-P12-T03-01", "SC-P12-T03-02", "SC-P12-T03-03", "SC-P12-T03-04"],
+      "acceptance": "范围/内容版本准确，不重复整段历史。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/ContextBuilder.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F34"
+    },
+    {
+      "id": "F35",
+      "name": "技能管理与调用",
+      "component": "既有Skills管理UI",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P12-T01"],
+      "scenarioIds": ["SC-P12-T01-01", "SC-P12-T01-02", "SC-P12-T01-03", "SC-P12-T01-04"],
+      "acceptance": "canonical store直读，启停真实，不依赖CLI分发。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/SkillsCatalog.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F35"
+    },
+    {
+      "id": "F36",
+      "name": "技能执行安全",
+      "component": "技能命令入口",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P12-T02"],
+      "scenarioIds": ["SC-P12-T02-01", "SC-P12-T02-02", "SC-P12-T02-03", "SC-P12-T02-04"],
+      "acceptance": "技能不能增加权限或自动执行脚本。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/SkillTools.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F36"
+    },
+    {
+      "id": "F37",
+      "name": "反馈卡",
+      "component": "FeedbackCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P08-T06"],
+      "scenarioIds": ["SC-P08-T06-01", "SC-P08-T06-02", "SC-P08-T06-03", "SC-P08-T06-04"],
+      "acceptance": "真实错误可触发，dismiss和关闭可恢复。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Feedback.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F37"
+    },
+    {
+      "id": "F38",
+      "name": "问题报告",
+      "component": "ReportIssueModal",
+      "kind": "existing",
+      "producer": "src/agentMode/ui/AgentChatMessages.tsx",
+      "taskIds": ["P08-T06"],
+      "scenarioIds": ["SC-P08-T06-01", "SC-P08-T06-02", "SC-P08-T06-03", "SC-P08-T06-04"],
+      "acceptance": "预览脱敏证据并确认后再提交，无自动上传。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/Feedback.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F38"
+    },
+    {
+      "id": "F39",
+      "name": "MCP工具展示",
+      "component": "ActionCard / mcpServer标记",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/mcp/McpToolAdapter.ts",
+      "taskIds": ["P09-T04"],
+      "scenarioIds": ["SC-P09-T04-01", "SC-P09-T04-02", "SC-P09-T04-03", "SC-P09-T04-04"],
+      "acceptance": "真实调用结果和isError保留，名字不误成子代理。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/mcp/McpToolAdapter.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F39"
+    },
+    {
+      "id": "F40",
+      "name": "MCP设置与测试",
+      "component": "新增MCP设置，沿用原设置交互",
+      "kind": "new_required",
+      "producer": "src/agentMode/backends/pi/ui/McpSettings.tsx",
+      "taskIds": ["P09-T10"],
+      "scenarioIds": ["SC-P09-T10-01", "SC-P09-T10-02", "SC-P09-T10-03", "SC-P09-T10-04"],
+      "acceptance": "配置、测试、OAuth与连接状态非占位。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/backends/pi/McpSettings.tsx",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F40"
+    },
+    {
+      "id": "F41",
+      "name": "后台子代理完成报告",
+      "component": "SubAgentCard后台进度",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiSubagentTools.ts",
+      "taskIds": ["P10-T08"],
+      "scenarioIds": ["SC-P10-T08-01", "SC-P10-T08-02", "SC-P10-T08-03", "SC-P10-T08-04"],
+      "acceptance": "只报告一次，Stop后不自动复活父模型。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/subagents/ReportDelivery.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F41"
+    },
+    {
+      "id": "F42",
+      "name": "回答复制与操作栏",
+      "component": "AgentTrailView末尾操作栏",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeProjection.ts",
+      "taskIds": ["P04-T07"],
+      "scenarioIds": ["SC-P04-T07-01", "SC-P04-T07-02", "SC-P04-T07-03", "SC-P04-T07-04"],
+      "acceptance": "复制真实回答，不附带隐藏thought/tool诊断。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/events/HistoryProjector.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F42"
+    },
+    {
+      "id": "F43",
+      "name": "项目切换与快捷命令",
+      "component": "既有项目/输入命令入口",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeInput.ts",
+      "taskIds": ["P12-T06"],
+      "scenarioIds": ["SC-P12-T06-01", "SC-P12-T06-02", "SC-P12-T06-03", "SC-P12-T06-04"],
+      "acceptance": "原会话范围不被悄悄替换，compact显式分发。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/features/ProjectContext.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F43"
+    },
+    {
+      "id": "F44",
+      "name": "缺凭据和能力不可用",
+      "component": "既有选择器/配置错误呈现",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/models/ModelCatalog.ts",
+      "taskIds": ["P03-T02"],
+      "scenarioIds": ["SC-P03-T02-01", "SC-P03-T02-02", "SC-P03-T02-03", "SC-P03-T02-04"],
+      "acceptance": "没有假模型、假key、假额度或必须装CLI提示。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/models/ModelCatalog.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F44"
+    },
+    {
+      "id": "F45",
+      "name": "网页获取工具轨迹",
+      "component": "AgentToolKind.fetch / ActionCard",
+      "kind": "existing",
+      "producer": "src/agentMode/sdk/pi/runtime/PiFeatureTools.ts",
+      "taskIds": ["P12-T05"],
+      "scenarioIds": ["SC-P12-T05-01", "SC-P12-T05-02", "SC-P12-T05-03", "SC-P12-T05-04"],
+      "acceptance": "真实受控抓取，不执行网页脚本。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/tools/WebFetch.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F45"
+    },
+    {
+      "id": "F46",
+      "name": "重启待处理交互",
+      "component": "新增恢复条 / 现有权限与提问卡",
+      "kind": "new_required",
+      "producer": "src/agentMode/sdk/pi/runtime/PiRuntimeRecovery.ts",
+      "taskIds": ["P02-T08"],
+      "scenarioIds": ["SC-P02-T08-01", "SC-P02-T08-02", "SC-P02-T08-03", "SC-P02-T08-04"],
+      "acceptance": "只读展示不启动scheduler，继续需明确用户动作。",
+      "status": "implementation_evidence_recorded_acceptance_scopes_separate",
+      "plannedProducer": "src/agentMode/sdk/pi/storage/RecoveryCoordinator.ts",
+      "evidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json#F46"
+    }
+  ],
+  "renderAudit": {
+    "auditedAt": "2026-10-21",
+    "auditedBaseline": "c2a7ef50539397627a6e4446283d791ad423aff6",
+    "entrypoints": [
+      "src/agentMode/ui/AgentChatMessages.tsx",
+      "src/agentMode/ui/AgentTrailView.tsx"
+    ],
+    "newFeatures": [],
+    "importCoverage": [
+      {
+        "module": "AgentChatMessages → AgentTrailView",
+        "layer": "feature",
+        "featureIds": [
+          "F01",
+          "F02",
+          "F03",
+          "F04",
+          "F05",
+          "F06",
+          "F07",
+          "F13",
+          "F14",
+          "F15",
+          "F16",
+          "F26",
+          "F28",
+          "F41",
+          "F42"
+        ]
+      },
+      {
+        "module": "AgentChatMessages → AskUserQuestionCard",
+        "layer": "feature",
+        "featureIds": ["F11"]
+      },
+      {
+        "module": "AgentChatMessages → FanoutMessageCard",
+        "layer": "feature",
+        "featureIds": ["F18", "F19"]
+      },
+      {
+        "module": "AgentChatMessages → PlanProposalCard",
+        "layer": "feature",
+        "featureIds": ["F09", "F10"]
+      },
+      {
+        "module": "AgentChatMessages → FeedbackCard / findFeedbackCardIndex",
+        "layer": "feature",
+        "featureIds": ["F37"]
+      },
+      {
+        "module": "AgentChatMessages → ReportIssueModal / openReportIssueModal",
+        "layer": "feature",
+        "featureIds": ["F38"]
+      },
+      {
+        "module": "AgentChatMessages → feedbackOffer / setSettings(offerFeedbackCards)",
+        "layer": "feature",
+        "featureIds": ["F37", "F38"]
+      },
+      {
+        "module": "AgentChatMessages → ToolPermissionCard",
+        "layer": "feature",
+        "featureIds": ["F12"]
+      },
+      {
+        "module": "AgentChatMessages → TurnDiffView / openTurnDiff",
+        "layer": "feature",
+        "featureIds": ["F16"]
+      },
+      {
+        "module": "AgentChatMessages → AgentTurnDurationIndicator",
+        "layer": "feature",
+        "featureIds": ["F26"]
+      },
+      {
+        "module": "AgentChatMessages → ChatSingleMessage",
+        "layer": "feature",
+        "featureIds": ["F01", "F32"]
+      },
+      {
+        "module": "AgentChatMessages → ChatTranscriptViewport / useChatScrolling",
+        "layer": "display-infra",
+        "featureIds": []
+      },
+      {
+        "module": "AgentTrailView → agentTrail（agentResponseText / buildAgentTrail）",
+        "layer": "feature",
+        "featureIds": ["F01", "F03", "F06", "F42"]
+      },
+      {
+        "module": "AgentTrailView → ActionCard / StatusBadge",
+        "layer": "feature",
+        "featureIds": ["F03", "F04"]
+      },
+      {
+        "module": "AgentTrailView → FilesChangedCard / FileChangeSummary",
+        "layer": "feature",
+        "featureIds": ["F15"]
+      },
+      {
+        "module": "AgentTrailView → ActivityGroupCard / activityGroups / activityLiveStep",
+        "layer": "feature",
+        "featureIds": ["F05"]
+      },
+      {
+        "module": "AgentTrailView → CompactionRow",
+        "layer": "feature",
+        "featureIds": ["F13", "F14"]
+      },
+      {
+        "module": "AgentTrailView → AgentMessageActions / AssistantResponseFooter",
+        "layer": "feature",
+        "featureIds": ["F26", "F42"]
+      },
+      {
+        "module": "AgentTrailView → SubAgentCard",
+        "layer": "feature",
+        "featureIds": ["F06", "F41"]
+      },
+      {
+        "module": "AgentTrailView → ReasoningBlock / useThinkingClock",
+        "layer": "feature",
+        "featureIds": ["F02"]
+      },
+      {
+        "module": "AgentTrailView → AgentMarkdownText",
+        "layer": "feature",
+        "featureIds": ["F01"]
+      },
+      {
+        "module": "AgentTrailView → planEntryStyles",
+        "layer": "feature",
+        "featureIds": ["F07"]
+      },
+      {
+        "module": "AgentTrailView → toolSummaries",
+        "layer": "feature",
+        "featureIds": ["F03", "F04", "F39", "F45"]
+      },
+      {
+        "module": "AgentTrailView → getVaultBase（工具/笔记路径显示）",
+        "layer": "feature",
+        "featureIds": ["F33"]
+      },
+      {
+        "module": "AgentTrailView → useTrailExpansion",
+        "layer": "display-infra",
+        "featureIds": []
+      }
+    ],
+    "switchBranches": [
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "symbol": "renderNode",
+        "branches": [
+          {
+            "branch": "action",
+            "featureIds": ["F03", "F04", "F39", "F45"]
+          },
+          {
+            "branch": "activityGroup",
+            "featureIds": ["F05"]
+          },
+          {
+            "branch": "subagent",
+            "featureIds": ["F06", "F41"]
+          },
+          {
+            "branch": "reasoning",
+            "featureIds": ["F02"]
+          },
+          {
+            "branch": "text",
+            "featureIds": ["F01"]
+          },
+          {
+            "branch": "plan",
+            "featureIds": ["F07"]
+          },
+          {
+            "branch": "compaction",
+            "featureIds": ["F13", "F14"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/CompactionRow.tsx",
+        "symbol": "CompactionRow",
+        "branches": [
+          {
+            "branch": "in_progress",
+            "featureIds": ["F13"]
+          },
+          {
+            "branch": "completed",
+            "featureIds": ["F13", "F14"]
+          },
+          {
+            "branch": "failed",
+            "featureIds": ["F13"]
+          },
+          {
+            "branch": "cancelled",
+            "featureIds": ["F13"]
+          },
+          {
+            "branch": "skipped",
+            "featureIds": ["F13"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/FanoutTurnView.tsx",
+        "symbol": "summaryDisplayState",
+        "branches": [
+          {
+            "branch": "writing",
+            "featureIds": ["F19"]
+          },
+          {
+            "branch": "waiting",
+            "featureIds": ["F19"]
+          },
+          {
+            "branch": "cancelled",
+            "featureIds": ["F19"]
+          },
+          {
+            "branch": "unavailable",
+            "featureIds": ["F19"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/ToolPermissionCard.tsx",
+        "symbol": "variantForKind",
+        "branches": [
+          {
+            "branch": "allow_once",
+            "featureIds": ["F12"]
+          },
+          {
+            "branch": "reject_once",
+            "featureIds": ["F12"]
+          },
+          {
+            "branch": "allow_always",
+            "featureIds": ["F12"]
+          },
+          {
+            "branch": "reject_always",
+            "featureIds": ["F12"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "foldActivityGroups",
+        "branches": [
+          {
+            "branch": "reasoning",
+            "featureIds": ["F05"]
+          },
+          {
+            "branch": "action（非交互）",
+            "featureIds": ["F03", "F04", "F05"]
+          },
+          {
+            "branch": "action（交互：提问/计划模式）",
+            "featureIds": ["F11", "F12", "F23"]
+          },
+          {
+            "branch": "default（subagent/text/plan/compaction）",
+            "featureIds": ["F06", "F07", "F13", "F14"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "fileFamilyFor",
+        "branches": [
+          {
+            "branch": "vendorToolName Read/NotebookRead",
+            "featureIds": ["F03", "F05"]
+          },
+          {
+            "branch": "vendorToolName Edit/MultiEdit/Write/NotebookEdit",
+            "featureIds": ["F03", "F05"]
+          },
+          {
+            "branch": "toolKind read|edit 回退",
+            "featureIds": ["F03", "F05"]
+          },
+          {
+            "branch": "other（无文件族）",
+            "featureIds": ["F05"]
+          }
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "filePhraseFor",
+        "branches": [
+          {
+            "branch": "read",
+            "featureIds": ["F05"]
+          },
+          {
+            "branch": "edit",
+            "featureIds": ["F05"]
+          }
+        ]
+      }
+    ],
+    "conditionalBranches": [
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "message.fanout → FanoutMessageCard",
+        "featureIds": ["F18", "F19"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "isStreamingPlaceholder（无 parts 且无文本）→ 运行时长",
+        "featureIds": ["F05", "F26"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "assistant 且有 parts → AgentTrail",
+        "featureIds": [
+          "F01",
+          "F02",
+          "F03",
+          "F04",
+          "F05",
+          "F06",
+          "F07",
+          "F13",
+          "F14",
+          "F15",
+          "F16",
+          "F26",
+          "F28",
+          "F41",
+          "F42"
+        ]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "其余消息（user / 无 parts assistant）→ ChatSingleMessage",
+        "featureIds": ["F01", "F32"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "currentPlan.decision=pending → PlanProposalCard",
+        "featureIds": ["F09", "F10"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "pendingQuestion 优先 → AskUserQuestionCard",
+        "featureIds": ["F11"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "pendingPermission → ToolPermissionCard（findToolCallTitle 回查标题）",
+        "featureIds": ["F12"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "branch": "feedbackOffer → FeedbackCard trailing / findFeedbackCardIndex",
+        "featureIds": ["F37", "F38"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "branch": "errorText 且无回答文本 → 错误 Markdown 路径",
+        "featureIds": ["F28"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "branch": "turnStopReason + fileChanges → FilesChangedCard",
+        "featureIds": ["F15", "F16"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "branch": "compactionOnly → 抑制 footer",
+        "featureIds": ["F14"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "branch": "非 streaming、非 cancelled、answer 非空 → AgentMessageActions",
+        "featureIds": ["F42"]
+      },
+      {
+        "file": "src/agentMode/ui/AgentTrailView.tsx",
+        "branch": "turnDurationMs / timestamp → AssistantResponseFooter",
+        "featureIds": ["F26"]
+      }
+    ],
+    "registration": [
+      {
+        "component": "AgentMarkdownText",
+        "events": ["text_delta", "agent_message_chunk"],
+        "featureIds": ["F01"],
+        "taskIds": ["P04-T07"]
+      },
+      {
+        "component": "ChatSingleMessage（user/无parts消息、附件）",
+        "events": ["user_message_chunk", "session_projection", "PromptContent.image"],
+        "featureIds": ["F01", "F32"],
+        "taskIds": ["P04-T07", "P12-T04"]
+      },
+      {
+        "component": "ReasoningBlock",
+        "events": ["thinking_delta", "agent_thought_chunk"],
+        "featureIds": ["F02"],
+        "taskIds": ["P04-T04"]
+      },
+      {
+        "component": "ActionCard / StatusBadge",
+        "events": ["tool_call", "tool_execution_start", "tool_call_update", "tool_execution_end"],
+        "featureIds": ["F03", "F04"],
+        "taskIds": ["P04-T05"]
+      },
+      {
+        "component": "ActionCard MCP 标记",
+        "events": ["tool_call.mcpServer"],
+        "featureIds": ["F39"],
+        "taskIds": ["P09-T04"]
+      },
+      {
+        "component": "ActionCard fetch 轨迹",
+        "events": ["tool_call.toolKind=fetch"],
+        "featureIds": ["F45"],
+        "taskIds": ["P12-T05"]
+      },
+      {
+        "component": "ActivityGroupCard",
+        "events": [
+          "（UI 分组：tool_call/tool_call_update/agent_thought_chunk 的展示折叠，无独立生产事件）"
+        ],
+        "featureIds": ["F05"],
+        "taskIds": ["P04-T06"]
+      },
+      {
+        "component": "SubAgentCard",
+        "events": [
+          "tool_call.parentToolCallId",
+          "tool_execution_start",
+          "tool_execution_end",
+          "va.subagent_report"
+        ],
+        "featureIds": ["F06", "F41"],
+        "taskIds": ["P10-T04", "P10-T08"]
+      },
+      {
+        "component": "PlanPill",
+        "events": ["va.todos", "todo_update", "plan part"],
+        "featureIds": ["F07"],
+        "taskIds": ["P08-T01"]
+      },
+      {
+        "component": "CompactionRow",
+        "events": ["compaction_start", "compaction", "compaction_end"],
+        "featureIds": ["F13"],
+        "taskIds": ["P08-T05"]
+      },
+      {
+        "component": "AgentTrail compaction-only",
+        "events": ["compaction"],
+        "featureIds": ["F14"],
+        "taskIds": ["P08-T05"]
+      },
+      {
+        "component": "AgentTurnDurationIndicator / AssistantResponseFooter",
+        "events": ["run_state", "持久化 run started/ended"],
+        "featureIds": ["F26"],
+        "taskIds": ["P04-T06"]
+      },
+      {
+        "component": "AgentMessageActions（复制/插入）",
+        "events": ["agent_message_chunk（text parts 汇总）"],
+        "featureIds": ["F42"],
+        "taskIds": ["P04-T07"]
+      },
+      {
+        "component": "FilesChangedCard",
+        "events": ["tool_execution_end receipt", "session_projection.fileChanges"],
+        "featureIds": ["F15"],
+        "taskIds": ["P06-T09"]
+      },
+      {
+        "component": "TurnDiffView / openTurnDiff",
+        "events": ["mutation receipt before/after"],
+        "featureIds": ["F16"],
+        "taskIds": ["P06-T09"]
+      },
+      {
+        "component": "PlanProposalCard",
+        "events": ["va.plan", "plan_proposal_update"],
+        "featureIds": ["F09", "F10"],
+        "taskIds": ["P08-T02", "P08-T03"]
+      },
+      {
+        "component": "PlanPreviewView",
+        "events": ["va.plan", "plan_proposal_update", "plan decision submission"],
+        "featureIds": ["F09", "F10"],
+        "taskIds": ["P08-T02", "P08-T03"]
+      },
+      {
+        "component": "AskUserQuestionCard",
+        "events": ["tool_call AskUserQuestion", "approval_state/question（持久化产品文档）"],
+        "featureIds": ["F11"],
+        "taskIds": ["P08-T04"]
+      },
+      {
+        "component": "ToolPermissionCard",
+        "events": ["approval_state（持久化产品文档）", "tool_call pending"],
+        "featureIds": ["F12"],
+        "taskIds": ["P05-T06"]
+      },
+      {
+        "component": "FeedbackCard",
+        "events": ["task_failed", "auto_retry_*", "feedback offer"],
+        "featureIds": ["F37"],
+        "taskIds": ["P08-T06"]
+      },
+      {
+        "component": "ReportIssueModal",
+        "events": ["feedback evidence", "explicit user submit"],
+        "featureIds": ["F38"],
+        "taskIds": ["P08-T06"]
+      },
+      {
+        "component": "AgentTrail 错误路径",
+        "events": ["task_failed", "run_state error"],
+        "featureIds": ["F28"],
+        "taskIds": ["P04-T06"]
+      },
+      {
+        "component": "FanoutMessageCard / FanoutTurnView",
+        "events": ["FanoutProjection（候选、summary、终态）"],
+        "featureIds": ["F18", "F19"],
+        "taskIds": ["P11-T04", "P11-T03"]
+      }
+    ],
+    "legacyBackendParsing": [
+      {
+        "file": "src/agentMode/ui/agentTrail.ts",
+        "symbol": "isHiddenTool",
+        "legacyDependency": "vendorToolName=ToolSearch（Claude Code 内部工具名）",
+        "replacement": "Pi 适配层用固定别名表与 manifest 过滤隐藏工具，不按厂商名硬编码"
+      },
+      {
+        "file": "src/agentMode/ui/agentTrail.ts",
+        "symbol": "isSubAgentLaunch",
+        "legacyDependency": "vendorToolName=Agent/Task 或 input.subagent_type（Claude/OpenCode 子代理协议）",
+        "replacement": "Pi 子代理控制工具统一发 vendorToolName=Agent 与 namespaced parentToolCallId（design 05.4）"
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "isInteractive",
+        "legacyDependency": "vendorToolName=AskUserQuestion/ExitPlanMode/EnterPlanMode",
+        "replacement": "以领域 toolKind=switch_mode 与控制工具的稳定领域名判定；厂商名只作显示别名"
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "fileFamilyFor",
+        "legacyDependency": "vendorToolName=Read/NotebookRead/Edit/MultiEdit/Write/NotebookEdit",
+        "replacement": "design 05.4 固定别名表 read→Read、write→Write、edit→Edit、bash/powershell→Bash + toolKind 回退"
+      },
+      {
+        "file": "src/agentMode/ui/activityGroups.ts",
+        "symbol": "summarizeActivity / filePathsFor",
+        "legacyDependency": "部分后端只在 output.diff 或 locations 提供路径（含 Codex 注释）",
+        "replacement": "EventTranslator 归一化 tool_call_update 的 diff/locations，渲染层只读领域字段"
+      },
+      {
+        "file": "src/agentMode/ui/toolSummaries.ts",
+        "symbol": "VENDOR_SUMMARIES",
+        "legacyDependency": "Read/Edit/MultiEdit/Write/Bash/Glob/Grep/WebSearch/WebFetch/Task/Agent/TodoWrite/ExitPlanMode/AskUserQuestion/LS/Skill 名称表",
+        "replacement": "受测试的固定别名表（design 05.4）；vendorToolName 仅显示兼容，不参与权限判定"
+      },
+      {
+        "file": "src/agentMode/ui/toolSummaries.ts",
+        "symbol": "isOpencodeTaskTool",
+        "legacyDependency": "无 vendorToolName + input.subagent_type 的 OpenCode 启发式",
+        "replacement": "各适配器写入明确 toolKind/vendorToolName；Pi 适配器不再依赖猜测"
+      },
+      {
+        "file": "src/agentMode/ui/toolSummaries.ts",
+        "symbol": "extractSubAgentReturnText",
+        "legacyDependency": "<task_result> 文本协议解析",
+        "replacement": "子代理结果由 Durable owned conversation 与 wrapper details 提供结构化字段（含 answered/unanswered 终态）"
+      },
+      {
+        "file": "src/agentMode/ui/toolSummaries.ts",
+        "symbol": "extractSubAgentInputPrompt / skillNameFromInput / queryFromInput",
+        "legacyDependency": "按 Claude 工具输入形状（prompt/skill/query/pattern/q）猜测",
+        "replacement": "领域适配层归一化工具参数；summary 只读归一化字段"
+      },
+      {
+        "file": "src/agentMode/ui/toolIcons.ts",
+        "symbol": "VENDOR_ICONS / pickToolIcon",
+        "legacyDependency": "与 toolSummaries 相同的厂商名表",
+        "replacement": "与别名表共用一份受测试映射"
+      },
+      {
+        "file": "src/agentMode/ui/ToolPermissionCard.tsx",
+        "symbol": "toolName hint / QUOTED_CODE",
+        "legacyDependency": "OpenCode 把裸 query 当标题、Codex 在 always 选项名中引用命令",
+        "replacement": "Pi 权限请求由 PolicyEngine 生成干净 name/description；展示层只保留截断/去重"
+      },
+      {
+        "file": "src/agentMode/ui/AgentChatMessages.tsx",
+        "symbol": "findToolCallTitle",
+        "legacyDependency": "权限请求本身不带标题，需要回查已显示的 tool_call",
+        "replacement": "Pi approval 绑定稳定 toolCallId/title；该回查保留为通用兜底，不依赖厂商格式"
+      },
+      {
+        "file": "src/agentMode/sdk/toolMeta.ts（上游旧后端解析）",
+        "symbol": "vendorMetaFields / deriveToolKind / deriveToolTitle",
+        "legacyDependency": "Claude/Codex/OpenCode 工具名→toolKind/title 映射",
+        "replacement": "Pi events/EventTranslator + ToolProjection 直接产生领域 toolKind/vendorToolName（design 05.4）"
+      }
+    ],
+    "pureDisplay": [
+      {
+        "module": "AgentMarkdownText",
+        "note": "渲染领域文本 Markdown，不解析后端事件"
+      },
+      {
+        "module": "AgentActivityCard",
+        "note": "ActionCard/ActivityGroupCard/SubAgentCard 共用的可展开展示外壳"
+      },
+      {
+        "module": "StatusBadge",
+        "note": "AgentToolStatus → 图标"
+      },
+      {
+        "module": "FileChangeSummary",
+        "note": "TurnFileChange 的计数与状态徽标"
+      },
+      {
+        "module": "FilesChangedCard",
+        "note": "只读 mutation receipt 列表"
+      },
+      {
+        "module": "CompactionRow",
+        "note": "只读 CompactionSnapshot"
+      },
+      {
+        "module": "PlanPill",
+        "note": "只读 AgentPlanEntry[]"
+      },
+      {
+        "module": "ReasoningBlock",
+        "note": "只读 ThoughtPart；旧 parts 无时间戳时仅显示兜底"
+      },
+      {
+        "module": "AgentTurnDurationIndicator",
+        "note": "只读持久化时长/启动时间"
+      },
+      {
+        "module": "AgentMessageActions / AssistantResponseFooter / CopyButton",
+        "note": "只读文本并复制/插入"
+      },
+      {
+        "module": "FanoutTurnView 状态行",
+        "note": "只读 FanoutTurn 的候选/汇总终态"
+      },
+      {
+        "module": "ChatTranscriptViewport / useChatScrolling",
+        "note": "视口与滚动，不产生业务事件"
+      },
+      {
+        "module": "useTrailExpansion / useThinkingClock",
+        "note": "UI 展开状态与显示计时"
+      },
+      {
+        "module": "planEntryStyles / diffRender",
+        "note": "纯格式化辅助"
+      },
+      {
+        "module": "ActivityGroupCard 的 summary 文案",
+        "note": "summarizeActivity 输出展示文案；其中的厂商名分类见 legacyBackendParsing"
+      }
+    ],
+    "notes": [
+      "P01-T02 审计基线 = 当前 HEAD c2a7ef5，与 feature-matrix.baseline 相同；git diff 为空，因此没有真实工作树新增功能。两个渲染入口的传递 import 均有功能行，newFeatures 为空。",
+      "所有 switch 渲染分支都列出了非空 featureIds；SubAgent/Plan/Compaction 分别由 F06/F41、F07 与 F09/F10、F13/F14 覆盖，不是只标普通文本（F01）。",
+      "PlanPreviewView 与 FanoutTurnView 是现有渲染面：本次把 PlanPreviewView 补进 F09/F10 的 component 名称（不改 task/scenario），FanoutTurnView 随 F18/F19 登记在 registration。",
+      "F40/F46 是 new_required，当前两个渲染入口还没有对应 UI；它们有明确 producer 与任务，不属于无 producer 的新组件。",
+      "events 缩写：text_delta/thinking_delta/tool_execution_* 是 Durable 来源；agent_*_chunk/tool_call/tool_call_update/plan/compaction/usage_update 等是现有 SessionUpdate；session_projection/todo_update/plan_proposal_update/approval_state/recovery_state/run_state/budget_update 是 design/02 新增领域事件；FanoutProjection/MutationProjection 等为 feature-matrix producer 投影名。",
+      "新增领域事件必须先经 P04/P02 契约与 reducer 测试，渲染层不能直接消费 Pi 事件（design 05.1）。"
+    ]
+  },
+  "currentImplementationEvidencePath": "execution/evidence/repair-2026-10-22/feature-revalidation.json",
+  "currentImplementationEvidenceDate": "2026-10-22"
+}

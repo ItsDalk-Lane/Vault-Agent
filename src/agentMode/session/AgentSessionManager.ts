@@ -1,9 +1,7 @@
-import { isCompactCommand } from "@/commands/compactCommand";
-import type { AgentMcpServer, BackendState } from "@/agentMode/session/types";
-import type {
-  FeedbackMcpServer,
-  FeedbackOfferHandler,
-} from "@/agentMode/session/feedback/feedbackMcpServer";
+import type { CommandDraftContext } from "@/types/commandDraft";
+import { configuredFanoutModels } from "@/agentMode/session/fanout/answerers";
+import type { AgentChatMessage, AgentMcpServer, BackendState } from "@/agentMode/session/types";
+import type { FeedbackMcpServer } from "@/agentMode/session/feedback/feedbackMcpServer";
 import { resolveEffort } from "@/lib/model-effort";
 import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
@@ -17,7 +15,17 @@ import {
   type VaultAgentSettings,
 } from "@/settings/model";
 import { buildProjectContext } from "@/context/manifestBuilder";
-import { err2String } from "@/utils";
+import { ensureFolderExists, err2String } from "@/utils";
+import { sha256 } from "@/utils/hash";
+import { joinPosix } from "@/utils/pathUtils";
+import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
+import { createHistoryBackend } from "@/agentMode/session/legacy/historyBackend";
+import { isHistoricalBackendId } from "@/agentMode/session/legacy/historicalBackends";
+import { readLegacyNativeHistory } from "@/agentMode/session/legacy/LegacyNativeReader";
+import {
+  LegacyHistoryReader,
+  type LegacyChatEntry,
+} from "@/agentMode/session/legacy/LegacyHistoryReader";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import {
   fileToHistoryItem,
@@ -31,7 +39,7 @@ import { AgentSession, ATTENTION_TRIGGER_STATUSES, DEFAULT_TITLE_PREFIX } from "
 import type { AgentChatPersistenceManager } from "./AgentChatPersistenceManager";
 import type { AgentModelPreloader } from "./AgentModelPreloader";
 import { buildNativeChatId, parseNativeChatId } from "@/utils/nativeChatId";
-import { CHAT_AGENT_VIEWTYPE, USER_SENDER } from "@/constants";
+import { AI_SENDER, CHAT_AGENT_VIEWTYPE, USER_SENDER } from "@/constants";
 import { playNotificationSound } from "@/utils/notificationSound";
 import type { AgentSessionIndex, AgentSessionIndexEntry } from "./AgentSessionIndex";
 import {
@@ -80,7 +88,6 @@ import type {
   BackendModelCatalog,
   BackendProcess,
   VaultAgentMode,
-  EffortOption,
   LoadSessionOutput,
   ModeApplySpec,
   ModelSelection,
@@ -312,8 +319,10 @@ export class AgentSessionManager {
         return { proc, descriptor };
       },
       getDefaultSelection: (backendId) => this.getSeedSelection(backendId),
-      onSelectionApplied: (backendId, state) => this.repairDefaultEffort(backendId, state),
-      getDisplayName: (backendId) => this.resolveDescriptor(backendId).displayName,
+      getFanoutModels: () => configuredFanoutModels(getSettings()),
+      getDisplayName: (backendId) =>
+        configuredFanoutModels(getSettings()).find((model) => model.modelKey === backendId)
+          ?.label ?? this.resolveDescriptor(backendId).displayName,
       getCwd: () => {
         const adapter = this.app.vault.adapter;
         return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
@@ -415,9 +424,8 @@ export class AgentSessionManager {
           return projectId === scope ? markdownEntries[i] : null;
         })
       );
-      const scopedMarkdown = await this.dropNonLocalMarkdownEntries(
-        resolved.filter((entry): entry is MarkdownChatEntry => entry !== null)
-      );
+      const scopedMarkdown = resolved.filter((entry): entry is MarkdownChatEntry => entry !== null);
+      await this.pruneMissingNativeTwins(scopedMarkdown);
       if (!index) {
         const items = scopedMarkdown.map((e) => e.item);
         return items.length === 0 ? EMPTY_HISTORY_ITEMS : items;
@@ -428,7 +436,7 @@ export class AgentSessionManager {
       return merged.length === 0 ? EMPTY_HISTORY_ITEMS : merged;
     }
 
-    markdownEntries = await this.dropNonLocalMarkdownEntries(markdownEntries);
+    await this.pruneMissingNativeTwins(markdownEntries);
     if (!index) return markdownEntries.map((e) => e.item);
 
     await this.refreshNativeSessionsFromBackends();
@@ -669,11 +677,9 @@ export class AgentSessionManager {
     return procs;
   }
 
-  private async dropNonLocalMarkdownEntries(
-    entries: MarkdownChatEntry[]
-  ): Promise<MarkdownChatEntry[]> {
+  private async pruneMissingNativeTwins(entries: MarkdownChatEntry[]): Promise<void> {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof FileSystemAdapter)) return entries;
+    if (!(adapter instanceof FileSystemAdapter)) return;
     const vaultRoot = adapter.getBasePath();
     const procs = this.getRunningProcsByBackend();
     const keep = await Promise.all(
@@ -706,7 +712,6 @@ export class AgentSessionManager {
         })
       );
     }
-    return entries.filter((_, i) => keep[i]);
   }
 
   private async sweepNativeSessions(
@@ -727,14 +732,12 @@ export class AgentSessionManager {
       }
       return;
     }
-    const probeSessionId = descriptor.getProbeSessionId?.(getSettings());
     const now = Date.now();
     const discovered = [];
     for (const s of sessions) {
       const inVaultRoot = isSameCwd(s.cwd, vaultBasePath);
       const projectId = inVaultRoot ? undefined : resolveProjectIdForCwd(vaultBasePath, s.cwd);
       if (!inVaultRoot && !projectId) continue;
-      if (probeSessionId && s.sessionId === probeSessionId) continue;
       if (this.readOnlyFanoutSessions.has(s.sessionId)) continue;
       const title = s.title?.trim();
       if (!title || title.startsWith(DEFAULT_TITLE_PREFIX)) continue;
@@ -782,8 +785,9 @@ export class AgentSessionManager {
       throw new Error("AgentSessionManager has been shut down");
     }
 
-    const requestedId = backendId ?? getSettings().agentMode?.activeBackend ?? "opencode";
-    const resolvedId = this.opts.resolveDescriptor(requestedId) ? requestedId : "opencode";
+    const requestedId = backendId ?? getSettings().agentMode?.activeBackend ?? "pi";
+    const requested = this.opts.resolveDescriptor(requestedId);
+    const resolvedId = requested && !isHistoricalBackendId(requestedId) ? requestedId : "pi";
     const errorSeqAtStart = this.lastErrorSeq;
     const descriptor = this.resolveDescriptor(resolvedId);
     const resolvedSeed = seedSelection ?? this.getSeedSelection(resolvedId) ?? undefined;
@@ -819,7 +823,7 @@ export class AgentSessionManager {
     }
 
     const internalId = uuidv4();
-    const mcpServers = await this.connectFeedbackServer(internalId, descriptor, cwd);
+    const mcpServers = await this.connectFeedbackServer(internalId);
 
     if (this.disposed) {
       this.finishPendingCreate();
@@ -839,7 +843,6 @@ export class AgentSessionManager {
       getDescriptor: () => this.opts.resolveDescriptor(resolvedId),
       runFanoutTurn: (input) => this.runFanoutTurn(input),
       getDisplayName: (backendId) => this.resolveDescriptor(backendId).displayName,
-      getApp: () => this.app,
       mcpServers,
       ...(projectId !== GLOBAL_SCOPE
         ? {
@@ -868,16 +871,6 @@ export class AgentSessionManager {
 
     void session.ready
       .then(async () => {
-        if (descriptor.applyInitialSessionConfig) {
-          try {
-            await descriptor.applyInitialSessionConfig(session, getSettings(), resolvedSeed);
-          } catch (e) {
-            logWarn(
-              `[AgentMode] applyInitialSessionConfig failed for ${resolvedId}; continuing`,
-              e
-            );
-          }
-        }
         this.repairDefaultEffort(resolvedId, session.getState());
         if (this.lastErrorSeq === errorSeqAtStart) {
           this.lastError = null;
@@ -895,7 +888,10 @@ export class AgentSessionManager {
     return session;
   }
 
-  async createGlobalSessionWithDraft(initialDraft: string): Promise<AgentSession> {
+  async createGlobalSessionWithDraft(
+    initialDraft: string,
+    commandContext?: CommandDraftContext
+  ): Promise<AgentSession> {
     const projectId = GLOBAL_SCOPE;
     const previousActiveProjectId = this.activeProjectId;
     const scopeSeq = this.setActiveScope(projectId);
@@ -906,7 +902,11 @@ export class AgentSessionManager {
       this.rollbackOptimisticScopeSwitch(previousActiveProjectId, scopeSeq);
       throw error;
     }
-    this.drafts.update(session.chatInputId, (draft) => ({ ...draft, input: initialDraft }));
+    this.drafts.update(session.chatInputId, (draft) => ({
+      ...draft,
+      input: initialDraft,
+      ...(commandContext ? { commandContext } : {}),
+    }));
     return session;
   }
 
@@ -1397,27 +1397,9 @@ export class AgentSessionManager {
     return Array.from(this.sessions.values()).some((s) => s.backendId === backendId);
   }
 
-  async onInstallStateChanged(backendId: BackendId): Promise<void> {
-    if (this.disposed) return;
-    const installState = this.opts.resolveDescriptor(backendId)?.getInstallState(getSettings());
-    if (installState?.kind === "checking") return;
-    if (installState?.kind !== "ready") {
-      await this.restartBackend(backendId, "binary no longer available");
-      this.preloader.clearCached(backendId);
-      if (!installState || installState.kind === "absent") {
-        if (this.preloadStatus.delete(backendId)) this.notify();
-      }
-      return;
-    }
-    const refreshed = await this.restartBackend(backendId, "binary path changed");
-    if (!refreshed) {
-      this.registerPreload(backendId, this.preloader.preload(backendId));
-    }
-  }
-
   private refreshWarmProbe(backendId: BackendId, reason: string): boolean {
     if (this.disposed) return false;
-    if (!this.isBackendInstalled(backendId)) return false;
+    if (!this.canStartBackend(backendId)) return false;
     const probe = this.preloader.refresh(backendId);
     if (!probe) return false;
     logInfo(`[AgentMode] refreshing warm ${backendId} probe: ${reason}`);
@@ -1425,17 +1407,13 @@ export class AgentSessionManager {
     return true;
   }
 
-  private isBackendInstalled(backendId: BackendId): boolean {
+  private canStartBackend(backendId: BackendId): boolean {
     const descriptor = this.opts.resolveDescriptor(backendId);
-    return descriptor?.getInstallState(getSettings())?.kind === "ready";
+    return !isHistoricalBackendId(backendId) && descriptor !== undefined;
   }
 
   getCachedModelCatalog(backendId: BackendId): BackendModelCatalog | null {
     return this.preloader.getCachedModelCatalog(backendId);
-  }
-
-  getEffortCatalog(backendId: BackendId): Record<string, EffortOption[]> | null {
-    return this.preloader.getEffortCatalog(backendId);
   }
 
   subscribeModelCache(listener: () => void): () => void {
@@ -1445,14 +1423,7 @@ export class AgentSessionManager {
   getModelCacheSignature(backendId: BackendId): string {
     const status = this.getPreloadStatus(backendId);
     const catalog = modelCatalogSignature(this.getCachedModelCatalog(backendId));
-    const effort = this.getEffortCatalog(backendId);
-    const effortSig = effort
-      ? Object.keys(effort)
-          .sort()
-          .map((id) => `${id}:${effort[id].map((o) => o.value ?? "").join(",")}`)
-          .join("|")
-      : "";
-    return `${status}#${catalog}#${effortSig}`;
+    return `${status}#${catalog}`;
   }
 
   preloadModels(backendId: BackendId): Promise<void> {
@@ -1493,18 +1464,26 @@ export class AgentSessionManager {
     const closedScope = session.projectId;
     const scopeIdsBefore = this.getSessionIdsForScope(closedScope);
     const closedIdx = scopeIdsBefore.indexOf(id);
-    // User-requested release must block new sends before cancellation and saving.
-    // Internal teardown also works when the whole backend is being restarted.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/429
+    const supportsPause = !!this.backends.get(session.backendId)?.pauseSession;
+    if (supportsPause) {
+      const status = session.getStatus();
+      const alreadyPaused = session.getRunState()?.status.startsWith("paused_") === true;
+      // 关闭标签只保存可继续的工作；必须等暂停落盘后释放，不能把已暂停的待答事项再次终结。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      if (!alreadyPaused && (status === "running" || status === "awaiting_permission"))
+        await session.pause();
+    }
+    // 显式释放仍阻止关闭后的新发送；重启后端时保留原有内部拆卸入口。https://github.com/Brevilabs/obsidian-copilot-private/issues/429
     if (options?.releaseBackend) {
       await session.releaseBackendSession();
     } else {
-      try {
-        await session.cancel();
-      } catch (e) {
-        logWarn(`[AgentMode] cancel during closeSession failed`, e);
+      if (!supportsPause) {
+        try {
+          await session.cancel();
+        } catch (e) {
+          logWarn(`[AgentMode] cancel during closeSession failed`, e);
+        }
       }
-      // Codex keeps a dropped chat's session and its MCP connection, so reopening it from history would call send_feedback with the revoked token.
+      // 关闭聊天时释放运行会话，避免重开后继续使用已经撤销的反馈连接。
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
       if (session.getBackendSessionId() && !this.restartingBackends.has(session.backendId)) {
         try {
@@ -1692,6 +1671,10 @@ export class AgentSessionManager {
   }
 
   private notify(): void {
+    for (const session of this.sessions.values()) {
+      if (session.internalId !== this.activeSessionId) session.setIsActive(false);
+    }
+    this.getActiveSession()?.setIsActive(true);
     this.drafts.prune();
     for (const l of this.listeners) {
       try {
@@ -1702,47 +1685,22 @@ export class AgentSessionManager {
     }
   }
 
-  // Feedback cards are optional, so a server that cannot start leaves the chat running without them.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-  private async connectFeedbackServer(
-    internalId: string,
-    descriptor: BackendDescriptor,
-    cwd: string
-  ): Promise<ReadonlyArray<AgentMcpServer>> {
+  // 反馈服务不可用时，聊天仍可继续。https://github.com/Brevilabs/obsidian-copilot-private/issues/672
+  private async connectFeedbackServer(internalId: string): Promise<ReadonlyArray<AgentMcpServer>> {
     const server = this.opts.feedbackServer;
     if (!server || !getSettings().agentMode.offerFeedbackCards) return EMPTY_MCP_SERVERS;
-    // A folder's chats share one connection, so its token names only the folder and the agent stamps the calling session on each call.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-    const shared = descriptor.sharesMcpServersAcrossSessions === true;
-    const offer: FeedbackOfferHandler = shared
-      ? (draft, callerSessionId) =>
-          this.findFolderSession(descriptor.id, cwd, callerSessionId)?.offerFeedback(draft) ??
-          "unattributed"
-      : (draft) => this.sessions.get(internalId)?.offerFeedback(draft) ?? "turned_off";
     try {
       return [
-        await server.connect(shared ? `${descriptor.id}:${cwd}` : internalId, (draft, caller) =>
-          getSettings().agentMode.offerFeedbackCards ? offer(draft, caller) : "turned_off"
+        await server.connect(internalId, (draft) =>
+          getSettings().agentMode.offerFeedbackCards
+            ? (this.sessions.get(internalId)?.offerFeedback(draft) ?? "turned_off")
+            : "turned_off"
         ),
       ];
     } catch (err) {
       logWarn("[AgentMode] feedback MCP server unavailable; continuing without it", err);
       return EMPTY_MCP_SERVERS;
     }
-  }
-
-  private findFolderSession(
-    backendId: BackendId,
-    cwd: string,
-    backendSessionId: string | null
-  ): AgentSession | undefined {
-    if (!backendSessionId) return undefined;
-    return Array.from(this.sessions.values()).find(
-      (session) =>
-        session.backendId === backendId &&
-        session.cwd === cwd &&
-        session.getBackendSessionId() === backendSessionId
-    );
   }
 
   async shutdown(): Promise<void> {
@@ -1765,9 +1723,14 @@ export class AgentSessionManager {
     await Promise.allSettled(
       allSessions.map(async (session) => {
         try {
-          await session.cancel();
+          const status = session.getStatus();
+          if (status === "running" || status === "awaiting_permission") {
+            // 退出保存的是可继续的暂停，不能先终结任务；确认暂停落盘后才释放界面。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+            if (this.backends.get(session.backendId)?.pauseSession) await session.pause();
+            else await session.cancel();
+          }
         } catch (e) {
-          logError("[AgentMode] cancel during shutdown failed", e);
+          logError("[AgentMode] save active work during shutdown failed", e);
         }
         try {
           await session.dispose();
@@ -1820,6 +1783,16 @@ export class AgentSessionManager {
       if (this.getSessionSourcePath(internalId) !== file.path) continue;
       const existing = this.sessions.get(internalId);
       if (existing && existing.getStatus() !== "closed") {
+        if (!existing.isHistoricalOnly()) {
+          state.source = undefined;
+          state.signature = undefined;
+          const id = existing.getBackendSessionId();
+          if (
+            id &&
+            (await this.opts.persistenceManager.writableSessionPath(file, existing.backendId, id))
+          )
+            state.source = file;
+        }
         this.setActiveSession(internalId);
         return existing;
       }
@@ -1839,38 +1812,92 @@ export class AgentSessionManager {
 
     let session: AgentSession;
     let resumed: AgentSession | null;
+    let importedHistory = false;
     try {
-      resumed = loaded.sessionId
-        ? await this.tryResumeSessionFromHistory(loaded.backendId, loaded.sessionId, projectId)
-        : null;
-      session = resumed ?? (await this.createSession(loaded.backendId, projectId));
+      resumed = isHistoricalBackendId(loaded.backendId)
+        ? this.createHistorySession({
+            backendId: loaded.backendId,
+            sessionId: loaded.sessionId ?? `note:${file.path}`,
+            projectId,
+            messages: loaded.messages,
+          })
+        : loaded.sessionId
+          ? await this.tryResumeSessionFromHistory(loaded.backendId, loaded.sessionId, projectId)
+          : null;
+      if (!resumed) {
+        const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+        if (loaded.sessionId) {
+          if (
+            !backend.sessionExistsLocally ||
+            (await backend.sessionExistsLocally({
+              sessionId: loaded.sessionId,
+              cwd: this.resolveSessionCwd(projectId),
+            }))
+          )
+            throw new Error("原始记录暂时无法打开，已保留；请排查后重新打开，不能用空白会话替代。");
+        }
+        if (!backend.importLegacySession) throw new MethodUnsupportedError("importLegacySession");
+        const messages = loaded.messages
+          .filter(
+            (message) =>
+              message.isVisible && (message.sender === USER_SENDER || message.sender === AI_SENDER)
+          )
+          .map((message) => ({
+            role: message.sender === USER_SENDER ? ("user" as const) : ("assistant" as const),
+            text: message.message,
+          }));
+        const imported = await backend.importLegacySession({
+          cwd: this.resolveSessionCwd(projectId),
+          entry: {
+            backendId: loaded.backendId,
+            sessionId: loaded.sessionId ?? `note:${file.path}`,
+            title: loaded.topic ?? loaded.label ?? null,
+            createdAtMs: loaded.messages[0]?.timestamp?.epoch ?? 0,
+            lastAccessedAtMs: loaded.messages.at(-1)?.timestamp?.epoch ?? 0,
+            ...(projectId === GLOBAL_SCOPE ? {} : { projectId }),
+            sourcePath: file.path,
+            sourceHash: sha256(
+              JSON.stringify({
+                sourcePath: file.path,
+                content: await this.app.vault.read(file),
+                messages,
+              })
+            ),
+            messages,
+            unknownFields: {},
+            importMode: "text_only",
+          },
+        });
+        resumed = await this.tryResumeSessionFromHistory("pi", imported.sessionId, projectId);
+        if (!resumed) throw new Error("聊天文字已保存，但未能打开。请从历史记录重新打开。");
+        importedHistory = true;
+      }
+      session = resumed;
     } catch (err) {
       this.rollbackOptimisticScopeSwitch(previousActiveProjectId, scopeSeq);
       throw err;
     }
 
-    // A reattached session replays the chat with its tool calls and thinking, which the note's text-only copy lacks; turns that never reach the agent (fanout, local refusals) live only in the note, so a replay with fewer user turns leaves the note as the source. https://github.com/Brevilabs/obsidian-copilot-private/issues/671
-    const replayedUserTurns = session.store
-      .getDisplayMessages()
-      .filter((m) => m.sender === USER_SENDER).length;
-    // Claude's transcript keeps /compact only as command bookkeeping, which its replay drops.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/635
-    const savedUserTurns = loaded.messages.filter(
-      (m) => m.isVisible && m.sender === USER_SENDER && !isCompactCommand(m.message)
-    ).length;
-    if (replayedUserTurns > 0 && replayedUserTurns >= savedUserTurns) {
-      session.store.fillMissingTimestamps(loaded.messages);
-    } else {
-      session.loadDisplayMessages(loaded.messages);
-      // The agent never saw this note's turns when its saved session is gone from this device.
-      // https://github.com/logancyang/obsidian-copilot/issues/3643
-      if (!resumed) session.resendSavedHistoryOnNextTurn();
+    // 未标记的旧备份保留原件，只有同根且正文校验完整的正式副本可以作为后续保存目标。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    const state = this.getSessionState(session.internalId);
+    state.source = undefined;
+    state.signature = undefined;
+    if (isHistoricalBackendId(loaded.backendId)) state.source = file;
+    else if (!importedHistory) {
+      const id = session.getBackendSessionId();
+      const writable = id
+        ? await this.opts.persistenceManager.writableSessionPath(file, session.backendId, id)
+        : undefined;
+      if (writable) state.source = file;
     }
+    // Markdown 是备份而非第二份执行事实；其中嵌套的角色标记不能覆盖 Durable 的真实投影。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    session.store.fillMissingTimestamps(loaded.messages);
     session.seedSessionUsage(loaded.usage);
-    if (loaded.label) session.setLabel(loaded.label);
-    this.getSessionState(session.internalId).source = file;
-    if (loaded.sessionId) {
-      void this.opts.sessionIndex?.touch(loaded.backendId, loaded.sessionId);
+    const restoredLabel = loaded.topic ?? loaded.label;
+    if (restoredLabel) session.setLabel(restoredLabel);
+    const backendSessionId = session.getBackendSessionId();
+    if (backendSessionId) {
+      void this.opts.sessionIndex?.touch(session.backendId, backendSessionId);
     }
     if (requestId === this.latestHistoryLoadRequestId) {
       this.setActiveSession(session.internalId);
@@ -1993,6 +2020,19 @@ export class AgentSessionManager {
     chatInputId?: string,
     seedSelection?: ModelSelection
   ): Promise<AgentSession | null> {
+    if (isHistoricalBackendId(backendId)) {
+      const cwd = this.resolveSessionCwd(projectId);
+      const history = await readLegacyNativeHistory({ backendId, sessionId, cwd });
+      const session = this.createHistorySession({
+        backendId,
+        sessionId,
+        projectId,
+        messages: history.messages,
+        chatInputId,
+      });
+      if (history.messages.length === 0) new Notice(history.notice);
+      return session;
+    }
     await this.ensureScopeInstructions(
       projectId,
       projectId === GLOBAL_SCOPE ? undefined : getCachedProjectRecordById(projectId)
@@ -2019,7 +2059,7 @@ export class AgentSessionManager {
     }
 
     const internalId = uuidv4();
-    const mcpServers = await this.connectFeedbackServer(internalId, descriptor, cwd);
+    const mcpServers = await this.connectFeedbackServer(internalId);
     if (this.disposed) {
       this.finishPendingCreate();
       return null;
@@ -2034,12 +2074,11 @@ export class AgentSessionManager {
       backendId,
       projectId,
       defaultModelSelection: seedSelection,
-      defaultMode: this.getDefaultMode(backendId),
+      defaultMode: null,
       cwd,
       getDescriptor: () => this.opts.resolveDescriptor(backendId),
       runFanoutTurn: (input) => this.runFanoutTurn(input),
       getDisplayName: (id) => this.resolveDescriptor(id).displayName,
-      getApp: () => this.app,
       ...(projectId !== GLOBAL_SCOPE
         ? {
             getProjectContextUpdates: () => this.getProjectContextUpdates(internalId, projectId),
@@ -2089,21 +2128,14 @@ export class AgentSessionManager {
 
     session.completeResume(resumeResult.state);
 
-    // Apply the seed before replaying backend-specific startup config.
-    // https://github.com/logancyang/obsidian-copilot/issues/3319
     await session.ready;
 
-    if (descriptor.applyInitialSessionConfig) {
-      try {
-        await descriptor.applyInitialSessionConfig(session, getSettings(), seedSelection);
-      } catch (e) {
-        logWarn(
-          `[AgentMode] applyInitialSessionConfig failed for resumed ${backendId} session; continuing`,
-          e
-        );
-      }
-    }
-    await replayPersistedMode(session, this.getDefaultMode(backendId));
+    // 冷重开沿用会话权限，不能让全局默认自动模式扩大已有会话的授权。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (resumeResult.state?.readOnly !== true)
+      await replayPersistedMode(
+        session,
+        resumeResult.state?.mode?.current ?? this.getDefaultMode(backendId)
+      );
     if (this.disposed) {
       await session.dispose();
       this.finishPendingCreate();
@@ -2140,6 +2172,144 @@ export class AgentSessionManager {
       onLabelChanged: trigger,
     });
     this.getSessionState(session.internalId).unsub = unsubscribe;
+  }
+
+  private createHistorySession(input: {
+    backendId: BackendId;
+    sessionId: string;
+    projectId: ProjectScopeId;
+    messages: readonly AgentChatMessage[];
+    chatInputId?: string;
+  }): AgentSession {
+    const session = new AgentSession({
+      backend: createHistoryBackend(),
+      backendSessionId: input.sessionId,
+      internalId: uuidv4(),
+      chatInputId: input.chatInputId,
+      backendId: input.backendId,
+      projectId: input.projectId,
+      cwd: this.resolveSessionCwd(input.projectId),
+      getDescriptor: () => this.opts.resolveDescriptor(input.backendId),
+    });
+    session.completeResume({ model: null, mode: null, readOnly: true });
+    session.loadDisplayMessages([...input.messages]);
+    this.sessions.set(session.internalId, session);
+    this.chatUIStates.set(session.internalId, new AgentChatUIState(session));
+    this.detachedFromTabIds.delete(session.internalId);
+    this.attachAttentionTracking(session);
+    this.lastError = null;
+    return session;
+  }
+
+  private async historicalEntry(session: AgentSession): Promise<LegacyChatEntry> {
+    const source = this.getSessionSourcePath(session.internalId);
+    if (source) {
+      const file = this.app.vault.getAbstractFileByPath(source);
+      if (file instanceof TFile) {
+        const reader = new LegacyHistoryReader({
+          ports: { listFiles: async () => [], isTombstoned: async () => false },
+        });
+        const parsed = reader.parse(source, await this.app.vault.read(file));
+        if (parsed) return parsed;
+      }
+    }
+    const sessionId = session.getBackendSessionId();
+    if (!sessionId) throw new Error("旧聊天缺少可识别的会话编号。");
+    const displayed = session.store.getDisplayMessages();
+    const messages = displayed
+      .filter(
+        (message) =>
+          !message.isAuxiliary && (message.sender === USER_SENDER || message.sender === AI_SENDER)
+      )
+      .map((message) => ({
+        role: message.sender === USER_SENDER ? ("user" as const) : ("assistant" as const),
+        text: message.message,
+      }));
+    if (messages.length === 0) throw new Error("没有可导入的旧聊天文字；原记录保持不变。");
+    const sourcePath = source || buildNativeChatId(session.backendId, sessionId);
+    return {
+      backendId: session.backendId,
+      sessionId,
+      title: session.getLabel(),
+      createdAtMs: displayed[0]?.timestamp?.epoch ?? 0,
+      lastAccessedAtMs: displayed[displayed.length - 1]?.timestamp?.epoch ?? 0,
+      ...(session.projectId === GLOBAL_SCOPE ? {} : { projectId: session.projectId }),
+      sourcePath,
+      sourceHash: sha256(JSON.stringify({ sourcePath, messages })),
+      messages,
+      unknownFields: {},
+      importMode: "text_only",
+    };
+  }
+
+  async importActiveLegacySession(): Promise<AgentSession> {
+    const source = this.getActiveSession();
+    if (!source?.isHistoricalOnly()) throw new Error("当前聊天不是待导入的旧聊天。");
+    const descriptor = this.resolveDescriptor("pi");
+    const backend = await this.ensureBackend("pi", descriptor);
+    if (!backend.importLegacySession) throw new MethodUnsupportedError("importLegacySession");
+    const imported = await backend.importLegacySession({
+      cwd: this.resolveSessionCwd(source.projectId),
+      entry: await this.historicalEntry(source),
+    });
+    const session = await this.tryResumeSessionFromHistory(
+      "pi",
+      imported.sessionId,
+      source.projectId
+    );
+    if (!session) throw new Error("导入已保存，但新聊天未能打开。请从历史记录重新打开。");
+    this.setActiveSession(session.internalId);
+    this.notify();
+    return session;
+  }
+
+  async rolloverSession(internalId: string): Promise<AgentSession> {
+    const source = this.sessions.get(internalId);
+    if (!source) throw new Error("聊天已关闭，请重新打开后再整理。");
+    const summarized = await source.rolloverSession();
+    // 新聊天只接收后端保存的官方摘要，原聊天保留在标签与历史中，不能再发送一条伪造用户问题。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    const next = await this.resumeNativeChat("pi", summarized.sessionId, null, source.projectId);
+    this.setActiveSession(next.internalId);
+    this.notify();
+    return next;
+  }
+
+  async importSessionBackup(content: string): Promise<AgentSession> {
+    const projectId = this.getActiveSession()?.projectId ?? GLOBAL_SCOPE;
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    if (!backend.importSessionBackup) throw new MethodUnsupportedError("importSessionBackup");
+    const imported = await backend.importSessionBackup({
+      cwd: this.resolveSessionCwd(projectId),
+      content,
+    });
+    const session = await this.tryResumeSessionFromHistory("pi", imported.sessionId, projectId);
+    if (!session) throw new Error("备份已导入，但未能打开。请从历史记录重新打开。");
+    this.setActiveSession(session.internalId);
+    this.notify();
+    return session;
+  }
+
+  async exportActiveSession(format: "json" | "markdown" = "json"): Promise<{ path: string }> {
+    const session = this.getActiveSession();
+    if (!session?.getBackendSessionId()) throw new Error("没有可导出的聊天。");
+    const backend = await this.ensureBackend("pi", this.resolveDescriptor("pi"));
+    if (!backend.exportSession) throw new MethodUnsupportedError("exportSession");
+    const exported = await backend.exportSession({
+      sessionId: session.getBackendSessionId()!,
+      format,
+      ...(isHistoricalBackendId(session.backendId)
+        ? { legacy: await this.historicalEntry(session) }
+        : {}),
+    });
+    const name = exported.suggestedName.replace(/[\\/:]/g, "_").replace(/^\.+/, "");
+    if (!name || !name.endsWith(format === "json" ? ".json" : ".md"))
+      throw new Error("导出文件名无效。");
+    const folder = getEffectiveConversationsFolder();
+    await ensureFolderExists(this.app.vault, folder);
+    const path = joinPosix(folder, `${uuidv4()}-${name}`);
+    const file = await this.app.vault.create(path, exported.content);
+    if (format === "markdown") await this.app.workspace.getLeaf(false).openFile(file);
+    return { path };
   }
 
   private scheduleAutoSave(session: AgentSession): void {
@@ -2197,6 +2367,7 @@ export class AgentSessionManager {
 
   saveActiveSession(): Promise<{ path: string } | null> {
     const session = this.getActiveSession();
+    if (session?.isHistoricalOnly?.()) return this.exportActiveSession("markdown");
     return session ? this.saveSessionNow(session) : Promise.resolve(null);
   }
 
@@ -2401,12 +2572,6 @@ export class AgentSessionManager {
         return warm.proc;
       }
 
-      // Validate the selected installation only when launching it. A running
-      // process keeps its version when settings select a different executable.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/531
-      const installState = descriptor.getInstallState(getSettings());
-      if (installState.kind === "incompatible") throw new Error(installState.message);
-
       const proc = descriptor.createBackendProcess({
         plugin: this.plugin,
         app: this.app,
@@ -2496,11 +2661,6 @@ export class AgentSessionManager {
     }
   }
 
-  /**
-   * A restart kills the process, not the conversation: resume through the backend's own store,
-   * falling back to a fresh session when there is nothing to resume.
-   * https://github.com/Brevilabs/obsidian-copilot-private/issues/475
-   */
   private async rebuildReplacedSession(
     backendId: BackendId,
     projectId: ProjectScopeId,
@@ -2532,6 +2692,28 @@ export class AgentSessionManager {
         this.setActiveSession(resumed.internalId);
         return resumed;
       }
+      // 已知根恢复失败时只保留只读入口和原输入所有权，不能静默创建可运行的新根。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      const message = t("agentChat.history.restoreUnavailable");
+      const unavailable = this.createHistorySession({
+        backendId,
+        sessionId: resumableSessionId,
+        projectId,
+        chatInputId,
+        messages: [
+          {
+            id: `${resumableSessionId}:restore-unavailable`,
+            sender: AI_SENDER,
+            timestamp: null,
+            isVisible: true,
+            isAuxiliary: true,
+            isErrorMessage: true,
+            message,
+          },
+        ],
+      });
+      if (label) unavailable.restoreLabel(label, labelSource ?? "agent");
+      this.setLastError(message);
+      return unavailable;
     }
     return this.createSession(backendId, projectId, seedSelection, chatInputId);
   }
@@ -2569,7 +2751,7 @@ export class AgentSessionManager {
       // Every affected composer must stay owned across the gap, including tabs
       // outside the active scope, or the draft store prunes their unsent text.
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/475
-      const replacements = this.isBackendInstalled(backendId)
+      const replacements = this.canStartBackend(backendId)
         ? affected.map((session) => ({
             internalId: session.internalId,
             projectId: session.projectId,
@@ -2581,8 +2763,6 @@ export class AgentSessionManager {
             // https://github.com/logancyang/obsidian-copilot/issues/3319
             seedSelection: session.getState()?.model?.current,
             detached: this.detachedFromTabIds.has(session.internalId),
-            recoveryMessages:
-              session.getStatus() === "error" ? session.store.getDisplayMessages() : undefined,
           }))
         : [];
       for (const replacement of replacements) {
@@ -2600,7 +2780,7 @@ export class AgentSessionManager {
       new Notice(
         t("agentInfra.session.refreshed", { agent: this.resolveDescriptor(backendId).displayName })
       );
-      if (!this.disposed && this.isBackendInstalled(backendId)) {
+      if (!this.disposed && this.canStartBackend(backendId)) {
         const probe = this.preloader.preload(backendId);
         this.registerPreload(backendId, probe);
         if (replacements.length > 0 && !this.disposed) {
@@ -2616,15 +2796,6 @@ export class AgentSessionManager {
               replacement.labelSource,
               replacement.seedSelection
             );
-            // A fresh fallback has no backend history for these messages;
-            // displaying them there would imply the agent can see that context.
-            // https://github.com/Brevilabs/obsidian-copilot-private/issues/561
-            if (
-              rebuilt.getBackendSessionId() === replacement.resumableSessionId &&
-              replacement.recoveryMessages?.length
-            ) {
-              rebuilt.loadDisplayMessages(replacement.recoveryMessages);
-            }
             if (replacement.detached) this.detachedFromTabIds.add(rebuilt.internalId);
             if (replacement.internalId === activeSessionId) selectedId = rebuilt.internalId;
           }

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "REPLACE_WITH_PHASE_ID",
+  "status": "not_run",
+  "taskIds": [],
+  "commands": [
+    {
+      "command": "npm run build",
+      "cwd": "REPLACE_WITH_ACTUAL_CWD",
+      "exitCode": null,
+      "result": "not_run"
+    },
+    {
+      "command": "npm run lint",
+      "cwd": "REPLACE_WITH_ACTUAL_CWD",
+      "exitCode": null,
+      "result": "not_run"
+    }
+  ],
+  "manualChecks": [
+    {
+      "name": "阶段可运行演示",
+      "required": true,
+      "steps": [],
+      "result": "not_run",
+      "evidence": null
+    }
+  ],
+  "limitations": []
+}

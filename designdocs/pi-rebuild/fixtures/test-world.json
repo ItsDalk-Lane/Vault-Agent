@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "description": "仅用于隔离测试；不允许指向真实用户Vault。",
+  "posix": {
+    "vaultRoot": "/fixture/vault",
+    "externalRoot": "/fixture/external",
+    "stateRoot": "/fixture/state"
+  },
+  "windows": {
+    "vaultRoot": "C:\\Fixture\\Vault",
+    "externalRoot": "C:\\Fixture\\External",
+    "stateRoot": "C:\\Fixture\\State"
+  },
+  "files": {
+    "Notes/Agent.md": "---\ntags:\n  - agent\n---\n# Agent\n旧内容\n[[Notes/Plan]]\n",
+    "Notes/Plan.md": "# Plan\n待整理\n",
+    "Notes/用户编辑.md": "用户自己的内容，禁止覆盖。\n"
+  },
+  "externalFiles": {
+    "draft.txt": "external before\n"
+  },
+  "fakeSecrets": ["test_secret_NEVER_EXPOSE_9e87", "test_oauth_NEVER_EXPOSE_c5a1"],
+  "clockStartMs": 1700000000000,
+  "defaultModel": {
+    "provider": "fixture",
+    "modelId": "chat-tool-model",
+    "contextWindow": 32768
+  },
+  "network": "disabled_except_explicit_test_transport",
+  "hashes": {
+    "Notes/Agent.md": "7479ff64dd5658ca1cf75c45091025fe977d31074d503c3a12f3989845d72763",
+    "Notes/Plan.md": "cee2d03b307da69ff14ddaa9b31edeca39100cd47351936820095e1d6589549f",
+    "Notes/用户编辑.md": "8a786db9975791359693f5569e25d36a2ca2eef4010a4a3cfadd2264041a26dd"
+  }
+}

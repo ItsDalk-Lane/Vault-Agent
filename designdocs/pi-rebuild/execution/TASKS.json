@@ -1,0 +1,4132 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "P01-T01",
+      "tag": "baseline",
+      "phase": "P01",
+      "title": "登记工作树与已通过的PoC",
+      "dependencies": [],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": [
+        "designdocs/pi-rebuild/execution/BASELINE.md",
+        "designdocs/pi-rebuild/execution/HANDOFF.md"
+      ],
+      "testFile": null,
+      "steps": [
+        "读取实际git状态与根AGENTS",
+        "填写当前commit、未提交改动归属和PoC证据位置",
+        "将P00保留accepted_user_report，不重复实验",
+        "记录真实支持的Obsidian版本或未知字段，不猜测",
+        "建立真实issue关联方式，不在代码里造链接"
+      ],
+      "assertions": [
+        "已有未提交修改内容保持不变",
+        "P00仍为完成",
+        "原PoC无路径时明确标用户确认而非失败"
+      ],
+      "documentationOnly": true,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T01.md",
+      "evidencePath": "execution/evidence/P01-T01.json",
+      "scenarioIds": ["SC-P01-T01-01", "SC-P01-T01-02", "SC-P01-T01-03"],
+      "requiredCommands": ["node designdocs/pi-rebuild/scripts/check-plan.mjs"],
+      "cardBytes": 2747
+    },
+    {
+      "id": "P01-T02",
+      "tag": "inventory",
+      "phase": "P01",
+      "title": "核对全部渲染分支和功能映射",
+      "dependencies": ["P01-T01"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": [
+        "src/agentMode/ui/AgentChatMessages.tsx",
+        "src/agentMode/ui/AgentTrailView.tsx",
+        "designdocs/pi-rebuild/fixtures/feature-matrix.json"
+      ],
+      "testFile": null,
+      "steps": [
+        "沿两个渲染入口读取导入的消息和轨迹组件",
+        "逐分支核对feature-matrix的组件名称和producer",
+        "补记真实工作树新增功能及任务，不删除已有必要项",
+        "标记旧后端专属解析与纯展示逻辑",
+        "输出组件→事件→最终任务的登记表"
+      ],
+      "assertions": [
+        "所有switch渲染分支均有功能行",
+        "SubAgent/Plan/Compaction不是只标普通文本",
+        "新增组件无producer时阶段不通过"
+      ],
+      "documentationOnly": true,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T02.md",
+      "evidencePath": "execution/evidence/P01-T02.json",
+      "scenarioIds": ["SC-P01-T02-01", "SC-P01-T02-02", "SC-P01-T02-03"],
+      "requiredCommands": ["node designdocs/pi-rebuild/scripts/check-plan.mjs"],
+      "cardBytes": 2815
+    },
+    {
+      "id": "P01-T03",
+      "tag": "pin",
+      "phase": "P01",
+      "title": "锁定Pi依赖与公开契约测试",
+      "dependencies": ["P01-T02"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": ["package.json", "package-lock.json", "src/agentMode/sdk/pi/sdkContract.test.ts"],
+      "testFile": "src/agentMode/sdk/pi/sdkContract.test.ts",
+      "steps": [
+        "将四个直接依赖固定为1.3.0并更新lockfile",
+        "不引入pi-coding-agent或新Core loop",
+        "用真实包类型验证Harness、JSONL、defineTool、watchEvents和MCP公开导出",
+        "记录与已有PoC依赖的增量",
+        "新增依赖打包回归，不重置PoC完成状态"
+      ],
+      "assertions": [
+        "版本不存在范围符号",
+        "没有dist私有import",
+        "工具execute使用Durable三参数签名",
+        "完整构建不引入native addon"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T03.md",
+      "evidencePath": "execution/evidence/P01-T03.json",
+      "scenarioIds": ["SC-P01-T03-01", "SC-P01-T03-02", "SC-P01-T03-03", "SC-P01-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/sdkContract.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2993
+    },
+    {
+      "id": "P01-T04",
+      "tag": "boundaries",
+      "phase": "P01",
+      "title": "限制SDK依赖传播范围",
+      "dependencies": ["P01-T03"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": ["eslint.config.mjs", "src/agentMode/AGENTS.md", "scripts/check-pi-boundaries.mjs"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+      "steps": [
+        "允许sdk/pi导入锁定SDK公共入口",
+        "禁止session/ui直接import这些SDK和私有dist",
+        "保留现有acp和sdk兄弟边界",
+        "加入自动import扫描脚本并接入测试",
+        "为历史legacy读取器设禁止spawn边界"
+      ],
+      "assertions": [
+        "UI直接importHarness的负例失败",
+        "sdk/pi合法import通过",
+        "注释中的包名不触发假阳性"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T04.md",
+      "evidencePath": "execution/evidence/P01-T04.json",
+      "scenarioIds": ["SC-P01-T04-01", "SC-P01-T04-02", "SC-P01-T04-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/boundaries.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2898
+    },
+    {
+      "id": "P01-T05",
+      "tag": "domain",
+      "phase": "P01",
+      "title": "添加最小供应商无关领域事件",
+      "dependencies": ["P01-T04"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": ["src/agentMode/session/types.ts", "src/agentMode/sdk/pi/types.ts"],
+      "testFile": "src/agentMode/session/piDomainContract.test.ts",
+      "steps": [
+        "复用现有Prompt/Tool/Permission类型",
+        "新增projection、todo、plan、run、recovery和budget的显式事件",
+        "声明稳定ID、source和unknown用量语义",
+        "不将Pi原生类型放进公开interface",
+        "逐个更新穷尽switch让旧后端仍可编译"
+      ],
+      "assertions": [
+        "原SessionEvent消费者编译通过",
+        "未知状态不能落到默认成功",
+        "SDK类型不穿透UI层"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T05.md",
+      "evidencePath": "execution/evidence/P01-T05.json",
+      "scenarioIds": ["SC-P01-T05-01", "SC-P01-T05-02", "SC-P01-T05-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/session/piDomainContract.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2932
+    },
+    {
+      "id": "P01-T06",
+      "tag": "skeleton",
+      "phase": "P01",
+      "title": "注册尚未默认启用的Pi描述符",
+      "dependencies": ["P01-T05"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": [
+        "src/agentMode/backends/pi/descriptor.ts",
+        "src/agentMode/backends/registry.ts",
+        "src/agentMode/sdk/pi/PiBackendProcess.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "steps": [
+        "建立PiBackendProcess的真实生命周期框架",
+        "未实现功能显式unsupported且隐藏实验入口，不返回伪成功",
+        "descriptor标记自带引擎无需安装",
+        "默认后端暂不切换",
+        "设置注册按实际settings schema增量更新"
+      ],
+      "assertions": [
+        "Pi descriptor不触发binary检测",
+        "旧默认产品仍运行",
+        "未就绪prompt得到明确错误"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T06.md",
+      "evidencePath": "execution/evidence/P01-T06.json",
+      "scenarioIds": ["SC-P01-T06-01", "SC-P01-T06-02", "SC-P01-T06-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2973
+    },
+    {
+      "id": "P01-T07",
+      "tag": "testinfra",
+      "phase": "P01",
+      "title": "建立fake provider和注入式宿主测试环境",
+      "dependencies": ["P01-T06"],
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/testing/fauxRuntime.ts",
+        "src/agentMode/sdk/pi/testing/fakeVault.ts",
+        "src/agentMode/sdk/pi/testing/faultInjector.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/testing/testHarness.test.ts",
+      "steps": [
+        "使用Pi官方fauxProvider的公开入口建立响应脚本",
+        "模拟Vault接口但不mock掉policy/mutation/translator",
+        "提供明确deferred控制流而非sleep",
+        "提供可定位intent/approval/write/receipt断点",
+        "确保生产bundle不启用故障注入"
+      ],
+      "assertions": [
+        "工具脚本确实经过Harness",
+        "故障点精确停止且可等待",
+        "测试不访问网络或真实用户Vault"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P00",
+      "card": "execution/tasks/P01-T07.md",
+      "evidencePath": "execution/evidence/P01-T07.json",
+      "scenarioIds": ["SC-P01-T07-01", "SC-P01-T07-02", "SC-P01-T07-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/testing/testHarness.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 3040
+    },
+    {
+      "id": "P02-T01",
+      "tag": "locator",
+      "phase": "P02",
+      "title": "实现私有数据路径和Vault身份",
+      "dependencies": ["P01-T07"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/storage/StoreLocator.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+      "steps": [
+        "按三平台固定规则计算本地数据根",
+        "结合真实Vault路径和既有vaultId生成hash键",
+        "校验所有rootId片段只允许宿主生成ID",
+        "暴露受保护路径供策略层使用",
+        "移动库只返回重新关联需求，不自动合并同名库"
+      ],
+      "assertions": [
+        "三平台路径固定且不在Vault内",
+        "恶意rootId不能穿越",
+        "同名不同Vault不共享store"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T01.md",
+      "evidencePath": "execution/evidence/P02-T01.json",
+      "scenarioIds": ["SC-P02-T01-01", "SC-P02-T01-02", "SC-P02-T01-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2807
+    },
+    {
+      "id": "P02-T02",
+      "tag": "lease",
+      "phase": "P02",
+      "title": "实现独占store lease",
+      "dependencies": ["P02-T01"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/storage/StoreLease.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+      "steps": [
+        "用mkdir原子创建lease与owner token",
+        "实现进程内共享和跨进程占用检查",
+        "不以时间过期偷锁",
+        "只回收可证明已退出的owner",
+        "释放前核对token且失败不删除未知目录"
+      ],
+      "assertions": [
+        "第二writer拒绝",
+        "活跃长审批不被偷锁",
+        "不同token不能释放",
+        "不完整owner进入人工恢复"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T02.md",
+      "evidencePath": "execution/evidence/P02-T02.json",
+      "scenarioIds": ["SC-P02-T02-01", "SC-P02-T02-02", "SC-P02-T02-03", "SC-P02-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2749
+    },
+    {
+      "id": "P02-T03",
+      "tag": "jsonl",
+      "phase": "P02",
+      "title": "包装JSONL打开关闭与版本元数据",
+      "dependencies": ["P02-T02"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/storage/DurableStore.ts",
+        "src/agentMode/sdk/pi/storage/StoreMetadata.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+      "steps": [
+        "先lease再openNodeJsonlStorage正确三参数",
+        "写schema/runtime版本头",
+        "关闭等待已提交数据并释放lease",
+        "未知版本只读报告",
+        "不在错误时偷偷换MemoryStorage"
+      ],
+      "assertions": [
+        "fsync选项传入真实存储",
+        "关闭重开记录一致",
+        "unsupported版本不写",
+        "open失败清理自己的lease"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T03.md",
+      "evidencePath": "execution/evidence/P02-T03.json",
+      "scenarioIds": ["SC-P02-T03-01", "SC-P02-T03-02", "SC-P02-T03-03", "SC-P02-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/DurableStore.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2828
+    },
+    {
+      "id": "P02-T04",
+      "tag": "productdocs",
+      "phase": "P02",
+      "title": "定义产品状态文档及自定义事件",
+      "dependencies": ["P02-T03"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/storage/ProductDocs.ts",
+        "src/agentMode/sdk/pi/storage/ProductEntries.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+      "steps": [
+        "按04文档定义version1的session/run/todos/plan/approvals/questions/mutations/subagents/fanout/skills/budget",
+        "为fork选择确定策略",
+        "状态变化同提交写va事件",
+        "先读后写避免ReadAfterWrite",
+        "添加schema验证和损坏数据错误"
+      ],
+      "assertions": [
+        "事务失败无半份状态",
+        "fork不继承一次授权",
+        "事件和文档revision一致",
+        "unknown schema拒绝"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T04.md",
+      "evidencePath": "execution/evidence/P02-T04.json",
+      "scenarioIds": ["SC-P02-T04-01", "SC-P02-T04-02", "SC-P02-T04-03", "SC-P02-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/ProductDocs.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2888
+    },
+    {
+      "id": "P02-T05",
+      "tag": "identity",
+      "phase": "P02",
+      "title": "实现请求与工具稳定ID",
+      "dependencies": ["P02-T04"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/runtime/Identity.ts",
+        "src/agentMode/sdk/pi/storage/SubmissionAdmission.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/runtime/Identity.test.ts",
+      "steps": [
+        "实现namespaced工具UI ID和稳定operationId",
+        "发送草稿分配并保存requestId",
+        "提交复用SDK requestId去重",
+        "相同内容但新用户发送仍可新requestId",
+        "校验已有记录与root/conversation归属"
+      ],
+      "assertions": [
+        "重复提交仅一个user entry",
+        "两会话相同toolCallId不冲突",
+        "恢复operationId不变",
+        "不同新发送不误去重"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T05.md",
+      "evidencePath": "execution/evidence/P02-T05.json",
+      "scenarioIds": ["SC-P02-T05-01", "SC-P02-T05-02", "SC-P02-T05-03", "SC-P02-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/Identity.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2839
+    },
+    {
+      "id": "P02-T06",
+      "tag": "history",
+      "phase": "P02",
+      "title": "分页读取完整历史而非active snapshot",
+      "dependencies": ["P02-T05"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/storage/HistoryReader.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+      "steps": [
+        "使用Conversation.entries按ascending分页",
+        "按EntryId去重且处理fork祖先",
+        "提供只读游标和取消",
+        "不调用submit/wait/resume",
+        "记录附件缺失但不阻断正文读取"
+      ],
+      "assertions": [
+        "压缩前旧消息仍返回",
+        "分页交界不重复",
+        "读取历史无模型请求",
+        "取消读取不取消运行任务"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T06.md",
+      "evidencePath": "execution/evidence/P02-T06.json",
+      "scenarioIds": ["SC-P02-T06-01", "SC-P02-T06-02", "SC-P02-T06-03", "SC-P02-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/HistoryReader.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2792
+    },
+    {
+      "id": "P02-T07",
+      "tag": "pool",
+      "phase": "P02",
+      "title": "实现根运行时池和有界store生命周期",
+      "dependencies": ["P02-T06"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/runtime/RuntimePool.ts",
+        "src/agentMode/sdk/pi/storage/StoreSizePolicy.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/runtime/RuntimePool.test.ts",
+      "steps": [
+        "同root重复打开复用句柄",
+        "最多2活跃根，超出排队",
+        "空闲无观察者60秒后关闭",
+        "读取真实store大小应用16/32MiB规则",
+        "滚动归档只在所有前后台任务结束边界进行"
+      ],
+      "assertions": [
+        "popout不产生第二writer",
+        "active任务不被LRU关闭",
+        "32MiB不再接纳新run但可取消",
+        "压缩不伪减少文件大小"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T07.md",
+      "evidencePath": "execution/evidence/P02-T07.json",
+      "scenarioIds": ["SC-P02-T07-01", "SC-P02-T07-02", "SC-P02-T07-03", "SC-P02-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/RuntimePool.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2872
+    },
+    {
+      "id": "P02-T08",
+      "tag": "recoverybase",
+      "phase": "P02",
+      "title": "实现只读恢复入口和存储故障处理",
+      "dependencies": ["P02-T07"],
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/storage/RecoveryCoordinator.ts",
+        "src/agentMode/sdk/pi/runtime/FailureSupervisor.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+      "steps": [
+        "open后inspect并生成恢复状态",
+        "无用户Continue不调任何启动scheduler方法",
+        "存储异常停止host新I/O并暴露错误",
+        "记录连续三次异常打开进入只读模式",
+        "将未知副作用列为需对账，不自动重做"
+      ],
+      "assertions": [
+        "重开未完成会话无调用",
+        "显式继续才启动",
+        "存储失败不显示成功",
+        "crash-loop阈值阻断自动执行"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P01",
+      "card": "execution/tasks/P02-T08.md",
+      "evidencePath": "execution/evidence/P02-T08.json",
+      "scenarioIds": ["SC-P02-T08-01", "SC-P02-T08-02", "SC-P02-T08-03", "SC-P02-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2932
+    },
+    {
+      "id": "P03-T01",
+      "tag": "credentials",
+      "phase": "P03",
+      "title": "适配Keychain到CredentialStore",
+      "dependencies": ["P02-T08"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/models/KeychainCredentialStore.ts"],
+      "testFile": "src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+      "steps": [
+        "实现公开read/list/modify/delete契约",
+        "复用KeychainService方法和provider实例命名空间",
+        "modify串行读改写",
+        "list不读取秘密",
+        "无SecretStorage返回明确错误，禁止JSON回退"
+      ],
+      "assertions": [
+        "并发刷新只保存一个有效新token",
+        "list不取secret",
+        "missing-key不读环境兜底",
+        "data.json不含key"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T01.md",
+      "evidencePath": "execution/evidence/P03-T01.json",
+      "scenarioIds": ["SC-P03-T01-01", "SC-P03-T01-02", "SC-P03-T01-03", "SC-P03-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2852
+    },
+    {
+      "id": "P03-T02",
+      "tag": "catalog",
+      "phase": "P03",
+      "title": "适配既有模型配置到Pi模型目录",
+      "dependencies": ["P03-T01"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/models/ModelCatalog.ts",
+        "src/agentMode/sdk/pi/models/ModelIdentity.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+      "steps": [
+        "分离engineId与provider实例/modelKey",
+        "建立四协议适配和自定义端点配置",
+        "继承已保存选择和能力",
+        "未知协议保留并报需配置",
+        "同名不同端点凭据隔离"
+      ],
+      "assertions": [
+        "两个同名模型不串key",
+        "不支持thinking的选择无effort",
+        "未知配置不删除",
+        "无需CLI模型探测"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T02.md",
+      "evidencePath": "execution/evidence/P03-T02.json",
+      "scenarioIds": ["SC-P03-T02-01", "SC-P03-T02-02", "SC-P03-T02-03", "SC-P03-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2886
+    },
+    {
+      "id": "P03-T03",
+      "tag": "providerfactory",
+      "phase": "P03",
+      "title": "按需注册Pi Provider",
+      "dependencies": ["P03-T02"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/models/ModelRuntime.ts",
+        "src/agentMode/sdk/pi/models/ProviderFactory.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+      "steps": [
+        "createModels注入CredentialStore",
+        "只引入支持的provider工厂",
+        "模型连接测试使用最小不含Vault内容的请求",
+        "显式无认证本地模型与missing-key区分",
+        "禁止静默环境认证和端点回退"
+      ],
+      "assertions": [
+        "四协议fake请求按正确provider发出",
+        "未授权环境key不被用",
+        "测试不读笔记",
+        "取消连接测试停止请求"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T03.md",
+      "evidencePath": "execution/evidence/P03-T03.json",
+      "scenarioIds": ["SC-P03-T03-01", "SC-P03-T03-02", "SC-P03-T03-03", "SC-P03-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2882
+    },
+    {
+      "id": "P03-T04",
+      "tag": "requestguard",
+      "phase": "P03",
+      "title": "实现模型请求的硬分发门",
+      "dependencies": ["P03-T03"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/models/ProviderGuard.ts",
+        "src/agentMode/sdk/pi/runtime/RunBudget.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+      "steps": [
+        "实际provider网络流创建前核验root/run/endpoint/取消",
+        "以稳定attemptId提交预算reserve",
+        "gate失败产生正规错误流不发网",
+        "把标题压缩子代理入口都纳入",
+        "不用beforeRequest抛错充当硬阻断"
+      ],
+      "assertions": [
+        "预算不足零网络请求",
+        "取消后迟到请求被挡",
+        "并发子请求不超名额",
+        "压缩请求也计数"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T04.md",
+      "evidencePath": "execution/evidence/P03-T04.json",
+      "scenarioIds": ["SC-P03-T04-01", "SC-P03-T04-02", "SC-P03-T04-03", "SC-P03-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2896
+    },
+    {
+      "id": "P03-T05",
+      "tag": "harness",
+      "phase": "P03",
+      "title": "建立唯一Durable根运行时",
+      "dependencies": ["P03-T04"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/runtime/RootSessionRuntime.ts"],
+      "testFile": "src/agentMode/sdk/pi/runtime/RootSessionRuntime.test.ts",
+      "steps": [
+        "组合已验证store/models/registry",
+        "应用固定progress/retry/sequential设置",
+        "绑定root产品元数据和取消上下文",
+        "保持rawHarness仅适配层可见",
+        "close不暗中abort成成功也不启动新请求"
+      ],
+      "assertions": [
+        "一个root只有一个Harness",
+        "SDK嵌套循环不存在",
+        "读取状态不启动任务",
+        "关闭后新调用明确失败"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T05.md",
+      "evidencePath": "execution/evidence/P03-T05.json",
+      "scenarioIds": ["SC-P03-T05-01", "SC-P03-T05-02", "SC-P03-T05-03", "SC-P03-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/RootSessionRuntime.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2859
+    },
+    {
+      "id": "P03-T06",
+      "tag": "backendmethods",
+      "phase": "P03",
+      "title": "实现会话创建加载列表与退出",
+      "dependencies": ["P03-T05"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/PiBackendProcess.ts",
+        "src/agentMode/sdk/pi/runtime/SessionDirectory.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "steps": [
+        "实现newSession/list/load/resume/sessionExists/shutdown",
+        "索引接入发生在store建立后",
+        "load和resume默认只读等待Continue",
+        "handler注册返回可重复安全取消订阅",
+        "错误触发unhealthy不伪正常退出"
+      ],
+      "assertions": [
+        "创建失败无幽灵索引",
+        "load无模型调用",
+        "两次卸载安全",
+        "sessionExists不打开所有store"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T06.md",
+      "evidencePath": "execution/evidence/P03-T06.json",
+      "scenarioIds": ["SC-P03-T06-01", "SC-P03-T06-02", "SC-P03-T06-03", "SC-P03-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2895
+    },
+    {
+      "id": "P03-T07",
+      "tag": "promptbasic",
+      "phase": "P03",
+      "title": "接通prompt和最小文本流",
+      "dependencies": ["P03-T06"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/runtime/PromptRunner.ts",
+        "src/agentMode/sdk/pi/events/BasicTextBridge.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/runtime/PromptRunner.test.ts",
+      "steps": [
+        "转换现有PromptContent到Pi输入",
+        "使用稳定requestId接纳",
+        "将已提交text更新交给SessionEvent",
+        "按submission而非turn结束返回PromptOutput",
+        "basic桥随后由完整投影替代，不为工具功能写占位成功"
+      ],
+      "assertions": [
+        "两轮模型任务不提前end",
+        "重复发送不重复user",
+        "图片模型不支持给明确提示",
+        "error保留已输出文本"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T07.md",
+      "evidencePath": "execution/evidence/P03-T07.json",
+      "scenarioIds": ["SC-P03-T07-01", "SC-P03-T07-02", "SC-P03-T07-03", "SC-P03-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/PromptRunner.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2913
+    },
+    {
+      "id": "P03-T08",
+      "tag": "cancel",
+      "phase": "P03",
+      "title": "连接Stop到真实运行取消",
+      "dependencies": ["P03-T07"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/runtime/Cancellation.ts",
+        "src/agentMode/sdk/pi/runtime/PromptRunner.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/runtime/Cancellation.test.ts",
+      "steps": [
+        "用户cancel增加cancelEpoch并abort背景在内的root工作",
+        "observer取消仅detach",
+        "真实网络signal传播",
+        "拒绝迟到start",
+        "shutdown关闭I/O并保留可恢复checkpoint"
+      ],
+      "assertions": [
+        "取消wait本身不会被误当已停止",
+        "Stop后网络结束且不再发工具",
+        "关闭标签策略一致",
+        "重复Stop幂等"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T08.md",
+      "evidencePath": "execution/evidence/P03-T08.json",
+      "scenarioIds": ["SC-P03-T08-01", "SC-P03-T08-02", "SC-P03-T08-03", "SC-P03-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/Cancellation.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2875
+    },
+    {
+      "id": "P03-T09",
+      "tag": "modelselection",
+      "phase": "P03",
+      "title": "接通模型effort与模式选择",
+      "dependencies": ["P03-T08"],
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/backends/pi/descriptor.ts",
+        "src/agentMode/sdk/pi/models/ModelSelection.ts"
+      ],
+      "testFile": "src/agentMode/backends/pi/descriptor.test.ts",
+      "steps": [
+        "将既有wire选择映射到configuredModelKey",
+        "idle写configure并返回真实BackendState",
+        "busy切换报明确错误不先改UI",
+        "effort按模型能力映射",
+        "模式扩大等待安全边界而收紧即时生效"
+      ],
+      "assertions": [
+        "模型选择UI与存储一致",
+        "busy没有半切换",
+        "不存在的effort拒绝",
+        "scope不会随模式变宽"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P02",
+      "card": "execution/tasks/P03-T09.md",
+      "evidencePath": "execution/evidence/P03-T09.json",
+      "scenarioIds": ["SC-P03-T09-01", "SC-P03-T09-02", "SC-P03-T09-03", "SC-P03-T09-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/backends/pi/descriptor.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2883
+    },
+    {
+      "id": "P04-T01",
+      "tag": "eventnormal",
+      "phase": "P04",
+      "title": "归一化Durable消息和工具事件",
+      "dependencies": ["P03-T09"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/events/EventTranslator.ts"],
+      "testFile": "src/agentMode/sdk/pi/events/EventTranslator.test.ts",
+      "steps": [
+        "覆盖真实AgentEvent穷尽分支",
+        "为contentIndex维护文本/思考/参数块",
+        "区分append与block替换",
+        "namespaced工具ID包含child归属",
+        "去掉BasicTextBridge的重复生产"
+      ],
+      "assertions": [
+        "message替换不重复追加",
+        "相同工具ID跨会话不冲突",
+        "未知事件编译提示",
+        "结束无result不成功"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T01.md",
+      "evidencePath": "execution/evidence/P04-T01.json",
+      "scenarioIds": ["SC-P04-T01-01", "SC-P04-T01-02", "SC-P04-T01-03", "SC-P04-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/EventTranslator.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2789
+    },
+    {
+      "id": "P04-T02",
+      "tag": "projection",
+      "phase": "P04",
+      "title": "建立全历史与live合并reducer",
+      "dependencies": ["P04-T01"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/ProjectionReducer.ts",
+        "src/agentMode/sdk/pi/events/HistoryProjector.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/ProjectionReducer.test.ts",
+      "steps": [
+        "按EntryId维护committedMap和live overlay",
+        "初始订阅与历史分页按设计合并",
+        "snapshot只替换active/live",
+        "frame epoch阻止旧观察者覆盖",
+        "缓冲超限重新attach不丢半条消息"
+      ],
+      "assertions": [
+        "重复snapshot不重复文字",
+        "旧压缩消息仍在",
+        "过期epoch被丢弃",
+        "初始化期间新entry只出现一次"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T02.md",
+      "evidencePath": "execution/evidence/P04-T02.json",
+      "scenarioIds": ["SC-P04-T02-01", "SC-P04-T02-02", "SC-P04-T02-03", "SC-P04-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/ProjectionReducer.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2870
+    },
+    {
+      "id": "P04-T03",
+      "tag": "projectionui",
+      "phase": "P04",
+      "title": "将完整投影送入既有消息store",
+      "dependencies": ["P04-T02"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/session/AgentSession.ts",
+        "src/agentMode/session/AgentMessageStore.ts"
+      ],
+      "testFile": "src/agentMode/session/AgentSession.test.ts",
+      "steps": [
+        "新增session_projection处理和批更新",
+        "保留用户消息UI ID及既有context字段",
+        "避免每次全量rerender空数组引用变化",
+        "不让UI导入Pi",
+        "保留原后端增量路径直到清理阶段"
+      ],
+      "assertions": [
+        "替换投影保留selection/稳定消息键",
+        "旧后端仍编译",
+        "无空白重复助手卡",
+        "恢复后排序一致"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T03.md",
+      "evidencePath": "execution/evidence/P04-T03.json",
+      "scenarioIds": ["SC-P04-T03-01", "SC-P04-T03-02", "SC-P04-T03-03", "SC-P04-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/session/AgentSession.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2829
+    },
+    {
+      "id": "P04-T04",
+      "tag": "thinking",
+      "phase": "P04",
+      "title": "接通公开思考和块计时",
+      "dependencies": ["P04-T03"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/ThinkingProjection.ts",
+        "src/agentMode/ui/AgentTrailView.tsx"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/ThinkingProjection.test.ts",
+      "steps": [
+        "将实际thinking块投影为thought",
+        "保存开始结束时间",
+        "不把供应商不透明签名当可显示文字",
+        "无thinking能力不伪生成",
+        "添加真实事件驱动reasoning story"
+      ],
+      "assertions": [
+        "无thinking模型无假内容",
+        "重载不重新计时",
+        "多block不串文本",
+        "签名字段不输出到UI"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T04.md",
+      "evidencePath": "execution/evidence/P04-T04.json",
+      "scenarioIds": ["SC-P04-T04-01", "SC-P04-T04-02", "SC-P04-T04-03", "SC-P04-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/ThinkingProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2825
+    },
+    {
+      "id": "P04-T05",
+      "tag": "toolcards",
+      "phase": "P04",
+      "title": "实现工具卡输出替换与别名元数据",
+      "dependencies": ["P04-T04"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/ToolProjection.ts",
+        "src/agentMode/sdk/pi/events/ToolDisplayMetadata.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/ToolProjection.test.ts",
+      "steps": [
+        "固定vendor别名与toolKind映射",
+        "MCP永远标mcpServer",
+        "output trim/set按协议更新",
+        "pending审批与实际in_progress分开",
+        "保留diagnostics和真实isError"
+      ],
+      "assertions": [
+        "尾部窗口不无限增长",
+        "名为Agent的MCP不成子代理",
+        "拒绝保持失败状态",
+        "缺失end结果显示interrupted"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T05.md",
+      "evidencePath": "execution/evidence/P04-T05.json",
+      "scenarioIds": ["SC-P04-T05-01", "SC-P04-T05-02", "SC-P04-T05-03", "SC-P04-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/ToolProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2864
+    },
+    {
+      "id": "P04-T06",
+      "tag": "runindicators",
+      "phase": "P04",
+      "title": "接通loading重试时长错误与预算提示",
+      "dependencies": ["P04-T05"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/RunProjection.ts",
+        "src/agentMode/session/AgentSession.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/RunProjection.test.ts",
+      "steps": [
+        "run与turn状态分离",
+        "映射retry/failed/max_tokens/refusal/cancel/budget",
+        "时长从持久化时间计算",
+        "loading结束不覆盖fileChanges",
+        "只显示已知usage与上下文窗口"
+      ],
+      "assertions": [
+        "中间turn结束仍loading",
+        "取消保留已完成修改",
+        "unknown成本不写零",
+        "重试不再造user消息"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T06.md",
+      "evidencePath": "execution/evidence/P04-T06.json",
+      "scenarioIds": ["SC-P04-T06-01", "SC-P04-T06-02", "SC-P04-T06-03", "SC-P04-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/RunProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2856
+    },
+    {
+      "id": "P04-T07",
+      "tag": "historyvisual",
+      "phase": "P04",
+      "title": "完成回放与Markdown/复制回归",
+      "dependencies": ["P04-T06"],
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/ReplayIntegration.test.ts",
+        "src/agentMode/ui/AgentChatMessages.tsx"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/ReplayIntegration.test.ts",
+      "steps": [
+        "用真实Harness样例记录文本代码块链接图片和工具",
+        "关闭重开驱动既有ChatSingleMessage与AgentTrail",
+        "测试最终答案复制不混入思考和工具诊断",
+        "确保compaction-only无伪最终回答",
+        "检查样式story不重写UI"
+      ],
+      "assertions": [
+        "代码块和链接仍可用",
+        "复制只取真实回答",
+        "历史图片缺失有占位",
+        "无状态支撑的空组件不计完成"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P03",
+      "card": "execution/tasks/P04-T07.md",
+      "evidencePath": "execution/evidence/P04-T07.json",
+      "scenarioIds": ["SC-P04-T07-01", "SC-P04-T07-02", "SC-P04-T07-03", "SC-P04-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/ReplayIntegration.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2931
+    },
+    {
+      "id": "P05-T01",
+      "tag": "manifest",
+      "phase": "P05",
+      "title": "定义受控工具清单和注册门",
+      "dependencies": ["P04-T07"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/ToolManifest.ts",
+        "src/agentMode/sdk/pi/tools/ToolRegistry.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/ToolManifest.test.ts",
+      "steps": [
+        "定义宿主manifest字段与默认deny",
+        "注册前检查重复名/schema/实现版本",
+        "将安全字段从模型args中隔离",
+        "禁止外部扩展覆盖保留名",
+        "raw registry不对UI或skills暴露"
+      ],
+      "assertions": [
+        "未登记工具拒绝",
+        "远端同名不覆盖host工具",
+        "args.safe不能授予权限",
+        "重复schema版本显式报错"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T01.md",
+      "evidencePath": "execution/evidence/P05-T01.json",
+      "scenarioIds": ["SC-P05-T01-01", "SC-P05-T01-02", "SC-P05-T01-03", "SC-P05-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/ToolManifest.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2837
+    },
+    {
+      "id": "P05-T02",
+      "tag": "pathbasic",
+      "phase": "P05",
+      "title": "实现Vault与外部路径分类",
+      "dependencies": ["P05-T01"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/policy/PathResolver.ts"],
+      "testFile": "src/agentMode/sdk/pi/policy/PathResolver.test.ts",
+      "steps": [
+        "实现Vault相对路径和外部显式根解析",
+        "已有对象realpath，新文件解析最近现存父目录",
+        "用relative边界判定",
+        "将state/config/credential路径列为protected",
+        "执行前提供再次解析入口"
+      ],
+      "assertions": [
+        "Vault2不被当Vault",
+        "..越界拒绝",
+        "新文件父symlink回Vault被拒绝",
+        "state根无法读写"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T02.md",
+      "evidencePath": "execution/evidence/P05-T02.json",
+      "scenarioIds": ["SC-P05-T02-01", "SC-P05-T02-02", "SC-P05-T02-03", "SC-P05-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/PathResolver.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2784
+    },
+    {
+      "id": "P05-T03",
+      "tag": "pathplatform",
+      "phase": "P05",
+      "title": "补齐平台别名与硬链接策略",
+      "dependencies": ["P05-T02"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/PlatformPathPolicy.ts",
+        "src/agentMode/sdk/pi/policy/PathResolver.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/PlatformPathPolicy.test.ts",
+      "steps": [
+        "实现Windows设备路径/ADS/UNC/尾点空格拒绝",
+        "根据真实卷行为处理大小写",
+        "检查junction和外部回链",
+        "写nlink>1拒绝",
+        "记录不保证抵御恶意同账户TOCTOU的边界"
+      ],
+      "assertions": [
+        "Windows盘符别名不绕过",
+        "Linux不同大小写文件不误合并",
+        "junction回库拒绝",
+        "hardlink写拒绝"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T03.md",
+      "evidencePath": "execution/evidence/P05-T03.json",
+      "scenarioIds": ["SC-P05-T03-01", "SC-P05-T03-02", "SC-P05-T03-03", "SC-P05-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/PlatformPathPolicy.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2846
+    },
+    {
+      "id": "P05-T04",
+      "tag": "policycore",
+      "phase": "P05",
+      "title": "实现固定顺序的纯PolicyEngine",
+      "dependencies": ["P05-T03"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": ["src/agentMode/sdk/pi/policy/PolicyEngine.ts"],
+      "testFile": "src/agentMode/sdk/pi/policy/PolicyEngine.test.ts",
+      "steps": [
+        "输入manifest、targets、mode、scope、caller与rules",
+        "按保护路径→范围→族→只读→风险顺序判定",
+        "auto不免delete/rename/unknown",
+        "readonly child不扩大权",
+        "拒绝带稳定code和suggestedTool"
+      ],
+      "assertions": [
+        "全部policy fixture匹配",
+        "native对Vault返回USE_VAULT_TOOL",
+        "plan未知MCP拒绝",
+        "allow规则不能覆盖deny"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T04.md",
+      "evidencePath": "execution/evidence/P05-T04.json",
+      "scenarioIds": ["SC-P05-T04-01", "SC-P05-T04-02", "SC-P05-T04-03", "SC-P05-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/PolicyEngine.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2819
+    },
+    {
+      "id": "P05-T05",
+      "tag": "approvalbinding",
+      "phase": "P05",
+      "title": "持久化审批绑定与长期规则",
+      "dependencies": ["P05-T04"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/ApprovalStore.ts",
+        "src/agentMode/sdk/pi/policy/PermissionRules.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/ApprovalStore.test.ts",
+      "steps": [
+        "生成参数/schema/目标/基线/policy/scope摘要",
+        "设置10分钟TTL",
+        "只接受真实optionId",
+        "长期允许限制到支持的精确族/根",
+        "allow_once消费和意图在同提交落盘"
+      ],
+      "assertions": [
+        "参数改动原批准失效",
+        "过期重新申请",
+        "未知option拒绝",
+        "一次允许不能二次消费"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T05.md",
+      "evidencePath": "execution/evidence/P05-T05.json",
+      "scenarioIds": ["SC-P05-T05-01", "SC-P05-T05-02", "SC-P05-T05-03", "SC-P05-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/ApprovalStore.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2818
+    },
+    {
+      "id": "P05-T06",
+      "tag": "permissionui",
+      "phase": "P05",
+      "title": "连接现有权限弹窗与取消",
+      "dependencies": ["P05-T05"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/PermissionBridge.ts",
+        "src/agentMode/session/AgentSession.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/PermissionBridge.test.ts",
+      "steps": [
+        "将ApprovalBinding变为现有PermissionPrompt",
+        "恢复重挂同requestId",
+        "两个窗口提交以事务首个有效决定为准",
+        "无prompter fail closed",
+        "Stop清除waiter而不把关闭弹窗当批准"
+      ],
+      "assertions": [
+        "弹窗批准确实写决定后再执行",
+        "拒绝无效果",
+        "重开只出现一个请求",
+        "多窗口点击只执行一次"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T06.md",
+      "evidencePath": "execution/evidence/P05-T06.json",
+      "scenarioIds": ["SC-P05-T06-01", "SC-P05-T06-02", "SC-P05-T06-03", "SC-P05-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/PermissionBridge.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2854
+    },
+    {
+      "id": "P05-T07",
+      "tag": "gateway",
+      "phase": "P05",
+      "title": "统一模型和嵌套工具执行门",
+      "dependencies": ["P05-T06"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/tools/ToolGateway.ts",
+        "src/agentMode/sdk/pi/policy/ToolHook.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/ToolGateway.test.ts",
+      "steps": [
+        "beforeTool做manifest和caller初检",
+        "execute wrapper审批后再重验取消和target",
+        "所有nested executeTool路径一样审核",
+        "移除modelTools不能被当权限",
+        "不可卸载安全包装器"
+      ],
+      "assertions": [
+        "嵌套工具无法绕过",
+        "审查异常拒绝而非允许",
+        "审批期间scope撤销阻断",
+        "隐藏工具不再可调用"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T07.md",
+      "evidencePath": "execution/evidence/P05-T07.json",
+      "scenarioIds": ["SC-P05-T07-01", "SC-P05-T07-02", "SC-P05-T07-03", "SC-P05-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/ToolGateway.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2828
+    },
+    {
+      "id": "P05-T08",
+      "tag": "audit",
+      "phase": "P05",
+      "title": "实现脱敏审计和安全错误映射",
+      "dependencies": ["P05-T07"],
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/AuditLog.ts",
+        "src/agentMode/sdk/pi/policy/Redactor.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/AuditLog.test.ts",
+      "steps": [
+        "审计记录只保存身份、摘要、目标和决定",
+        "秘密按值与字段两种策略脱敏",
+        "脱敏先于长度截断",
+        "为日志故障设置明确fail/skip边界不泄漏原文",
+        "映射16文档错误到工具和UI"
+      ],
+      "assertions": [
+        "token跨截断边界仍被遮盖",
+        "header/env不落盘",
+        "拒绝记录不是执行成功",
+        "错误含可操作code"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P04",
+      "card": "execution/tasks/P05-T08.md",
+      "evidencePath": "execution/evidence/P05-T08.json",
+      "scenarioIds": ["SC-P05-T08-01", "SC-P05-T08-02", "SC-P05-T08-03", "SC-P05-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/AuditLog.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2842
+    },
+    {
+      "id": "P06-T01",
+      "tag": "vaultreads",
+      "phase": "P06",
+      "title": "实现列表读取与链接工具",
+      "dependencies": ["P05-T08"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/tools/VaultReadTools.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/VaultReadTools.test.ts",
+      "steps": [
+        "注册vault_list/read/links精确schema",
+        "Vault API分页并输出hash和截断信息",
+        "MetadataCache只提供链接候选",
+        "排除protected与项目范围外路径",
+        "无匹配返回空结果非错误"
+      ],
+      "assertions": [
+        "读取行范围和hash正确",
+        "大文件返回下一段",
+        "链接缓存过期不伪造内容",
+        "读越scope被挡"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T01.md",
+      "evidencePath": "execution/evidence/P06-T01.json",
+      "scenarioIds": ["SC-P06-T01-01", "SC-P06-T01-02", "SC-P06-T01-03", "SC-P06-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultReadTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2838
+    },
+    {
+      "id": "P06-T02",
+      "tag": "vaultsearch",
+      "phase": "P06",
+      "title": "实现无CLI关键词搜索",
+      "dependencies": ["P06-T01"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/tools/VaultSearch.ts",
+        "src/agentMode/sdk/pi/tools/VaultSearchIndex.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/VaultSearch.test.ts",
+      "steps": [
+        "标题标签正文分层检索",
+        "按需分批Vault.read并尊重取消",
+        "固定排序和游标",
+        "订阅文件事件使缓存失效",
+        "不调用rg/grep或上传全文"
+      ],
+      "assertions": [
+        "中文命中片段正确",
+        "rename后旧路径失效",
+        "取消停止扫描",
+        "不搜索配置和会话私有目录"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T02.md",
+      "evidencePath": "execution/evidence/P06-T02.json",
+      "scenarioIds": ["SC-P06-T02-01", "SC-P06-T02-02", "SC-P06-T02-03", "SC-P06-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultSearch.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2832
+    },
+    {
+      "id": "P06-T03",
+      "tag": "patch",
+      "phase": "P06",
+      "title": "实现确定性精确patch准备器",
+      "dependencies": ["P06-T02"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/tools/ExactPatch.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/ExactPatch.test.ts",
+      "steps": [
+        "验证oldText唯一匹配或明确occurrence",
+        "全部edit基于同一before求区间",
+        "拒绝重叠再倒序应用",
+        "生成before/after hashes和完整proposed diff",
+        "限制输入输出大小，禁止截断写回"
+      ],
+      "assertions": [
+        "0匹配/多匹配分别错误",
+        "重叠拒绝无内容改变",
+        "Unicode字节hash正确",
+        "oversize不产生写入"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T03.md",
+      "evidencePath": "execution/evidence/P06-T03.json",
+      "scenarioIds": ["SC-P06-T03-01", "SC-P06-T03-02", "SC-P06-T03-03", "SC-P06-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/ExactPatch.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2842
+    },
+    {
+      "id": "P06-T04",
+      "tag": "mutationledger",
+      "phase": "P06",
+      "title": "实现mutation账本与短期路径锁",
+      "dependencies": ["P06-T03"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/tools/MutationCoordinator.ts",
+        "src/agentMode/sdk/pi/tools/PathLockPool.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/MutationCoordinator.test.ts",
+      "steps": [
+        "实现规定状态机和稳定operationId",
+        "before/after blob先落盘再intent",
+        "审批等待不持锁",
+        "按canonical排序取得多路径锁",
+        "receipt只记录实际事实并包含审批引用"
+      ],
+      "assertions": [
+        "两会话同文件串行检查",
+        "待审批不堵住读",
+        "blob失败无写",
+        "写成功receipt失败是unknown"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T04.md",
+      "evidencePath": "execution/evidence/P06-T04.json",
+      "scenarioIds": ["SC-P06-T04-01", "SC-P06-T04-02", "SC-P06-T04-03", "SC-P06-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/MutationCoordinator.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2901
+    },
+    {
+      "id": "P06-T05",
+      "tag": "vaultwrite",
+      "phase": "P06",
+      "title": "实现Vault创建和CAS修改",
+      "dependencies": ["P06-T04"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/tools/VaultWriteTools.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/VaultWriteTools.test.ts",
+      "steps": [
+        "create用Vault.create且已存在不覆盖",
+        "edit在Vault.process同步回调重新比hash",
+        "写前执行最终gateway和取消检查",
+        "成功后验证真实内容/保存receipt",
+        "只对满足ledger条件的工具标safe"
+      ],
+      "assertions": [
+        "审批期间用户改动导致stale",
+        "重复恢复不再次应用patch",
+        "已存在create失败",
+        "cancel写前无效果"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T05.md",
+      "evidencePath": "execution/evidence/P06-T05.json",
+      "scenarioIds": ["SC-P06-T05-01", "SC-P06-T05-02", "SC-P06-T05-03", "SC-P06-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultWriteTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2860
+    },
+    {
+      "id": "P06-T06",
+      "tag": "frontmatter",
+      "phase": "P06",
+      "title": "实现可预览的frontmatter CAS工具",
+      "dependencies": ["P06-T05"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/tools/VaultFrontmatter.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/VaultFrontmatter.test.ts",
+      "steps": [
+        "识别合法frontmatter边界并用Obsidian YAML公共函数解析",
+        "只允许JSON数据的set/remove",
+        "保留正文原样生成proposedContent",
+        "完整显示格式变化",
+        "走同一Vault.process CAS，不另起写通道"
+      ],
+      "assertions": [
+        "正文不变",
+        "恶意YAML标签不执行",
+        "缺frontmatter可创建",
+        "基线变化不覆盖",
+        "格式变化出现在Diff"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T06.md",
+      "evidencePath": "execution/evidence/P06-T06.json",
+      "scenarioIds": [
+        "SC-P06-T06-01",
+        "SC-P06-T06-02",
+        "SC-P06-T06-03",
+        "SC-P06-T06-04",
+        "SC-P06-T06-05"
+      ],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultFrontmatter.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2904
+    },
+    {
+      "id": "P06-T07",
+      "tag": "moveandtrash",
+      "phase": "P06",
+      "title": "实现单文件重命名与回收",
+      "dependencies": ["P06-T06"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/tools/VaultMoveTools.ts",
+        "src/agentMode/sdk/pi/tools/LinkedChangeCapture.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/VaultMoveTools.test.ts",
+      "steps": [
+        "审查rename两端与入链候选",
+        "调用FileManager.renameFile或回收API",
+        "收集可归因变化与未知并发修改",
+        "失败记录partial/unknown",
+        "两类工具unsafe，不自动恢复重做"
+      ],
+      "assertions": [
+        "链接更新可显示",
+        "并发不明修改不归Agent",
+        "回收不用永久删除",
+        "同路径新文件不被恢复流程再删"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T07.md",
+      "evidencePath": "execution/evidence/P06-T07.json",
+      "scenarioIds": ["SC-P06-T07-01", "SC-P06-T07-02", "SC-P06-T07-03", "SC-P06-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultMoveTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2902
+    },
+    {
+      "id": "P06-T08",
+      "tag": "editoractions",
+      "phase": "P06",
+      "title": "实现选区与打开笔记公共API动作",
+      "dependencies": ["P06-T07"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/tools/ObsidianActions.ts",
+        "src/agentMode/sdk/pi/tools/SelectionSnapshot.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/ObsidianActions.test.ts",
+      "steps": [
+        "固定可用动作注册表与schema",
+        "当前选区绑定leaf/file/content/range",
+        "审批后同视图重验",
+        "普通写遇不同步buffer返回冲突",
+        "拒绝任意commandId和JS"
+      ],
+      "assertions": [
+        "切换文件不能误改",
+        "popout使用注入App",
+        "未保存buffer不被磁盘写覆盖",
+        "未知commandId拒绝"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T08.md",
+      "evidencePath": "execution/evidence/P06-T08.json",
+      "scenarioIds": ["SC-P06-T08-01", "SC-P06-T08-02", "SC-P06-T08-03", "SC-P06-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/ObsidianActions.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2901
+    },
+    {
+      "id": "P06-T09",
+      "tag": "diffprojection",
+      "phase": "P06",
+      "title": "把真实receipt接到变更卡和Diff",
+      "dependencies": ["P06-T08"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/events/MutationProjection.ts",
+        "src/agentMode/session/turnFileChanges.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/MutationProjection.test.ts",
+      "steps": [
+        "MutationReceipt转既有TurnFileChange/ToolCallContent",
+        "before/after取账本blob不取模型描述",
+        "部分和unknown状态有明确标记",
+        "一轮多次同文件合并首before末after",
+        "取消仍保留已提交变化"
+      ],
+      "assertions": [
+        "FilesChanged与Diff实际内容一致",
+        "同文件不重复计变更",
+        "unknown不伪造可回滚",
+        "取消后变更仍可见"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T09.md",
+      "evidencePath": "execution/evidence/P06-T09.json",
+      "scenarioIds": ["SC-P06-T09-01", "SC-P06-T09-02", "SC-P06-T09-03", "SC-P06-T09-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/MutationProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2956
+    },
+    {
+      "id": "P06-T10",
+      "tag": "revert",
+      "phase": "P06",
+      "title": "实现冲突安全的变更回退",
+      "dependencies": ["P06-T09"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/tools/RevertMutation.ts",
+        "src/agentMode/session/turnFileChanges.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/RevertMutation.test.ts",
+      "steps": [
+        "回退创建新operation并审批",
+        "当前hash必须匹配receipt.after",
+        "按操作类型用VaultAPI补偿",
+        "rename多文件不明部分停止人工核对",
+        "冲突只展示不强写"
+      ],
+      "assertions": [
+        "用户后续编辑不被回滚覆盖",
+        "重复回滚不重做",
+        "创建回退进回收站",
+        "部分失败明示"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T10.md",
+      "evidencePath": "execution/evidence/P06-T10.json",
+      "scenarioIds": ["SC-P06-T10-01", "SC-P06-T10-02", "SC-P06-T10-03", "SC-P06-T10-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/RevertMutation.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2873
+    },
+    {
+      "id": "P06-T11",
+      "tag": "mutationrecovery",
+      "phase": "P06",
+      "title": "实现写操作崩溃对账测试与修复",
+      "dependencies": ["P06-T10"],
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/storage/MutationRecovery.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/MutationRecovery.test.ts",
+      "steps": [
+        "按before/after/current判定prepared/committed/unknown",
+        "确认after仅补receipt",
+        "不匹配转needs_reconciliation",
+        "对unsafe操作禁止再执行",
+        "接入恢复面板真实可继续状态"
+      ],
+      "assertions": [
+        "效果后receipt前中断只写一次",
+        "before仍在可再审批",
+        "不同current不覆盖",
+        "对账期间无模型自动重试"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P05",
+      "card": "execution/tasks/P06-T11.md",
+      "evidencePath": "execution/evidence/P06-T11.json",
+      "scenarioIds": ["SC-P06-T11-01", "SC-P06-T11-02", "SC-P06-T11-03", "SC-P06-T11-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/MutationRecovery.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2874
+    },
+    {
+      "id": "P07-T01",
+      "tag": "externalscope",
+      "phase": "P07",
+      "title": "实现用户驱动的外部目录授权",
+      "dependencies": ["P06-T11"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/ExternalScopes.ts",
+        "src/agentMode/backends/pi/ExternalScopeSettings.tsx"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/ExternalScopes.test.ts",
+      "steps": [
+        "仅用户操作可创建scope",
+        "解析真实根并排除Vault/state/config重叠",
+        "记录读写权限版本和有效期",
+        "scope撤销立即影响未执行工具",
+        "添加设置story和失效提示"
+      ],
+      "assertions": [
+        "模型不能写scope",
+        "授权home不默认发生",
+        "撤销后旧批准无效",
+        "重复同根规则合并但不扩大"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T01.md",
+      "evidencePath": "execution/evidence/P07-T01.json",
+      "scenarioIds": ["SC-P07-T01-01", "SC-P07-T01-02", "SC-P07-T01-03", "SC-P07-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/ExternalScopes.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2831
+    },
+    {
+      "id": "P07-T02",
+      "tag": "externalenv",
+      "phase": "P07",
+      "title": "实现完整GuardedExternalEnv",
+      "dependencies": ["P07-T01"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": ["src/agentMode/sdk/pi/tools/GuardedExternalEnv.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/GuardedExternalEnv.test.ts",
+      "steps": [
+        "实现锁定ExecutionEnv的全部公开I/O方法",
+        "每次fs调用前规范化与检查",
+        "临时输出使用私有受控目录且不可被普通工具读取",
+        "不泄漏raw env",
+        "exec走单独命令门"
+      ],
+      "assertions": [
+        "间接stat/read也不能逃逸",
+        "新文件symlink父拒绝",
+        "外部写硬链接拒绝",
+        "rawNodeEnv未暴露"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T02.md",
+      "evidencePath": "execution/evidence/P07-T02.json",
+      "scenarioIds": ["SC-P07-T02-01", "SC-P07-T02-02", "SC-P07-T02-03", "SC-P07-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/GuardedExternalEnv.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2763
+    },
+    {
+      "id": "P07-T03",
+      "tag": "nativefiles",
+      "phase": "P07",
+      "title": "注册Pi原生read/write/edit工具包装",
+      "dependencies": ["P07-T02"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": ["src/agentMode/sdk/pi/tools/NativeTools.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/NativeTools.test.ts",
+      "steps": [
+        "导入官方createReadTool/createWriteTool/createEditTool",
+        "注入GuardedExternalEnv",
+        "封装权限diff和receipt",
+        "保留原生结果语义与output limits",
+        "库内目标拒绝不自动调用另一个工具"
+      ],
+      "assertions": [
+        "native算法真实执行",
+        "write审批前零写",
+        "对Vault返回USE_VAULT_TOOL",
+        "错误不是空成功"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T03.md",
+      "evidencePath": "execution/evidence/P07-T03.json",
+      "scenarioIds": ["SC-P07-T03-01", "SC-P07-T03-02", "SC-P07-T03-03", "SC-P07-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/NativeTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2767
+    },
+    {
+      "id": "P07-T04",
+      "tag": "executionmode",
+      "phase": "P07",
+      "title": "实现strict与trusted_host设置和风险确认",
+      "dependencies": ["P07-T03"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": [
+        "src/agentMode/sdk/pi/policy/HostExecutionPolicy.ts",
+        "src/agentMode/backends/pi/HostExecutionSettings.tsx"
+      ],
+      "testFile": "src/agentMode/sdk/pi/policy/HostExecutionPolicy.test.ts",
+      "steps": [
+        "默认strict禁止opaque进程",
+        "trusted_host只由用户确认开启",
+        "每次command仍确认且无always",
+        "显示非沙盒说明",
+        "设置更改撤销未开始命令许可"
+      ],
+      "assertions": [
+        "auto模式不能绕strict",
+        "模型参数不能开启信任",
+        "strict零spawn",
+        "取消风险弹窗仍strict"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T04.md",
+      "evidencePath": "execution/evidence/P07-T04.json",
+      "scenarioIds": ["SC-P07-T04-01", "SC-P07-T04-02", "SC-P07-T04-03", "SC-P07-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/HostExecutionPolicy.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2832
+    },
+    {
+      "id": "P07-T05",
+      "tag": "nativecommands",
+      "phase": "P07",
+      "title": "注册原生bash与PowerShell并约束解释器",
+      "dependencies": ["P07-T04"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": [
+        "src/agentMode/sdk/pi/tools/NativeCommands.ts",
+        "src/agentMode/sdk/pi/tools/InterpreterResolver.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/NativeCommands.test.ts",
+      "steps": [
+        "使用官方工具工厂",
+        "解释器只选实际存在的系统绝对路径/用户明确配置",
+        "不PATH搜索或下载",
+        "覆盖默认timeout和output限制",
+        "不存在解释器只标该能力不可用"
+      ],
+      "assertions": [
+        "无bash仍可聊天和Vault",
+        "Windows不要求GitBash",
+        "命令每次审批",
+        "不调用process.execPath当Node"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T05.md",
+      "evidencePath": "execution/evidence/P07-T05.json",
+      "scenarioIds": ["SC-P07-T05-01", "SC-P07-T05-02", "SC-P07-T05-03", "SC-P07-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/NativeCommands.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2843
+    },
+    {
+      "id": "P07-T06",
+      "tag": "processcancel",
+      "phase": "P07",
+      "title": "实现进程取消与输出清洗",
+      "dependencies": ["P07-T05"],
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "files": [
+        "src/agentMode/sdk/pi/tools/ProcessSupervisor.ts",
+        "src/agentMode/sdk/pi/tools/CommandEnvironment.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/tools/ProcessSupervisor.test.ts",
+      "steps": [
+        "inheritEnv:false建立最小环境",
+        "timeout/output上限终止",
+        "stdout脱敏后保留尾部和spill",
+        "按平台清理进程组并记录不完整清理",
+        "opaque工具unsafe恢复不重发"
+      ],
+      "assertions": [
+        "APIKey不进入env",
+        "长输出被限",
+        "取消信号到实际进程",
+        "无法证明子树已停显示cleanup_incomplete"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P06",
+      "card": "execution/tasks/P07-T06.md",
+      "evidencePath": "execution/evidence/P07-T06.json",
+      "scenarioIds": ["SC-P07-T06-01", "SC-P07-T06-02", "SC-P07-T06-03", "SC-P07-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/ProcessSupervisor.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2818
+    },
+    {
+      "id": "P08-T01",
+      "tag": "todos",
+      "phase": "P08",
+      "title": "实现版本化todo工具和进度投影",
+      "dependencies": ["P07-T06"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": ["src/agentMode/sdk/pi/features/Todos.ts", "src/agentMode/session/AgentSession.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/Todos.test.ts",
+      "steps": [
+        "实现todo_set schema/revision检查和稳定新ID",
+        "事务同步文档与事件",
+        "映射todo_update到getter与plan part",
+        "重复调用返回既有结果",
+        "接通ProjectInfoPopover进度"
+      ],
+      "assertions": [
+        "同revision冲突不丢数据",
+        "恢复显示相同列表",
+        "同call不增revision两次",
+        "不是仅显示TodoWrite卡"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T01.md",
+      "evidencePath": "execution/evidence/P08-T01.json",
+      "scenarioIds": ["SC-P08-T01-01", "SC-P08-T01-02", "SC-P08-T01-03", "SC-P08-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Todos.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2815
+    },
+    {
+      "id": "P08-T02",
+      "tag": "planstate",
+      "phase": "P08",
+      "title": "实现计划提交和CurrentPlan投影",
+      "dependencies": ["P08-T01"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/Plans.ts",
+        "src/agentMode/sdk/pi/events/PlanProjection.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/Plans.test.ts",
+      "steps": [
+        "创建稳定planId/revision/body/pendingTool",
+        "写入文档和事件",
+        "设真实permissionGated状态",
+        "限制大小并保留正文来源",
+        "把CurrentPlan送现有卡片不解析ClaudeSDK输出"
+      ],
+      "assertions": [
+        "新revision替换待审批正文",
+        "旧revision批准失效",
+        "重开计划卡存在",
+        "超大正文不进入模型循环"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T02.md",
+      "evidencePath": "execution/evidence/P08-T02.json",
+      "scenarioIds": ["SC-P08-T02-01", "SC-P08-T02-02", "SC-P08-T02-03", "SC-P08-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Plans.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2822
+    },
+    {
+      "id": "P08-T03",
+      "tag": "plandecision",
+      "phase": "P08",
+      "title": "接通计划批准拒绝与反馈",
+      "dependencies": ["P08-T02"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/PlanDecision.ts",
+        "src/agentMode/session/AgentSession.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/PlanDecision.test.ts",
+      "steps": [
+        "approve/reject/feedback事务校验状态和revision",
+        "批准只转default并继续工具",
+        "拒绝不执行后续",
+        "反馈产生待修订状态",
+        "重复窗口点击幂等"
+      ],
+      "assertions": [
+        "批准计划后写文件仍审批",
+        "拒绝不绕成auto",
+        "反馈真实进入下一次模型上下文",
+        "关闭卡片不默认批准"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T03.md",
+      "evidencePath": "execution/evidence/P08-T03.json",
+      "scenarioIds": ["SC-P08-T03-01", "SC-P08-T03-02", "SC-P08-T03-03", "SC-P08-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/PlanDecision.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2814
+    },
+    {
+      "id": "P08-T04",
+      "tag": "questions",
+      "phase": "P08",
+      "title": "实现持久化ask_user工具",
+      "dependencies": ["P08-T03"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/Questions.ts",
+        "src/agentMode/sdk/pi/features/QuestionBridge.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/Questions.test.ts",
+      "steps": [
+        "校验问题个数/选项/answerKey唯一",
+        "写文档后挂既有prompter",
+        "答案验证并落盘后resolve",
+        "恢复重用已有答案或同请求",
+        "取消解除waiter不填默认"
+      ],
+      "assertions": [
+        "多选和其他文本可用",
+        "重复答案只交付一次",
+        "重开请求不丢",
+        "Stop不会留下悬挂Promise"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T04.md",
+      "evidencePath": "execution/evidence/P08-T04.json",
+      "scenarioIds": ["SC-P08-T04-01", "SC-P08-T04-02", "SC-P08-T04-03", "SC-P08-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Questions.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2796
+    },
+    {
+      "id": "P08-T05",
+      "tag": "compaction",
+      "phase": "P08",
+      "title": "接通手动自动压缩和真实终态",
+      "dependencies": ["P08-T04"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/Compaction.ts",
+        "src/agentMode/sdk/pi/events/CompactionProjection.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/Compaction.test.ts",
+      "steps": [
+        "dispatch识别compact命令",
+        "复用Durable任务与安全窗口策略",
+        "追踪task和summary submission实际放置",
+        "映射completed/failed/cancelled/skipped",
+        "旧全文继续从entries展示"
+      ],
+      "assertions": [
+        "stale压缩显示skipped非成功",
+        "overflow不无限重试",
+        "压缩后旧聊天可读",
+        "只压缩行无假最终回答"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T05.md",
+      "evidencePath": "execution/evidence/P08-T05.json",
+      "scenarioIds": ["SC-P08-T05-01", "SC-P08-T05-02", "SC-P08-T05-03", "SC-P08-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Compaction.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2851
+    },
+    {
+      "id": "P08-T06",
+      "tag": "feedback",
+      "phase": "P08",
+      "title": "实现本地错误反馈与报告桥",
+      "dependencies": ["P08-T05"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/Feedback.ts",
+        "src/agentMode/session/feedback/feedbackOffer.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/Feedback.test.ts",
+      "steps": [
+        "按连续同类错误或用户动作生成真实offer",
+        "复用现有卡和报告modal",
+        "默认脱敏与不含笔记正文",
+        "持久化dismiss/关闭",
+        "不依赖旧feedback MCP服务器"
+      ],
+      "assertions": ["错误真实触发卡", "dismiss重开不再弹", "没确认不上传", "turnoff阻止新offer"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T06.md",
+      "evidencePath": "execution/evidence/P08-T06.json",
+      "scenarioIds": ["SC-P08-T06-01", "SC-P08-T06-02", "SC-P08-T06-03", "SC-P08-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Feedback.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2797
+    },
+    {
+      "id": "P08-T07",
+      "tag": "localbudgetui",
+      "phase": "P08",
+      "title": "接通真实用量与本地预算窗口",
+      "dependencies": ["P08-T06"],
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/BudgetProjection.ts",
+        "src/agentMode/session/planUsage.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/BudgetProjection.test.ts",
+      "steps": [
+        "区分当前context和累计usage",
+        "引入provider/local_budget来源",
+        "未知价格额度显示unknown",
+        "本地预算百分比有明确标签",
+        "保留原usage渲染但去掉假订阅来源"
+      ],
+      "assertions": [
+        "BYOK没有伪Claude额度",
+        "usage替换不重复累加",
+        "预算可显示且来源清晰",
+        "无预算不显示0百分比假上限"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P07",
+      "card": "execution/tasks/P08-T07.md",
+      "evidencePath": "execution/evidence/P08-T07.json",
+      "scenarioIds": ["SC-P08-T07-01", "SC-P08-T07-02", "SC-P08-T07-03", "SC-P08-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/BudgetProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2856
+    },
+    {
+      "id": "P09-T01",
+      "tag": "mcpconfig",
+      "phase": "P09",
+      "title": "实现MCP配置schema和秘密引用",
+      "dependencies": ["P08-T07"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpConfig.ts",
+        "src/agentMode/sdk/pi/mcp/McpSecretRefs.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpConfig.test.ts",
+      "steps": [
+        "定义HTTP/stdio联合配置和scope",
+        "生成revision/fingerprint",
+        "token只保存secretRef",
+        "拒绝!command、相对executable与隐式环境求值",
+        "导入配置默认为未启用待信任"
+      ],
+      "assertions": [
+        "带秘密配置导出无原文",
+        "不透明配置命令被拒绝",
+        "不同fingerprint使旧审批失效",
+        "未知字段明确错误"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T01.md",
+      "evidencePath": "execution/evidence/P09-T01.json",
+      "scenarioIds": ["SC-P09-T01-01", "SC-P09-T01-02", "SC-P09-T01-03", "SC-P09-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpConfig.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2854
+    },
+    {
+      "id": "P09-T02",
+      "tag": "mcpmanager",
+      "phase": "P09",
+      "title": "实现HTTP连接状态和池",
+      "dependencies": ["P09-T01"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpManager.ts",
+        "src/agentMode/sdk/pi/mcp/HttpTransport.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpManager.test.ts",
+      "steps": [
+        "用公开McpClient/StreamableHttpTransport",
+        "按root/scope/fingerprint缓存连接",
+        "合并并发connect",
+        "在关闭/失败清理",
+        "凭据只传目标origin且每次重定向检查"
+      ],
+      "assertions": [
+        "同key只握手一次",
+        "另一Vault不共享",
+        "连接失败不影响Vault工具",
+        "插件shutdown关闭连接"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T02.md",
+      "evidencePath": "execution/evidence/P09-T02.json",
+      "scenarioIds": ["SC-P09-T02-01", "SC-P09-T02-02", "SC-P09-T02-03", "SC-P09-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpManager.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2811
+    },
+    {
+      "id": "P09-T03",
+      "tag": "mcpcatalog",
+      "phase": "P09",
+      "title": "实现分页工具目录和安全schema适配",
+      "dependencies": ["P09-T02"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpCatalog.ts",
+        "src/agentMode/sdk/pi/mcp/McpToolNames.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpCatalog.test.ts",
+      "steps": [
+        "完整分页直到结束或500上限",
+        "按原始server/tool生成hash命名",
+        "校验object schema深度与长度",
+        "保留required限制",
+        "tool-list-change提高catalogVersion并使旧许可作废"
+      ],
+      "assertions": [
+        "长名和中文名无碰撞",
+        "超过500明确不完整",
+        "恶意schema不注册",
+        "动态变化不沿用旧批准"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T03.md",
+      "evidencePath": "execution/evidence/P09-T03.json",
+      "scenarioIds": ["SC-P09-T03-01", "SC-P09-T03-02", "SC-P09-T03-03", "SC-P09-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpCatalog.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2862
+    },
+    {
+      "id": "P09-T04",
+      "tag": "mcptool",
+      "phase": "P09",
+      "title": "实现Durable MCP工具桥",
+      "dependencies": ["P09-T03"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/mcp/McpToolAdapter.ts"],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpToolAdapter.test.ts",
+      "steps": [
+        "转换为真实Durable execute签名",
+        "调用client.callTool带真实signal",
+        "toLlmContent映射output并保留isError",
+        "安全structuredContent放details以供历史",
+        "所有调用经过manifest和gateway"
+      ],
+      "assertions": [
+        "服务端isError不会completed",
+        "取消到真实请求",
+        "图片不支持给占位",
+        "unknown效果不自动允许"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T04.md",
+      "evidencePath": "execution/evidence/P09-T04.json",
+      "scenarioIds": ["SC-P09-T04-01", "SC-P09-T04-02", "SC-P09-T04-03", "SC-P09-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpToolAdapter.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2815
+    },
+    {
+      "id": "P09-T05",
+      "tag": "mcpprogress",
+      "phase": "P09",
+      "title": "实现MCP进度与输出限制",
+      "dependencies": ["P09-T04"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpProgress.ts",
+        "src/agentMode/sdk/pi/events/ToolProjection.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpProgress.test.ts",
+      "steps": [
+        "将progressToken关联host callId",
+        "增量输出限额与脱敏",
+        "不依赖server报告百分比完整性",
+        "超时取消返回unknown effect必要提示",
+        "历史保留有限终态信息"
+      ],
+      "assertions": [
+        "并发进度不串卡",
+        "大输出受限",
+        "迟到事件不复活结束工具",
+        "重复结束不重复计时"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T05.md",
+      "evidencePath": "execution/evidence/P09-T05.json",
+      "scenarioIds": ["SC-P09-T05-01", "SC-P09-T05-02", "SC-P09-T05-03", "SC-P09-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpProgress.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2824
+    },
+    {
+      "id": "P09-T06",
+      "tag": "mcptest",
+      "phase": "P09",
+      "title": "实现Test按钮背后的有界测试",
+      "dependencies": ["P09-T05"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/mcp/McpConnectionTest.ts"],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpConnectionTest.test.ts",
+      "steps": [
+        "connect/list/close而不调用工具",
+        "单请求15秒总20秒关闭等待2秒",
+        "同fingerprint测试合并",
+        "最后waiter取消终止真实测试",
+        "脱敏优先并返回工具数/状态"
+      ],
+      "assertions": [
+        "超时会实际停止传输",
+        "多点只连接一次",
+        "测试不产生工具副作用",
+        "secret跨截断仍不泄漏"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T06.md",
+      "evidencePath": "execution/evidence/P09-T06.json",
+      "scenarioIds": ["SC-P09-T06-01", "SC-P09-T06-02", "SC-P09-T06-03", "SC-P09-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpConnectionTest.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2815
+    },
+    {
+      "id": "P09-T07",
+      "tag": "mcpoauth",
+      "phase": "P09",
+      "title": "实现浏览器OAuth与刷新竞态",
+      "dependencies": ["P09-T06"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpOAuth.ts",
+        "src/agentMode/sdk/pi/mcp/McpCredentialStore.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpOAuth.test.ts",
+      "steps": [
+        "使用pi-mcp/oauth公开流程",
+        "绑定loopback和state/PKCE",
+        "token落Keychain",
+        "并发401共享refresh",
+        "signOut提升generation阻止迟到写回",
+        "超时/取消关闭callback服务"
+      ],
+      "assertions": [
+        "无需终端登录",
+        "错state拒绝",
+        "signout后迟到refresh不恢复token",
+        "新origin不能带旧凭据"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T07.md",
+      "evidencePath": "execution/evidence/P09-T07.json",
+      "scenarioIds": ["SC-P09-T07-01", "SC-P09-T07-02", "SC-P09-T07-03", "SC-P09-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpOAuth.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2829
+    },
+    {
+      "id": "P09-T08",
+      "tag": "mcpstdio",
+      "phase": "P09",
+      "title": "实现可选受控stdio transport",
+      "dependencies": ["P09-T07"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/mcp/StdioTransportFactory.ts"],
+      "testFile": "src/agentMode/sdk/pi/mcp/StdioTransportFactory.test.ts",
+      "steps": [
+        "strict禁止启动不透明本地服务器",
+        "trusted_host要求配置风险授权",
+        "绝对path和cwd，inheritEnv:false",
+        "只注入该server被授权的环境秘密",
+        "无解释器时只禁用该server，不自动下载"
+      ],
+      "assertions": [
+        "模型APIKey不继承",
+        "npx命令被拒绝",
+        "路径失效不PATH兜底",
+        "关闭执行真实进程清理"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T08.md",
+      "evidencePath": "execution/evidence/P09-T08.json",
+      "scenarioIds": ["SC-P09-T08-01", "SC-P09-T08-02", "SC-P09-T08-03", "SC-P09-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/StdioTransportFactory.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2841
+    },
+    {
+      "id": "P09-T09",
+      "tag": "mcpexposure",
+      "phase": "P09",
+      "title": "实现direct/deferred/hidden能力选择",
+      "dependencies": ["P09-T08"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/mcp/McpExposure.ts",
+        "src/agentMode/sdk/pi/tools/ToolSearch.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/mcp/McpExposure.test.ts",
+      "steps": [
+        "direct初始上限40",
+        "deferred用Durable公开tool-search",
+        "hidden从callable和model可见集同时去除",
+        "控制保留tool名不冲突",
+        "工具加载信息可供UI但不充当权限"
+      ],
+      "assertions": [
+        "hidden nested调用被拒",
+        "deferred选择恢复后保留",
+        "ToolSearch不污染答案复制",
+        "新增工具仍过审批"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T09.md",
+      "evidencePath": "execution/evidence/P09-T09.json",
+      "scenarioIds": ["SC-P09-T09-01", "SC-P09-T09-02", "SC-P09-T09-03", "SC-P09-T09-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/mcp/McpExposure.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2852
+    },
+    {
+      "id": "P09-T10",
+      "tag": "mcpui",
+      "phase": "P09",
+      "title": "完成MCP设置状态与真实演示",
+      "dependencies": ["P09-T09"],
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/backends/pi/McpSettings.tsx",
+        "src/agentMode/backends/pi/McpServerRow.tsx"
+      ],
+      "testFile": "src/agentMode/backends/pi/McpSettings.test.tsx",
+      "steps": [
+        "UI接真实config/test/connect/oauth状态",
+        "支持编辑禁用删除和scope选择",
+        "显示stdio可选前置与unsupported协议",
+        "加入stories与integration测试",
+        "进行一次HTTP无副作用真实端点演示"
+      ],
+      "assertions": [
+        "按钮不是静态mock",
+        "禁用撤销连接和目录",
+        "OAuth取消恢复可操作",
+        "legacySSE明示unsupported"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P08",
+      "card": "execution/tasks/P09-T10.md",
+      "evidencePath": "execution/evidence/P09-T10.json",
+      "scenarioIds": ["SC-P09-T10-01", "SC-P09-T10-02", "SC-P09-T10-03", "SC-P09-T10-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/backends/pi/McpSettings.test.tsx",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2885
+    },
+    {
+      "id": "P10-T01",
+      "tag": "profiles",
+      "phase": "P10",
+      "title": "定义子代理profiles与能力交集",
+      "dependencies": ["P09-T10"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/features/subagents/Profiles.ts",
+        "src/agentMode/sdk/pi/features/subagents/SubagentScope.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/Profiles.test.ts",
+      "steps": [
+        "内置researcher/reviewer/writer数据profile",
+        "默认writer关闭",
+        "计算父callable与profile/policy交集",
+        "固定深度和model能力限制",
+        "拒绝profile中任意代码与未知工具"
+      ],
+      "assertions": [
+        "子代理不能获得父没有的写权限",
+        "depth2无委派工具",
+        "未知模型不会偷换",
+        "writer需用户启用"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T01.md",
+      "evidencePath": "execution/evidence/P10-T01.json",
+      "scenarioIds": ["SC-P10-T01-01", "SC-P10-T01-02", "SC-P10-T01-03", "SC-P10-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/Profiles.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2926
+    },
+    {
+      "id": "P10-T02",
+      "tag": "childinput",
+      "phase": "P10",
+      "title": "实现子代理任务输入和文件预算",
+      "dependencies": ["P10-T01"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/features/subagents/SubagentInput.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/SubagentInput.test.ts",
+      "steps": [
+        "限制8文件/128KiB/模型10%上下文",
+        "所有文件通过受控读取",
+        "为每项内容加来源hash",
+        "拒绝超限和跨scope而不静默截断",
+        "内容不作为系统权限"
+      ],
+      "assertions": [
+        "外部文件需授权",
+        "同名不同根不混淆",
+        "超限明确失败",
+        "笔记注入不能改变profile"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T02.md",
+      "evidencePath": "execution/evidence/P10-T02.json",
+      "scenarioIds": ["SC-P10-T02-01", "SC-P10-T02-02", "SC-P10-T02-03", "SC-P10-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/SubagentInput.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2861
+    },
+    {
+      "id": "P10-T03",
+      "tag": "delegate",
+      "phase": "P10",
+      "title": "实现可恢复前台delegate工具",
+      "dependencies": ["P10-T02"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/features/subagents/DelegateTool.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/DelegateTool.test.ts",
+      "steps": [
+        "按ownerTaskId同提交查找或创建owned conversation",
+        "配置缩减工具集",
+        "稳定requestId提交任务",
+        "读取真实AssistantEntry答案",
+        "安全replay复用child不重复创建"
+      ],
+      "assertions": [
+        "crash创建后重开只有一个child",
+        "未回答返回真实失败",
+        "父Stop取消child",
+        "卡片收到真实结果"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T03.md",
+      "evidencePath": "execution/evidence/P10-T03.json",
+      "scenarioIds": ["SC-P10-T03-01", "SC-P10-T03-02", "SC-P10-T03-03", "SC-P10-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/DelegateTool.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2865
+    },
+    {
+      "id": "P10-T04",
+      "tag": "childprojection",
+      "phase": "P10",
+      "title": "接通SubAgentCard嵌套事件与查看",
+      "dependencies": ["P10-T03"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/events/SubagentProjection.ts",
+        "src/agentMode/ui/agentTrail.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/SubagentProjection.test.ts",
+      "steps": [
+        "父launch兼容Agent vendor名",
+        "子工具namespaced并设parentToolCallId",
+        "保存child文本与思考在自己的会话",
+        "父卡进度与结果摘要更新稳定ID",
+        "打开子会话只读不触发新run"
+      ],
+      "assertions": [
+        "层级和tool数正确",
+        "无子思考污染主答案",
+        "重开关系不丢",
+        "名为Agent的MCP仍普通工具"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T04.md",
+      "evidencePath": "execution/evidence/P10-T04.json",
+      "scenarioIds": ["SC-P10-T04-01", "SC-P10-T04-02", "SC-P10-T04-03", "SC-P10-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/SubagentProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2913
+    },
+    {
+      "id": "P10-T05",
+      "tag": "backgroundtasks",
+      "phase": "P10",
+      "title": "实现后台Anchor与Reporter检查点",
+      "dependencies": ["P10-T04"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/features/subagents/BackgroundTasks.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/BackgroundTasks.test.ts",
+      "steps": [
+        "按官方例子定义version1 anchor和reporter",
+        "deliver/report分phase保存",
+        "同提交去重answerEntryId",
+        "稳定requestId避免重复子消息/报告",
+        "任务定义随扩展静态注册，不轮询"
+      ],
+      "assertions": [
+        "report提交后crash不会再次报告",
+        "后台仍有明确owner",
+        "缺任务定义恢复blocked不丢弃",
+        "storage错误不继续发报告"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T05.md",
+      "evidencePath": "execution/evidence/P10-T05.json",
+      "scenarioIds": ["SC-P10-T05-01", "SC-P10-T05-02", "SC-P10-T05-03", "SC-P10-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/BackgroundTasks.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2920
+    },
+    {
+      "id": "P10-T06",
+      "tag": "subagentcontrol",
+      "phase": "P10",
+      "title": "实现后台启动查询发信停止工具",
+      "dependencies": ["P10-T05"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/features/subagents/SubagentControlTools.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/SubagentControlTools.test.ts",
+      "steps": [
+        "实现五个明确控制工具schema",
+        "所有目标child验证属于当前root",
+        "start/send稳定命令ID",
+        "stop标unsafe防止重放停止新run",
+        "状态包含queued/running/terminal与可查看引用"
+      ],
+      "assertions": [
+        "不能控制别的root的child",
+        "重复start不复制",
+        "stop后可明确新run",
+        "空状态不是假成功"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T06.md",
+      "evidencePath": "execution/evidence/P10-T06.json",
+      "scenarioIds": ["SC-P10-T06-01", "SC-P10-T06-02", "SC-P10-T06-03", "SC-P10-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/SubagentControlTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2908
+    },
+    {
+      "id": "P10-T07",
+      "tag": "childlimits",
+      "phase": "P10",
+      "title": "实现并发队列与根预算约束",
+      "dependencies": ["P10-T06"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": [
+        "src/agentMode/sdk/pi/features/subagents/SubagentScheduler.ts",
+        "src/agentMode/sdk/pi/runtime/RunBudget.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/SubagentScheduler.test.ts",
+      "steps": [
+        "每根3并发和depth2硬限制",
+        "排队项可取消且不预发请求",
+        "所有子用量计入根但不重复加nested usage",
+        "父权限撤销即时影响后续调用",
+        "路径写入共享锁"
+      ],
+      "assertions": [
+        "第四个确实排队",
+        "排队取消零请求",
+        "总预算拦住子代理",
+        "两个writer不能覆盖彼此"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T07.md",
+      "evidencePath": "execution/evidence/P10-T07.json",
+      "scenarioIds": ["SC-P10-T07-01", "SC-P10-T07-02", "SC-P10-T07-03", "SC-P10-T07-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/SubagentScheduler.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2922
+    },
+    {
+      "id": "P10-T08",
+      "tag": "reportcancel",
+      "phase": "P10",
+      "title": "处理后台报告来源与停止恢复竞态",
+      "dependencies": ["P10-T07"],
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "files": ["src/agentMode/sdk/pi/features/subagents/ReportDelivery.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/subagents/ReportDelivery.test.ts",
+      "steps": [
+        "报告entry有明确工具来源与parentRunId",
+        "仅原run仍允许才followUp",
+        "cancelEpoch失配只存结果不唤起",
+        "恢复需用户继续",
+        "完成更新原父卡并标结果消费"
+      ],
+      "assertions": [
+        "Stop后迟到答案不启动模型",
+        "相同answer只整合一次",
+        "后台关闭Obsidian不持续运行",
+        "恢复卡片与结果一致"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P09",
+      "card": "execution/tasks/P10-T08.md",
+      "evidencePath": "execution/evidence/P10-T08.json",
+      "scenarioIds": ["SC-P10-T08-01", "SC-P10-T08-02", "SC-P10-T08-03", "SC-P10-T08-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/ReportDelivery.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2919
+    },
+    {
+      "id": "P11-T01",
+      "tag": "fanoutmodels",
+      "phase": "P11",
+      "title": "将回答器选择从backend迁移为modelKey",
+      "dependencies": ["P10-T08"],
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/session/fanout/answerers.ts",
+        "src/agentMode/session/fanout/fanoutTypes.ts"
+      ],
+      "testFile": "src/agentMode/session/fanout/answerers.test.ts",
+      "steps": [
+        "保持现有FanoutTurn显示结构",
+        "把执行选择改稳定modelKey并保留历史标签兼容",
+        "校验2至4可用模型",
+        "engineId单一pi",
+        "不能用相同配置冒充多个供应商"
+      ],
+      "assertions": [
+        "旧Fanout历史可读",
+        "同model重复选择有明确政策",
+        "缺key项禁用",
+        "不再启动不同CLI"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P10",
+      "card": "execution/tasks/P11-T01.md",
+      "evidencePath": "execution/evidence/P11-T01.json",
+      "scenarioIds": ["SC-P11-T01-01", "SC-P11-T01-02", "SC-P11-T01-03", "SC-P11-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/session/fanout/answerers.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2815
+    },
+    {
+      "id": "P11-T02",
+      "tag": "fanoutrun",
+      "phase": "P11",
+      "title": "创建只读候选并发任务",
+      "dependencies": ["P11-T01"],
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "files": ["src/agentMode/sdk/pi/features/fanout/FanoutRunner.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/fanout/FanoutRunner.test.ts",
+      "steps": [
+        "一次根作业建立N只读child",
+        "相同审定context与独立slotId",
+        "候选权限交集禁止写",
+        "独立status/text/error/usage入库",
+        "Stop取消全部未完成候选"
+      ],
+      "assertions": [
+        "候选拒绝写工具",
+        "一个失败不抹其他结果",
+        "真正不同模型被调用",
+        "取消不留隐藏任务"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P10",
+      "card": "execution/tasks/P11-T02.md",
+      "evidencePath": "execution/evidence/P11-T02.json",
+      "scenarioIds": ["SC-P11-T02-01", "SC-P11-T02-02", "SC-P11-T02-03", "SC-P11-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/fanout/FanoutRunner.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2778
+    },
+    {
+      "id": "P11-T03",
+      "tag": "fanoutsynthesis",
+      "phase": "P11",
+      "title": "实现综合步骤和结果来源",
+      "dependencies": ["P11-T02"],
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "files": ["src/agentMode/sdk/pi/features/fanout/FanoutSynthesis.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/fanout/FanoutSynthesis.test.ts",
+      "steps": [
+        "所有候选settled后统计成功",
+        "至少1成功才发综合",
+        "只传真实候选和失败说明",
+        "指定综合模型受根预算",
+        "当前评估字段用校验结构或明示不可用不随机赋分"
+      ],
+      "assertions": [
+        "全失败零综合请求",
+        "部分失败在卡上可见",
+        "引用候选不捏造一致意见",
+        "综合model配置正确"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P10",
+      "card": "execution/tasks/P11-T03.md",
+      "evidencePath": "execution/evidence/P11-T03.json",
+      "scenarioIds": ["SC-P11-T03-01", "SC-P11-T03-02", "SC-P11-T03-03", "SC-P11-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/fanout/FanoutSynthesis.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2826
+    },
+    {
+      "id": "P11-T04",
+      "tag": "fanoutprojection",
+      "phase": "P11",
+      "title": "接通现有FanoutMessageCard",
+      "dependencies": ["P11-T03"],
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "files": [
+        "src/agentMode/sdk/pi/events/FanoutProjection.ts",
+        "src/agentMode/ui/FanoutMessageCard.tsx"
+      ],
+      "testFile": "src/agentMode/sdk/pi/events/FanoutProjection.test.ts",
+      "steps": [
+        "真实文档投影到候选/综合/状态",
+        "稳定slot ID更新",
+        "保留模型标签与错误显示",
+        "原消息复制导出可用",
+        "增加真实事件驱动stories"
+      ],
+      "assertions": [
+        "未完成候选不显示成功",
+        "空答案有明确状态",
+        "综合可复制",
+        "模型来源与实际请求一致"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P10",
+      "card": "execution/tasks/P11-T04.md",
+      "evidencePath": "execution/evidence/P11-T04.json",
+      "scenarioIds": ["SC-P11-T04-01", "SC-P11-T04-02", "SC-P11-T04-03", "SC-P11-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/FanoutProjection.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2795
+    },
+    {
+      "id": "P11-T05",
+      "tag": "fanoutrecovery",
+      "phase": "P11",
+      "title": "实现Fan-out恢复和历史导出",
+      "dependencies": ["P11-T04"],
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "files": ["src/agentMode/sdk/pi/features/fanout/FanoutRecovery.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/fanout/FanoutRecovery.test.ts",
+      "steps": [
+        "slot和综合分别固定requestId",
+        "重开先读取完成结果",
+        "只恢复pending且用户确认继续",
+        "历史复合格式兼容旧Markdown",
+        "后续修改另起普通权限run"
+      ],
+      "assertions": [
+        "已完成候选不再收费调用",
+        "恢复综合不重复",
+        "历史卡完整",
+        "只读fanout不能直接写库"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P10",
+      "card": "execution/tasks/P11-T05.md",
+      "evidencePath": "execution/evidence/P11-T05.json",
+      "scenarioIds": ["SC-P11-T05-01", "SC-P11-T05-02", "SC-P11-T05-03", "SC-P11-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/fanout/FanoutRecovery.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2783
+    },
+    {
+      "id": "P12-T01",
+      "tag": "skillsload",
+      "phase": "P12",
+      "title": "复用技能canonical store并建立宿主索引",
+      "dependencies": ["P11-T05"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/features/SkillsCatalog.ts", "src/agentMode/skills/index.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/SkillsCatalog.test.ts",
+      "steps": [
+        "读取现有canonical metadata不造第二存储",
+        "建立skillId/hash/scope/trust",
+        "保留UI编辑启停",
+        "Pi读取不依赖symlink到CLI",
+        "同名冲突显式标来源"
+      ],
+      "assertions": ["旧技能仍可见", "禁用技能不注入", "修改hash生效在下轮", "不建立Agent安装目录"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T01.md",
+      "evidencePath": "execution/evidence/P12-T01.json",
+      "scenarioIds": ["SC-P12-T01-01", "SC-P12-T01-02", "SC-P12-T01-03", "SC-P12-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/SkillsCatalog.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2813
+    },
+    {
+      "id": "P12-T02",
+      "tag": "skilltool",
+      "phase": "P12",
+      "title": "实现受控load_skill与脚本边界",
+      "dependencies": ["P12-T01"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/features/SkillTools.ts"],
+      "testFile": "src/agentMode/sdk/pi/features/SkillTools.test.ts",
+      "steps": [
+        "按用户选择或显式工具读取技能全文",
+        "先检查scope与信任",
+        "说明和资源按需加载",
+        "拒绝skill试图注册工具或eval",
+        "脚本要求host_process审核不暗中执行"
+      ],
+      "assertions": [
+        "恶意skill不能变auto",
+        "相对资源不能越目录",
+        "关闭技能即时停止新加载",
+        "无rawSDK可用"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T02.md",
+      "evidencePath": "execution/evidence/P12-T02.json",
+      "scenarioIds": ["SC-P12-T02-01", "SC-P12-T02-02", "SC-P12-T02-03", "SC-P12-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/SkillTools.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2781
+    },
+    {
+      "id": "P12-T03",
+      "tag": "contextbuilder",
+      "phase": "P12",
+      "title": "接入原ContextProcessor并去重历史",
+      "dependencies": ["P12-T02"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/ContextBuilder.ts",
+        "src/agentMode/session/AgentSession.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/ContextBuilder.test.ts",
+      "steps": [
+        "按13固定优先序建立sections与资料",
+        "区分主动skill和外部笔记来源",
+        "移除已由Durable持有的重复history envelope",
+        "资料预算128KiB与模型窗口双限",
+        "保存来源/hash供恢复"
+      ],
+      "assertions": [
+        "历史不发送两遍",
+        "selected note正确引用",
+        "恶意笔记不进入系统权限",
+        "超限提示非静默全库上传"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T03.md",
+      "evidencePath": "execution/evidence/P12-T03.json",
+      "scenarioIds": ["SC-P12-T03-01", "SC-P12-T03-02", "SC-P12-T03-03", "SC-P12-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/ContextBuilder.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2871
+    },
+    {
+      "id": "P12-T04",
+      "tag": "attachments",
+      "phase": "P12",
+      "title": "接通图片附件存取和模型能力",
+      "dependencies": ["P12-T03"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/Attachments.ts",
+        "src/agentMode/session/AgentChatPersistenceManager.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/Attachments.test.ts",
+      "steps": [
+        "复用既有图片receipt/导出路径",
+        "工具读取受scope限制",
+        "保存MIME/blobRef并验证大小",
+        "不支持图片的模型明示",
+        "丢失附件不阻断其他历史"
+      ],
+      "assertions": [
+        "图片进入真实模型message",
+        "不支持时不假装识别",
+        "跨路径附件拒绝",
+        "导出能重载图片"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T04.md",
+      "evidencePath": "execution/evidence/P12-T04.json",
+      "scenarioIds": ["SC-P12-T04-01", "SC-P12-T04-02", "SC-P12-T04-03", "SC-P12-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Attachments.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2827
+    },
+    {
+      "id": "P12-T05",
+      "tag": "webfetch",
+      "phase": "P12",
+      "title": "实现受控网页资料工具",
+      "dependencies": ["P12-T04"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": ["src/agentMode/sdk/pi/tools/WebFetch.ts"],
+      "testFile": "src/agentMode/sdk/pi/tools/WebFetch.test.ts",
+      "steps": [
+        "限定http/https与授权目标",
+        "拒绝私网/metadata默认访问和危险scheme",
+        "每跳重定向复核",
+        "30秒1MiB上限且可取消",
+        "只返回文本资料不执行JS"
+      ],
+      "assertions": [
+        "重定向到localhost被挡",
+        "超时停止读取",
+        "网页指令不改policy",
+        "fetch卡显示真实目标与失败"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T05.md",
+      "evidencePath": "execution/evidence/P12-T05.json",
+      "scenarioIds": ["SC-P12-T05-01", "SC-P12-T05-02", "SC-P12-T05-03", "SC-P12-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/WebFetch.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2737
+    },
+    {
+      "id": "P12-T06",
+      "tag": "projectscope",
+      "phase": "P12",
+      "title": "校准项目切换和快捷命令",
+      "dependencies": ["P12-T05"],
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "files": [
+        "src/agentMode/sdk/pi/features/ProjectContext.ts",
+        "src/agentMode/sdk/pi/features/CommandDispatcher.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/features/ProjectContext.test.ts",
+      "steps": [
+        "已有会话固定projectId和scope",
+        "新项目创建新root或idle明确调整",
+        "compact/skill命令显式分发",
+        "未知slash不是shell",
+        "pending审批不能因切项目换目标"
+      ],
+      "assertions": [
+        "切项目不误写新库",
+        "旧卡审批仍绑定原scope",
+        "compact直达真实API",
+        "未知命令返回错误"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P11",
+      "card": "execution/tasks/P12-T06.md",
+      "evidencePath": "execution/evidence/P12-T06.json",
+      "scenarioIds": ["SC-P12-T06-01", "SC-P12-T06-02", "SC-P12-T06-03", "SC-P12-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/ProjectContext.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2830
+    },
+    {
+      "id": "P13-T01",
+      "tag": "migrateconfig",
+      "phase": "P13",
+      "title": "实现版本化配置迁移与备份",
+      "dependencies": ["P12-T06"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["src/agentMode/sdk/pi/storage/SettingsMigration.ts", "src/settings/model.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/SettingsMigration.test.ts",
+      "steps": [
+        "备份非秘密配置并记录schema版本",
+        "保留BYOK provider/keychainId",
+        "agent来源模型标needs_reconfiguration",
+        "切新会话默认pi但旧记录不重标",
+        "迁移重复执行幂等"
+      ],
+      "assertions": ["无重复provider", "原key仍能获取", "中断重试不损配置", "订阅凭据不伪变APIkey"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T01.md",
+      "evidencePath": "execution/evidence/P13-T01.json",
+      "scenarioIds": ["SC-P13-T01-01", "SC-P13-T01-02", "SC-P13-T01-03", "SC-P13-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/SettingsMigration.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2789
+    },
+    {
+      "id": "P13-T02",
+      "tag": "legacyread",
+      "phase": "P13",
+      "title": "隔离旧聊天纯读取兼容层",
+      "dependencies": ["P13-T01"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": [
+        "src/agentMode/session/legacy/LegacyHistoryReader.ts",
+        "src/agentMode/session/AgentChatPersistenceManager.ts"
+      ],
+      "testFile": "src/agentMode/session/legacy/LegacyHistoryReader.test.ts",
+      "steps": [
+        "复用Markdown与可得JSON结构读取",
+        "保持原backendId/sessionId/title/tombstone",
+        "未知字段保留",
+        "禁止二进制启动",
+        "缺完整工具历史明示只可文本导入"
+      ],
+      "assertions": [
+        "旧聊天可打开",
+        "删除墓碑不被扫描复活",
+        "未知backend仍显示",
+        "解析不执行任何命令"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T02.md",
+      "evidencePath": "execution/evidence/P13-T02.json",
+      "scenarioIds": ["SC-P13-T02-01", "SC-P13-T02-02", "SC-P13-T02-03", "SC-P13-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/session/legacy/LegacyHistoryReader.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2832
+    },
+    {
+      "id": "P13-T03",
+      "tag": "legacyimport",
+      "phase": "P13",
+      "title": "实现基于历史新建Pi会话",
+      "dependencies": ["P13-T02"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["src/agentMode/sdk/pi/storage/LegacyImport.ts"],
+      "testFile": "src/agentMode/sdk/pi/storage/LegacyImport.test.ts",
+      "steps": [
+        "新root记录sourceHash映射",
+        "验证附件和上下文预算",
+        "历史标资料来源非新用户指令",
+        "只导入实际可得字段",
+        "同source重复点击返回已建映射"
+      ],
+      "assertions": ["不改旧文件", "重复导入不多建", "缺tool结果不捏造", "后续新聊天可运行"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T03.md",
+      "evidencePath": "execution/evidence/P13-T03.json",
+      "scenarioIds": ["SC-P13-T03-01", "SC-P13-T03-02", "SC-P13-T03-03", "SC-P13-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/LegacyImport.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2722
+    },
+    {
+      "id": "P13-T04",
+      "tag": "export",
+      "phase": "P13",
+      "title": "完善Markdown和完整备份导出",
+      "dependencies": ["P13-T03"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": [
+        "src/agentMode/sdk/pi/storage/SessionExport.ts",
+        "src/agentMode/session/AgentChatPersistenceManager.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/storage/SessionExport.test.ts",
+      "steps": [
+        "Markdown继续使用现有Manager和新投影",
+        "完整导出带schema/version/hash和附件",
+        "移除credentials与授权token",
+        "导入先只读并重新授权",
+        "大文件限制明确"
+      ],
+      "assertions": [
+        "导出重读顺序一致",
+        "敏感字段不出现",
+        "MCP token未导出",
+        "旧Markdown读者仍可用"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T04.md",
+      "evidencePath": "execution/evidence/P13-T04.json",
+      "scenarioIds": ["SC-P13-T04-01", "SC-P13-T04-02", "SC-P13-T04-03", "SC-P13-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/SessionExport.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2813
+    },
+    {
+      "id": "P13-T05",
+      "tag": "switchdefault",
+      "phase": "P13",
+      "title": "将产品核心入口切换为单一Pi",
+      "dependencies": ["P13-T04"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": [
+        "src/agentMode/backends/registry.ts",
+        "src/agentMode/index.ts",
+        "src/agentMode/session/descriptor.ts"
+      ],
+      "testFile": "src/agentMode/backends/registry.test.ts",
+      "steps": [
+        "只有Pi作为可新建执行引擎",
+        "模型选项仍多provider",
+        "引擎ready与missing_key分离",
+        "旧backend标签仅历史用途",
+        "去掉UI中强制安装/登录门槛"
+      ],
+      "assertions": [
+        "无CLI环境仍能进入聊天",
+        "旧历史不报必须安装",
+        "缺key正确引导插件设置",
+        "模型标签不丢"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T05.md",
+      "evidencePath": "execution/evidence/P13-T05.json",
+      "scenarioIds": ["SC-P13-T05-01", "SC-P13-T05-02", "SC-P13-T05-03", "SC-P13-T05-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/backends/registry.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2789
+    },
+    {
+      "id": "P13-T06",
+      "tag": "deleteclaude",
+      "phase": "P13",
+      "title": "删除Claude执行与权限翻译链",
+      "dependencies": ["P13-T05"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": [
+        "src/agentMode/backends/claude/",
+        "src/agentMode/sdk/ClaudeSdkBackendProcess.ts",
+        "src/agentMode/sdk/permissionBridge.ts"
+      ],
+      "testFile": "src/agentMode/sdk/pi/__tests__/noClaudeExecution.test.ts",
+      "steps": [
+        "按实际import图删除Claude可执行入口",
+        "纯历史读取需要的解析先迁入legacy",
+        "删除SDK登录安装检测和专属事件桥",
+        "检查Pi权限桥不再依赖Claude类型",
+        "保留历史来源显示"
+      ],
+      "assertions": ["无可达Claude启动", "旧Claude历史仍能打开", "新权限与计划回归通过"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T06.md",
+      "evidencePath": "execution/evidence/P13-T06.json",
+      "scenarioIds": ["SC-P13-T06-01", "SC-P13-T06-02", "SC-P13-T06-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noClaudeExecution.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2829
+    },
+    {
+      "id": "P13-T07",
+      "tag": "deletecodex",
+      "phase": "P13",
+      "title": "删除Codex执行与二进制安装链",
+      "dependencies": ["P13-T06"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["src/agentMode/backends/codex/", "src/agentMode/backends/registry.ts"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/noCodexExecution.test.ts",
+      "steps": [
+        "移除Codex执行描述和managed binary安装",
+        "保留必要纯记录读取到legacy",
+        "删除不再引用的特有模型协议适配",
+        "核对session索引不丢旧ID",
+        "不改Pi模型provider的正常OpenAI协议"
+      ],
+      "assertions": ["无Codex可执行探测", "旧ID仍可索引", "OpenAI API模型仍可用"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T07.md",
+      "evidencePath": "execution/evidence/P13-T07.json",
+      "scenarioIds": ["SC-P13-T07-01", "SC-P13-T07-02", "SC-P13-T07-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noCodexExecution.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2765
+    },
+    {
+      "id": "P13-T08",
+      "tag": "deleteopencode",
+      "phase": "P13",
+      "title": "删除OpenCode执行与安装登录链",
+      "dependencies": ["P13-T07"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["src/agentMode/backends/opencode/", "src/agentMode/backends/registry.ts"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/noOpenCodeExecution.test.ts",
+      "steps": [
+        "移除OpenCode后端连接与binary路径设置",
+        "迁移纯历史读取需要的小函数",
+        "删除无用安装登录UI",
+        "按引用确认模型目录不误删正常API提供者",
+        "保留旧会话可读"
+      ],
+      "assertions": [
+        "无OpenCode子进程",
+        "旧会话打开不要求安装",
+        "自定义OpenAI-compatible模型不受影响"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T08.md",
+      "evidencePath": "execution/evidence/P13-T08.json",
+      "scenarioIds": ["SC-P13-T08-01", "SC-P13-T08-02", "SC-P13-T08-03"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noOpenCodeExecution.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2790
+    },
+    {
+      "id": "P13-T09",
+      "tag": "deleteacp",
+      "phase": "P13",
+      "title": "删除无人使用的ACP与旧技能分发",
+      "dependencies": ["P13-T08"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["src/agentMode/acp/", "src/agentMode/skills/", "src/agentMode/AGENTS.md"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/noLegacyExecution.test.ts",
+      "steps": [
+        "确认所有实际运行入口均为Pi再删除ACP runtime",
+        "删除三后端skill symlink与重启探测",
+        "保留canonical管理和新SkillsCatalog",
+        "更新边界规则与调试文档",
+        "自动检查legacy reader不可spawn"
+      ],
+      "assertions": [
+        "所有新feature测试仍通过",
+        "技能管理可用",
+        "无旧JSON-RPC进程桥",
+        "legacy纯读取"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T09.md",
+      "evidencePath": "execution/evidence/P13-T09.json",
+      "scenarioIds": ["SC-P13-T09-01", "SC-P13-T09-02", "SC-P13-T09-03", "SC-P13-T09-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noLegacyExecution.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2835
+    },
+    {
+      "id": "P13-T10",
+      "tag": "depscleanup",
+      "phase": "P13",
+      "title": "清理旧依赖安装文案与CLI字段",
+      "dependencies": ["P13-T09"],
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "files": ["package.json", "package-lock.json", "src/agentMode/session/descriptor.ts"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/depscleanup.test.ts",
+      "steps": [
+        "删除已无引用的旧Agent/ACP依赖并更新lock",
+        "移除managedInstall/binary路径废字段与调用点",
+        "保留历史产品名而非简单字符串抹除",
+        "更新README核心安装说明",
+        "检查bundle静态资源完整"
+      ],
+      "assertions": [
+        "production依赖无旧执行SDK",
+        "没有运行时npm下载",
+        "只安装插件说明准确",
+        "build/lint/legacy回归通过"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P12",
+      "card": "execution/tasks/P13-T10.md",
+      "evidencePath": "execution/evidence/P13-T10.json",
+      "scenarioIds": ["SC-P13-T10-01", "SC-P13-T10-02", "SC-P13-T10-03", "SC-P13-T10-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/depscleanup.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2847
+    },
+    {
+      "id": "P14-T01",
+      "tag": "matrixe2e",
+      "phase": "P14",
+      "title": "逐行验收完整渲染功能矩阵",
+      "dependencies": ["P13-T10"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": [
+        "src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+        "designdocs/pi-rebuild/execution/evidence/"
+      ],
+      "testFile": "src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+      "steps": [
+        "从真实producer逐行驱动现有组件",
+        "每行绑定scenario和证据",
+        "错误/取消/无数据状态也验",
+        "恢复回放结果与运行中一致",
+        "未实现行不通过隐藏组件删掉"
+      ],
+      "assertions": [
+        "全部feature有非story-only证据",
+        "不存在frontend-only功能",
+        "所有终态区分真实失败",
+        "功能ID不遗漏"
+      ],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T01.md",
+      "evidencePath": "execution/evidence/P14-T01.json",
+      "scenarioIds": ["SC-P14-T01-01", "SC-P14-T01-02", "SC-P14-T01-03", "SC-P14-T01-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2900
+    },
+    {
+      "id": "P14-T02",
+      "tag": "crashsuite",
+      "phase": "P14",
+      "title": "运行全部恢复与副作用故障矩阵",
+      "dependencies": ["P14-T01"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": ["src/agentMode/sdk/pi/__tests__/crashRecovery.test.ts"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/crashRecovery.test.ts",
+      "steps": [
+        "覆盖规定每个断点",
+        "每次检查文件真实内容与执行次数",
+        "验证approval/subagent/report/MCP unsafe重放",
+        "验证压缩summary放置竞态",
+        "保存失败位置与修复证据"
+      ],
+      "assertions": ["Vault写不重复", "unknown不盲重放", "report不重复唤起", "压缩前聊天仍保留"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T02.md",
+      "evidencePath": "execution/evidence/P14-T02.json",
+      "scenarioIds": ["SC-P14-T02-01", "SC-P14-T02-02", "SC-P14-T02-03", "SC-P14-T02-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/crashRecovery.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2831
+    },
+    {
+      "id": "P14-T03",
+      "tag": "securitysuite",
+      "phase": "P14",
+      "title": "执行路径权限和凭据安全回归",
+      "dependencies": ["P14-T02"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": ["src/agentMode/sdk/pi/__tests__/securityBoundary.test.ts"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/securityBoundary.test.ts",
+      "steps": [
+        "运行所有policy fixture",
+        "加入嵌套工具/skill/MCP恶意资料路径",
+        "检查秘密在store/log/export/env缺失",
+        "对strict与trusted_host分别断言真实边界",
+        "不能以regex shell检测冒充沙盒"
+      ],
+      "assertions": ["所有未知路径默认拒绝", "plan不可写", "子代理不扩权", "secret不出授权目标"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T03.md",
+      "evidencePath": "execution/evidence/P14-T03.json",
+      "scenarioIds": ["SC-P14-T03-01", "SC-P14-T03-02", "SC-P14-T03-03", "SC-P14-T03-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/securityBoundary.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2857
+    },
+    {
+      "id": "P14-T04",
+      "tag": "cleaninstall",
+      "phase": "P14",
+      "title": "验证只装插件的核心使用路径",
+      "dependencies": ["P14-T03"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": ["scripts/pi-clean-install-check.mjs", "designdocs/pi-rebuild/execution/evidence/"],
+      "testFile": "src/agentMode/sdk/pi/__tests__/installationContract.test.ts",
+      "steps": [
+        "在仅Obsidian插件的测试profile清空外部CLI PATH",
+        "用插件UI配置模型",
+        "运行read/edit/diff/todo/plan/question/compact/subagent/fanout/HTTPMCP",
+        "确认无Agentdaemon和下载",
+        "单独记录可选stdio/shell能力不影响核心"
+      ],
+      "assertions": ["无NodeCLI仍运行", "无终端登录", "无运行时包下载", "核心路径无binary探测阻塞"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T04.md",
+      "evidencePath": "execution/evidence/P14-T04.json",
+      "scenarioIds": ["SC-P14-T04-01", "SC-P14-T04-02", "SC-P14-T04-03", "SC-P14-T04-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/installationContract.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2923
+    },
+    {
+      "id": "P14-T05",
+      "tag": "platforms",
+      "phase": "P14",
+      "title": "完成三平台路径与生命周期验收",
+      "dependencies": ["P14-T04"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": ["designdocs/pi-rebuild/execution/evidence/GATE-platforms.json"],
+      "testFile": null,
+      "steps": [
+        "记录Windows/macOS/Linux实际Obsidian和runtime版本",
+        "分别跑路径别名和Keychain",
+        "测取消与退出重开",
+        "缺平台写not_run不冒称通过",
+        "修复差异加平台回归"
+      ],
+      "assertions": [
+        "Windowsjunction/ADS受控",
+        "mac卷大小写准确",
+        "Linuxsymlink受控",
+        "三平台核心路径各有证据"
+      ],
+      "documentationOnly": true,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T05.md",
+      "evidencePath": "execution/evidence/P14-T05.json",
+      "scenarioIds": ["SC-P14-T05-01", "SC-P14-T05-02", "SC-P14-T05-03", "SC-P14-T05-04"],
+      "requiredCommands": ["node designdocs/pi-rebuild/scripts/check-plan.mjs"],
+      "cardBytes": 2587
+    },
+    {
+      "id": "P14-T06",
+      "tag": "performance",
+      "phase": "P14",
+      "title": "测量事件回放和资源上限",
+      "dependencies": ["P14-T05"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": [
+        "src/agentMode/sdk/pi/__tests__/resourceBounds.test.ts",
+        "designdocs/pi-rebuild/execution/evidence/"
+      ],
+      "testFile": "src/agentMode/sdk/pi/__tests__/resourceBounds.test.ts",
+      "steps": [
+        "用1000消息和长输出样例测真实回放",
+        "验证事件批处理和两root/三child上限",
+        "测试JSONL大小警戒与安全滚动",
+        "记录硬件与测量方法",
+        "优化分批/分页不删除功能"
+      ],
+      "assertions": ["无无限输出数组", "UI长任务目标有测量", "idle关闭资源", "超限可取消而不崩溃"],
+      "documentationOnly": false,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T06.md",
+      "evidencePath": "execution/evidence/P14-T06.json",
+      "scenarioIds": ["SC-P14-T06-01", "SC-P14-T06-02", "SC-P14-T06-03", "SC-P14-T06-04"],
+      "requiredCommands": [
+        "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/resourceBounds.test.ts",
+        "npm run build:esbuild"
+      ],
+      "cardBytes": 2882
+    },
+    {
+      "id": "P14-T07",
+      "tag": "releasegate",
+      "phase": "P14",
+      "title": "执行完整工程审查与发布资料",
+      "dependencies": ["P14-T06"],
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "files": [
+        "package.json",
+        "README.md",
+        "designdocs/pi-rebuild/execution/evidence/GATE-release.json"
+      ],
+      "testFile": null,
+      "steps": [
+        "运行format/lint/unit/build/review:obsidian与gallery",
+        "核对源许可与第三方声明流程",
+        "复核全部阶段gate和feature证据",
+        "写数据位置与可信执行风险说明",
+        "不自动发布或上传用户数据"
+      ],
+      "assertions": [
+        "必需命令实际exit0且非零测试数",
+        "所有gate证据完整",
+        "无未标注能力限制",
+        "未执行外部发布保持未执行"
+      ],
+      "documentationOnly": true,
+      "requiredPreviousGate": "P13",
+      "card": "execution/tasks/P14-T07.md",
+      "evidencePath": "execution/evidence/P14-T07.json",
+      "scenarioIds": ["SC-P14-T07-01", "SC-P14-T07-02", "SC-P14-T07-03", "SC-P14-T07-04"],
+      "requiredCommands": ["node designdocs/pi-rebuild/scripts/check-plan.mjs"],
+      "cardBytes": 2673
+    }
+  ],
+  "phases": [
+    {
+      "id": "P01",
+      "title": "冻结边界与产品契约",
+      "demo": "现有插件仍可构建；Pi契约及功能清单可检查，默认执行器尚未切换。",
+      "designs": [
+        "00-scope-and-decisions.md",
+        "01-feature-inventory.md",
+        "02-architecture.md",
+        "03-sdk-boundary.md"
+      ],
+      "gate": [
+        "基线已登记且未覆盖PoC",
+        "功能清单与真实渲染入口逐项对照",
+        "锁文件与公开API契约测试通过",
+        "现有build/lint/unit基线已记录"
+      ],
+      "previousGate": "P00",
+      "taskIds": ["P01-T01", "P01-T02", "P01-T03", "P01-T04", "P01-T05", "P01-T06", "P01-T07"]
+    },
+    {
+      "id": "P02",
+      "title": "持久化与单写者",
+      "demo": "临时store中提交记录，关闭重开后完整恢复；另一writer被拒绝，尚不自动调用模型。",
+      "designs": ["04-durable-storage.md", "16-error-and-state-catalog.md"],
+      "gate": [
+        "JSONL真实重开测试通过",
+        "双writer被拒绝",
+        "读取历史不启用scheduler",
+        "存储故障终止执行"
+      ],
+      "previousGate": "P01",
+      "taskIds": [
+        "P02-T01",
+        "P02-T02",
+        "P02-T03",
+        "P02-T04",
+        "P02-T05",
+        "P02-T06",
+        "P02-T07",
+        "P02-T08"
+      ]
+    },
+    {
+      "id": "P03",
+      "title": "模型与基础聊天闭环",
+      "demo": "在现有聊天界面用插件内配置的模型流式回答、停止、关闭和重开；无外部Agent进程。",
+      "designs": ["02-architecture.md", "03-sdk-boundary.md", "09-models-and-credentials.md"],
+      "gate": [
+        "真实BYOK最小聊天可运行",
+        "Keychain无明文",
+        "停止取消真实请求",
+        "new/load/resume语义正确"
+      ],
+      "previousGate": "P02",
+      "taskIds": [
+        "P03-T01",
+        "P03-T02",
+        "P03-T03",
+        "P03-T04",
+        "P03-T05",
+        "P03-T06",
+        "P03-T07",
+        "P03-T08",
+        "P03-T09"
+      ]
+    },
+    {
+      "id": "P04",
+      "title": "完整事件投影与基础渲染",
+      "demo": "真实新引擎流能展示文本、公开思考、工具轨迹、错误和停止；关闭重开保持顺序且无重复。",
+      "designs": ["05-events-and-rendering.md", "16-error-and-state-catalog.md"],
+      "gate": [
+        "快照和增量重同步无重复",
+        "压缩外历史不被清空",
+        "工具终态缺证据不显示成功",
+        "原Markdown/复制/时长渲染回归通过"
+      ],
+      "previousGate": "P03",
+      "taskIds": ["P04-T01", "P04-T02", "P04-T03", "P04-T04", "P04-T05", "P04-T06", "P04-T07"]
+    },
+    {
+      "id": "P05",
+      "title": "审核系统与权限闭环",
+      "demo": "无副作用测试工具能真正等待/拒绝/接受审批；重开后请求恢复，路径和模式绕过均被拒绝。",
+      "designs": ["06-policy-and-approval.md", "16-error-and-state-catalog.md"],
+      "gate": [
+        "policy矩阵全部测试通过",
+        "once授权绑定参数不可复用",
+        "恢复审批不默认允许",
+        "所有注册工具经过gateway"
+      ],
+      "previousGate": "P04",
+      "taskIds": [
+        "P05-T01",
+        "P05-T02",
+        "P05-T03",
+        "P05-T04",
+        "P05-T05",
+        "P05-T06",
+        "P05-T07",
+        "P05-T08"
+      ]
+    },
+    {
+      "id": "P06",
+      "title": "Vault原生能力与可回退修改",
+      "demo": "真实搜索→读取→修改预览→批准→写入→Diff→冲突安全回退全链条可运行。",
+      "designs": [
+        "07-vault-tools-and-diffs.md",
+        "06-policy-and-approval.md",
+        "04-durable-storage.md"
+      ],
+      "gate": [
+        "用户编辑不被覆盖",
+        "崩溃后不重复写",
+        "所有库内操作走ObsidianAPI",
+        "实际receipt驱动文件变化UI"
+      ],
+      "previousGate": "P05",
+      "taskIds": [
+        "P06-T01",
+        "P06-T02",
+        "P06-T03",
+        "P06-T04",
+        "P06-T05",
+        "P06-T06",
+        "P06-T07",
+        "P06-T08",
+        "P06-T09",
+        "P06-T10",
+        "P06-T11"
+      ]
+    },
+    {
+      "id": "P07",
+      "title": "外部文件与可选宿主命令",
+      "demo": "库外read/write/edit复用Pi原生工具；库内绕行被拒绝；strict默认无进程，明确启用后命令可审核执行。",
+      "designs": ["08-external-tools.md", "06-policy-and-approval.md"],
+      "gate": [
+        "原生工具确实被调用",
+        "externalRoot授权有效",
+        "strict没有spawn",
+        "可信执行的超时取消和环境清洗可观察"
+      ],
+      "previousGate": "P06",
+      "taskIds": ["P07-T01", "P07-T02", "P07-T03", "P07-T04", "P07-T05", "P07-T06"]
+    },
+    {
+      "id": "P08",
+      "title": "待办计划提问压缩与反馈",
+      "demo": "现有PlanPill/项目进度/计划卡/提问卡/压缩行/反馈卡均由新引擎真实触发并能恢复。",
+      "designs": ["11-control-features.md", "05-events-and-rendering.md"],
+      "gate": [
+        "全部控制工具真实可运行",
+        "批准计划不免写权限",
+        "压缩不删历史",
+        "反馈报告无自动上传"
+      ],
+      "previousGate": "P07",
+      "taskIds": ["P08-T01", "P08-T02", "P08-T03", "P08-T04", "P08-T05", "P08-T06", "P08-T07"]
+    },
+    {
+      "id": "P09",
+      "title": "MCP完整接入",
+      "demo": "插件内新增HTTP MCP，测试连接、发现工具、授权调用、取消和OAuth可用；stdio只在明确可信模式运行。",
+      "designs": ["10-mcp.md", "06-policy-and-approval.md", "09-models-and-credentials.md"],
+      "gate": [
+        "真实pi-mcp客户端非占位",
+        "连接测试时限与脱敏通过",
+        "工具结果和进度显示真实",
+        "无自动npm/uv安装或终端登录"
+      ],
+      "previousGate": "P08",
+      "taskIds": [
+        "P09-T01",
+        "P09-T02",
+        "P09-T03",
+        "P09-T04",
+        "P09-T05",
+        "P09-T06",
+        "P09-T07",
+        "P09-T08",
+        "P09-T09",
+        "P09-T10"
+      ]
+    },
+    {
+      "id": "P10",
+      "title": "前后台子代理",
+      "demo": "主Agent通过工具创建可检查的子会话；并发受限、父子工具可渲染、停止和重启不会复制任务。",
+      "designs": [
+        "12-subagents-and-fanout.md",
+        "04-durable-storage.md",
+        "05-events-and-rendering.md"
+      ],
+      "gate": [
+        "前台与后台子会话真实模型调用",
+        "权限不超过父级",
+        "结果只报告一次",
+        "Stop阻止迟到报告再唤起"
+      ],
+      "previousGate": "P09",
+      "taskIds": [
+        "P10-T01",
+        "P10-T02",
+        "P10-T03",
+        "P10-T04",
+        "P10-T05",
+        "P10-T06",
+        "P10-T07",
+        "P10-T08"
+      ]
+    },
+    {
+      "id": "P11",
+      "title": "多模型Fan-out",
+      "demo": "用户选择多个模型并行只读回答，真实显示候选/失败/综合，重启后不重复已完成候选。",
+      "designs": ["12-subagents-and-fanout.md", "05-events-and-rendering.md"],
+      "gate": ["2至4模型候选有真实独立结果", "候选只读", "部分失败透明", "综合和历史回放正确"],
+      "previousGate": "P10",
+      "taskIds": ["P11-T01", "P11-T02", "P11-T03", "P11-T04", "P11-T05"]
+    },
+    {
+      "id": "P12",
+      "title": "技能上下文附件与项目",
+      "demo": "原技能/项目/选区/附件输入全部接新运行时；不会重复注入历史，也不会因技能绕过审核。",
+      "designs": ["13-skills-and-context.md", "09-models-and-credentials.md"],
+      "gate": [
+        "技能管理原UI可用",
+        "无外部分发依赖",
+        "项目上下文范围正确",
+        "图片和网页输入有真实可用路径"
+      ],
+      "previousGate": "P11",
+      "taskIds": ["P12-T01", "P12-T02", "P12-T03", "P12-T04", "P12-T05", "P12-T06"]
+    },
+    {
+      "id": "P13",
+      "title": "历史迁移与旧执行器移除",
+      "demo": "旧会话仍能查看/导入，新会话默认Pi；删除三套外部执行依赖后插件仍完整运行。",
+      "designs": ["14-migration-and-release.md", "04-durable-storage.md"],
+      "gate": [
+        "历史和模型配置迁移幂等",
+        "旧数据不删除不冒称无损恢复",
+        "全部旧执行/安装链删除",
+        "纯历史读取不spawn"
+      ],
+      "previousGate": "P12",
+      "taskIds": [
+        "P13-T01",
+        "P13-T02",
+        "P13-T03",
+        "P13-T04",
+        "P13-T05",
+        "P13-T06",
+        "P13-T07",
+        "P13-T08",
+        "P13-T09",
+        "P13-T10"
+      ]
+    },
+    {
+      "id": "P14",
+      "title": "全能力验收与发布门槛",
+      "demo": "在干净Obsidian环境完成完整知识任务；所有UI功能、恢复、安全、跨平台与无CLI路径有证据。",
+      "designs": ["15-verification.md", "14-migration-and-release.md", "01-feature-inventory.md"],
+      "gate": [
+        "所有feature行有真实端到端证据",
+        "故障矩阵通过",
+        "干净无CLI核心流程通过",
+        "三平台状态诚实记录且发布条件满足"
+      ],
+      "previousGate": "P13",
+      "taskIds": ["P14-T01", "P14-T02", "P14-T03", "P14-T04", "P14-T05", "P14-T06", "P14-T07"]
+    }
+  ]
+}

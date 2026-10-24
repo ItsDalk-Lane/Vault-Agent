@@ -11,6 +11,10 @@ LEGACY_SOURCE="$TEST_ROOT/legacy-gallery"
 FAKE_BIN="$TEST_ROOT/bin"
 mkdir -p "$CURRENT_SOURCE" "$FIXTURE_ROOT/scripts" "$LEGACY_SOURCE" "$FAKE_BIN"
 cp "$REPO_ROOT/scripts/gallery-vault.sh" "$FIXTURE_ROOT/scripts/gallery-vault.sh"
+if ! grep -qF 'OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian-cli}"' "$FIXTURE_ROOT/scripts/gallery-vault.sh"; then
+  echo "expected the official CLI as the default instead of an application launcher" >&2
+  exit 1
+fi
 
 cat >"$CURRENT_SOURCE/manifest.json" <<'EOF'
 {
@@ -28,7 +32,36 @@ printf 'legacy source state\n' >"$LEGACY_SOURCE/source-state.txt"
 
 cat >"$FAKE_BIN/obsidian" <<'EOF'
 #!/usr/bin/env bash
-exit 0
+node - "$@" <<'JS'
+const fs = require("node:fs");
+const path = require("node:path");
+const args = process.argv.slice(2);
+const expectedName = path.basename(fs.realpathSync(process.env.COPILOT_TEST_VAULT_PATH));
+if (!args.includes("vault=" + expectedName)) throw new Error("missing explicit target vault");
+const record = value => fs.appendFileSync(process.env.DEPLOY_CALL_LOG, value + "\n");
+record("obsidian " + args.join(" "));
+const code = args.find(value => value.startsWith("code="))?.slice(5);
+const actualPath = (code.includes("app.plugins") ? process.env.FAKE_RELOAD_VAULT_PATH : null)
+  || process.env.FAKE_ACTUAL_VAULT_PATH;
+const plugins = { "copilot-component-gallery": {} };
+const app = {
+  vault: {
+    getName: () => path.basename(fs.realpathSync(actualPath)),
+    adapter: { getBasePath: () => actualPath },
+  },
+  plugins: {
+    plugins,
+    manifests: plugins,
+    enabledPlugins: new Set(Object.keys(plugins)),
+    loadManifests: async () => record("mutation loadManifests"),
+    disablePlugin: async id => record("mutation disable " + id),
+    enablePluginAndSave: async id => record("mutation enable " + id),
+  },
+};
+Promise.resolve().then(() => Function("app", "return (" + code + ");")(app))
+  .then(value => process.stdout.write((process.env.FAKE_RESULT_PREFIX || "") + (typeof value === "string" ? value : JSON.stringify(value)) + "\n"))
+  .catch(error => { process.stderr.write(error.message + "\n"); process.exitCode = 1; });
+JS
 EOF
 chmod +x "$FAKE_BIN/obsidian"
 
@@ -55,8 +88,13 @@ create_legacy_gallery_dir() {
 
 run_deploy() {
   local vault_root="$1"
+  : >"$TEST_ROOT/deploy-calls.log"
   COPILOT_TEST_VAULT_PATH="$vault_root" \
     OBSIDIAN_BIN="$FAKE_BIN/obsidian" \
+    DEPLOY_CALL_LOG="$TEST_ROOT/deploy-calls.log" \
+    FAKE_ACTUAL_VAULT_PATH="${FAKE_ACTUAL_VAULT_PATH:-$vault_root}" \
+    FAKE_RELOAD_VAULT_PATH="${FAKE_RELOAD_VAULT_PATH:-}" \
+    FAKE_RESULT_PREFIX="${FAKE_RESULT_PREFIX:-}" \
     bash "$FIXTURE_ROOT/scripts/gallery-vault.sh" >/dev/null
 }
 
@@ -93,7 +131,27 @@ KNOWN_GALLERY="$KNOWN_VAULT/.obsidian/plugins/copilot-component-gallery"
 prepare_vault "$KNOWN_VAULT"
 create_legacy_gallery_dir "$KNOWN_GALLERY"
 
-run_deploy "$KNOWN_VAULT"
+WRONG_VAULT="$TEST_ROOT/other/known-vault"
+prepare_vault "$WRONG_VAULT"
+if FAKE_ACTUAL_VAULT_PATH="$WRONG_VAULT" run_deploy "$KNOWN_VAULT" >"$TEST_ROOT/wrong.stdout" 2>"$TEST_ROOT/wrong.stderr"; then
+  echo "expected a same-name vault with a different full path to fail before linking" >&2
+  exit 1
+fi
+if grep -q '^mutation ' "$TEST_ROOT/deploy-calls.log" || [[ -L "$KNOWN_GALLERY" ]]; then
+  echo "wrong-vault preflight allowed a plugin mutation or deployment" >&2
+  exit 1
+fi
+
+if FAKE_RELOAD_VAULT_PATH="$WRONG_VAULT" run_deploy "$KNOWN_VAULT" >"$TEST_ROOT/race.stdout" 2>"$TEST_ROOT/race.stderr"; then
+  echo "expected a vault changed after preflight to fail before reload mutation" >&2
+  exit 1
+fi
+if grep -q '^mutation ' "$TEST_ROOT/deploy-calls.log"; then
+  echo "a gallery reload mutated a vault that changed after preflight" >&2
+  exit 1
+fi
+
+FAKE_RESULT_PREFIX='=> ' run_deploy "$KNOWN_VAULT/."
 
 assert_symlink_target "$KNOWN_GALLERY" "$CURRENT_SOURCE"
 if [[ ! -f "$CURRENT_SOURCE/.hotreload" || -L "$CURRENT_SOURCE/.hotreload" ]]; then

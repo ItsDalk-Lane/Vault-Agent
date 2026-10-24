@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T06",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P03-T06.json",
+    "reason": "实际 BackendProcess 会话创建/加载/退出尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P03-T06-01", "SC-P03-T06-02", "SC-P03-T06-03", "SC-P03-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 26,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "testFile": "src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 26,
+      "elapsedSeconds": 3.127,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/01.log",
+      "logSha256": "73cff639c2bf15ea9170ca1d2bb00d6baf7cc1a729ca0e8403a9944d38907667",
+      "testSourceSha256": "6bb2f7605761b629f78bd71fdaf5c75f6de6af71e47ffb7543d2975ee44d942b",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T06-01",
+      "requirement": "创建失败无幽灵索引",
+      "result": "passed",
+      "evidence": "真实Backend在recovery-view.json重命名处故障：newSession拒绝、exists=false、list空；解除故障同ID重试成功、close/load与double shutdown无模型。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T06-02",
+      "requirement": "load无模型调用",
+      "result": "passed",
+      "evidence": "实际Backend.shutdown后新Backend.loadSession恢复原历史，faux.state.callCount不增加；真实PiSmoke完整冷重开也无自动模型请求。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T06-03",
+      "requirement": "两次卸载安全",
+      "result": "passed",
+      "evidence": "BackendProcess shutdown可重复安全，RootSessionPool.shutdown和各资源dispose幂等；实际compaction/pool场景finally再次shutdown仍exit0。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T06-04",
+      "requirement": "sessionExists不打开所有store",
+      "result": "passed",
+      "evidence": "生产sessionExistsLocally读取单一meta.session，listSessions读metadata目录；调用路径不打开Harness或扫描每个store。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际PiBackendProcess/PiRuntime已组装；真实JSONL重开、稳定请求去重、取消与模型分发已有本轮入口回归；本机真实Qwen推理另记。",
+    "actualRuntimeReferences": ["production:durable_reopen_history", "pool"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

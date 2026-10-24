@@ -1,0 +1,151 @@
+{
+  "recordedAt": "2026-10-22",
+  "scope": "真实本机Obsidian与真实本地模型；不是faux推理、不是远程供应商/跨平台证明。",
+  "environment": {
+    "obsidian": "1.14.4",
+    "installerVersion": "1.12.7",
+    "modelEndpoint": "http://127.0.0.1:1234",
+    "model": "qwen/qwen3.8-27b@4bit",
+    "engine": "MLX",
+    "contextWindowTokens": 16384,
+    "parallel": 2,
+    "vault": "隔离PiSmoke",
+    "hardware": "Apple M3 Ultra / 96 GiB"
+  },
+  "cases": [
+    {
+      "claim": "真实Qwen单轮回答",
+      "source": "/tmp/vault-agent-pi-lmstudio-status.json",
+      "sourceSha256": "6b7f32b6e9d8f36f43c820c6849d68dda3734a2c917b6f5ce576cfe840d616ef",
+      "run": {
+        "runId": "run-8da0be9e-b0c1-42e9-b2e4-8fc10ff28523",
+        "requestId": "request-dbf929c7-63e2-4a01-b7eb-2e2262dfb457",
+        "status": "completed",
+        "startedAtMs": 1792651386896,
+        "endedAtMs": 1792651401068,
+        "cancelEpoch": 0,
+        "modelAttempts": 1,
+        "fileChanges": []
+      },
+      "stopReason": "end_turn",
+      "turnStatus": "done"
+    },
+    {
+      "claim": "真实vault_create等待审批、批准后写入、vault_read及最终回答",
+      "source": "/tmp/vault-agent-pi-lmstudio-write.json",
+      "sourceSha256": "671eab441375be6e184ad3aafd5be91b7cbaeaaa3ea716cc162909a4ba04e2da",
+      "run": {
+        "runId": "run-73eb0a46-fd72-401d-b886-fecb6336b5d3",
+        "requestId": "request-83909d0c-36f2-47ca-9fc4-69d1ef6650a1",
+        "status": "completed",
+        "startedAtMs": 1792651442161,
+        "endedAtMs": 1792651478634,
+        "cancelEpoch": 0,
+        "modelAttempts": 3,
+        "fileChanges": [
+          {
+            "path": "lmstudio-acceptance.md",
+            "status": "created",
+            "before": null,
+            "after": "# LM Studio 验收\n这份笔记由本地 Qwen 模型通过插件工具创建。\n",
+            "additions": 2,
+            "deletions": 0
+          }
+        ]
+      },
+      "stopReason": "end_turn",
+      "turnStatus": "done",
+      "pending": [],
+      "knownDefectsAtCapture": "该基线暴露纯空白中间回答和重复fileChanges；本轮已用producer→store回归修复，最终桌面复验另记。"
+    },
+    {
+      "claim": "待审批Stop后迟到允许未产生文件",
+      "source": "/tmp/vault-agent-pi-lmstudio-cancel.json",
+      "sourceSha256": "5a404f601db689445a7091bacdc5f1c9c48b488a4ecc5ae159f34559b5af2f0f",
+      "run": {
+        "runId": "run-27acf223-a3c4-4cc0-9abb-e1325737b5c4",
+        "requestId": "request-b9c67a0a-89cb-423f-a657-adf531bb5d48",
+        "status": "running",
+        "startedAtMs": 1792651560943,
+        "cancelEpoch": 0
+      },
+      "stopReason": "cancelled",
+      "turnStatus": "done",
+      "exists": false,
+      "pending": 0,
+      "orderingNote": "原JSON捕获时stop已cancelled但run_state仍为前一个running快照；主代理后续另见实际cancelled终态，不将该旧快照当最终run证据。"
+    },
+    {
+      "claim": "真实todo_get/todo_set修正参数与计划批准",
+      "source": "/tmp/vault-agent-pi-lmstudio-plan-progress.json",
+      "sourceSha256": "251d0b49a52ee342ab35ddac763f7dd4b4f0c2313dc06f9fbba17e8335a9b4fd",
+      "run": {
+        "runId": "run-7a1d107d-17f9-4700-9054-ff50ff42701b",
+        "requestId": "request-5b5743f2-c2b4-4fe6-b126-0e07ba77608e",
+        "status": "completed",
+        "startedAtMs": 1792651825189,
+        "endedAtMs": 1792651906964,
+        "cancelEpoch": 0,
+        "modelAttempts": 4,
+        "fileChanges": []
+      },
+      "stopReason": "end_turn",
+      "turnStatus": "done",
+      "status": "idle",
+      "todos": [
+        {
+          "content": "核对验收笔记",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "claim": "真实ask_user回答与模型确认",
+      "source": "/tmp/vault-agent-pi-lmstudio-question-final.json",
+      "sourceSha256": "8111901b446aabda5721b79d398e91edc136265fc7d41a0b81b527ce4915407d",
+      "run": {
+        "runId": "run-8b51a9af-c1a9-40ea-ac08-c9339c3d8652",
+        "requestId": "request-6bb2d888-487b-482c-a86e-b0f6d657db05",
+        "status": "completed",
+        "startedAtMs": 1792651995547,
+        "endedAtMs": 1792652016036,
+        "cancelEpoch": 0,
+        "modelAttempts": 2,
+        "fileChanges": []
+      },
+      "stopReason": "end_turn",
+      "turnStatus": "done",
+      "questions": [],
+      "permissions": []
+    },
+    {
+      "claim": "真实手动压缩摘要已放置",
+      "source": "/tmp/vault-agent-pi-lmstudio-compact.json",
+      "sourceSha256": "189cfe226b7b400b4d5240a50ecac522b657b630a3ad95be6ec8bf33eaa32464",
+      "run": {
+        "runId": "run-4c978af5-4d96-42c1-98ee-4deccea6b22b",
+        "requestId": "request-7b727244-abfa-45b6-b716-6a8657645cb9",
+        "status": "completed",
+        "startedAtMs": 1792652093296,
+        "endedAtMs": 1792652123574,
+        "cancelEpoch": 0,
+        "modelAttempts": 1,
+        "fileChanges": []
+      },
+      "stopReason": "end_turn",
+      "turnStatus": "done",
+      "status": "idle"
+    }
+  ],
+  "safetyScope": "最终桌面命令使用带PiSmoke路径/名称及独立调试端口9239守卫的入口。一次未限定目标的旧重载脚本误触其他已开库已向用户报告，后续守卫修复单独验收。",
+  "notRun": ["用户许可的远程HTTP MCP连接", "真实Windows与Linux平台验收"],
+  "pendingFinalDesktopRecheck": [],
+  "finalDesktopResultsPath": "execution/evidence/repair-2026-10-22/desktop-final.json",
+  "completedFinalChecks": [
+    "最新bundle完整冷重开，原20条历史/回答/压缩/单份变更与笔记保留，取消文件仍不存在。",
+    "真实SecretStorage唯一临时值跨进程保留，之后已删除本次key。",
+    "真实本地模型冷重开后继续读取，两次实际请求、无文件变更。",
+    "1000条历史保留、DOM50，无50ms及以上长任务；三标签及弹出窗真实运行。",
+    "新增恢复、长历史及旧历史状态在300/600宽度展示，无当前状态的overflow/render-failure；全图库其他告警未隐去。"
+  ]
+}

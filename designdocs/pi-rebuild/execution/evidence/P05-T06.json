@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P05-T06",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P05-T06.json",
+    "reason": "生产权限回调尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P05-T06-01", "SC-P05-T06-02", "SC-P05-T06-03", "SC-P05-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 7,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/PermissionBridge.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 7,
+      "durationSeconds": 3.92,
+      "logPath": "/tmp/vault-agent-required-current/25.log",
+      "logSha256": "b13847f9ac12a37d86947e3a191427df81d7913c157535673d3cb55713315080",
+      "testFile": "src/agentMode/sdk/pi/policy/PermissionBridge.test.ts",
+      "testSourceSha256": "49b7a00b114e1fe272614d0e47b2d9ad24741e26b70588bf02120948a0dbbfa0",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P05-T06-01",
+      "requirement": "弹窗批准确实写决定后再执行",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：PermissionBridge requestDecision() persists the selected decision before executing and returns approved。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T06-02",
+      "requirement": "拒绝无效果",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：PermissionBridge requestDecision() has no effect when the prompt is rejected。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T06-03",
+      "requirement": "重开只出现一个请求",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：PermissionBridge requestDecision() keeps exactly one prompt for a remounted request id。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T06-04",
+      "requirement": "多窗口点击只执行一次",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：PermissionBridge submit() executes only once when two windows submit different options。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "生产工具经过权限/作用域门；实际写前审批、拒绝与Stop后迟到允许已有本机实证。完整安全矩阵仍按原断言单列。",
+    "actualRuntimeReferences": [
+      "production:plan_approval_callback",
+      "native:concrete_diff_permission",
+      "native:stop_pending_write_blocks_late_permission"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

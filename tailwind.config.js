@@ -5,7 +5,12 @@ import containerQueries from "@tailwindcss/container-queries";
 /** @type {import("tailwindcss").Config} */
 module.exports = {
   prefix: "tw-",
-  content: ["./src/**/*.{js,ts,jsx,tsx}", "./src/styles/tailwind.css"],
+  // 自动生成的模型事实没有界面样式，避免将大型目录当作类名反复扫描。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "!./src/agentMode/sdk/pi/models/declaredPiModels.generated.ts",
+    "./src/styles/tailwind.css",
+  ],
   darkMode: ["class"],
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate"), colorOpacityPlugin, containerQueries],

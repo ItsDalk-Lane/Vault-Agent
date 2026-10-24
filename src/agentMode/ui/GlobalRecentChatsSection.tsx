@@ -1,4 +1,4 @@
-import { backendRegistry } from "@/agentMode/backends/registry";
+import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import { AgentHomePreviewList } from "@/agentMode/ui/AgentHomeSection";
 import { RecentChatProjectBadge, RecentChatTitle } from "@/agentMode/ui/RecentChatTitle";
 import { RenameChatModal } from "@/agentMode/ui/RenameChatModal";
@@ -67,7 +67,7 @@ interface GlobalRecentChatsSectionProps {
 function resolveChatIcon(
   item: ChatHistoryItem
 ): React.ComponentType<{ className?: string }> | undefined {
-  return item.backendId ? backendRegistry[item.backendId]?.Icon : undefined;
+  return item.backendId ? describeBackendForHistory(item.backendId).Icon : undefined;
 }
 
 // Upstream `getChatHistoryItems()` returns vault-scan order. Apply the saved
@@ -248,7 +248,11 @@ function RecentChatMenu({
             new ConfirmModal(
               app,
               () => onDeleteChat(item.id),
-              describeChatDelete(item.backendId ? backendRegistry[item.backendId] : undefined),
+              describeChatDelete(
+                item.backendId && describeBackendForHistory(item.backendId).agentProductName
+                  ? describeBackendForHistory(item.backendId)
+                  : undefined
+              ),
               t("agentChat.recentChats.deleteChat"),
               t("agentChat.delete"),
               t("common.cancel")

@@ -1,0 +1,686 @@
+{
+  "recordedAt": "2026-10-22",
+  "status": "passed_for_recorded_scope",
+  "buildIdentity": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+  "mainSha256": "afb2663dc5c2983efba55c43faab869f6c1cb7384c3365acec85b0be9606c2b3",
+  "environment": {
+    "vault": "PiSmoke",
+    "vaultPath": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+    "profile": "clean-profile-20261022",
+    "hostVersion": "1.12.7",
+    "nodeVersion": "22.22.1",
+    "cliPath": "/var/empty",
+    "provider": "LM Studio at 127.0.0.1:1234/v1",
+    "model": "qwen/qwen3.8-27b",
+    "contextWindowTokens": 16384,
+    "versionSource": "主代理读取此独立profile的About和实际Node；不混用旧profile的1.14.4。"
+  },
+  "sources": [
+    {
+      "id": "clean-current",
+      "path": "/tmp/vault-agent-pi-continuation-clean-current.json",
+      "sha256": "23c1e3b0a55845e4f2040374625122259612a5adc1b3dc14f9a3ed2daa7815aa"
+    },
+    {
+      "id": "revert-real",
+      "path": "/tmp/vault-agent-pi-continuation-revert-real.json",
+      "sha256": "1244be7cc328c681ba8c8655dda161c5fbf18dd103bcdc00f8f20d8040c7c099"
+    },
+    {
+      "id": "revert-repeat",
+      "path": "/tmp/vault-agent-pi-continuation-revert-repeat.json",
+      "sha256": "65159933dc1932bfaf77d43244d2b03e8cb0318395b4835912b530b360d53df2"
+    },
+    {
+      "id": "image-real",
+      "path": "/tmp/vault-agent-pi-continuation-image-real.json",
+      "sha256": "397b59ab59faac67c4e1b70f6871f90187f2f78823106e1c8c23e69f7947e9b4"
+    },
+    {
+      "id": "mcp-read-real",
+      "path": "/tmp/vault-agent-pi-continuation-mcp-read-real.json",
+      "sha256": "a0bdf4fff5de92357d655446241745745b62f959aef4eec136157fdcbfd90901"
+    },
+    {
+      "id": "mcp-deny-real",
+      "path": "/tmp/vault-agent-pi-continuation-mcp-deny-real.json",
+      "sha256": "a2a5d1128f1d640307c70093e03db35e08f96c9e564d9ad634e781228cd5f370"
+    },
+    {
+      "id": "mcp-error-real",
+      "path": "/tmp/vault-agent-pi-continuation-mcp-error-real.json",
+      "sha256": "bbdbd4c5df8a67cf7973172cd338778f960d38969167d9f23c4f001a501788da"
+    },
+    {
+      "id": "deny-real",
+      "path": "/tmp/vault-agent-pi-continuation-deny-real.json",
+      "sha256": "93d8af18aa626ee491fd41ed5774941359b24cd0e3ded298ec48ffaae9dfd8a5"
+    },
+    {
+      "id": "allow-real",
+      "path": "/tmp/vault-agent-pi-continuation-allow-real.json",
+      "sha256": "3310819574c31354d631c27d03a4fb7ab87bf8aadd94004c15a1762ca2e2da13"
+    },
+    {
+      "id": "mcp-server-count",
+      "path": "/tmp/vault-agent-pi-readonly-mcp-state.json",
+      "sha256": "5735860e488140fbf9f03613f38978977c4b92ac7e12e62175a32a4e48ab4af7"
+    }
+  ],
+  "checks": [
+    {
+      "id": "clean_ui_single_provider_single_model",
+      "result": "passed",
+      "evidence": "clean-current",
+      "observed": {
+        "exactlyOneProvider": true,
+        "exactlyOneConfiguredModel": true,
+        "realModelId": true,
+        "context16384": true,
+        "explicitEfforts": true
+      }
+    },
+    {
+      "id": "actual_auto_revert_requires_own_approval",
+      "result": "passed",
+      "evidence": "revert-real",
+      "observed": "批准前仍绿色，原回退入口点击后等待单独批准，批准后恢复蓝色。"
+    },
+    {
+      "id": "same_receipt_revert_is_idempotent",
+      "result": "passed",
+      "evidence": "revert-repeat",
+      "observed": "同一凭证再回退返回ok、没有新审批，内容仍蓝色；实测无新写入由主代理单列确认。"
+    },
+    {
+      "id": "actual_write_denial_leaves_note_unchanged",
+      "result": "passed",
+      "evidence": "deny-real",
+      "observed": "真实LM发vault_edit后通过原拒绝按钮拒绝；笔记前后蓝色相同。"
+    },
+    {
+      "id": "actual_image_paste_send_and_model_receipt",
+      "result": "passed",
+      "evidence": "image-real",
+      "observed": "原UI粘贴PNG并发送，真实LM回答红底白色圆形，无工具调用；私有attachment落盘由主代理单列确认。"
+    },
+    {
+      "id": "actual_local_mcp_search_load_approval_http_read",
+      "result": "passed",
+      "evidence": "mcp-read-real",
+      "observed": "真实LM搜索/加载本机HTTP服务工具，原按钮逐次允许后读取；笔记前后相同。"
+    },
+    {
+      "id": "actual_local_mcp_denial_does_not_call_service",
+      "result": "passed",
+      "evidence": ["mcp-deny-real", "mcp-server-count"],
+      "observed": "原拒绝动作区间没有服务calls时间戳。"
+    },
+    {
+      "id": "actual_local_mcp_error_remains_original_error",
+      "result": "passed",
+      "evidence": ["mcp-error-real", "mcp-server-count"],
+      "observed": "实际HTTP工具fail:true调用在允许后发生，错误卡保留原服务结果；不把模型最终回答end_turn等同工具成功。"
+    }
+  ],
+  "observations": [
+    {
+      "id": "clean-current",
+      "observed": {
+        "vaultName": "PiSmoke",
+        "vaultPath": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "mainSha256": "afb2663dc5c2983efba55c43faab869f6c1cb7384c3365acec85b0be9606c2b3",
+        "providers": [
+          {
+            "id": null,
+            "providerId": "ad14ef27-05d3-41fb-b2cd-66a6ef1c2290",
+            "type": null,
+            "origin": {
+              "kind": "byok"
+            },
+            "baseUrl": "http://127.0.0.1:1234/v1"
+          }
+        ],
+        "models": [
+          {
+            "configuredModelId": "4de94f75-9b44-4cff-af98-21e08cbb1fc5",
+            "providerId": "ad14ef27-05d3-41fb-b2cd-66a6ef1c2290",
+            "info": {
+              "id": "qwen/qwen3.8-27b",
+              "displayName": "qwen/qwen3.8-27b",
+              "limits": {
+                "context": 16384
+              },
+              "reasoning": true,
+              "toolCall": true,
+              "reasoningEfforts": ["low", "medium", "xhigh"],
+              "modalities": {
+                "input": ["text", "image"]
+              }
+            },
+            "configuredAt": 1792660921818
+          }
+        ],
+        "checks": {
+          "exactlyOneProvider": true,
+          "exactlyOneConfiguredModel": true,
+          "realModelId": true,
+          "context16384": true,
+          "explicitEfforts": true
+        }
+      }
+    },
+    {
+      "id": "revert-real",
+      "observed": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+        "mode": "auto",
+        "sourceMessage": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:52:0",
+        "before": "# 验收笔记\n颜色：绿色\n",
+        "result": {
+          "ok": true
+        },
+        "approval": [
+          {
+            "request": {
+              "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+              "signal": {},
+              "binding": {
+                "toolId": "vault_revert",
+                "schemaHash": "df19d73ea3ea4af7d1aec781f1b098eefb478d4b6c7ad9e05cd7a42ed9884d4c",
+                "targets": [],
+                "beforeHash": "a52bd3dac06b0210b713189d38f7d00fe8995a3f86e3f74b4f7509735e363d49",
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "revert:root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:1:530833639",
+                "title": "vault_revert",
+                "kind": "edit",
+                "status": "pending",
+                "rawInput": {
+                  "operationId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:1:530833639",
+                  "path": "pi-clean-core.md",
+                  "affectedPaths": []
+                },
+                "content": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "oldText": "# 验收笔记\n颜色：绿色\n",
+                    "newText": "# 验收笔记\n颜色：蓝色\n"
+                  }
+                ]
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeApproval": "# 验收笔记\n颜色：绿色\n",
+            "at": 1792661253410,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "after": "# 验收笔记\n颜色：蓝色\n",
+        "status": "idle"
+      }
+    },
+    {
+      "id": "revert-repeat",
+      "observed": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+        "mode": "auto",
+        "sourceMessage": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:52:0",
+        "before": "# 验收笔记\n颜色：蓝色\n",
+        "result": {
+          "ok": true
+        },
+        "approval": [],
+        "after": "# 验收笔记\n颜色：蓝色\n",
+        "status": "idle"
+      }
+    },
+    {
+      "id": "image-real",
+      "observed": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+        "source": "actual UI image paste and Send",
+        "input": {
+          "text": "请描述这张图片中背景和中央图形的颜色、形状。不要读取任何笔记或调用工具。",
+          "content": [
+            {
+              "type": "image",
+              "mimeType": "image/png",
+              "bytes": 1596
+            }
+          ]
+        },
+        "stop": "end_turn",
+        "answer": {
+          "id": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:155:0",
+          "message": "\n\n- **背景**：红色，铺满整个画面。\n- **中央图形**：白色，圆形，位于画面正中央。",
+          "sender": "ai",
+          "timestamp": null,
+          "isVisible": true,
+          "parts": [
+            {
+              "kind": "thought",
+              "text": "用户要求描述图片中背景和中央图形的颜色、形状，明确说不要读取任何笔记或调用工具。所以我直接根据图片描述即可。\n\n图片显示：红色背景，中央有一个白色圆形。\n",
+              "startedAtMs": 1792661559550,
+              "durationMs": 1765
+            },
+            {
+              "kind": "text",
+              "text": "\n\n- **背景**：红色，铺满整个画面。\n- **中央图形**：白色，圆形，位于画面正中央。"
+            }
+          ],
+          "turnStopReason": "end_turn",
+          "turnDurationMs": 5788
+        },
+        "images": [
+          {
+            "alt": "用户上传的图片",
+            "srcPrefix": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-read-real",
+      "observed": {
+        "scenario": "real-mcp-deferred-read",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+        "started": 1792661588831,
+        "elapsed": 50231,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "after": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+              "signal": {},
+              "binding": {
+                "toolId": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+                "schemaHash": "8f20900dcf05f410a9a8ed2a1fda2742b6f43b965988d648406d9aad345aa3f8",
+                "targets": [
+                  "mcp:server-fb57a394-8521-4db7-834c-7366ee1cf04c:58c0a65f2b7457b1c94d0311bdcf4104319560a69e3c50bda52111f764e21125"
+                ],
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:866481807",
+                "title": "PiSmoke 只读验收 · read_acceptance_note",
+                "kind": "other",
+                "status": "pending",
+                "rawInput": {}
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+            "at": 1792661631539,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "status": "idle",
+        "approvedOrRejectedToolResults": [
+          {
+            "kind": "tool_call",
+            "id": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:866481807",
+            "title": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "toolKind": "other",
+            "vendorToolName": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "status": "completed",
+            "input": {},
+            "output": [
+              {
+                "type": "text",
+                "text": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n"
+              }
+            ]
+          }
+        ],
+        "lastAssistantText": "\n\n读取成功。该工具是已配置的 \"PiSmoke 只读验收\" MCP 服务中的 `read_acceptance_note`（只读，未修改任何笔记，也未使用 `vault_read`）。\n\n**验收笔记内容：**\n\n- **颜色**：黄色\n- **手工保留的一行**：`冲突验收`\n\n工具按要求只读取了专用测试笔记，返回了真实内容，未触发 `fail=true` 报错模式，也没有改动笔记。"
+      }
+    },
+    {
+      "id": "mcp-deny-real",
+      "observed": {
+        "scenario": "real-mcp-rejected-no-service-call",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+        "started": 1792661681946,
+        "elapsed": 9677,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "after": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+              "signal": {},
+              "binding": {
+                "toolId": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+                "schemaHash": "8f20900dcf05f410a9a8ed2a1fda2742b6f43b965988d648406d9aad345aa3f8",
+                "targets": [
+                  "mcp:server-fb57a394-8521-4db7-834c-7366ee1cf04c:58c0a65f2b7457b1c94d0311bdcf4104319560a69e3c50bda52111f764e21125"
+                ],
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:193213694",
+                "title": "PiSmoke 只读验收 · read_acceptance_note",
+                "kind": "other",
+                "status": "pending",
+                "rawInput": {}
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+            "at": 1792661687570,
+            "buttonText": "拒绝"
+          }
+        ],
+        "status": "idle",
+        "approvedOrRejectedToolResults": [
+          {
+            "kind": "tool_call",
+            "id": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:193213694",
+            "title": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "toolKind": "other",
+            "vendorToolName": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "status": "failed",
+            "input": {},
+            "output": [
+              {
+                "type": "text",
+                "text": "MCP_CALL_DENIED: The external tool call was not approved."
+              }
+            ]
+          }
+        ],
+        "lastAssistantText": "\n\n本次 `read_acceptance_note` 调用被**拒绝**（`MCP_CALL_DENIED: The external tool call was not approved.`）。\n\n按要求：已立即停止，未重试，也未改用其他工具。如实报告：**这一次批准被拒绝**，未读到任何笔记内容。"
+      }
+    },
+    {
+      "id": "mcp-error-real",
+      "observed": {
+        "scenario": "real-mcp-service-error",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+        "started": 1792661726410,
+        "elapsed": 14081,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "after": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77",
+              "signal": {},
+              "binding": {
+                "toolId": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+                "schemaHash": "8f20900dcf05f410a9a8ed2a1fda2742b6f43b965988d648406d9aad345aa3f8",
+                "targets": [
+                  "mcp:server-fb57a394-8521-4db7-834c-7366ee1cf04c:58c0a65f2b7457b1c94d0311bdcf4104319560a69e3c50bda52111f764e21125"
+                ],
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:890264243",
+                "title": "PiSmoke 只读验收 · read_acceptance_note",
+                "kind": "other",
+                "status": "pending",
+                "rawInput": {
+                  "fail": true
+                }
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：黄色\n手工保留：冲突验收\n",
+            "at": 1792661733682,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "status": "idle",
+        "approvedOrRejectedToolResults": [
+          {
+            "kind": "tool_call",
+            "id": "pi:root-81ead853-25c5-4b18-aaf2-6e7fbfe88d77:890264243",
+            "title": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "toolKind": "other",
+            "vendorToolName": "mcp_server-fb57a394-8521-4db7-_read-acceptance-note_9c213ec98b30",
+            "status": "failed",
+            "input": {
+              "fail": true
+            },
+            "output": [
+              {
+                "type": "text",
+                "text": "验收服务主动返回错误，请如实报告，不要重试。"
+              }
+            ]
+          }
+        ],
+        "lastAssistantText": "\n\n调用已完成（本次批准通过）。工具 `read_acceptance_note` 在 `fail=true` 下**主动返回了一个错误**：\n\n> 验收服务主动返回错误，请如实报告，不要重试。\n\n按要求如实报告：该错误是服务在 `fail=true` 模式下预期返回的显式错误信息，内容如上。已停止，未重试，未改用其他工具。"
+      }
+    },
+    {
+      "id": "deny-real",
+      "observed": {
+        "scenario": "real-deny-write",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+        "started": 1792661306343,
+        "elapsed": 17501,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：蓝色\n",
+        "after": "# 验收笔记\n颜色：蓝色\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+              "signal": {},
+              "binding": {
+                "toolId": "vault_edit",
+                "schemaHash": "df19d73ea3ea4af7d1aec781f1b098eefb478d4b6c7ad9e05cd7a42ed9884d4c",
+                "targets": ["pi-clean-core.md"],
+                "beforeHash": "9d6786d8e0dac8e61f9b2d63b3f6c9d742023982b8b76b3ef17570f4f5df9dd0",
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:1:952514350",
+                "title": "vault_edit",
+                "kind": "edit",
+                "status": "pending",
+                "rawInput": {
+                  "path": "pi-clean-core.md",
+                  "expectedHash": "e043cdfd6a9c34cd38af90727ef233cccc79ad05a6472bcc0765c2819ed76e18",
+                  "edits": [
+                    {
+                      "oldText": "蓝色",
+                      "newText": "橙色"
+                    }
+                  ],
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "content": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n",
+                    "newText": "# 验收笔记\n颜色：橙色\n"
+                  }
+                ]
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：蓝色\n",
+            "at": 1792661319568,
+            "buttonText": "拒绝"
+          }
+        ],
+        "status": "idle",
+        "approvedOrRejectedToolResults": [],
+        "lastAssistantText": "\n\n**报告：写入被拒绝。** 工具返回 `APPROVAL_REJECTED`（\"The call was rejected\"）。已按要求立即停止，未重试，未改动其他文件。`pi-clean-core.md`"
+      }
+    },
+    {
+      "id": "allow-real",
+      "observed": {
+        "scenario": "real-approved-write-for-conflict",
+        "build": "1.0.0+dev.c2a7ef50.dirty.15a7704bafc8",
+        "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+        "started": 1792661346706,
+        "elapsed": 14042,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：蓝色\n",
+        "after": "# 验收笔记\n颜色：黄色\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2",
+              "signal": {},
+              "binding": {
+                "toolId": "vault_edit",
+                "schemaHash": "df19d73ea3ea4af7d1aec781f1b098eefb478d4b6c7ad9e05cd7a42ed9884d4c",
+                "targets": ["pi-clean-core.md"],
+                "beforeHash": "9d6786d8e0dac8e61f9b2d63b3f6c9d742023982b8b76b3ef17570f4f5df9dd0",
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "root-f452dae3-8efa-4276-a5cd-2b6c530f38d2:1:949845501",
+                "title": "vault_edit",
+                "kind": "edit",
+                "status": "pending",
+                "rawInput": {
+                  "path": "pi-clean-core.md",
+                  "expectedHash": "e043cdfd6a9c34cd38af90727ef233cccc79ad05a6472bcc0765c2819ed76e18",
+                  "edits": [
+                    {
+                      "oldText": "蓝色",
+                      "newText": "黄色"
+                    }
+                  ],
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "content": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n",
+                    "newText": "# 验收笔记\n颜色：黄色\n"
+                  }
+                ]
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：蓝色\n",
+            "at": 1792661357408,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "status": "idle",
+        "approvedOrRejectedToolResults": [],
+        "lastAssistantText": "\n\n✅ 写入已批准并完成。`pi-clean-core.md` 中的\"蓝色\"已"
+      }
+    }
+  ],
+  "mcpServerCount": {
+    "initializations": 2,
+    "lists": 2,
+    "calls": [
+      {
+        "name": "read_acceptance_note",
+        "fail": false,
+        "at": 1792661631560
+      },
+      {
+        "name": "read_acceptance_note",
+        "fail": true,
+        "at": 1792661733706
+      }
+    ]
+  },
+  "limitations": [
+    "这是15a7704bafc8记录包；随后的EventTranslator/Projection/交互恢复等源码变化尚须最终冻结重验。",
+    "本地HTTP MCP是真实传输，与用户许可的远程MCP及远程OAuth为不同门槛。",
+    "只有一个实际对话模型；不同configuredModelId或可控provider不证明不同实际推理模型。",
+    "真实服务错误和拒绝与正常回答分别记录；不使用模型补出的文字冒充工具结果。",
+    "长输出限额、部分文本故障重试采用独立可控故障诊断；不得写作本次真实LM故障复现。"
+  ]
+}

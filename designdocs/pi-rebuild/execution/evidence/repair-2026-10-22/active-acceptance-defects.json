@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-22",
+  "activeDefects": [
+    {
+      "id": "selection-effect-without-receipt",
+      "status": "resolved",
+      "buildIdentity": "c2a7ef50-dirty-5d0645c34509",
+      "source": "/tmp/vault-agent-pi-final2-selection-tool-real.json",
+      "sourceSha256": "625655a59459c4ce1f217940f987ec3b9a6b858733f26289d94340a08597d497",
+      "scenarioId": "SC-P06-T09-01",
+      "taskIds": ["P06-T08", "P06-T09", "P06-T10"],
+      "featureIds": ["F15", "F16", "F17", "F33"],
+      "evidence": "真实PiSmoke本地Qwen调用obsidian_get_selection和obsidian_replace_selection，经一次具体Diff审批，实际紫色→蓝色且保留手工行；Editor.replaceRange绕过MutationCoordinator，所有fileChanges为空，原UI无回退。Vault写入原证据不替代本次Editor写入路径。",
+      "requiredFixAndVerification": "选区写入走同一公共mutation/blob/intent/receipt流程，审批后原视图快照重验，未知效果诚实暂停；真实新包写入后有同operationId COMMITTED Diff和实际回退入口，批准回退后恢复原文字，冷重开不丢失。",
+      "productionFix": {
+        "status": "passed_for_backend_sdk_filesystem_editor_fixture_pending_actual_bundle_ui",
+        "evidence": "真实Backend production selectionMutation9项通过；5套52项定向测试、tsc/lint/format通过。包括新增同文件第一叶已保存、第二叶未保存时必须拒绝；真实磁盘/editor夹具确认receipt和va.mutation同operationId、coldload零重写、Auto独立回退与幂等、CAS快照变化拒绝、Stop与unknown安全。原5d实际界面失败仍保留，等待root新包实测。",
+        "source": "/tmp/vault-agent-pi-selection-mutation-final.json",
+        "result": {
+          "status": "passed",
+          "checks": [
+            "actual_selection_write_uses_vault_cas_and_committed_receipt",
+            "cold_reopen_keeps_same_receipt_without_model_or_rewrite",
+            "auto_rollback_requires_new_approval_and_restores_original_content",
+            "cas_rechecks_leaf_range_full_buffer_and_disk_baseline",
+            "unsaved_buffer_is_not_overwritten",
+            "another_unsaved_editor_blocks_selection_disk_write",
+            "stop_at_actual_cas_and_reopen_never_apply_stale_operation",
+            "lost_host_ack_blocks_dispatch_and_reconciles_same_receipt_without_write",
+            "lost_receipt_blocks_dispatch_and_reopen_preserves_original_operation_id"
+          ],
+          "fileWrites": 5,
+          "directEditorWrites": 0
+        }
+      },
+      "resolvedBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+      "resolution": {
+        "evidence": "最终4b2f879642c3实际PiSmoke本地Qwen蓝→紫，写前一次具体批准，真实fileChanges与同operationId已出现；Auto原UI回退另一次批准、零模型，磁盘和真实editor一致恢复蓝色并保留手工行。完整冷启同原operationId及revert:operationId与两条真实变更仍在，0→0模型/无审批；再次干净冷启实际editor与磁盘一致、idle。原5d失败完整保留。",
+        "source": "/tmp/vault-agent-pi-final3-selection-reopen-real.json",
+        "sourceSha256": "56874757bb6b940fa4e1d0087385e519d7c8c718860ebf8137576533ebf793dc",
+        "additionalSources": [
+          {
+            "source": "/tmp/vault-agent-pi-final3-selection-write-real.json",
+            "sourceSha256": "036470685f15c8c334f3af2dcc14023ab02d32c2318cb4f18cd878e4d7b1c9f3"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-revert-real.json",
+            "sourceSha256": "487e2602cf7c05ca65c7ac89b46ee2ed9592bdb153762f84219a3c1f8da8d2bf"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-selection-revert-proof.json",
+            "sourceSha256": "566774b5cf531ae678d473cd2c4e3e7372520da6262948aaea69cf0766098ee2"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-clean-final-state.json",
+            "sourceSha256": "9fc83fa293aeeac9279b005d93e75fe135df0d4d96ed760c2d27bf3d114d0a6f"
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-command-story-tooltip-provider",
+      "status": "resolved",
+      "kind": "required_visual_verification",
+      "buildIdentity": "c2a7ef50-dirty-5d0645c34509",
+      "source": "/tmp/vault-agent-pi-final2-local-command-gallery-real.json",
+      "sourceSha256": "de90038109bcee76fdb96ddd49c787e12b18ccdda96d0bea67e025c1f06562b5",
+      "scenarioId": null,
+      "taskIds": ["P12-T06"],
+      "featureIds": ["F43"],
+      "evidence": "实际PiSmoke组件图库LocalCommandCompleted在300/600宽均渲染失败：Tooltip must be used within TooltipProvider。5d实际/skill零模型与正常回答已通过，但不能代替新增story必需的图库渲染验证。",
+      "requiredFixAndVerification": "复用现有QueuedActionsDemo的TooltipProvider上下文；后续新包实际打开300/600均无render failure，再保留原失败并标resolved。",
+      "resolvedBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+      "resolution": {
+        "evidence": "最终4b2f879642c3原LocalCommandCompleted story在实际PiSmoke图库300/600宽均渲染完整，error=null且scrollWidth==clientWidth；父代理检查两张真实截图，无裁切/横溢出。5d缺TooltipProvider原始渲染失败保留；原生/主题严格视觉warning仍另列，不因新目标已绿而隐藏。",
+        "source": "/tmp/vault-agent-pi-final3-local-command-gallery-real.json",
+        "sourceSha256": "1ef27975209d5ed69ac928213d37556616b3d188d1864a16a1d2eefc97e44b8a",
+        "additionalSources": [
+          {
+            "source": "/tmp/vault-agent-pi-final3-gallery-wide600-real.json",
+            "sourceSha256": "ae08392b59e248a7e5c6918e25ff2efd1e08447b96adcdc1c49e7d4f20b8fe4d"
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "activeFailed": 0,
+    "resolved": 2,
+    "knownUnfixedFeasibleLocalDefects": 0
+  }
+}

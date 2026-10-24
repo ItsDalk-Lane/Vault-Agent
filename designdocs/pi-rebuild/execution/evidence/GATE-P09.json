@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P09",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "taskIds": [
+    "P09-T01",
+    "P09-T02",
+    "P09-T03",
+    "P09-T04",
+    "P09-T05",
+    "P09-T06",
+    "P09-T07",
+    "P09-T08",
+    "P09-T09",
+    "P09-T10"
+  ],
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-P09.json",
+    "reason": "必需生产接线/验收尚未完成，原 passed 声明撤销；阶段定义与门槛保持不变。"
+  },
+  "commands": [],
+  "manualChecks": [
+    {
+      "check": "阶段任务完成且通过真实生产路径演示",
+      "required": true,
+      "result": "not_run",
+      "evidence": "生产MCP目录、实际本机HTTP调用、进度、具体参数审批、停止与禁用撤销及deferred搜索有回归；远程许可/OAuth仍不能由本机测试替代。 任务与原定阶段演示尚未全部逐项验收，当前gate继续verify_failed。"
+    }
+  ],
+  "notRun": ["重新完成本阶段全部任务的必需断言和真实阶段演示。"],
+  "currentLocalProgress": "生产MCP目录、实际本机HTTP调用、进度、具体参数审批、停止与禁用撤销及deferred搜索有回归；远程许可/OAuth仍不能由本机测试替代。",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json"
+}

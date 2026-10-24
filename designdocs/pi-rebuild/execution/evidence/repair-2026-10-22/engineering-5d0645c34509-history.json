@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-10-22",
+  "status": "passed",
+  "buildIdentity": "c2a7ef50-dirty-5d0645c34509",
+  "mainSha256": "cf6e20c1953f9fbc730acc824ac2dcdc51952f5d597a8dbb21b7726969ee35e5",
+  "currentApplicability": {
+    "kind": "current_frozen_production_source",
+    "engineeringPassed": true,
+    "desktopAcceptance": "separate_in_desktop-final.json"
+  },
+  "commands": [
+    {
+      "command": "npm test -- --runInBand",
+      "testSuites": 516,
+      "testCount": 5778,
+      "durationSeconds": 93.168,
+      "source": "/tmp/vault-agent-pi-final2-unit.log",
+      "sourceSha256": "c0bbc65e3a6f8f9c4a27d9c93f369661f026439cbd7b82c9d4567d24699dbcd4",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run format",
+      "source": "/tmp/vault-agent-pi-final2-format.log",
+      "sourceSha256": "80d16611e02b885f55cc28bc9ee3e09344562fc55ad3a283e13247a90ea8b2e7",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run format:check",
+      "source": "/tmp/vault-agent-pi-final2-format-check.log",
+      "sourceSha256": "a4af907e6cfdfdf3a75475f894517f1286e22b93c75ec569a5af8343ca49d406",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run lint",
+      "warnings": 2,
+      "warningScope": "既有测试mock函数use前缀告警，零error。",
+      "source": "/tmp/vault-agent-pi-final2-lint.log",
+      "sourceSha256": "e2fc91fd828608e619b78d149b1a0147bbd96bcf16b35a8d9be2f9ce338316d8",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run review:obsidian",
+      "warningCount": 761,
+      "intentionalNegativeFixtureErrorCount": 2,
+      "productionBlockingErrors": 0,
+      "vulnerabilities": 0,
+      "notes": "两条invalid manifest error来自检查器故意负例，末尾fixtures passed；761条审查警告保留，未降级规则。",
+      "source": "/tmp/vault-agent-pi-final2-review.log",
+      "sourceSha256": "07862e564b113c139d41a6e0d5d7c1aec1cd7c221c836148d913db70d968fabf",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "violations": 0,
+      "scannedFiles": 1354,
+      "source": "/tmp/vault-agent-pi-final2-boundaries.log",
+      "sourceSha256": "30e5f802eadcdc5282811dbc646095ef37ab456e85ff1ae2bae5f37b9b5c40d3",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run test:vault",
+      "scope": "仅PiSmoke name/path严格守卫的真实构建部署",
+      "nestedCommands": ["npm run build", "npm run build:esbuild", "npm run gallery:build"],
+      "source": "/tmp/vault-agent-pi-final2-deploy.log",
+      "sourceSha256": "0f435bc32f591e2f9dc5868a7eb7df3499b98a366e13319635b266e9d2808dfa",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "scope": "真实test:vault的已执行嵌套命令；同deploy输出含build、build:esbuild和tsc。",
+      "source": "/tmp/vault-agent-pi-final2-deploy.log",
+      "sourceSha256": "0f435bc32f591e2f9dc5868a7eb7df3499b98a366e13319635b266e9d2808dfa",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault的已执行嵌套命令；无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final2-deploy.log",
+      "sourceSha256": "0f435bc32f591e2f9dc5868a7eb7df3499b98a366e13319635b266e9d2808dfa",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "scope": "主代理实际工具已核对exit0；仅工作树空白错误检查，非插件验收。",
+      "source": "parent_actual_tool_result_2026-10-22_final2",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "记录归档时实际执行，确认未完成状态与依赖一致；不是插件功能通过。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "55850f9df90673c0215130a7d724e3d3dd7e1a148efac36f9b78d8aff083c0c4",
+      "exitCode": 0,
+      "result": "passed"
+    }
+  ],
+  "requiredIndependentCommands": "各原任务独立指定命令见detailed-revalidation.json；106条不同原命令均保留各自退出码、测试数和日志hash，不以全量5778替代每张任务卡的指定命令。",
+  "historicalEngineeringPath": "execution/evidence/repair-2026-10-22/engineering-15f2-history.json",
+  "limits": [
+    "工程门禁通过不等于真实Windows/Linux、第二实际模型、许可远程MCP/OAuth或整个视觉gate通过。",
+    "本轮只保留当前构建标识和实际结果；未提交、推送或发布。"
+  ]
+}

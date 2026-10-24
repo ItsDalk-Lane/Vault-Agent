@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P05-T05",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P05-T05.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P05-T05-01", "SC-P05-T05-02", "SC-P05-T05-03", "SC-P05-T05-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 14,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/policy/ApprovalStore.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 17,
+      "durationSeconds": 2.42,
+      "logPath": "/tmp/vault-agent-required-current/20.log",
+      "logSha256": "aab090715db1d9164baf1fc618d8c7c94218bdd13d72b1507586b5c9202e38f0",
+      "testFile": "src/agentMode/sdk/pi/policy/ApprovalStore.test.ts",
+      "testSourceSha256": "0284a4058637b2035f20b64bcf8763d400759e64b64fd962e0415275c1e95246",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P05-T05-01",
+      "requirement": "参数改动原批准失效",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ApprovalStore status() invalidates the approval when any bound fact changes。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T05-02",
+      "requirement": "过期重新申请",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ApprovalStore status() requires a new request after the ten minute window。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T05-03",
+      "requirement": "未知option拒绝",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ApprovalStore decide() rejects an option id that was not part of the real prompt。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P05-T05-04",
+      "requirement": "一次允许不能二次消费",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ApprovalStore consumeOnce() writes the intent together with the consumption and refuses a second use。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "生产工具经过权限/作用域门；实际写前审批、拒绝与Stop后迟到允许已有本机实证。完整安全矩阵仍按原断言单列。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-10-22",
+  "status": "passed",
+  "buildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+  "pluginVersion": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+  "mainSha256": "db69eaf01b0087ea2ff2c77f6a1a2e159b9864e92f9ed83a657f1212aa36f743",
+  "stylesSha256": "733da1d7658a35eae2d3e896fb4606b51c233acab2fe6a4d63fd8afcdca45681",
+  "repoAndVaultArtifactsEqual": true,
+  "buildMetadataSource": {
+    "source": "/tmp/vault-agent-pi-final3-build.json",
+    "sourceSha256": "bef6f4d8b9482a03a8ceab126abc6ce8e723a826004cf81a7e11f0192d02ae8a"
+  },
+  "currentApplicability": {
+    "kind": "current_frozen_production_source",
+    "engineeringPassed": true,
+    "desktopAcceptance": "separate_in_desktop-final.json"
+  },
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final3-unit.json",
+      "testSuites": 517,
+      "testCount": 5781,
+      "pendingTests": 0,
+      "durationSeconds": 102.896,
+      "source": "/tmp/vault-agent-pi-final3-unit.json",
+      "sourceSha256": "31e9af7ed200520ea527be2d064b2619633515d9c974117fed63fd088d17e2c2",
+      "consoleLog": {
+        "source": "/tmp/vault-agent-pi-final3-unit.log",
+        "sourceSha256": "ffdda648bbfaf30ec37d3f1b5edeaa58ebda48d941eeb586c44dd6e45e2eca61"
+      },
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run format",
+      "source": "/tmp/vault-agent-pi-final3-format.log",
+      "sourceSha256": "33e8dbc4ca3ad8a866d1968dc819454322063557aa937b67e560037ba42cd324",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run format:check",
+      "source": "/tmp/vault-agent-pi-final3-format-check.log",
+      "sourceSha256": "a4af907e6cfdfdf3a75475f894517f1286e22b93c75ec569a5af8343ca49d406",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run lint",
+      "warnings": 2,
+      "warningScope": "既有测试mock函数use前缀告警，零error。",
+      "source": "/tmp/vault-agent-pi-final3-lint.log",
+      "sourceSha256": "e2fc91fd828608e619b78d149b1a0147bbd96bcf16b35a8d9be2f9ce338316d8",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run review:obsidian",
+      "warningCount": 761,
+      "intentionalNegativeFixtureErrorCount": 2,
+      "productionBlockingErrors": 0,
+      "vulnerabilities": 0,
+      "notes": "两条invalid manifest error来自故意负例，末尾fixtures passed；761条审查警告原样保留，未降级规则。",
+      "source": "/tmp/vault-agent-pi-final3-review.log",
+      "sourceSha256": "bc56aedc5b5921e4985ac1464a5f4981faaee1815916fbaa067fcc25be7f8391",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "violations": 0,
+      "scannedFiles": 1356,
+      "source": "/tmp/vault-agent-pi-final3-boundaries.log",
+      "sourceSha256": "64371a224432176b501570daf7502c8cfd61508f9aaf678fedaa0dff18e6a53a",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run test:vault",
+      "scope": "严格限定PiSmoke name/path的真实构建部署，原有磁盘与houde未改。",
+      "nestedCommands": ["npm run build", "npm run build:esbuild", "npm run gallery:build"],
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "scope": "真实test:vault已执行的嵌套命令；日志含build/esbuild/tsc。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "本轮实际执行的记录一致性检查；不能证明插件功能完成。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "c5d134ae6a97fdc7abc1b28019ff28a5445d3f87fa88f46a2e0b94c44a991552",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final3-doc-diffcheck.log",
+      "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "notes": "文档落盘后的实际执行exit0。"
+    }
+  ],
+  "requiredIndependentCommands": "106条不同原必需命令全部有真实记录。测试source有变化的15条已于最终freeze后独立重跑244项，结果与源hash保存；未变化命令保留原结果，不拿全量5781替代每张任务卡指定命令。",
+  "requiredCommandRefreshSource": {
+    "source": "/tmp/vault-agent-required-final3-results.json",
+    "sourceSha256": "1a672ed3ea9f401bdc58c8fa55832698fb54fa4423181ef05dad63d4c6f4f504"
+  },
+  "historicalEngineeringPaths": [
+    "execution/evidence/repair-2026-10-22/engineering-15f2-history.json",
+    "execution/evidence/repair-2026-10-22/engineering-5d0645c34509-history.json"
+  ],
+  "limits": [
+    "工程门禁通过不等于Windows/Linux、第二实际模型、许可远程MCP/OAuth或完整严格视觉gate通过。",
+    "5d实机receipt与story失败不删除，后续真实修复证据按新包单列。",
+    "没有提交、推送或发布。"
+  ],
+  "parentActualExitCodeSummary": {
+    "source": "/tmp/vault-agent-pi-final3-engineering.json",
+    "sourceSha256": "5e54ab5bb37697c1f1f1aa21fa31d130e8b5c6c9b93044937f0b58a4aa8f28e6"
+  },
+  "documentCheckerRegression": {
+    "command": "node designdocs/pi-rebuild/scripts/check-plan.test.mjs",
+    "exitCode": 0,
+    "testCount": 21,
+    "result": "passed",
+    "scope": "独立最小fixture的文档检查器故障输入，不是插件功能测试。",
+    "source": "/tmp/vault-agent-pi-final3-check-plan-tests.log",
+    "sourceSha256": "fce35d573a01826851cf5656054d2ab0c8c7eb54faf338301d6c5bbe3c086e28"
+  }
+}

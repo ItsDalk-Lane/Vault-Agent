@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T02",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/models/ModelIdentity.ts",
+    "src/agentMode/sdk/pi/models/ModelCatalog.ts",
+    "src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P03-T02.json"
+  ],
+  "scenarioIds": ["SC-P03-T02-01", "SC-P03-T02-02", "SC-P03-T02-03", "SC-P03-T02-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/models/ModelCatalog.ts src/agentMode/sdk/pi/models/ModelIdentity.ts src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-restricted-syntax 路径限制、no-explicit-any、unused 等规则通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1182 file(s)：模型目录模块无越层依赖，Pi 依赖仍仅在 sdk/pi。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 models/ModelIdentity.ts、models/ModelCatalog.ts、models/ModelCatalog.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 14,
+      "durationSeconds": 3.98,
+      "logPath": "/tmp/vault-agent-required-current/17.log",
+      "logSha256": "e5486bc473067245310da16de63c2b446a8375473a3c7da2e7310ae98921655e",
+      "testFile": "src/agentMode/sdk/pi/models/ModelCatalog.test.ts",
+      "testSourceSha256": "583b94c7a5dd5d1ac801aec9fba599b925199aa0c75420c986b2f7d601250ae6",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T02-01",
+      "requirement": "两个同名模型不串key",
+      "result": "passed",
+      "evidence": "两个 provider 均 openai-compatible、displayName/upstream 均为 GPT-4o，但 providerId 与 baseUrl 不同：buildModelCatalog 生成不同 configuredModelId（providerInstanceId+encoded upstream）与不同 credentialDomainId（hash(providerInstanceId|api|normalized endpoint)），selected 只落在指定 provider-a 上；测试断言 first/second 的 id 与 domain 均不同且 selected 恰好一个。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T02-02",
+      "requirement": "不支持thinking的选择无effort",
+      "result": "passed",
+      "evidence": "capabilitiesFor 中 supportsThinking = reasoning===true；thinkingEfforts 在非 thinking 时返回冻结空数组（测试断言 []），即使被保存为 selected 也没有 effort 选项；reasoning=true 时按 Pi ModelThinkingLevel 白名单过滤（'unsupported-level' 被剔除，顺序保留）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T02-03",
+      "requirement": "未知配置不删除",
+      "result": "passed",
+      "evidence": "providerType 不在四协议映射（如 mistral）或 provider 缺失时，条目仍进入 snapshot.models，status=needs_protocol、api=null、retained=true，并汇总到 unknownConfigs；不会猜测为 OpenAI，也不会删除或静默修改配置。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T02-04",
+      "requirement": "无需CLI模型探测",
+      "result": "passed",
+      "evidence": "ModelCatalog/ModelIdentity 为纯同步映射，输入只有注入的本地 providers/models/selection；测试读取两个源文件断言不含 child_process/execFile/spawn(/fetch(/probeModels/requestUrl，且 buildModelCatalog 无需任何异步/探测端口即可返回快照。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "ModelCatalog 的输入是注入的既有配置投影（ExistingProviderBinding/ExistingConfiguredModel）；真实 VaultAgentSettings.activeModels / modelManagement Provider 行到该投影的适配器尚未接线（P03-T05 根运行时或后续 wiring 任务），因此没有读取真实 data.json。",
+    "本任务不创建 Pi Provider 实例、不注入 CredentialStore、不发连接测试请求；这些属 P03-T03（ModelRuntime/ProviderFactory）范围。",
+    "configuredModelId 对已有 configuredModelId 字段直接沿用；若旧值与本模块格式不同，parseConfiguredModelId 可能返回 null，需在接线时补迁移/兼容映射（当前测试未覆盖旧格式）。",
+    "thinkingEfforts 只做 Pi level 白名单过滤，未校验具体模型/端点是否真的支持全部等级；真实能力以连接测试/供应商响应为准。",
+    "credentialDomainId 是哈希前缀（16 hex），碰撞概率极低但非零；端点规范化未处理非 URL 形式 baseUrl 的全部边界（如带凭证 URL）。",
+    "未运行全仓测试；未接真实 settings/平台；无端到端证据；未创建 git commit（gitCommitAfter=null）。"
+  ],
+  "handoff": "P03-T02 完成；下一任务 P03-T03（按需注册 Pi Provider，依赖 P03-T02）：先读卡片与 design/02、03、09；新增 src/agentMode/sdk/pi/models/ModelRuntime.ts 与 ProviderFactory.ts：用公开 createModels 并注入 CredentialStore（P03-T01 KeychainCredentialStore）；只引入 design/09 的四个 provider 工厂（anthropic/openai responses/openai completions/google），自定义端点用公开 createProvider；按需注册（lazy，不启动时探测模型）；模型连接测试只发最小不含 Vault 内容的请求；显式无认证本地模型（键为 keyless authMode）与 missing-key（CREDENTIAL_REQUIRED）严格区分；禁止静默环境认证与端点回退。先写失败测试 src/agentMode/sdk/pi/models/ModelRuntime.test.ts（断言段见卡片），注入 createModels/工厂/凭证端口，不 mock 核心门禁、禁止真实网络与 sleep（用 faux/test provider）。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelRuntime.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

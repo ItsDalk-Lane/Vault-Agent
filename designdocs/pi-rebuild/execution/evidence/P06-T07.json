@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P06-T07",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P06-T07.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P06-T07-01", "SC-P06-T07-02", "SC-P06-T07-03", "SC-P06-T07-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/VaultMoveTools.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 9,
+      "durationSeconds": 3.98,
+      "logPath": "/tmp/vault-agent-required-current/50.log",
+      "logSha256": "75845ff2accebc2cc0319df4cffa91292bed01835326fcf35ecb446a58175739",
+      "testFile": "src/agentMode/sdk/pi/tools/VaultMoveTools.test.ts",
+      "testSourceSha256": "764fc9941823dcb237f61f5cde8b1b4c6abb82782ea2267ff1100434fb76d822",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P06-T07-01",
+      "requirement": "链接更新可显示",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：VaultMoveTools rename() reviews both endpoints and exposes inbound-link candidates that may be updated。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T07-02",
+      "requirement": "并发不明修改不归Agent",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：VaultMoveTools rename() keeps a concurrent user edit unattributed instead of calling it an Agent change。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T07-03",
+      "requirement": "回收不用永久删除",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：VaultMoveTools trash() uses the recycle API instead of a permanent delete。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T07-04",
+      "requirement": "同路径新文件不被恢复流程再删",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：VaultMoveTools rollbackTrash() does not re-delete a new file that reused the old path。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际Vault工具、写入凭证、Diff与回退已接入；真实本机创建/读取/批准有实证，不以一次创建替代全部写入/故障矩阵。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

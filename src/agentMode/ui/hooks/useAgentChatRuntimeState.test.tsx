@@ -5,6 +5,7 @@ import type {
   AskUserQuestionPrompt,
   CurrentPlan,
   PermissionPrompt,
+  RecoveryStateUpdate,
 } from "@/agentMode/session/types";
 import type { FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
 import { useAgentChatRuntimeState } from "@/agentMode/ui/hooks/useAgentChatRuntimeState";
@@ -21,6 +22,7 @@ interface FakeBackendState {
   pendingToolPermissions: PermissionPrompt[];
   pendingAskUserQuestions: AskUserQuestionPrompt[];
   feedbackOffer?: FeedbackOffer | null;
+  recovery?: RecoveryStateUpdate | null;
 }
 
 function makeFakeBackend(initial: Partial<FakeBackendState> = {}) {
@@ -34,6 +36,7 @@ function makeFakeBackend(initial: Partial<FakeBackendState> = {}) {
     pendingToolPermissions: initial.pendingToolPermissions ?? [],
     pendingAskUserQuestions: initial.pendingAskUserQuestions ?? [],
     feedbackOffer: initial.feedbackOffer ?? null,
+    recovery: initial.recovery ?? null,
   };
   const listeners = new Set<() => void>();
 
@@ -51,6 +54,7 @@ function makeFakeBackend(initial: Partial<FakeBackendState> = {}) {
     getPendingToolPermissions: () => state.pendingToolPermissions,
     getPendingAskUserQuestions: () => state.pendingAskUserQuestions,
     getFeedbackOffer: () => state.feedbackOffer ?? null,
+    getRecoveryState: () => state.recovery ?? null,
   } as unknown as AgentChatBackend;
 
   return {
@@ -65,6 +69,24 @@ const msg = (id: string): AgentChatMessage => ({ id }) as unknown as AgentChatMe
 
 describe("useAgentChatRuntimeState", () => {
   describe("useAgentChatRuntimeState()", () => {
+    it("shows recovery updates without invoking an execution action https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const fake = makeFakeBackend();
+      const { result } = renderHook(() => useAgentChatRuntimeState(fake.backend));
+      expect(result.current.recovery).toBeNull();
+      const recovery: RecoveryStateUpdate = {
+        status: "available",
+        crashLoopTripped: false,
+        pendingPermissionIds: [],
+        pendingQuestionIds: [],
+        pendingMutationIds: [],
+      };
+      act(() => {
+        fake.state.recovery = recovery;
+        fake.emit();
+      });
+      expect(result.current.recovery).toBe(recovery);
+    });
+
     it("returns the backend's initial snapshot", () => {
       const fake = makeFakeBackend({ messages: [msg("a")], isStarting: true });
       const { result } = renderHook(() => useAgentChatRuntimeState(fake.backend));

@@ -90,10 +90,7 @@ const prepared: PreparedReport = {
   zipDir: "/tmp/vault-agent-report-abc123",
   zipPath: "/tmp/vault-agent-report-abc123/copilot-report-20260615-101500-abcd.zip",
   zipName: "copilot-report-20260615-101500-abcd.zip",
-  uploadAttempt: {
-    body: new ArrayBuffer(4096),
-    idempotencyKey: "5d41c9b2-7e3a-4f8b-9c1d-2a6e8f4b0d37",
-  },
+  bytes: 4096,
   issueDraft: { title: "it exploded", body: "## What went wrong" },
   manualIssueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new?title=manual",
   attachments: [],
@@ -211,7 +208,6 @@ describe("ReportIssueModal", () => {
       const modal = openReportIssueModal(plugin, {
         activeBackend: "codex",
         initialNote: "Replied in Swedish",
-        preselectAllSources: true,
         onReported,
       }) as unknown as { open: jest.Mock; params: Record<string, unknown> };
 
@@ -220,7 +216,6 @@ describe("ReportIssueModal", () => {
         activeBackend: "codex",
         pluginVersion: "4.1.0",
         initialNote: "Replied in Swedish",
-        preselectAllSources: true,
         onReported,
       });
     });
@@ -287,36 +282,15 @@ describe("ReportIssueModal", () => {
         });
       });
 
-      it("offers the opencode log only when opencode is the active backend", () => {
-        expect(ids({})).not.toContain("opencodeLog");
-        expect(ids({ activeBackend: "opencode" })).toContain("opencodeLog");
+      it("only offers current plugin sources even when a report describes a legacy chat https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+        expect(ids({ activeBackend: "opencode" })).toEqual([
+          "screenshot",
+          "activityLog",
+          "chatLog",
+        ]);
       });
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/672 pre-checks the opencode log when a feedback card opens the dialog", () => {
-        const checked = modalWith({
-          params: {
-            activeBackend: "opencode",
-            preselectAllSources: true,
-          },
-        })
-          .buildSources()
-          .filter((source) => source.defaultChecked)
-          .map((source) => source.id);
-
-        expect(checked).toEqual(expect.arrayContaining(["screenshot", "chatLog", "opencodeLog"]));
-      });
-
-      it("leaves the opencode log unchecked by default", () => {
-        const opencodeLog = modalWith({
-          params: { activeBackend: "opencode" },
-        })
-          .buildSources()
-          .find((source) => source.id === "opencodeLog");
-
-        expect(opencodeLog?.defaultChecked).toBe(false);
-      });
-
-      it("offers the Vault Agent log checked even with debug mode off, since OpenCode 2 server errors only reach that log (https://github.com/Brevilabs/obsidian-copilot-private/issues/649)", () => {
+      it("offers the Vault Agent log checked even with debug mode off https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
         setSettings({ debug: false });
         const copilotLog = modalWith({
           params: { activeBackend: "opencode" },
@@ -361,15 +335,14 @@ describe("ReportIssueModal", () => {
         expect(nodePath.basename(report.zipDir)).toMatch(/^vault-agent-report-/);
         expect(await realFs.readdir(report.zipDir)).toEqual([report.zipName]);
         expect(report.zipPath).toBe(nodePath.join(report.zipDir, report.zipName));
-        expect((await realFs.stat(report.zipPath)).size).toBe(report.uploadAttempt.body.byteLength);
+        expect((await realFs.stat(report.zipPath)).size).toBe(report.bytes);
       });
 
-      it("hands back the manual issue URL and the manifest alongside the packed attempt", async () => {
+      it("hands back the manual issue URL and the manifest alongside the local zip", async () => {
         const report = await prepare(new Set());
 
         expect(report.manualIssueUrl).toContain("title=it+broke");
         expect(report.attachments.map((a) => a.name)).toContain("report.md");
-        expect(report.uploadAttempt.idempotencyKey).not.toBe("");
       });
 
       it("removes the directory and rethrows when the zip cannot be written (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
@@ -452,13 +425,9 @@ describe("ReportIssueModal", () => {
       });
 
       it("asks for the logs smallest-growing first, so a heavy session's frames cannot crowd the others out (https://github.com/Brevilabs/obsidian-copilot-private/issues/538)", async () => {
-        await prepare(new Set(["activityLog", "chatLog", "opencodeLog"]));
+        await prepare(new Set(["activityLog", "chatLog"]));
 
-        expect(bundleInput().logs.map((log) => log.id)).toEqual([
-          "chatLog",
-          "opencodeLog",
-          "activityLog",
-        ]);
+        expect(bundleInput().logs.map((log) => log.id)).toEqual(["chatLog", "activityLog"]);
       });
 
       it("reads no activity log, and says why, when it was selected while turned off (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
@@ -535,7 +504,7 @@ describe("ReportIssueModal", () => {
         expect(rm).not.toHaveBeenCalled();
       });
 
-      it("discards a prepared report the user closed the dialog on instead of uploading (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
+      it("discards a prepared report when its dialog closes before a manual handoff (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
         const modal = modalWith({ prepared });
 
         modal.onClose();

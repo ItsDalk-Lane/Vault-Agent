@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T02",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/StoreLease.ts",
+    "src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T02.json"
+  ],
+  "scenarioIds": ["SC-P02-T02-01", "SC-P02-T02-02", "SC-P02-T02-03", "SC-P02-T02-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/StoreLease.ts src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-direct-node-imports 通过；node fs/process/os/crypto 均经 requireNodeModule 延迟取得）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1160 file(s)：lease 模块只依赖 host helper，无 Pi SDK 泄漏。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 src/agentMode/sdk/pi/storage/StoreLease.ts + test，并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 15,
+      "durationSeconds": 2.52,
+      "logPath": "/tmp/vault-agent-required-current/37.log",
+      "logSha256": "fc68bc3ed734b9faa62fd380adbc61facde2be8f7f20e600feb6c562e7b3f5bf",
+      "testFile": "src/agentMode/sdk/pi/storage/StoreLease.test.ts",
+      "testSourceSha256": "bbb69438c44bf16dfcd78869dbc3457a0ff4ed834ec1d68c5a98b60c824037fd",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T02-01",
+      "requirement": "第二writer拒绝",
+      "result": "passed",
+      "evidence": "同进程：共享 StoreLeaseRegistry 的第二个 StoreLease acquire() 在 mkdir 前返回 busy/code=STORE_BUSY/reason=in_process_writer，mkdirCalls 仍只有一次；跨进程：另一个 registry 实例在 mkdir EEXIST 后读 owner，pid 存活 → busy/reason=active_remote_owner，不删除 lease。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T02-02",
+      "requirement": "活跃长审批不被偷锁",
+      "result": "passed",
+      "evidence": "owner.createdAt 为当前时间前 24 小时、pid 仍存活时，即使 now 远大于 createdAt，acquire 仍返回 active_remote_owner 且 removeCalls 为空；实现完全没有按年龄/超时回收路径，长审批不视为死进程。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T02-03",
+      "requirement": "不同token不能释放",
+      "result": "passed",
+      "evidence": "持有者用错误 token 调 release → token_mismatch，leaseDir 与 owner 文件保持原样；registry 无持有记录且磁盘 owner token 属他人时同样 token_mismatch，不调用 remove；只有 registry 与磁盘 token 都匹配才 released。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T02-04",
+      "requirement": "不完整owner进入人工恢复",
+      "result": "passed",
+      "evidence": "owner.json 缺字段/非 JSON → busy/reason=owner_incomplete/recoveryRequired=true；owner 文件缺失 → 同样 owner_incomplete；pid 存活无法判定（isAlive 抛错）→ owner_unverifiable/recoveryRequired=true。三种情况均不删除 lease 目录、不写新 owner，交由人工恢复。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "lease 默认 fs/process/token 适配器使用 requireNodeModule 的真实 Node 模块，但本任务测试全部经内存 fs/进程端口注入；未在真实磁盘/真实 Obsidian 进程中验证 lease（真实集成属 P02-T07/P03）。",
+    "默认 bootId 用“机器启动时刻（秒级）”（Date.now - os.uptime）近似；系统时钟被大幅调整时可能漂移。测试注入固定 bootId；生产如需更强证据应改用平台 boot id。",
+    "人工恢复目前只通过 acquire 结果的 recoveryRequired/reason 暴露，没有 UI 恢复入口与恢复记录文件（按任务范围仅 lease 核心；用户确认恢复流程在后续阶段）。",
+    "owner 文件写入使用 flag=wx；若 leaseDir 已存在但 owner 文件不可写/不可读，会进入 owner_incomplete/owner_unverifiable 人工恢复而不是自动降级。",
+    "生产调用方必须共享同一个 StoreLeaseRegistry 才能获得进程内互斥；默认构造函数每次新建 registry，接线时在 runtime 层注入单例（本任务未接 runtime）。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T02 完成；下一任务 P02-T03（包装 JSONL 打开关闭与版本元数据，依赖 P02-T02）：先读卡片与 design/04/16；新增 src/agentMode/sdk/pi/storage/StoreMetadata.ts（schema/runtime 版本头：kind/version）与 src/agentMode/sdk/pi/storage/DurableStore.ts（注入 openNodeJsonlStorage/lease/fs；先 acquire lease 再 openNodeJsonlStorage(storePath, context, {fsync:true}) 三参数；写版本头；close 等待已提交数据并释放 lease；未知版本只读报告不写；open 失败清理自己 lease；绝不在错误时静默换 MemoryStorage）。先写失败测试 src/agentMode/sdk/pi/storage/DurableStore.test.ts（fsync 选项传给真实存储、关闭重开记录一致、unsupported 版本不写、open 失败清理 lease），注入依赖不 mock 核心逻辑。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/DurableStore.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

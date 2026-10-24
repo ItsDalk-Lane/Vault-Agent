@@ -1,723 +1,472 @@
-import { OpencodeBackendDescriptor } from "@/agentMode/backends/opencode/descriptor";
-import { ClaudeBackendDescriptor } from "@/agentMode/backends/claude/descriptor";
-import { CodexBackendDescriptor } from "@/agentMode/backends/codex/descriptor";
-import type {
-  BackendDescriptor,
-  BackendId,
-  BackendProcess,
-  BackendState,
-  ModelSelection,
-  SessionEvent,
-  SessionUpdateHandler,
-} from "@/agentMode/session/types";
-import { createFanoutTurn, FanoutOrchestrator, type FanoutHost } from "./FanoutOrchestrator";
-import { fanoutAllFailedSummary, FANOUT_TRAILING_CHUNK_GRACE_MS } from "./fanoutTypes";
+import {
+  FanoutOrchestrator,
+  createFanoutTurn,
+  type FanoutHost,
+  type FanoutRunInput,
+} from "./FanoutOrchestrator";
+import { parseFanoutComposite, serializeFanoutComposite, type FanoutTurn } from "./fanoutTypes";
+import type { BackendProcess, PromptInput, SessionUpdateHandler } from "@/agentMode/session/types";
+import { byteLength } from "@/utils/logTail";
+import { sha256 } from "@/utils/hash";
 
-jest.mock("@/logger", () => ({
-  logInfo: jest.fn(),
-  logWarn: jest.fn(),
-  logError: jest.fn(),
-}));
+jest.mock("@/logger", () => ({ logInfo: jest.fn(), logWarn: jest.fn(), logError: jest.fn() }));
 
-jest.mock("./fanoutTypes", () => ({
-  ...jest.requireActual("./fanoutTypes"),
-  FANOUT_TRAILING_CHUNK_GRACE_MS: 5,
-}));
-
-jest.mock("@/agentMode/sdk/effortOption", () => ({
-  ...jest.requireActual("@/agentMode/sdk/effortOption"),
-  getCachedSdkCatalog: () => [
-    { value: "claude-sonnet-4-5", supportsEffort: true, supportedEffortLevels: ["low", "high"] },
-  ],
-}));
-
-interface MockProc {
-  proc: BackendProcess;
-  emit: (event: SessionEvent) => void;
-  setSessionMode: jest.Mock;
-  cancel: jest.Mock;
-  resolvePrompt: () => void;
-  rejectPrompt: (err: unknown) => void;
-  promptCount: () => number;
-}
-
-function makeMockProc(sessionId: string): MockProc {
-  let handler: SessionUpdateHandler | null = null;
-  const emptyState = (): BackendState => ({ model: null, mode: null });
-  const pending: Array<{
-    resolve: () => void;
-    reject: (err: unknown) => void;
-  }> = [];
-  const promptPromise = () =>
-    new Promise<{ stopReason: "end_turn" }>((resolve, reject) => {
-      pending.push({ resolve: () => resolve({ stopReason: "end_turn" }), reject });
-    });
-  const settleOldest = (
-    apply: (p: { resolve: () => void; reject: (e: unknown) => void }) => void
-  ) => {
-    const next = pending.shift();
-    if (next) apply(next);
-  };
-  const setSessionMode = jest.fn(async () => ({ model: null, mode: null }));
-  const cancel = jest.fn(async () => undefined);
+function harness(
+  options: {
+    pause?: readonly string[];
+    fail?: readonly string[];
+    empty?: readonly string[];
+    budgetPause?: readonly string[];
+    hold?: readonly string[];
+    cancelled?: readonly string[];
+  } = {}
+) {
+  const handlers = new Map<string, SessionUpdateHandler>();
+  const models = new Map<string, string>();
+  const readers = new Set<string>();
+  const requests: Array<{ sessionId: string; modelKey: string; requestId?: string }> = [];
+  const engines: string[] = [];
+  const pending = new Map<string, (stopReason: string) => void>();
+  let signalSummaryStarted!: () => void;
+  const summaryStarted = new Promise<void>((resolve) => {
+    signalSummaryStarted = resolve;
+  });
+  let signalStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    signalStarted = resolve;
+  });
+  const state = { model: null, mode: null };
+  const persisted: FanoutTurn[] = [];
   const proc = {
-    isRunning: () => true,
-    onExit: () => () => {},
-    setPermissionPrompter: () => {},
-    registerSessionHandler: (_id: string, h: SessionUpdateHandler) => {
-      handler = h;
+    recordFanoutTurn: jest.fn(async ({ turn }: { turn: FanoutTurn }) => {
+      persisted.push(turn);
+    }),
+    newSession: jest.fn(async ({ sessionId }: { sessionId: string }) => ({ sessionId, state })),
+    registerSessionHandler: (id: string, handler: SessionUpdateHandler) => {
+      handlers.set(id, handler);
+      return () => handlers.delete(id);
+    },
+    setSessionMode: jest.fn(
+      async ({ sessionId, modeId }: { sessionId: string; modeId: string }) => {
+        expect(modeId).toBe("plan");
+        expect(readers.has(sessionId)).toBe(true);
+        return state;
+      }
+    ),
+    setSessionModel: jest.fn(
+      async ({ sessionId, modelId }: { sessionId: string; modelId: string }) => {
+        models.set(sessionId, modelId);
+        return state;
+      }
+    ),
+    prompt: jest.fn(async (input: PromptInput) => {
+      const modelKey = models.get(input.sessionId)!;
+      requests.push({ sessionId: input.sessionId, modelKey, requestId: input.requestId });
+      expect(readers.has(input.sessionId)).toBe(true);
+      if (requests.length === 2) signalStarted();
+      const slot = input.requestId?.endsWith(":summary") ? "summary" : modelKey;
+      if (slot === "summary") signalSummaryStarted();
+      if (options.fail?.includes(modelKey)) throw new Error("Provider unavailable");
+      const text = options.empty?.includes(modelKey)
+        ? ""
+        : input.requestId?.endsWith(":summary")
+          ? "Combined answer"
+          : `Answer from ${modelKey}`;
+      handlers.get(input.sessionId)?.({
+        sessionId: input.sessionId,
+        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
+      });
+      if (options.budgetPause?.includes(modelKey)) return { stopReason: "max_turn_requests" };
+      if (options.cancelled?.includes(modelKey)) return { stopReason: "cancelled" };
+      if (options.pause?.includes(modelKey) || options.hold?.includes(slot)) {
+        const stopReason = await new Promise<string>((resolve) =>
+          pending.set(input.sessionId, resolve)
+        );
+        return { stopReason };
+      }
+      return { stopReason: "end_turn" };
+    }),
+    cancel: jest.fn(async ({ sessionId }: { sessionId: string }) => {
+      expect(readers.has(sessionId)).toBe(true);
+      pending.get(sessionId)?.("cancelled");
+    }),
+    closeSession: jest.fn(async ({ sessionId }: { sessionId: string }) => {
+      expect(readers.has(sessionId)).toBe(true);
+    }),
+  } as unknown as BackendProcess;
+  const host: FanoutHost = {
+    ensureBackendForFanout: async (backendId) => {
+      engines.push(backendId);
+      return { proc, descriptor: {} as never };
+    },
+    getDefaultSelection: () => ({ baseModelId: "cm-a", effort: null }),
+    getFanoutModels: () =>
+      ["cm-a", "cm-b"].map((modelKey) => ({
+        modelKey,
+        label: modelKey === "cm-a" ? "Claude" : "GPT",
+        engineId: "pi",
+        hasKey: true,
+      })),
+    getDisplayName: (key) => key,
+    getCwd: () => "/vault",
+    registerReadOnlySession: (id) => {
+      readers.add(id);
       return () => {
-        handler = null;
+        readers.delete(id);
       };
     },
-    newSession: jest.fn(() => Promise.resolve({ sessionId, state: emptyState() })),
-    prompt: jest.fn(() => promptPromise()),
-    cancel,
-    setSessionModel: jest.fn(async () => ({ model: null, mode: null })),
-    isSetSessionModelSupported: () => true,
-    setSessionMode,
-    isSetSessionModeSupported: () => true,
-    setSessionConfigOption: jest.fn(async () => ({ model: null, mode: null })),
-    isSetSessionConfigOptionSupported: () => true,
-    listSessions: jest.fn(async () => ({ sessions: [] })),
-    resumeSession: jest.fn(),
-    loadSession: jest.fn(),
-    shutdown: async () => {},
-  } as unknown as BackendProcess;
+    excludeSubSessionFromHistory: jest.fn(),
+  };
   return {
+    host,
     proc,
-    emit: (event) => handler?.(event),
-    setSessionMode,
-    cancel,
-    resolvePrompt: () => settleOldest((p) => p.resolve()),
-    rejectPrompt: (err) => settleOldest((p) => p.reject(err)),
-    promptCount: () => (proc.prompt as jest.Mock).mock.calls.length,
-  };
-}
-
-function descriptorFor(id: BackendId, readOnlyModeId?: string): BackendDescriptor {
-  return {
-    id,
-    wire: { encode: (s: ModelSelection) => `${s.baseModelId}/${s.effort ?? "default"}` },
-    getModeMapping: readOnlyModeId
-      ? () => ({
-          kind: "setMode" as const,
-          canonical: { plan: "plan", default: "auto" },
-          readOnlyModeId,
-        })
-      : undefined,
-  } as unknown as BackendDescriptor;
-}
-
-function opencodeEnabling(baseModelIds: string[]): BackendDescriptor {
-  return {
-    ...OpencodeBackendDescriptor,
-    getEnabledModelEntries: () =>
-      baseModelIds.map((baseModelId) => ({
-        baseModelId,
-        name: baseModelId,
-        credentialState: "ok" as const,
-      })),
-  };
-}
-
-function textChunk(sessionId: string, text: string): SessionEvent {
-  return {
-    sessionId,
-    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
-  };
-}
-
-interface HostHarness {
-  host: FanoutHost;
-  procs: Map<BackendId, MockProc>;
-  readOnlyRegistered: string[];
-  readOnlyUnregistered: string[];
-  excludedFromHistory: Array<{ backendId: BackendId; sessionId: string }>;
-}
-
-function makeHost(
-  config: Record<BackendId, { sessionId: string; readOnlyModeId?: string }>
-): HostHarness {
-  const procs = new Map<BackendId, MockProc>();
-  const descriptors = new Map<BackendId, BackendDescriptor>();
-  for (const [id, { sessionId, readOnlyModeId }] of Object.entries(config)) {
-    procs.set(id, makeMockProc(sessionId));
-    descriptors.set(id, descriptorFor(id, readOnlyModeId));
-  }
-  const readOnlyRegistered: string[] = [];
-  const readOnlyUnregistered: string[] = [];
-  const excludedFromHistory: Array<{ backendId: BackendId; sessionId: string }> = [];
-  const host: FanoutHost = {
-    ensureBackendForFanout: async (backendId) => ({
-      proc: procs.get(backendId)!.proc,
-      descriptor: descriptors.get(backendId)!,
-    }),
-    getDefaultSelection: () => null,
-    getDisplayName: (backendId) => backendId.toUpperCase(),
-    getCwd: () => "/vault",
-    registerReadOnlySession: (sessionId) => {
-      readOnlyRegistered.push(sessionId);
-      return () => readOnlyUnregistered.push(sessionId);
+    requests,
+    persisted,
+    engines,
+    readers,
+    started,
+    summaryStarted,
+    finish: (modelKey: string) => {
+      const request = requests.find((item) =>
+        modelKey === "summary" ? item.requestId?.endsWith(":summary") : item.modelKey === modelKey
+      );
+      if (!request) throw new Error(`Missing pending model ${modelKey}`);
+      pending.get(request.sessionId)?.("end_turn");
     },
-    excludeSubSessionFromHistory: (backendId, sessionId) => {
-      excludedFromHistory.push({ backendId, sessionId });
-    },
+    orchestrator: new FanoutOrchestrator(host),
   };
-  return { host, procs, readOnlyRegistered, readOnlyUnregistered, excludedFromHistory };
 }
 
-const flush = () => new Promise((r) => window.setTimeout(r, 0));
-
-const flushPastGrace = () =>
-  new Promise((r) => window.setTimeout(r, FANOUT_TRAILING_CHUNK_GRACE_MS + 20));
-
-function runInput(
-  agents: BackendId[],
-  overrides: Partial<Parameters<FanoutOrchestrator["run"]>[0]> = {}
-): Parameters<FanoutOrchestrator["run"]>[0] {
+function input(overrides: Partial<FanoutRunInput> = {}): FanoutRunInput {
   return {
-    agents,
-    mainAgent: agents[0],
-    prompt: [{ type: "text", text: "q" }],
-    originalPromptText: "the original question",
+    agents: ["cm-a", "cm-b"],
+    mainAgent: "pi",
+    fanoutId: "turn-1",
+    prompt: [{ type: "text", text: "Compare these notes" }],
+    originalPromptText: "Compare these notes",
     signal: new AbortController().signal,
-    onChange: () => {},
+    onChange: () => undefined,
     ...overrides,
   };
 }
 
 describe("FanoutOrchestrator", () => {
   describe("createFanoutTurn()", () => {
-    it("seeds one running slot per agent (insertion order) plus a pending summary", () => {
-      const turn = createFanoutTurn(["opencode", "claude", "codex"]);
-      expect(Object.keys(turn.answers)).toEqual(["opencode", "claude", "codex"]);
-      expect(turn.answers.claude).toEqual({ backendId: "claude", status: "running", text: "" });
-      expect(turn.summary).toEqual({ status: "pending", text: "" });
+    it("seeds independent model slots on the single Pi engine", () => {
+      expect(createFanoutTurn(["cm-a", "cm-b"])).toEqual({
+        answers: {
+          "cm-a": { backendId: "pi", modelKey: "cm-a", status: "running", text: "" },
+          "cm-b": { backendId: "pi", modelKey: "cm-b", status: "running", text: "" },
+        },
+        summary: { status: "pending", text: "" },
+      });
     });
   });
 
   describe("FanoutOrchestrator", () => {
     describe("run()", () => {
-      it("streams each agent's answer into its own slot and marks them done", async () => {
-        const { host, procs, readOnlyRegistered, readOnlyUnregistered, excludedFromHistory } =
-          makeHost({
-            claude: { sessionId: "s-claude" },
-            codex: { sessionId: "s-codex" },
+      it("returns an unstarted paused card when its capacity waiter is withdrawn without creating candidates https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        run.proc.recordFanoutTurn = jest.fn(async () => {
+          throw Object.assign(new Error("queued pause"), { code: "QUEUED_INPUT_PAUSED" });
+        });
+        const turn = await run.orchestrator.run(input({ parentSessionId: "queued-root" }));
+        expect(turn).toMatchObject({
+          checkpoint: { fanoutId: "turn-1", awaitingAdmission: true },
+          summary: { status: "paused", complete: false },
+          answers: { "cm-a": { status: "paused" }, "cm-b": { status: "paused" } },
+        });
+        expect(run.requests).toEqual([]);
+        expect(run.proc.newSession).not.toHaveBeenCalled();
+        expect(run.proc.recordFanoutTurn).toHaveBeenCalledTimes(1);
+      });
+      it.each(["CANCELLED", "signal-aborted"])(
+        "returns cancelled without creating candidates when queued input is stopped through %s https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+        async (code) => {
+          const run = harness();
+          const controller = new AbortController();
+          if (code === "signal-aborted") controller.abort();
+          run.proc.recordFanoutTurn = jest.fn(async () => {
+            throw Object.assign(new Error("queued stopped"), { code });
           });
-        const orchestrator = new FanoutOrchestrator(host);
-        const controller = new AbortController();
-        const snapshots: string[] = [];
-
-        const runPromise = orchestrator.run(
-          runInput(["claude", "codex"], {
-            prompt: [{ type: "text", text: "review this" }],
-            signal: controller.signal,
-            onChange: (turn) => snapshots.push(JSON.stringify(turn.answers)),
-          })
+          const turn = await run.orchestrator.run(
+            input({ parentSessionId: "queued-root", signal: controller.signal })
+          );
+          expect(Object.values(turn.answers).every((answer) => answer.status === "cancelled")).toBe(
+            true
+          );
+          expect(turn.summary).toMatchObject({ status: "done", complete: false });
+          expect(run.proc.newSession).not.toHaveBeenCalled();
+        }
+      );
+      it("preserves an actual checkpoint-save failure instead of starting unrecorded candidates https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        run.proc.recordFanoutTurn = jest.fn(async () => {
+          throw new Error("durable save failed");
+        });
+        await expect(
+          run.orchestrator.run(input({ parentSessionId: "queued-root" }))
+        ).rejects.toThrow("durable save failed");
+        expect(run.proc.newSession).not.toHaveBeenCalled();
+      });
+      it("saves the recovery checkpoint before dispatch and retains independent terminal snapshots in the parent https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        const result = await run.orchestrator.run(input({ parentSessionId: "root-parent" }));
+        expect(run.proc.recordFanoutTurn).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId: "root-parent" })
         );
-
-        await flush();
-        procs.get("claude")!.emit(textChunk("s-claude", "Claude says hi"));
-        procs.get("codex")!.emit(textChunk("s-codex", "Codex says hi"));
-        procs.get("claude")!.resolvePrompt();
-        procs.get("codex")!.resolvePrompt();
-        await flushPastGrace();
-        procs.get("claude")!.emit(textChunk("s-claude", "summary"));
-        procs.get("claude")!.resolvePrompt();
-
-        const turn = await runPromise;
-        expect(turn.answers.claude).toEqual({
-          backendId: "claude",
-          status: "done",
-          text: "Claude says hi",
-        });
-        expect(turn.answers.codex).toEqual({
-          backendId: "codex",
-          status: "done",
-          text: "Codex says hi",
-        });
-        expect(turn.summary.status).toBe("done");
-        expect(turn.summary.text).toBe("summary");
-        expect(readOnlyRegistered.sort()).toEqual(["s-claude", "s-claude", "s-codex"]);
-        expect(readOnlyUnregistered.sort()).toEqual(["s-claude", "s-claude", "s-codex"]);
-        expect(excludedFromHistory.map((e) => e.sessionId).sort()).toEqual([
-          "s-claude",
-          "s-claude",
-          "s-codex",
-        ]);
-        expect(snapshots.length).toBeGreaterThan(1);
+        expect(run.persisted[0].answers["cm-a"]).toMatchObject({ status: "running", text: "" });
+        expect(run.persisted[0].summary.status).toBe("pending");
+        expect(run.persisted.at(-1)).toEqual(result);
+        expect(run.persisted.filter((turn) => turn.summary.complete)).toHaveLength(1);
       });
-
-      it("isolates a failed agent as an error slot while others complete", async () => {
-        const { host, procs } = makeHost({
-          claude: { sessionId: "s-claude" },
-          codex: { sessionId: "s-codex" },
-        });
-        const orchestrator = new FanoutOrchestrator(host);
-        const controller = new AbortController();
-
-        const runPromise = orchestrator.run(
-          runInput(["claude", "codex"], { signal: controller.signal })
-        );
-
-        await flush();
-        procs.get("claude")!.emit(textChunk("s-claude", "ok"));
-        procs.get("claude")!.resolvePrompt();
-        procs.get("codex")!.rejectPrompt(new Error("backend boom"));
-        await flushPastGrace();
-        procs.get("claude")!.resolvePrompt();
-
-        const turn = await runPromise;
-        expect(turn.answers.claude.status).toBe("done");
-        expect(turn.answers.codex.status).toBe("error");
-        expect(turn.answers.codex.error).toContain("backend boom");
-        const summaryCall = (procs.get("claude")!.proc.prompt as jest.Mock).mock.calls[1][0];
-        const text = summaryCall.prompt[0].text as string;
-        expect(text).toContain("the original question");
-        expect(text).toContain("CLAUDE");
-        expect(text).not.toContain("CODEX");
-      });
-
-      it("applies the read-only sandbox id (never plan) only for backends that advertise one", async () => {
-        const { host, procs } = makeHost({
-          codex: { sessionId: "s-codex", readOnlyModeId: "read-only" },
-          opencode: { sessionId: "s-opencode" },
-        });
-        const orchestrator = new FanoutOrchestrator(host);
-        const controller = new AbortController();
-
-        const runPromise = orchestrator.run(
-          runInput(["codex", "opencode"], { signal: controller.signal })
-        );
-        await flush();
-        procs.get("codex")!.resolvePrompt();
-        procs.get("opencode")!.resolvePrompt();
-        await flushPastGrace();
-        procs.get("codex")!.resolvePrompt();
-        await runPromise;
-
-        expect(procs.get("codex")!.setSessionMode).toHaveBeenCalledWith({
-          sessionId: "s-codex",
-          modeId: "read-only",
-        });
-        expect(procs.get("codex")!.setSessionMode).not.toHaveBeenCalledWith({
-          sessionId: "s-codex",
-          modeId: "plan",
-        });
-        expect(procs.get("opencode")!.setSessionMode).not.toHaveBeenCalled();
-      });
-
-      it("cancels EVERY in-flight sub-session and lands each slot terminal-cancelled on abort", async () => {
-        const { host, procs } = makeHost({
-          claude: { sessionId: "s-claude" },
-          codex: { sessionId: "s-codex" },
-        });
-        const orchestrator = new FanoutOrchestrator(host);
-        const controller = new AbortController();
-        const runPromise = orchestrator.run(
-          runInput(["claude", "codex"], { signal: controller.signal })
-        );
-
-        await flush();
-        controller.abort();
-        procs.get("claude")!.resolvePrompt();
-        procs.get("codex")!.resolvePrompt();
-        const turn = await runPromise;
-
-        expect(procs.get("claude")!.cancel).toHaveBeenCalledWith({ sessionId: "s-claude" });
-        expect(procs.get("codex")!.cancel).toHaveBeenCalledWith({ sessionId: "s-codex" });
-        expect(turn.answers.claude.status).toBe("cancelled");
-        expect(turn.answers.codex.status).toBe("cancelled");
-        expect(procs.get("claude")!.promptCount()).toBe(1);
-        expect(turn.summary.status).toBe("pending");
-      });
-
-      it("lands a brief all-failed note (no fabricated summary) when zero agents succeed", async () => {
-        const { host, procs } = makeHost({
-          claude: { sessionId: "s-claude" },
-          codex: { sessionId: "s-codex" },
-        });
-        const orchestrator = new FanoutOrchestrator(host);
-        const controller = new AbortController();
-        const runPromise = orchestrator.run(
-          runInput(["claude", "codex"], { signal: controller.signal })
-        );
-
-        await flush();
-        procs.get("claude")!.rejectPrompt(new Error("boom-a"));
-        procs.get("codex")!.rejectPrompt(new Error("boom-b"));
-        const turn = await runPromise;
-
-        expect(turn.summary.status).toBe("done");
-        expect(turn.summary.text).toBe(fanoutAllFailedSummary());
-        expect(procs.get("claude")!.promptCount()).toBe(1);
-        expect(procs.get("codex")!.promptCount()).toBe(1);
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/481 returns one mentioned agent's answer without dispatching a summary", async () => {
-        const { host, procs } = makeHost({
-          claude: { sessionId: "s-claude" },
-          opencode: { sessionId: "s-opencode" },
-        });
-        const proc = procs.get("claude")!;
-        jest.mocked(proc.proc.prompt).mockImplementation(async () => {
-          proc.emit(textChunk("s-claude", "Claude answered directly"));
-          return { stopReason: "end_turn" };
-        });
-
-        const turn = await new FanoutOrchestrator(host).run(
-          runInput(["claude"], { mainAgent: "opencode" })
-        );
-
-        expect(proc.proc.prompt).toHaveBeenCalledTimes(1);
-        expect(procs.get("opencode")!.proc.newSession).not.toHaveBeenCalled();
-        expect(procs.get("opencode")!.proc.prompt).not.toHaveBeenCalled();
-        expect(turn.answers.claude).toMatchObject({
-          status: "done",
-          text: "Claude answered directly",
-        });
-        expect(turn.summary).toEqual({ status: "done", text: "" });
-      });
-
-      function configureCodex(proc: BackendProcess): void {
-        const state: BackendState = {
-          mode: null,
-          model: {
-            current: { baseModelId: "original", effort: "low" },
-            apply: {
-              kind: "setConfigOption",
-              configId: "model",
-              effortConfigId: "reasoning_effort",
-            },
-            availableModels: [
-              {
-                baseModelId: "example",
-                name: "Example",
-                provider: null,
-                effortOptions: [
-                  { value: "low", label: "low" },
-                  { value: "high", label: "high" },
-                ],
-              },
-            ],
-          },
-        };
-        jest.mocked(proc.newSession).mockResolvedValue({ sessionId: "s-codex", state });
-        jest.mocked(proc.setSessionConfigOption).mockResolvedValue(state);
-      }
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/550 applies explicit Codex effort to both answer and summary sessions", async () => {
-        const { host, procs } = makeHost({
-          codex: { sessionId: "s-codex" },
-          claude: { sessionId: "s-claude" },
-        });
-        const proc = procs.get("codex")!.proc;
-        configureCodex(proc);
-        host.ensureBackendForFanout = async (backendId) =>
-          backendId === "codex"
-            ? { proc, descriptor: CodexBackendDescriptor }
-            : {
-                proc: procs.get(backendId)!.proc,
-                descriptor: descriptorFor(backendId),
-              };
-        host.getDefaultSelection = () => ({ baseModelId: "example", effort: "high" });
-        jest.mocked(proc.prompt).mockImplementation(async () => {
-          procs.get("codex")!.emit(textChunk("s-codex", "answer"));
-          return { stopReason: "end_turn" };
-        });
-        jest.mocked(procs.get("claude")!.proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
-        await new FanoutOrchestrator(host).run(runInput(["codex", "claude"]));
-        expect(proc.setSessionConfigOption).toHaveBeenCalledWith({
-          sessionId: "s-codex",
-          configId: "model",
-          value: "example",
-        });
-        expect(proc.setSessionConfigOption).toHaveBeenCalledWith({
-          sessionId: "s-codex",
-          configId: "reasoning_effort",
-          value: "high",
-        });
-        expect(proc.setSessionConfigOption).toHaveBeenCalledTimes(4);
-        expect(proc.setSessionModel).not.toHaveBeenCalled();
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/550 reports a rejected model config switch rather than running fan-out on a different model", async () => {
-        const { host, procs } = makeHost({ codex: { sessionId: "s-codex" } });
-        const proc = procs.get("codex")!.proc;
-        configureCodex(proc);
-        host.ensureBackendForFanout = async () => ({ proc, descriptor: CodexBackendDescriptor });
-        host.getDefaultSelection = () => ({ baseModelId: "example", effort: null });
-        jest.mocked(proc.setSessionConfigOption).mockRejectedValue(new Error("Model unavailable"));
-        const result = await new FanoutOrchestrator(host).run(runInput(["codex"]));
-        expect(result.answers.codex.status).toBe("error");
-        expect(result.answers.codex.error).toContain("Model unavailable");
-        expect(proc.prompt).not.toHaveBeenCalled();
-        expect(proc.setSessionModel).not.toHaveBeenCalled();
-      });
-
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/550 exposes a summary-only model selection failure while preserving successful answers", async () => {
-        const { host, procs } = makeHost({
-          codex: { sessionId: "s-codex" },
-          claude: { sessionId: "s-claude" },
-        });
-        const proc = procs.get("codex")!.proc;
-        configureCodex(proc);
-        host.ensureBackendForFanout = async (backendId) =>
-          backendId === "codex"
-            ? { proc, descriptor: CodexBackendDescriptor }
-            : {
-                proc: procs.get(backendId)!.proc,
-                descriptor: descriptorFor(backendId),
-              };
-        host.getDefaultSelection = () => ({ baseModelId: "example", effort: "high" });
-        const successState = await proc.setSessionConfigOption({
-          sessionId: "s-codex",
-          configId: "model",
-          value: "example",
-        });
+      it("refuses to start paid model requests when the parent recovery checkpoint cannot be saved https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
         jest
-          .mocked(proc.setSessionConfigOption)
-          .mockResolvedValueOnce(successState)
-          .mockResolvedValueOnce(successState)
-          .mockRejectedValueOnce(new Error("Model unavailable"));
-        jest.mocked(proc.prompt).mockImplementation(async () => {
-          procs.get("codex")!.emit(textChunk("s-codex", "Successful answer"));
-          return { stopReason: "end_turn" };
-        });
-        jest.mocked(procs.get("claude")!.proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
-
-        const result = await new FanoutOrchestrator(host).run(runInput(["codex", "claude"]));
-
-        expect(result.answers.codex).toMatchObject({ status: "done", text: "Successful answer" });
-        expect(result.summary.status).toBe("done");
-        expect(result.summary.error).toContain("Model unavailable");
-        expect(result.summary.complete).not.toBe(true);
-        expect(proc.prompt).toHaveBeenCalledTimes(1);
+          .mocked(run.proc.recordFanoutTurn!)
+          .mockRejectedValue(new Error("checkpoint storage unavailable"));
+        await expect(
+          run.orchestrator.run(input({ parentSessionId: "root-parent" }))
+        ).rejects.toThrow("checkpoint storage unavailable");
+        expect(run.requests).toEqual([]);
       });
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/219 applies and reports the lowest OpenCode effort before both answer and summary prompts", async () => {
-        const { host, procs } = makeHost({
-          opencode: { sessionId: "s-opencode" },
-          claude: { sessionId: "s-claude" },
+      it("runs saved models through independent read-only Pi sessions and one summary https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        const result = await run.orchestrator.run(input());
+        expect(run.engines).toEqual(["pi", "pi", "pi"]);
+        expect(result.answers["cm-a"]).toMatchObject({
+          modelKey: "cm-a",
+          label: "Claude",
+          text: "Answer from cm-a",
+          status: "done",
         });
-        const proc = procs.get("opencode")!.proc;
-        const state: BackendState = {
-          model: {
-            current: { baseModelId: "provider/model", effort: "high" },
-            availableModels: [
-              {
-                baseModelId: "provider/model",
-                name: "Model",
-                provider: "provider",
-                effortOptions: [
-                  { value: "high", label: "High" },
-                  { value: "low", label: "Low" },
-                ],
-              },
-            ],
-            apply: { kind: "setConfigOption", configId: "model", effortConfigId: "effort" },
-          },
-          mode: null,
-        };
-        host.ensureBackendForFanout = async (backendId) =>
-          backendId === "opencode"
-            ? { proc, descriptor: opencodeEnabling(["provider/model"]) }
-            : {
-                proc: procs.get(backendId)!.proc,
-                descriptor: descriptorFor(backendId),
-              };
-        host.getDefaultSelection = (backendId) =>
-          backendId === "opencode" ? { baseModelId: "provider/model", effort: null } : null;
-        jest.mocked(proc.newSession).mockResolvedValue({ sessionId: "s-opencode", state });
-        const confirmed = {
-          ...state,
-          model: { ...state.model!, current: { baseModelId: "provider/model", effort: "low" } },
-        };
-        host.onSelectionApplied = jest.fn();
-        jest.mocked(proc.setSessionConfigOption).mockResolvedValue(confirmed);
-        jest.mocked(proc.prompt).mockImplementation(async () => {
-          procs.get("opencode")!.emit(textChunk("s-opencode", "answer"));
-          return { stopReason: "end_turn" };
+        expect(result.answers["cm-b"]).toMatchObject({
+          modelKey: "cm-b",
+          label: "GPT",
+          text: "Answer from cm-b",
+          status: "done",
         });
-        jest.mocked(procs.get("claude")!.proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
-
-        await new FanoutOrchestrator(host).run(runInput(["opencode", "claude"]));
-
-        expect(jest.mocked(proc.setSessionConfigOption).mock.calls).toEqual([
-          [{ sessionId: "s-opencode", configId: "effort", value: "low" }],
-          [{ sessionId: "s-opencode", configId: "effort", value: "low" }],
+        expect(new Set(run.requests.map((request) => request.sessionId)).size).toBe(3);
+        expect(
+          run.requests.every((request) => /^root-fanout-[a-f0-9]{64}$/.test(request.sessionId))
+        ).toBe(true);
+        expect(run.requests.map((request) => request.requestId)).toEqual([
+          "fanout:turn-1:cm-a",
+          "fanout:turn-1:cm-b",
+          "fanout:turn-1:summary",
         ]);
-        expect(host.onSelectionApplied).toHaveBeenCalledWith("opencode", confirmed);
-        expect(proc.prompt).toHaveBeenCalledTimes(2);
-        expect(proc.setSessionModel).not.toHaveBeenCalled();
+        expect(result.summary).toMatchObject({ text: "Combined answer", complete: true });
+        expect(run.proc.closeSession).toHaveBeenCalledTimes(3);
+        expect(run.readers.size).toBe(0);
       });
 
-      it.each([true, false])(
-        "https://github.com/Brevilabs/obsidian-copilot-private/issues/219 uses OpenCode's refreshed effort capability after selecting the model, offered=%s",
-        async (offered) => {
-          const { host, procs } = makeHost({ opencode: { sessionId: "s-opencode" } });
-          const proc = procs.get("opencode")!.proc;
-          const initial: BackendState = {
-            model: {
-              current: { baseModelId: "provider/old", effort: null },
-              availableModels: [
-                {
-                  baseModelId: "provider/new",
-                  name: "New",
-                  provider: "provider",
-                  effortOptions: [
-                    { value: "high", label: "High" },
-                    { value: "low", label: "Low" },
-                  ],
-                },
-              ],
-              apply: { kind: "setConfigOption", configId: "model", effortConfigId: "old-effort" },
-            },
-            mode: null,
-          };
-          const refreshed: BackendState = {
-            model: {
-              current: { baseModelId: "provider/new", effort: null },
-              availableModels: [
-                {
-                  baseModelId: "provider/new",
-                  name: "New",
-                  provider: null,
-                  effortOptions: offered ? [{ value: "high", label: "high" }] : [],
-                },
-              ],
-              apply: { kind: "setConfigOption", configId: "model", effortConfigId: "new-effort" },
-            },
-            mode: null,
-          };
-          host.ensureBackendForFanout = async () => ({
-            proc,
-            descriptor: opencodeEnabling(["provider/new"]),
-          });
-          host.getDefaultSelection = () => ({ baseModelId: "provider/new", effort: "high" });
-          jest
-            .mocked(proc.newSession)
-            .mockResolvedValue({ sessionId: "s-opencode", state: initial });
-          jest.mocked(proc.setSessionConfigOption).mockResolvedValue(refreshed);
-          jest.mocked(proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
+      it("keeps the original SDK candidate paused at a budget limit and does not synthesize a partial success https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ budgetPause: ["cm-b"] });
+        const result = await run.orchestrator.run(input({ parentSessionId: "root-parent" }));
+        expect(result.answers["cm-b"]).toMatchObject({
+          status: "paused",
+          text: "Answer from cm-b",
+        });
+        expect(result.summary).toMatchObject({ status: "paused", complete: false });
+        expect(run.requests).toHaveLength(2);
+        expect(run.proc.closeSession).toHaveBeenCalledTimes(1);
+        expect(run.proc.cancel).not.toHaveBeenCalled();
+        expect(run.persisted.at(-1)).toEqual(result);
+        const restored = parseFanoutComposite(serializeFanoutComposite(result, (key) => key));
+        expect(restored?.answers["cm-b"].status).toBe("paused");
+        expect(restored?.summary.status).toBe("paused");
+      });
 
-          await new FanoutOrchestrator(host).run(runInput(["opencode"]));
-
-          expect(proc.setSessionModel).not.toHaveBeenCalled();
-          expect(jest.mocked(proc.setSessionConfigOption).mock.calls).toEqual([
-            [{ sessionId: "s-opencode", configId: "model", value: "provider/new" }],
-            ...(offered
-              ? [[{ sessionId: "s-opencode", configId: "new-effort", value: "high" }]]
-              : []),
-          ]);
+      it.each(["candidate", "summary"])(
+        "keeps a slow %s alive beyond five minutes until its real task finishes https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+        async (phase) => {
+          jest.useFakeTimers();
+          const held = phase === "candidate" ? "cm-b" : "summary";
+          const run = harness({ hold: [held] });
+          const controller = new AbortController();
+          const pending = run.orchestrator.run(input({ signal: controller.signal }));
+          try {
+            await (phase === "candidate" ? run.started : run.summaryStarted);
+            await jest.advanceTimersByTimeAsync(5 * 60 * 1000 + 1);
+            expect(run.proc.cancel).not.toHaveBeenCalled();
+            expect(run.readers.size).toBeGreaterThan(0);
+            run.finish(held);
+            const result = await pending;
+            expect(Object.values(result.answers).every((answer) => answer.status === "done")).toBe(
+              true
+            );
+            expect(result.summary).toMatchObject({ complete: true, text: "Combined answer" });
+            expect(run.readers.size).toBe(0);
+          } finally {
+            controller.abort();
+            await pending;
+            jest.useRealTimers();
+          }
         }
       );
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/625 waits for OpenCode's late catalog to list the enabled default before switching and prompting", async () => {
-        const { host, procs } = makeHost({ opencode: { sessionId: "s-opencode" } });
-        const mock = procs.get("opencode")!;
-        const catalog = (modelIds: string[]): BackendState => ({
-          model: {
-            current: { baseModelId: "opencode/big-pickle", effort: null },
-            availableModels: modelIds.map((baseModelId) => ({
-              baseModelId,
-              name: baseModelId,
-              provider: null,
-              effortOptions: [],
-            })),
-            apply: { kind: "setConfigOption", configId: "model" },
-          },
-          mode: null,
-        });
-        host.ensureBackendForFanout = async () => ({
-          proc: mock.proc,
-          descriptor: opencodeEnabling(["provider/enabled"]),
-        });
-        host.getDefaultSelection = () => ({ baseModelId: "provider/enabled", effort: null });
-        jest.mocked(mock.proc.newSession).mockResolvedValue({
-          sessionId: "s-opencode",
-          state: catalog(["opencode/big-pickle"]),
-        });
-        jest.mocked(mock.proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
-
-        const run = new FanoutOrchestrator(host).run(runInput(["opencode"]));
-        await flush();
-        expect(mock.proc.setSessionConfigOption).not.toHaveBeenCalled();
-        expect(mock.promptCount()).toBe(0);
-
-        mock.emit({
-          sessionId: "s-opencode",
-          update: {
-            sessionUpdate: "state_changed",
-            state: catalog(["opencode/big-pickle", "provider/enabled"]),
-          },
-        });
-        const turn = await run;
-
-        expect(turn.answers.opencode.status).toBe("done");
-        expect(mock.proc.setSessionConfigOption).toHaveBeenCalledWith({
-          sessionId: "s-opencode",
-          configId: "model",
-          value: "provider/enabled",
-        });
-        expect(mock.promptCount()).toBe(1);
+      it("still cancels an active summary through the same explicit Stop without marking it complete https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ hold: ["summary"] });
+        const controller = new AbortController();
+        const pending = run.orchestrator.run(input({ signal: controller.signal }));
+        await run.summaryStarted;
+        controller.abort();
+        const result = await pending;
+        expect(Object.values(result.answers).every((answer) => answer.status === "done")).toBe(
+          true
+        );
+        expect(result.summary.complete).toBe(false);
+        expect(run.proc.cancel).toHaveBeenCalledTimes(1);
+        expect(run.proc.closeSession).toHaveBeenCalledTimes(3);
+        expect(run.readers.size).toBe(0);
       });
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/625 fails an OpenCode slot without prompting when the user enabled no model, rather than running OpenCode's own", async () => {
-        const { host, procs } = makeHost({ opencode: { sessionId: "s-opencode" } });
-        const mock = procs.get("opencode")!;
-        host.ensureBackendForFanout = async () => ({
-          proc: mock.proc,
-          descriptor: opencodeEnabling([]),
+      it("passes cancellation and its partial report as untrusted non-success data to the summary https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ cancelled: ["cm-b"] });
+        const result = await run.orchestrator.run(input());
+        expect(result.answers["cm-b"]).toMatchObject({
+          status: "cancelled",
+          text: "Answer from cm-b",
         });
-        jest.mocked(mock.proc.newSession).mockResolvedValue({
-          sessionId: "s-opencode",
-          state: {
-            model: {
-              current: { baseModelId: "opencode/big-pickle", effort: null },
-              availableModels: [
-                {
-                  baseModelId: "opencode/big-pickle",
-                  name: "Big Pickle",
-                  provider: null,
-                  effortOptions: [],
-                },
-              ],
-              apply: { kind: "setConfigOption", configId: "model" },
-            },
-            mode: null,
-          },
+        expect(result.answers["cm-b"].error).toBeUndefined();
+        const summary = jest.mocked(run.proc.prompt).mock.calls[2][0];
+        expect(JSON.stringify(summary.prompt)).not.toContain("Answer from cm-a");
+        expect(JSON.stringify(summary.prompt)).not.toContain("Answer from cm-b");
+        const reports = summary
+          .context!.materials.slice(1)
+          .map((material) => JSON.parse(material.text));
+        expect(reports[0]).toMatchObject({
+          status: "done",
+          usableAsCompletedAnswer: true,
+          completion: { stopReason: "end_turn" },
         });
+        expect(reports[1]).toMatchObject({
+          status: "cancelled",
+          text: "Answer from cm-b",
+          usableAsCompletedAnswer: false,
+        });
+        expect(result.summary.complete).toBe(true);
+      });
 
-        const turn = await new FanoutOrchestrator(host).run(runInput(["opencode"]));
-
-        expect(turn.answers.opencode).toMatchObject({
+      it("preserves a successful candidate when another provider fails https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ fail: ["cm-b"] });
+        const result = await run.orchestrator.run(input());
+        expect(result.answers["cm-a"].status).toBe("done");
+        expect(result.answers["cm-b"]).toMatchObject({
           status: "error",
-          error: expect.stringContaining("None of the models enabled for"),
+          error: "Provider unavailable",
         });
-        expect(mock.promptCount()).toBe(0);
-        expect(mock.proc.setSessionConfigOption).not.toHaveBeenCalled();
+        expect(result.summary.complete).toBe(true);
       });
 
-      it("https://github.com/Brevilabs/obsidian-copilot-private/issues/219 keeps Claude's separate effort dispatch when fan-out uses the shared descriptor contract", async () => {
-        const { host, procs } = makeHost({ claude: { sessionId: "s-claude" } });
-        const proc = procs.get("claude")!.proc;
-        const modelId = "claude-sonnet-4-5";
-        host.ensureBackendForFanout = async () => ({ proc, descriptor: ClaudeBackendDescriptor });
-        host.getDefaultSelection = () => ({ baseModelId: modelId, effort: "high" });
-        const effortOption = ClaudeBackendDescriptor.wire.effortConfigFor?.(modelId);
-        expect(effortOption).toBeTruthy();
-        jest.mocked(proc.prompt).mockResolvedValue({ stopReason: "end_turn" });
+      it("bounds recovery context without truncating the actual candidate materials https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        const oversized = "资料".repeat(50_000);
+        const context = {
+          project: { text: "项目要求", sourcePath: "project.md" },
+          materials: [
+            { origin: "note" as const, text: "完整小材料", sourcePath: "small.md" },
+            { origin: "note" as const, text: oversized, sourcePath: "large.md" },
+          ],
+        };
+        const result = await run.orchestrator.run(input({ context }));
+        expect(run.proc.prompt).toHaveBeenNthCalledWith(1, expect.objectContaining({ context }));
+        expect(run.proc.prompt).toHaveBeenNthCalledWith(2, expect.objectContaining({ context }));
+        expect(byteLength(JSON.stringify(result.checkpoint!.context))).toBeLessThanOrEqual(
+          128 * 1024
+        );
+        expect(result.checkpoint!.context!.project).toEqual(context.project);
+        expect(result.checkpoint!.context!.materials[0]).toEqual(context.materials[0]);
+        expect(JSON.stringify(result.checkpoint!.context)).not.toContain(oversized);
+        expect(JSON.stringify(result.checkpoint!.context)).toContain(sha256(oversized));
+        expect(JSON.stringify(result.checkpoint!.context)).toContain("300000");
+        expect(JSON.stringify(result.checkpoint!.context)).toContain("large.md");
+        const restored = parseFanoutComposite(serializeFanoutComposite(result, (key) => key))!;
+        expect(restored.checkpoint!.context).toEqual(result.checkpoint!.context);
+      });
 
-        await new FanoutOrchestrator(host).run(runInput(["claude"]));
+      it("bounds recovery metadata and omission receipts when many materials exceed the limit https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        const result = await run.orchestrator.run(
+          input({
+            context: {
+              project: { text: "项目要求".repeat(30_000), sourcePath: "project.md" },
+              materials: Array.from({ length: 500 }, (_, index) => ({
+                origin: "web" as const,
+                text: "正文".repeat(30_000),
+                url: `https://example.com/${index}/${"x".repeat(4096)}`,
+              })),
+            },
+          })
+        );
+        const saved = JSON.stringify(result.checkpoint!.context);
+        expect(byteLength(saved)).toBeLessThanOrEqual(128 * 1024);
+        expect(saved).toContain("省略");
+        expect(saved).not.toContain("项目要求".repeat(30_000));
+      });
 
-        expect(proc.setSessionModel).toHaveBeenCalledWith({ sessionId: "s-claude", modelId });
-        expect(proc.setSessionConfigOption).toHaveBeenCalledWith({
-          sessionId: "s-claude",
-          configId: effortOption!.id,
-          value: "high",
-        });
+      it("cancels every active child before releasing its read-only guard https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ pause: ["cm-a", "cm-b"] });
+        const controller = new AbortController();
+        const pending = run.orchestrator.run(input({ signal: controller.signal }));
+        await run.started;
+        controller.abort();
+        const result = await pending;
+        expect(Object.values(result.answers).map((answer) => answer.status)).toEqual([
+          "cancelled",
+          "cancelled",
+        ]);
+        expect(run.proc.cancel).toHaveBeenCalledTimes(2);
+        expect(run.proc.closeSession).toHaveBeenCalledTimes(2);
+        expect(run.requests).toHaveLength(2);
+        expect(run.readers.size).toBe(0);
+      });
+
+      it("reopens a saved turn without rerunning its completed model https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const interrupted = harness({ pause: ["cm-b"] });
+        const controller = new AbortController();
+        const pending = interrupted.orchestrator.run(input({ signal: controller.signal }));
+        await interrupted.started;
+        controller.abort();
+        const saved = await pending;
+        expect(saved.answers["cm-a"].status).toBe("done");
+        const restored = parseFanoutComposite(serializeFanoutComposite(saved, (key) => key))!;
+        expect(restored.checkpoint).toEqual(saved.checkpoint);
+        const reopened = harness();
+        expect(reopened.requests).toHaveLength(0);
+        const result = await reopened.orchestrator.run(
+          input({ resumeTurn: restored, fanoutId: restored.checkpoint!.fanoutId })
+        );
+        expect(reopened.requests.map((request) => request.requestId)).toEqual([
+          "fanout:turn-1:cm-b",
+          "fanout:turn-1:summary",
+        ]);
+        expect(reopened.requests[0].sessionId).toBe(interrupted.requests[1].sessionId);
+        expect(result.answers["cm-a"]).toEqual(restored.answers["cm-a"]);
+        expect(result.summary.complete).toBe(true);
+        const complete = parseFanoutComposite(serializeFanoutComposite(result, (key) => key))!;
+        const finished = harness();
+        await finished.orchestrator.run(input({ resumeTurn: complete }));
+        expect(finished.requests).toHaveLength(0);
+      });
+
+      it("rejects a missing model before opening any child https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness();
+        await expect(
+          run.orchestrator.run(input({ agents: ["cm-a", "missing"] }))
+        ).rejects.toMatchObject({ code: "FANOUT_MODEL_UNAVAILABLE" });
+        expect(run.engines).toHaveLength(0);
+      });
+
+      it("reports empty model output as an error instead of a completed answer https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const run = harness({ empty: ["cm-a", "cm-b"] });
+        const result = await run.orchestrator.run(input());
+        expect(Object.values(result.answers).map((answer) => answer.status)).toEqual([
+          "error",
+          "error",
+        ]);
+        expect(run.requests).toHaveLength(2);
       });
     });
   });

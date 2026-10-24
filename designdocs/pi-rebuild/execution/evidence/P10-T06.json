@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P10-T06",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P10-T06.json",
+    "reason": "生产后台操作工具尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P10-T06-01", "SC-P10-T06-02", "SC-P10-T06-03", "SC-P10-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/SubagentControlTools.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 9,
+      "durationSeconds": 2.42,
+      "logPath": "/tmp/vault-agent-required-current/13.log",
+      "logSha256": "27dbf2c4a4514a6edcecd35469b4fbd3095e857501776d6f567696a19867dfe6",
+      "testFile": "src/agentMode/sdk/pi/features/subagents/SubagentControlTools.test.ts",
+      "testSourceSha256": "ad5c1da6efb7b6d993ceb16c4e0dd6291461c51082507cf32769cef8c032eb67",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P10-T06-01",
+      "requirement": "不能控制别的root的child",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：SubagentControlTools SubagentControlTools getSubagentResult() refuses a child owned by another root。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T06-02",
+      "requirement": "重复start不复制",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：SubagentControlTools SubagentControlTools startBackgroundTask() does not duplicate a child for a repeated commandId。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T06-03",
+      "requirement": "stop后可明确新run",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：PiSubagentTools createPiSubagentTools() requires an explicit resume before a stopped child can run again https://github.com/ItsDalk-Lane/Vault-Agent/issues/1。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T06-04",
+      "requirement": "空状态不是假成功",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：SubagentControlTools SubagentControlTools getSubagentResult() lists an empty root truthfully。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "生产同Harness子代理与持久关系/前后台控制已接入；当前明确记录的子代理实际模型调用与重开零请求见runtime结果。",
+    "actualRuntimeReferences": ["subagents"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

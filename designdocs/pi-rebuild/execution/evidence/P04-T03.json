@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P04-T03",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P04-T03.json",
+    "reason": "生产会话没有接入完整事件投影。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P04-T03-01", "SC-P04-T03-02", "SC-P04-T03-03", "SC-P04-T03-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 26,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/session/AgentSession.test.ts",
+      "testFile": "src/agentMode/session/AgentSession.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 45,
+      "elapsedSeconds": 5.256,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/06.log",
+      "logSha256": "11584270b1faf070919c62d28af6d8baa59108a256475c6e62b7ea0ccc5f0efa",
+      "testSourceSha256": "d46ee57b640c9c4da58b966a903e3eeb3daa6f86127ddde0e1b04e06b8ad93ff",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P04-T03-01",
+      "requirement": "替换投影保留selection/稳定消息键",
+      "result": "passed",
+      "evidence": "同一真实AgentSession.sendPrompt附selection，老历史预算投影先到仍保留optimistic user；实际pi.user到达与load后原ID、同一selection对象不变。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T03-02",
+      "requirement": "旧后端仍编译",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：keeps the incremental replay path for backends that never send a projection。实际生产接线复核：PiRuntime.consume/watch + PiRuntimeProjection → EventTranslator → AgentSession.applySessionProjection → AgentChatMessages/AgentTrail。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T03-03",
+      "requirement": "无空白重复助手卡",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：PiRuntimeProjection.test.ts: renders whitespace-only tool steps without blank answer bubbles and transfers live changes only to the final answer。实际生产接线复核：PiRuntime.consume/watch + PiRuntimeProjection → EventTranslator → AgentSession.applySessionProjection → AgentChatMessages/AgentTrail。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T03-04",
+      "requirement": "恢复后排序一致",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：keeps the restored order and stable ids when the same history is projected again。实际生产接线复核：PiRuntime.consume/watch + PiRuntimeProjection → EventTranslator → AgentSession.applySessionProjection → AgentChatMessages/AgentTrail。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际消息替换/回放、公开思考与持久计时、用量/压缩和逐轮变更已投影；真实LM暴露的空白卡/重复变更已修并有红绿回归。",
+    "actualRuntimeReferences": [
+      "production:nonincremental_stream_live_projection",
+      "production:full_backup_round_trip_read_only"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

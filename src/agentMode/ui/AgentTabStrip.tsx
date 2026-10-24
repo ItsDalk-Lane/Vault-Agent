@@ -1,4 +1,4 @@
-import { backendRegistry } from "@/agentMode/backends/registry";
+import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import { TruncatedText } from "@/components/TruncatedText";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import type { AgentSession, AgentSessionStatus } from "@/agentMode/session/AgentSession";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
-import type { BackendDescriptor } from "@/agentMode/session/types";
 import { Loader2, MoreHorizontal, Plus, X } from "lucide-react";
 import React from "react";
 
@@ -88,13 +87,13 @@ function useSessionDisplay(session: AgentSession) {
     [session]
   );
   const label = session.getLabel();
-  const descriptor = backendRegistry[session.backendId] as BackendDescriptor | undefined;
+  const descriptor = describeBackendForHistory(session.backendId);
   return {
     status: session.getStatus(),
     label,
     needsAttention: session.getNeedsAttention(),
     descriptor,
-    displayLabel: label ?? descriptor?.displayName ?? t("agentChat.tabStrip.session"),
+    displayLabel: label ?? descriptor?.label ?? t("agentChat.tabStrip.session"),
   };
 }
 
@@ -325,7 +324,7 @@ const RenameInput: React.FC<RenameInputProps> = ({ initialValue, onSubmit, onCan
 };
 
 interface BrandIconProps {
-  descriptor: BackendDescriptor | undefined;
+  descriptor: ReturnType<typeof describeBackendForHistory> | undefined;
   status: AgentSessionStatus;
   needsAttention?: boolean;
   onCloseOnHover?: () => void;

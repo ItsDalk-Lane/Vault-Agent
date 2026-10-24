@@ -1,0 +1,1157 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-22",
+  "currentTaskId": "P05-T03",
+  "nextTaskId": "P05-T03",
+  "phase0": {
+    "status": "accepted_user_report",
+    "description": "用户确认原真实打包/运行验证全部通过；本包未重跑。"
+  },
+  "phaseGates": {
+    "P01": {
+      "status": "passed",
+      "evidencePath": "execution/evidence/GATE-P01.json"
+    },
+    "P02": {
+      "status": "passed",
+      "evidencePath": "execution/evidence/GATE-P02.json"
+    },
+    "P03": {
+      "status": "passed",
+      "evidencePath": "execution/evidence/GATE-P03.json"
+    },
+    "P04": {
+      "status": "passed",
+      "evidencePath": "execution/evidence/GATE-P04.json"
+    },
+    "P05": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P05.json"
+    },
+    "P06": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P06.json"
+    },
+    "P07": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P07.json"
+    },
+    "P08": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P08.json"
+    },
+    "P09": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P09.json"
+    },
+    "P10": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P10.json"
+    },
+    "P11": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P11.json"
+    },
+    "P12": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P12.json"
+    },
+    "P13": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P13.json"
+    },
+    "P14": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/GATE-P14.json"
+    }
+  },
+  "tasks": {
+    "P01-T01": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T01.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T02": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T02.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T03": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T03.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T04": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T04.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T05": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T05.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T06": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T06.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P01-T07": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P01-T07.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T01": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T01.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T02": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T02.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T03": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T03.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T04": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T04.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T05": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T05.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T06": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T06.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T07": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T07.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P02-T08": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P02-T08.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P03-T01": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T01.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P03-T02": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T02.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P03-T03": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T03.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P03-T04": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T04.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": []
+    },
+    "P03-T05": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T05.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P03-T06": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T06.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P03-T07": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T07.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P03-T08": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T08.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P03-T09": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P03-T09.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T01": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T01.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T02": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T02.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T03": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T03.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T04": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T04.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T05": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T05.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T06": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T06.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P04-T07": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P04-T07.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T01": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P05-T01.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T02": {
+      "status": "done",
+      "evidencePath": "execution/evidence/P05-T02.json",
+      "acceptanceStatus": "all_original_task_requirements_verified",
+      "remainingScenarioIds": [],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T03": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/P05-T03.json",
+      "acceptanceStatus": "specific_assertions_not_yet_verified",
+      "remainingScenarioIds": ["SC-P05-T03-01", "SC-P05-T03-02", "SC-P05-T03-03"],
+      "blockedOn": [],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P05-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": ["依赖任务尚未完整验收：P05-T03"],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P05-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": ["依赖任务尚未完整验收：P05-T04"],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P05-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": ["依赖任务尚未完整验收：P05-T05"],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P05-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": ["依赖任务尚未完整验收：P05-T06"],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P05-T08": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P05-T08.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": ["依赖任务尚未完整验收：P05-T07"],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P05-T08",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T01",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T02",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T03",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T04",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T05",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T06",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T08": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T08.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T07",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T09": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T09.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T08",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T10": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T10.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T09",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P06-T11": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P06-T11.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T10",
+        "原定前置阶段 P05 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P07-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P06-T11",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P07-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T01",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P07-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T02",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P07-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T03",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T05": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/P07-T05.json",
+      "acceptanceStatus": "specific_assertions_not_yet_verified",
+      "remainingScenarioIds": ["SC-P07-T05-02"],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T04",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P07-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P07-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T05",
+        "原定前置阶段 P06 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P07-T06",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T01",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T02",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T03",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T04",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T05",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P08-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P08-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T06",
+        "原定前置阶段 P07 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P08-T07",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T01",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T02",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T03",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T04",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T05",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T06",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T08": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T08.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T07",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T09": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T09.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T08",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P09-T10": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P09-T10.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T09",
+        "原定前置阶段 P08 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P09-T10",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T01",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T02",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T03",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T04",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T05",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T06",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P10-T08": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P10-T08.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T07",
+        "原定前置阶段 P09 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P11-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P11-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P10-T08",
+        "原定前置阶段 P10 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P11-T02": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/P11-T02.json",
+      "acceptanceStatus": "specific_assertions_not_yet_verified",
+      "remainingScenarioIds": ["SC-P11-T02-03"],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P11-T01",
+        "原定前置阶段 P10 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P11-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P11-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P11-T02",
+        "原定前置阶段 P10 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P11-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P11-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P11-T03",
+        "原定前置阶段 P10 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P11-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P11-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P11-T04",
+        "原定前置阶段 P10 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P11-T05",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T01",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T02",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T03",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T04",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P12-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P12-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T05",
+        "原定前置阶段 P11 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P12-T06",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T01",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T02",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T03",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T05": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T05.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T04",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T05",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T07": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T07.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T06",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T08": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T08.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T07",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T09": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T09.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T08",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P13-T10": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P13-T10.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T09",
+        "原定前置阶段 P12 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T01": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P14-T01.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P13-T10",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T02": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P14-T02.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T01",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T03": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P14-T03.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T02",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T04": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P14-T04.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T03",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T05": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/P14-T05.json",
+      "acceptanceStatus": "specific_assertions_not_yet_verified",
+      "remainingScenarioIds": ["SC-P14-T05-01", "SC-P14-T05-03", "SC-P14-T05-04"],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T04",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T06": {
+      "status": "blocked",
+      "evidencePath": "execution/evidence/P14-T06.json",
+      "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+      "remainingScenarioIds": [],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T05",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    "P14-T07": {
+      "status": "verify_failed",
+      "evidencePath": "execution/evidence/P14-T07.json",
+      "acceptanceStatus": "specific_assertions_not_yet_verified",
+      "remainingScenarioIds": ["SC-P14-T07-02"],
+      "blockedOn": [
+        "依赖任务尚未完整验收：P14-T06",
+        "原定前置阶段 P13 尚未通过；本任务已证实的自身断言另行保留。"
+      ],
+      "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  },
+  "currentVerification": {
+    "completion": "incomplete",
+    "evidencePath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "reason": "109任务427原断言逐项有明确结果；当前工程已通过，未齐的真实平台/第二模型/许可远程与视觉警告保留。",
+    "finalBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+    "engineeringPassed": true,
+    "macCoreApplicationPassed": true,
+    "remainingRequiredAcceptance": [
+      "SC-P05-T03-01：生产默认PathResolver平台接线与真实Node.win32端口已先红后绿，含盘符/设备/ADS/UNC/尾点边界；无真实Windows机器最终路径验收，不能把字符串端口当实机。",
+      "SC-P05-T03-02：实际不同inode目录不合并、同卷别名用真实stat识别已在mac夹具验证，Linux敏感卷算法断言通过；没有Linux真实文件系统实跑，不把OS默认值当卷实际行为。",
+      "SC-P05-T03-03：mac真实symlink及junction目标端口有测试，尚无Windows真实junction/reparse回库路径实跑。",
+      "SC-P07-T05-02：Windows system PowerShell选择/命令参数的模块端口通过；未在真实Windows机器无Git Bash环境执行。",
+      "SC-P11-T02-03：实际查询LM Studio /api/v1/models清单仅qwen/qwen3.8-27b是llm且loaded=1，另nomic是embedding且loaded=0；两个configuredModelKey/同模型另id/embedding均不能冒充第二实际对话模型。需第二个已授权可用的真实LLM；未下载或虚构模型。",
+      "SC-P14-T05-01：缺真实Windows机器的junction/ADS/UNC/盘符边界及Keychain/流取消/冷重开；win32路径端口不等于实机。",
+      "SC-P14-T05-03：缺真实Linux机器的symlink、凭据、流取消和冷重开。macOS symlink不冒称Linux。",
+      "SC-P14-T05-04：三平台核心路径目前只有macOS实际；Windows/Linux各需真实机器。",
+      "SC-P14-T07-02：P05平台/P11第二实际模型/P14跨平台及许可远程验收未齐，因此所有阶段gate证据仍不能全部passed。",
+      "原design15要求用户许可的远程只读HTTP MCP连接。当前只允许本机服务；仍缺明确授权的远程endpoint及服务账号，若所选服务要求OAuth则还需可用身份授权。本机服务或受控OAuth不替代这个真实远程连接。"
+    ],
+    "engineeringStatus": "passed_current_frozen_source",
+    "historicalVerifiedBuildIdentity": "c2a7ef50-dirty-5d0645c34509",
+    "macCoreApplicationStatus": "passed_final3_listed_mac_local_model_scope",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+  }
+}

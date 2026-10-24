@@ -81,6 +81,18 @@ describe("useAgentInputDrafts", () => {
     expect(result.current.queue.map((q) => q.id)).toEqual(["q1"]);
   });
 
+  it("clears the editor command selection after send so later messages cannot reuse it https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+    const { result, store } = renderDrafts({ chatInputId: "a" });
+    act(() =>
+      store.update("a", (draft) => ({
+        ...draft,
+        commandContext: { selectedText: "one-time excerpt", activeFile: null },
+      }))
+    );
+    expect(result.current.commandContext?.selectedText).toBe("one-time excerpt");
+    act(() => result.current.resetCompose());
+    expect(result.current.commandContext).toBeUndefined();
+  });
   it("resetCompose clears compose fields but leaves loading and queue", () => {
     const { result } = renderDrafts({ chatInputId: "a" });
 

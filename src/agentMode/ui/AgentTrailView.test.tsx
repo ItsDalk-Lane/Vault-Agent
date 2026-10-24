@@ -133,6 +133,13 @@ describe("AgentTrail", () => {
     expect(screen.getByRole("button", { name: /alpha\.md/ })).toBeTruthy();
   });
 
+  it("keeps committed changes visible when recovery has no assistant text or stop reason https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    renderTrail({ parts: [], turnStopReason: undefined, fileChanges: [EDITED_NOTE] });
+
+    expect(screen.getByRole("button", { name: /alpha\.md/ })).toBeTruthy();
+    expect(screen.queryByTitle("Copy")).toBeNull();
+  });
+
   it("lists the files under a Files changed header when a finished turn changed several", () => {
     renderTrail({
       fileChanges: [EDITED_NOTE, { ...EDITED_NOTE, path: "notes/diff-demo/beta.md" }],
@@ -171,6 +178,14 @@ describe("AgentTrail", () => {
     expect(screen.queryByTitle("Insert / Replace at cursor")).toBeNull();
   });
 
+  it("keeps read-only saved history free of editor write actions while preserving duration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    renderTrail({ showMessageActions: false, turnDurationMs: 12_000 });
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.queryByTitle("Copy")).toBeNull();
+    expect(screen.queryByTitle("Insert / Replace at cursor")).toBeNull();
+    expect(screen.getByText("12s")).toBeTruthy();
+  });
+
   it("shows the running duration instead of the timestamp while streaming", () => {
     renderTrail({
       isStreaming: true,
@@ -204,7 +219,7 @@ describe("AgentTrail", () => {
     expect(screen.queryByText("Worked for")).toBeNull();
   });
 
-  it("keeps research inline while showing a non-collapsible completed duration", () => {
+  it("keeps research inline while showing a non-collapsible completed duration beside the timestamp https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     renderTrail({
       parts: [
         { kind: "tool_call", id: "t1", title: "Search vault", status: "completed" },
@@ -217,7 +232,7 @@ describe("AgentTrail", () => {
 
     expect(screen.getByText("Worked for")).toBeTruthy();
     expect(screen.getByText("2m 18s")).toBeTruthy();
-    expect(screen.queryByText("2026/08/07 20:31:10")).toBeNull();
+    expect(screen.getByText("2026/08/07 20:31:10")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Worked for/i })).toBeNull();
     const footer = screen.getByText("Worked for").closest(".tw-justify-between");
     expect(footer?.classList.contains("tw-items-center")).toBe(true);
@@ -337,29 +352,33 @@ describe("AgentTrail", () => {
     ]);
   });
 
-  it("uses one aligned folding header for reasoning and every tool-card family", () => {
+  it("renders a run's thoughts, tool calls and prose as independent blocks https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     const { container } = renderTrail({
       parts: [
         { kind: "thought", text: "Inspect the trail first." },
-        text("Reasoning complete."),
         { ...READ_A, output: [{ type: "text", text: "file contents" }] },
         text("Single tool complete."),
         READ_B,
         LINT,
         text("Grouped tools complete."),
-        toolCall("task1", {
-          vendorToolName: "Task",
-          input: { subagent_type: "Explore", description: "Check nested cards" },
-        }),
-        { ...READ_A, id: "nested-read", parentToolCallId: "task1" },
       ],
     });
 
     const headers = [...container.querySelectorAll("[data-agent-activity-card-header]")];
     expect(headers).toHaveLength(4);
     expect(headers.every((header) => header.classList.contains("tw-pl-1"))).toBe(true);
-    expect(headers.every((header) => header.getAttribute("aria-expanded") === "false")).toBe(true);
-    expect(container.querySelectorAll(".lucide-chevron-right")).toHaveLength(4);
+    const expandable = [
+      ...container.querySelectorAll('[data-agent-activity-card-header][role="button"]'),
+    ];
+    expect(expandable).toHaveLength(3);
+    expect(expandable.every((header) => header.getAttribute("aria-expanded") === "false")).toBe(
+      true
+    );
+    expect(container.querySelectorAll(".lucide-chevron-right")).toHaveLength(3);
+    expect(screen.getAllByTestId("agent-md").map((el) => el.textContent)).toEqual([
+      "Single tool complete.",
+      "Grouped tools complete.",
+    ]);
   });
 
   it("shows progress on a childless background subagent card", () => {
@@ -393,21 +412,19 @@ describe("AgentTrail", () => {
     { ...LINT, status: "in_progress" },
   ];
 
-  it("shows the live row on the group at the live edge only", () => {
+  it("shows the running line on the tool card at the live edge only", () => {
     renderTrail({ parts: STREAMING_PARTS, isStreaming: true, turnStopReason: undefined });
 
     expect(screen.getByText("Running `npm run lint`")).toBeTruthy();
     expect(screen.queryByText("Reasoning")).toBeNull();
   });
 
-  it("keeps trailing reasoning live when the streaming group is expanded", () => {
+  it("keeps trailing reasoning live at the live edge https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     renderTrail({
       parts: [READ_A, { kind: "thought", text: "still mulling it over" }],
       isStreaming: true,
       turnStopReason: undefined,
     });
-
-    fireEvent.click(screen.getByRole("button", { name: /read 1 file/i }));
 
     expect(screen.getByText("Reasoning")).toBeTruthy();
     expect(screen.queryByText("Thought for")).toBeNull();
@@ -432,7 +449,8 @@ describe("AgentTrail", () => {
         turnStopReason: undefined,
       });
 
-      expect(screen.getByText("Ran 1 command, read 1 file, thought for 18s")).toBeTruthy();
+      expect(screen.getByText("Thought for")).toBeTruthy();
+      expect(screen.getByText("18s")).toBeTruthy();
       expect(screen.queryByText("Reasoning")).toBeNull();
     } finally {
       jest.useRealTimers();
@@ -462,55 +480,17 @@ describe("AgentTrail", () => {
     expect(screen.queryByText("Reasoning")).toBeNull();
   });
 
-  it("renders prose between two groups at full size", () => {
+  it("renders prose between tool cards at full size https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     renderTrail({ parts: STREAMING_PARTS, isStreaming: true, turnStopReason: undefined });
 
     const prose = screen.getByText("Halfway there.");
     expect(prose.getAttribute("data-testid")).toBe("agent-md");
-    expect(screen.getByText("Ran 1 command, read 1 file")).toBeTruthy();
-    expect(screen.getByText("Ran 2 commands, read 1 file")).toBeTruthy();
-  });
-
-  it("keeps a group the user opened open as more parts stream into it", () => {
-    const { rerenderTrail } = renderTrail({
-      parts: [READ_A, LINT],
-      isStreaming: true,
-      turnStopReason: undefined,
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /read 1 file/i }));
     expect(screen.getByRole("link", { name: "notes/a.md" })).toBeTruthy();
-
-    rerenderTrail({
-      parts: [READ_A, LINT, READ_B],
-      isStreaming: true,
-      turnStopReason: undefined,
-    });
-
-    const grown = screen.getByRole("button", { name: /read 2 files/i });
-    expect(grown.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("link", { name: "notes/b.md" })).toBeTruthy();
+    expect(screen.getByText("Running `npm run lint`")).toBeTruthy();
   });
 
-  it("groups a sub-agent's children too", () => {
-    renderTrail({
-      parts: [
-        toolCall("task1", {
-          vendorToolName: "Task",
-          input: { subagent_type: "Explore", description: "Look around" },
-        }),
-        { ...READ_A, parentToolCallId: "task1" },
-        { ...LINT, parentToolCallId: "task1" },
-      ],
-    });
-
-    fireEvent.click(screen.getByText('Explore · "Look around"'));
-
-    expect(screen.getByText("2 tools")).toBeTruthy();
-    expect(screen.getByText("Ran 2 commands, read 1 file")).toBeTruthy();
-  });
-
-  it("keeps an opened tool visible when streaming turns it into a group", () => {
+  it("keeps an opened tool card open as more parts stream in after it https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     const readWithOutput = {
       ...READ_A,
       output: [{ type: "text" as const, text: "file contents" }],
@@ -525,44 +505,66 @@ describe("AgentTrail", () => {
     expect(screen.getByText("file contents")).toBeTruthy();
 
     rerenderTrail({
-      parts: [readWithOutput, LINT],
+      parts: [readWithOutput, { ...LINT, status: "in_progress" }],
       isStreaming: true,
       turnStopReason: undefined,
     });
 
-    const group = screen.getByRole("button", { name: /Ran 2 commands, read 1 file/ });
-    expect(group.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("file contents")).toBeTruthy();
-
-    fireEvent.click(group);
-    expect(screen.queryByText("file contents")).toBeNull();
+    expect(screen.getByText("Running `npm run lint`")).toBeTruthy();
   });
 
-  it("keeps nested group expansion independent from the root trail", () => {
+  it("renders a sub-agent's children as separate blocks inside its card https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     renderTrail({
       parts: [
-        READ_A,
-        LINT,
         toolCall("task1", {
           vendorToolName: "Task",
           input: { subagent_type: "Explore", description: "Look around" },
         }),
-        { ...READ_B, parentToolCallId: "task1" },
+        { ...READ_A, parentToolCallId: "task1" },
+        { ...LINT, parentToolCallId: "task1" },
+      ],
+    });
+
+    fireEvent.click(screen.getByText('Explore · "Look around"'));
+
+    expect(screen.getByText("2 tools")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "notes/a.md" })).toBeTruthy();
+    expect(screen.getByText("Ran `npm run lint`")).toBeTruthy();
+  });
+
+  it("keeps sub-agent child expansion independent from the root trail https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
+    renderTrail({
+      parts: [
         {
-          ...toolCall("b2", { vendorToolName: "Bash", input: { command: "npm test" } }),
+          ...READ_A,
+          output: [{ type: "text" as const, text: "root file contents" }],
+        },
+        toolCall("task1", {
+          vendorToolName: "Task",
+          input: { subagent_type: "Explore", description: "Look around" },
+        }),
+        {
+          ...READ_B,
+          output: [{ type: "text" as const, text: "child file contents" }],
           parentToolCallId: "task1",
         },
       ],
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Ran 2 commands, read 1 file/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Read notes\/a.md/ }));
     fireEvent.click(screen.getByText('Explore · "Look around"'));
 
-    const groups = screen.getAllByRole("button", { name: /Ran 2 commands, read 1 file/ });
-    expect(groups.map((group) => group.getAttribute("aria-expanded"))).toEqual(["true", "false"]);
+    expect(screen.getByText("root file contents")).toBeTruthy();
+    const childRead = screen.getByRole("button", { name: /Read notes\/b.md/ });
+    expect(childRead.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(childRead);
+    expect(screen.getByText("child file contents")).toBeTruthy();
+    expect(screen.getByText("root file contents")).toBeTruthy();
   });
 
-  it("keeps live activity inside an earlier sub-agent quiet", () => {
+  it("keeps live activity inside an earlier collapsed sub-agent quiet https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     renderTrail({
       parts: [
         toolCall("task1", {
@@ -589,8 +591,6 @@ describe("AgentTrail", () => {
       isStreaming: true,
       turnStopReason: undefined,
     });
-
-    fireEvent.click(screen.getByText('Explore · "Look around"'));
 
     expect(screen.queryByText("Running `npm run child`")).toBeNull();
     expect(screen.getByText("Running `npm run root`")).toBeTruthy();

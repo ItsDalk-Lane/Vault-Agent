@@ -10,6 +10,7 @@ import {
   useSelectedTextContexts,
 } from "@/aiParams";
 import { isCompactCommand } from "@/commands/compactCommand";
+import { resolveCustomCommandModel } from "@/commands/resolveCustomCommandModel";
 import { CustomCommandManager } from "@/commands/customCommandManager";
 import { getCachedCustomCommands } from "@/commands/state";
 import ChatInput, {
@@ -21,14 +22,13 @@ import { ACTIVE_WEB_TAB_MARKER, EVENT_NAMES } from "@/constants";
 import { EventTargetContext } from "@/context";
 import { t } from "@/i18n";
 import { logError, logWarn } from "@/logger";
+import { useFanoutModelBrands } from "@/agentMode/ui/mentionedAgents";
 import {
-  isFanout,
-  resolveAnswerers,
-  useInstalledAgentBrands,
-} from "@/agentMode/ui/mentionedAgents";
+  configuredFanoutModels,
+  resolveAnswererModels,
+} from "@/agentMode/session/fanout/answerers";
 import type { BackendId } from "@/agentMode/session/types";
 import type VaultAgentPlugin from "@/main";
-import { getCloudAgentIds } from "@/agentMode/backends/registry";
 import { buildWebTabsWithActiveSnapshot } from "@/services/webViewerService/activeWebTabSnapshot";
 import {
   isNoteSelectedTextContext,
@@ -36,13 +36,15 @@ import {
   type SelectedTextContext,
   type WebTabContext,
 } from "@/types/message";
-import { getModelKeyFromModel } from "@/settings/model";
+import { getModelKeyFromModel, useSettingsValue } from "@/settings/model";
 import { modelSupportsVision } from "@/utils";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/utils/base64";
 import { mergeWebTabContexts } from "@/utils/urlNormalization";
+import { AgentBackgroundTaskAction } from "@/agentMode/ui/AgentBackgroundTaskAction";
+import { AgentSteerAction } from "@/agentMode/ui/AgentSteerAction";
 import { QueuedMessageList } from "@/agentMode/ui/QueuedMessageList";
 import { App, Notice, TFile } from "obsidian";
-import React, { memo, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 
@@ -112,6 +114,8 @@ const combineQueuedMessages = (items: QueuedAgentMessage[]): QueuedAgentMessage 
     ),
     promptContent: allPromptContent.length > 0 ? allPromptContent : undefined,
     mentionedAgents: mergedAgents.length > 0 ? mergedAgents : undefined,
+    commandModelId: items[0].commandModelId,
+    commandContext: items[0].commandContext,
   };
 };
 
@@ -121,7 +125,11 @@ const takeNextQueuedBatch = (
   items: QueuedAgentMessage[]
 ): { batch: QueuedAgentMessage[]; rest: QueuedAgentMessage[] } => {
   const nextCompact = items.findIndex((item) => isCompactCommand(item.text));
-  const end = nextCompact === 0 ? 1 : nextCompact === -1 ? items.length : nextCompact;
+  const firstModel = items[0].commandModelId;
+  // 不同命令指定的模型不能在排队时合并成一次请求。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+  const nextModel = items.findIndex((item) => item.commandModelId !== firstModel);
+  const compactEnd = nextCompact === 0 ? 1 : nextCompact === -1 ? items.length : nextCompact;
+  const end = nextModel === -1 ? compactEnd : Math.min(compactEnd, nextModel);
   return { batch: items.slice(0, end), rest: items.slice(end) };
 };
 
@@ -168,12 +176,9 @@ export const AgentChatInput = memo(function AgentChatInput({
 
   const previousChatInputIdRef = useRef(chatInputId);
 
-  const installedAgentBrands = useInstalledAgentBrands(plugin);
-  const agentBrands = installedAgentBrands;
-  const installedAgentIds = useMemo(
-    () => new Set(installedAgentBrands.map((b) => b.id)),
-    [installedAgentBrands]
-  );
+  const agentBrands = useFanoutModelBrands();
+  const settings = useSettingsValue();
+  const availableFanoutModels = useMemo(() => configuredFanoutModels(settings), [settings]);
   const mentionedAgentIdsRef = useRef<string[]>([]);
   const handleMentionedAgentsChange = useCallback((backendIds: string[]) => {
     mentionedAgentIdsRef.current = backendIds;
@@ -199,10 +204,17 @@ export const AgentChatInput = memo(function AgentChatInput({
   const activeModelEntry = modelPickerOverride?.models.find(
     (model) => getModelKeyFromModel(model) === modelPickerOverride.value
   );
-  const unsupportedImageModelLabel =
-    Array.isArray(activeModelEntry?.capabilities) && !modelSupportsVision(activeModelEntry)
-      ? activeModelEntry.displayName || activeModelEntry.name
-      : null;
+  const unsupportedImageModelLabelFor = useCallback(
+    (commandModelId?: string) => {
+      const entry = commandModelId
+        ? modelPickerOverride?.models.find((model) => model.name === commandModelId)
+        : activeModelEntry;
+      return Array.isArray(entry?.capabilities) && !modelSupportsVision(entry)
+        ? entry.displayName || entry.name
+        : null;
+    },
+    [activeModelEntry, modelPickerOverride?.models]
+  );
 
   useEffect(() => {
     if (previousChatInputIdRef.current === chatInputId) return;
@@ -268,6 +280,35 @@ export const AgentChatInput = memo(function AgentChatInput({
     async (item: QueuedAgentMessage) => {
       setLoading(true);
       try {
+        if (item.commandModelId) {
+          const manager = plugin.agentSessionManager;
+          try {
+            const session = manager
+              ?.getSessions()
+              .find((candidate) => candidate.chatInputId === chatInputId);
+            if (!session) throw new Error(t("notice.commandModelUnavailable"));
+            // 等待模型真正切换后再发请求，后台标签不能借用当前活动聊天。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+            await session.applyModelWireId(item.commandModelId);
+          } catch (error) {
+            // 还未交给后端的命令必须回到草稿，切换失败不能丢掉选区和附件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+            manager?.drafts.update(chatInputId, (current) => ({
+              ...current,
+              input: [item.rawInput, current.input].filter((text) => text.trim()).join("\n\n"),
+              images: [
+                ...(item.promptContent ?? [])
+                  .map(imageBlockToFile)
+                  .filter((file): file is File => file !== null),
+                ...current.images,
+              ],
+              contextNotes: dedupeBy(
+                [...(item.context?.notes ?? []), ...current.contextNotes],
+                (note) => note.path
+              ),
+              ...(item.commandContext ? { commandContext: item.commandContext } : {}),
+            }));
+            throw error;
+          }
+        }
         const { turn } = backend.sendMessage(
           item.text,
           item.context,
@@ -283,7 +324,7 @@ export const AgentChatInput = memo(function AgentChatInput({
         setLoading(false);
       }
     },
-    [backend, setLoading, updateUserMessageHistory]
+    [backend, plugin, chatInputId, setLoading, updateUserMessageHistory]
   );
 
   const handleSendMessage = useCallback(
@@ -293,7 +334,9 @@ export const AgentChatInput = memo(function AgentChatInput({
       if (!text && selectedImages.length === 0) return;
       const rawInput = inputMessage;
 
-      const activeFile = app.workspace.getActiveFile();
+      const activeFile = draft.commandContext
+        ? draft.commandContext.activeFile
+        : app.workspace.getActiveFile();
 
       const candidateNotes: TFile[] = [];
       if (includeActiveNote && activeFile) {
@@ -306,13 +349,25 @@ export const AgentChatInput = memo(function AgentChatInput({
       const expanded = await expandCustomCommandPrefix(
         text,
         getCachedCustomCommands(),
-        noteSelection?.content ?? "",
-        activeFile
+        draft.commandContext?.selectedText ?? noteSelection?.content ?? "",
+        activeFile,
+        settings.enableCustomPromptTemplating !== false
       );
+      const commandSelection = expanded.matched?.modelKey;
+      const commandModelId = commandSelection
+        ? resolveCustomCommandModel(plugin.modelManagement, commandSelection)
+        : undefined;
+      if (commandSelection && !commandModelId) {
+        new Notice(t("notice.commandModelUnavailable"));
+        return;
+      }
       if (expanded.matched) {
         void CustomCommandManager.getInstance().recordUsage(expanded.matched);
       }
-      const resolvedText = resolveActiveNoteToken(expanded.text, activeFile);
+      const resolvedText =
+        expanded.matched && settings.enableCustomPromptTemplating === false
+          ? expanded.text
+          : resolveActiveNoteToken(expanded.text, activeFile);
 
       const shouldIncludeActiveWebTab =
         includeActiveWebTab || resolvedText.includes(ACTIVE_WEB_TAB_MARKER);
@@ -325,18 +380,23 @@ export const AgentChatInput = memo(function AgentChatInput({
       // /compact drops attachments, so an image the model can't read must not block it.
       // https://github.com/Brevilabs/obsidian-copilot-private/issues/634
       const images = isCompactCommand(resolvedText) ? [] : selectedImages;
-      if (images.length > 0 && unsupportedImageModelLabel) {
-        new Notice(t("notice.imageModelUnsupported", { model: unsupportedImageModelLabel }));
+      const commandImageModelLabel = unsupportedImageModelLabelFor(commandModelId);
+      if (images.length > 0 && commandImageModelLabel) {
+        new Notice(t("notice.imageModelUnsupported", { model: commandImageModelLabel }));
         return;
       }
 
       let mentionedAgents: ReadonlyArray<BackendId> | undefined;
-      if (mainAgentId) {
-        const answerers = resolveAnswerers({
-          mentionedAgentIds: mentionedAgentIdsRef.current,
-          installedAgentIds,
-        });
-        if (isFanout(answerers, mainAgentId)) mentionedAgents = answerers;
+      if (mainAgentId === "pi" && mentionedAgentIdsRef.current.length > 0) {
+        try {
+          mentionedAgents = resolveAnswererModels({
+            mentionedModelKeys: mentionedAgentIdsRef.current,
+            availableModels: availableFanoutModels,
+          });
+        } catch (error) {
+          new Notice(error instanceof Error ? error.message : String(error));
+          return;
+        }
       }
 
       mentionedAgentIdsRef.current = [];
@@ -363,6 +423,8 @@ export const AgentChatInput = memo(function AgentChatInput({
         context: buildMessageContext(notes, selectedTextContexts, resolvedWebTabs),
         promptContent: content.length > 0 ? content : undefined,
         mentionedAgents,
+        commandModelId,
+        commandContext: draft.commandContext,
       };
 
       if (loading || isStarting) {
@@ -374,6 +436,9 @@ export const AgentChatInput = memo(function AgentChatInput({
     },
     [
       app,
+      plugin,
+      draft.commandContext,
+      settings.enableCustomPromptTemplating,
       inputMessage,
       selectedImages,
       contextNotes,
@@ -382,13 +447,13 @@ export const AgentChatInput = memo(function AgentChatInput({
       selectedTextContexts,
       loading,
       isStarting,
-      unsupportedImageModelLabel,
+      unsupportedImageModelLabelFor,
       disabled,
       resetCompose,
       runSend,
       setQueuedMessages,
       mainAgentId,
-      installedAgentIds,
+      availableFanoutModels,
     ]
   );
 
@@ -396,13 +461,9 @@ export const AgentChatInput = memo(function AgentChatInput({
     if (disabled || loading || isStarting || queuedMessages.length === 0) return;
     const { batch, rest } = takeNextQueuedBatch(queuedMessages);
     const combined = combineQueuedMessages(batch);
-    if (
-      combined.promptContent?.some((content) => content.type === "image") &&
-      unsupportedImageModelLabel
-    ) {
-      new Notice(
-        `${unsupportedImageModelLabel} doesn't support images. Switch to a vision-capable model to send images.`
-      );
+    const imageModelLabel = unsupportedImageModelLabelFor(combined.commandModelId);
+    if (combined.promptContent?.some((content) => content.type === "image") && imageModelLabel) {
+      new Notice(t("notice.imageModelUnsupported", { model: imageModelLabel }));
       return;
     }
     setQueuedMessages(rest);
@@ -414,8 +475,64 @@ export const AgentChatInput = memo(function AgentChatInput({
     queuedMessages,
     runSend,
     setQueuedMessages,
-    unsupportedImageModelLabel,
+    unsupportedImageModelLabelFor,
   ]);
+
+  const [stoppingBackground, setStoppingBackground] = useState(false);
+  const backgroundStopPending = useRef(false);
+  const backgroundTaskCount = backend.getActiveBackgroundTaskCount?.() ?? 0;
+  const stopBackgroundTasks = async () => {
+    if (backgroundStopPending.current || backgroundTaskCount <= 0) return;
+    backgroundStopPending.current = true;
+    setStoppingBackground(true);
+    try {
+      await backend.cancel();
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : t("agentChat.background.stopFailed"));
+    } finally {
+      backgroundStopPending.current = false;
+      setStoppingBackground(false);
+    }
+  };
+
+  const [steering, setSteering] = useState(false);
+  const steerPending = useRef(false);
+  const latestInput = useRef(inputMessage);
+  latestInput.current = inputMessage;
+  const pureSteerText =
+    Boolean(inputMessage.trim()) &&
+    !/^\s*\//.test(inputMessage) &&
+    selectedImages.length === 0 &&
+    contextNotes.length === 0 &&
+    !includeActiveNote &&
+    !includeActiveWebTab &&
+    selectedTextContexts.length === 0 &&
+    !draft.commandContext &&
+    mentionedAgentIdsRef.current.length === 0;
+  const submitSteer = async () => {
+    if (
+      !pureSteerText ||
+      steerPending.current ||
+      disabled ||
+      hasPendingPlanPermission ||
+      !backend.canSteer?.() ||
+      !backend.steerMessage
+    )
+      return;
+    const text = inputMessage;
+    steerPending.current = true;
+    setSteering(true);
+    try {
+      await backend.steerMessage(text);
+      updateUserMessageHistory(text);
+      if (latestInput.current === text) resetCompose();
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : "未补充，请重新发送。");
+    } finally {
+      steerPending.current = false;
+      setSteering(false);
+    }
+  };
 
   const handleRemoveQueuedMessage = useCallback(
     (id: string) => {
@@ -438,6 +555,20 @@ export const AgentChatInput = memo(function AgentChatInput({
     <>
       {queuedMessages.length > 0 && (
         <QueuedMessageList messages={queuedMessages} onRemove={handleRemoveQueuedMessage} />
+      )}
+      {!loading && backgroundTaskCount > 0 && (
+        <AgentBackgroundTaskAction
+          count={backgroundTaskCount}
+          pending={stoppingBackground}
+          onStop={safeAsyncHandler(stopBackgroundTasks)}
+        />
+      )}
+      {loading && backend.canSteer?.() && (
+        <AgentSteerAction
+          disabled={!pureSteerText || disabled || hasPendingPlanPermission}
+          pending={steering}
+          onSubmit={safeAsyncHandler(submitSteer)}
+        />
       )}
       <div
         className={
@@ -474,7 +605,6 @@ export const AgentChatInput = memo(function AgentChatInput({
           selectedTextContexts={selectedTextContexts}
           onRemoveSelectedText={removeSelectedTextContext}
           agentBrands={agentBrands}
-          cloudAgentIds={getCloudAgentIds()}
           onMentionedAgentsChange={handleMentionedAgentsChange}
         />
       </div>

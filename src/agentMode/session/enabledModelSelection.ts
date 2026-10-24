@@ -9,8 +9,7 @@ export interface EnabledModelPick {
   settled: boolean;
 }
 
-// OpenCode lists Copilot's models in an update after session/new, so a pick stays unsettled until
-// the catalog offers the seed or, for a seed that cannot run, any enabled model.
+// 模型目录尚未包含可用选择时，保留待定状态，避免提前使用失效模型。
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
 export function pickEnabledModel(
   enabled: readonly EnabledModelEntry[],

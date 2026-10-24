@@ -2,33 +2,20 @@ import { sortEffortOptions } from "@/lib/model-effort";
 import { t, type MessageKey } from "@/i18n";
 import { Notice } from "obsidian";
 import { logError } from "@/logger";
-import type { ModelCapability } from "@/constants";
 import type { ModelSelectorEntry } from "@/components/ui/ModelSelector";
-import type { AgentSession } from "@/agentMode/session/AgentSession";
-import type { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { MethodUnsupportedError } from "@/agentMode/session/errors";
-import { backendNeedsSelfHostWarning, backendRegistry } from "@/agentMode/backends/registry";
-import { getModelKeyFromModel } from "@/settings/model";
-import type { VaultAgentSettings } from "@/settings/model";
+import { getModelKeyFromModel, type VaultAgentSettings } from "@/settings/model";
 import type {
   BackendDescriptor,
   BackendId,
   EffortOption,
-  EnabledModelCredentialState,
   EnabledModelEntry,
-  InstallState,
-  ModelEntry,
-  ModelState,
 } from "@/agentMode/session/types";
 import type { AgentModelPickerOverride } from "./useAgentModelPicker";
 
 export const EMPTY_EFFORT_OPTIONS = Object.freeze([]) as unknown as EffortOption[];
-
-export function missingKeyLabel(): string {
-  return t("agentChat.defaultModel.missingKey");
-}
-
+const EMPTY_CONFIGURED_MODELS: readonly EnabledModelEntry[] = Object.freeze([]);
 const PICKER_ACTION_KEYS: Record<"model" | "effort" | "mode", MessageKey> = {
   model: "agentChat.picker.action.model",
   effort: "agentChat.picker.action.effort",
@@ -44,442 +31,160 @@ export function handlePickerSwitchError(err: unknown, action: "model" | "effort"
   new Notice(t("agentChat.picker.switchFailed", { action: t(PICKER_ACTION_KEYS[action]) }));
 }
 
-const AGENT_PROVIDER = "agent";
-
-export function appendBackendSection(
-  entries: ModelSelectorEntry[],
-  descriptor: BackendDescriptor,
-  ctx: {
-    backendModels: ReadonlyArray<ModelEntry> | null;
-    settings: VaultAgentSettings;
-    useEnabledFallback?: boolean;
-  }
-): void {
-  const enabledEntries = descriptor.getEnabledModelEntries?.(ctx.settings) ?? null;
-  if (!enabledEntries) return;
-  if (!ctx.backendModels) {
-    if (!ctx.useEnabledFallback) return;
-    appendEnabledFallbackEntries(entries, descriptor, enabledEntries);
-    return;
-  }
-  appendFromEnabledEntries(entries, descriptor, enabledEntries, ctx.backendModels);
-}
-
-function appendEnabledFallbackEntries(
-  entries: ModelSelectorEntry[],
-  descriptor: BackendDescriptor,
-  enabledEntries: ReadonlyArray<EnabledModelEntry>
-): void {
-  for (const enabled of enabledEntries) {
-    const entry = synthesizeAgentEntry(
-      enabled.baseModelId,
-      enabled.label || enabled.name,
-      descriptor,
-      enabled.description,
-      enabled.isFree,
-      enabled.capabilities
-    );
-    if (enabled.credentialState === "missing_key") entry._disabledReason = missingKeyLabel();
-    entries.push(entry);
-  }
-}
-
-function appendFromEnabledEntries(
-  entries: ModelSelectorEntry[],
-  descriptor: BackendDescriptor,
-  enabledEntries: ReadonlyArray<EnabledModelEntry>,
-  backendModels: ReadonlyArray<ModelEntry>
-): void {
-  const reportedById = new Map(backendModels.map((m) => [m.baseModelId, m]));
-  for (const enabled of enabledEntries) {
-    const reported = reportedById.get(enabled.baseModelId);
-    const name = enabled.label || reported?.name || enabled.name;
-    const subtitle = reported?.description ?? enabled.description;
-    const capabilities = enabled.capabilities;
-    const entry = synthesizeAgentEntry(
-      enabled.baseModelId,
-      name,
-      descriptor,
-      subtitle,
-      enabled.isFree,
-      capabilities
-    );
-    const reason = credentialDisabledReason(enabled.credentialState, !!reported);
-    if (reason) entry._disabledReason = reason;
-    if (enabled.needsSelfHostWarning) entry._needsSelfHostWarning = true;
-    entries.push(entry);
-  }
-}
-
-function credentialDisabledReason(
-  state: EnabledModelCredentialState,
-  reported: boolean
-): string | undefined {
-  if (state === "missing_key") return missingKeyLabel();
-  if (!reported) return t("agentChat.picker.notOffered");
-  return undefined;
-}
-
-export function backendReadinessReason(state: InstallState): string | undefined {
-  switch (state.kind) {
-    case "absent":
-      return t("agentChat.picker.notSetUp");
-    case "incompatible":
-      return t("agentChat.picker.updateRequired");
-    case "error":
-      return t("agentChat.picker.setupError");
-    case "checking":
-    case "ready":
-      return undefined;
-  }
-}
-
-export function synthesizeAgentEntry(
-  baseModelId: string,
-  humanName: string,
-  descriptor: BackendDescriptor,
-  subtitle?: string,
-  isFree?: boolean,
-  capabilities?: ModelCapability[]
-): ModelSelectorEntry {
+function modelEntry(descriptor: BackendDescriptor, id: string, label: string): ModelSelectorEntry {
   return {
-    name: baseModelId,
-    provider: AGENT_PROVIDER,
+    name: id,
+    provider: "agent",
     enabled: true,
     isBuiltIn: false,
-    displayName: humanName || baseModelId,
-    capabilities,
+    displayName: label || id,
     _group: descriptor.displayName,
     _backendId: descriptor.id,
-    _subtitle: subtitle,
-    _isFree: isFree,
   };
 }
 
-function synthesizePreloadPlaceholder(
-  descriptor: BackendDescriptor,
-  status: "pending" | "error"
-): ModelSelectorEntry {
-  const pending = status === "pending";
+function preloadEntry(descriptor: BackendDescriptor, pending: boolean): ModelSelectorEntry {
   return {
-    ...synthesizeAgentEntry(
-      `__preload_${status}__`,
-      pending ? t("agentChat.picker.loadingModels") : t("agentChat.picker.failedToLoad"),
-      descriptor
+    ...modelEntry(
+      descriptor,
+      pending ? "__preload_pending__" : "__preload_error__",
+      t(pending ? "agentChat.picker.loadingModels" : "agentChat.picker.failedToLoad")
     ),
-    _disabledReason: pending ? t("agentChat.picker.loading") : t("agentChat.picker.unavailable"),
+    _disabledReason: t(pending ? "agentChat.picker.loading" : "agentChat.picker.unavailable"),
   };
-}
-
-function resolveBaseModelId(entry: ModelSelectorEntry): string | undefined {
-  return entry.provider === AGENT_PROVIDER ? entry.name : undefined;
-}
-
-export interface ModelActiveContext {
-  activeSession: AgentSession | null;
-  activeChatUIState: AgentChatUIState | null;
-  activeBackendId: BackendId | null;
-  activeDescriptor: BackendDescriptor | undefined;
-  activeSessionHasHistory: boolean;
-  activeModelState: ModelState | null;
-  activeCurrentEntry: ModelEntry | undefined;
-}
-
-export function collectModelActiveContext(manager: AgentSessionManager): ModelActiveContext {
-  const activeSession = manager.getActiveSession();
-  const activeChatUIState = manager.getActiveChatUIState();
-  const activeBackendId = activeSession?.backendId ?? null;
-  const activeDescriptor = activeBackendId ? backendRegistry[activeBackendId] : undefined;
-  const activeSessionHasHistory = activeSession?.hasUserVisibleMessages() ?? false;
-  const activeState = activeSession?.getState() ?? null;
-  const activeModelState = activeState?.model ?? null;
-  const activeCurrentEntry = activeModelState?.availableModels.find(
-    (e) => e.baseModelId === activeModelState.current.baseModelId
-  );
-  return {
-    activeSession,
-    activeChatUIState,
-    activeBackendId,
-    activeDescriptor,
-    activeSessionHasHistory,
-    activeModelState,
-    activeCurrentEntry,
-  };
-}
-
-export function buildPickerEntries(
-  manager: AgentSessionManager,
-  descriptors: BackendDescriptor[],
-  ctx: ModelActiveContext,
-  settings: VaultAgentSettings
-): { entries: ModelSelectorEntry[]; valueKey: string } {
-  const entries: ModelSelectorEntry[] = [];
-  for (const descriptor of descriptors) {
-    const isActiveBackend = descriptor.id === ctx.activeBackendId;
-    if (!isActiveBackend && ctx.activeSessionHasHistory) continue;
-    const catalog = manager.getCachedModelCatalog(descriptor.id);
-    const backendModels = catalog?.availableModels ?? null;
-    const hasNoCatalog = catalog === null;
-    const preloadStatus = manager.getPreloadStatus(descriptor.id);
-    const sectionStart = entries.length;
-    appendBackendSection(entries, descriptor, {
-      backendModels,
-      settings,
-      useEnabledFallback: hasNoCatalog && (preloadStatus === "ready" || preloadStatus === "error"),
-    });
-    if (hasNoCatalog && entries.length === sectionStart) {
-      if (preloadStatus === "pending") {
-        entries.push(synthesizePreloadPlaceholder(descriptor, "pending"));
-      } else if (preloadStatus === "ready" || preloadStatus === "error") {
-        entries.push(synthesizePreloadPlaceholder(descriptor, "error"));
-      }
-    }
-    if (!isActiveBackend) {
-      const readiness = backendReadinessReason(descriptor.getInstallState(settings));
-      if (readiness) {
-        for (let i = sectionStart; i < entries.length; i++) {
-          entries[i]._disabledReason = readiness;
-        }
-      }
-    }
-    if (backendNeedsSelfHostWarning(descriptor, settings)) {
-      for (let i = sectionStart; i < entries.length; i++) {
-        entries[i]._needsSelfHostWarning = true;
-      }
-    }
-  }
-
-  let valueKey = "";
-  if (ctx.activeDescriptor && ctx.activeSession?.getStatus() === "starting") {
-    // While starting, the agent still reports its own model, not the chat's, so show "Loading models…".
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/630
-    const loading = synthesizePreloadPlaceholder(ctx.activeDescriptor, "pending");
-    valueKey = getModelKeyFromModel(loading);
-    if (!entries.some((e) => getModelKeyFromModel(e) === valueKey)) entries.unshift(loading);
-  } else if (ctx.activeBackendId && ctx.activeDescriptor && ctx.activeModelState) {
-    const baseId = ctx.activeModelState.current.baseModelId;
-    const match = entries.find(
-      (e) => e._backendId === ctx.activeBackendId && resolveBaseModelId(e) === baseId
-    );
-    if (match) {
-      valueKey = getModelKeyFromModel(match);
-    } else if (
-      ctx.activeCurrentEntry &&
-      // A backend that may only run enabled models must never show any other model.
-      // https://github.com/Brevilabs/obsidian-copilot-private/issues/625
-      !ctx.activeDescriptor.routesVaultAgentModels
-    ) {
-      const synth = synthesizeAgentEntry(
-        baseId,
-        ctx.activeCurrentEntry.name,
-        ctx.activeDescriptor,
-        ctx.activeCurrentEntry.description,
-        undefined,
-        undefined
-      );
-      if (backendNeedsSelfHostWarning(ctx.activeDescriptor, settings)) {
-        synth._needsSelfHostWarning = true;
-      }
-      entries.unshift(synth);
-      valueKey = getModelKeyFromModel(synth);
-    }
-  }
-
-  return { entries, valueKey };
-}
-
-export function buildEffortSibling(
-  manager: AgentSessionManager,
-  ctx: ModelActiveContext
-): AgentModelPickerOverride["effort"] {
-  const { activeBackendId, activeCurrentEntry, activeModelState, activeChatUIState } = ctx;
-  if (!activeBackendId || !activeCurrentEntry) return undefined;
-  if (activeCurrentEntry.effortOptions.length === 0) return undefined;
-  if (!activeModelState) return undefined;
-  return {
-    options: activeCurrentEntry.effortOptions,
-    value: activeModelState.current.effort,
-    disabled: activeChatUIState?.canSwitchEffort() === false,
-    onChange: (value) => {
-      manager
-        .applySelection({ effort: value }, { expectBackendId: activeBackendId })
-        .catch((err) => {
-          handlePickerSwitchError(err, "effort");
-        });
-    },
-  };
-}
-
-function runCrossBackendPick(
-  manager: AgentSessionManager,
-  oldSessionId: string | undefined,
-  targetBackendId: BackendId,
-  targetDescriptor: BackendDescriptor,
-  baseModelId: string,
-  effort: string | null
-): void {
-  void (async () => {
-    try {
-      const seedSelection = { baseModelId, effort };
-      if (oldSessionId) {
-        await manager.replaceSessionInPlace(oldSessionId, targetBackendId, {
-          preserveChatInput: true,
-          seedSelection,
-        });
-      } else {
-        await manager.createSession(targetBackendId, undefined, seedSelection);
-      }
-      manager.setDefaultBackend(targetBackendId);
-    } catch (err) {
-      logError("[AgentMode] cross-backend pick failed", err);
-      new Notice(t("agentChat.picker.startFailed", { name: targetDescriptor.displayName }));
-    }
-  })();
-}
-
-export function buildModelOnChange(
-  manager: AgentSessionManager,
-  ctx: ModelActiveContext,
-  entries: ModelSelectorEntry[]
-): (modelKey: string) => void {
-  const { activeSession, activeChatUIState } = ctx;
-  return (modelKey) => {
-    const entry = entries.find((e) => getModelKeyFromModel(e) === modelKey);
-    if (!entry) return;
-    const targetBackendId = entry._backendId;
-    if (!targetBackendId) {
-      logError("[AgentMode] picker entry missing _backendId", entry);
-      return;
-    }
-    const targetDescriptor = backendRegistry[targetBackendId];
-    if (!targetDescriptor) {
-      logError("[AgentMode] picker entry references unknown backend", targetBackendId);
-      return;
-    }
-    const baseModelId = resolveBaseModelId(entry);
-    if (!baseModelId) {
-      new Notice(t("agentChat.picker.resolveModelFailed"));
-      return;
-    }
-
-    if (!activeSession || activeSession.backendId !== targetBackendId) {
-      const persistedEffort = manager.getDefaultSelection(targetBackendId)?.effort ?? null;
-      runCrossBackendPick(
-        manager,
-        activeSession?.internalId,
-        targetBackendId,
-        targetDescriptor,
-        baseModelId,
-        persistedEffort
-      );
-      return;
-    }
-    manager.setDefaultBackend(targetBackendId);
-    if (activeChatUIState?.canSwitchModel() === false) {
-      new Notice(
-        t("agentChat.picker.unsupportedRuntime", {
-          action: t(PICKER_ACTION_KEYS.model),
-        })
-      );
-      return;
-    }
-    manager.applySelection({ baseModelId }).catch((err) => {
-      handlePickerSwitchError(err, "model");
-    });
-  };
-}
-
-export function buildEffortOptionsByModelKey(
-  manager: AgentSessionManager,
-  entries: ModelSelectorEntry[]
-): Record<string, EffortOption[]> {
-  const out: Record<string, EffortOption[]> = {};
-  for (const entry of entries) {
-    const backendId = entry._backendId;
-    const baseModelId = resolveBaseModelId(entry);
-    if (!backendId || !baseModelId) continue;
-    out[getModelKeyFromModel(entry)] = resolveEffortOptions(manager, backendId, baseModelId);
-  }
-  return out;
 }
 
 export function resolveEffortOptions(
   manager: AgentSessionManager,
   backendId: BackendId,
-  baseModelId: string
+  baseModelId: string,
+  configuredEntries?: readonly EnabledModelEntry[] | null
 ): EffortOption[] {
-  const models = manager.getCachedModelCatalog(backendId)?.availableModels ?? null;
-  const found = models?.find((m) => m.baseModelId === baseModelId);
-  const reported = found?.effortOptions ?? [];
-  if (reported.length > 0) return sortEffortOptions(reported);
-  return sortEffortOptions(
-    manager.getEffortCatalog(backendId)?.[baseModelId] ?? EMPTY_EFFORT_OPTIONS
-  );
-}
-
-function buildCommitSelection(
-  manager: AgentSessionManager,
-  ctx: ModelActiveContext,
-  entries: ModelSelectorEntry[],
-  modelOnChange: (modelKey: string) => void
-): (modelKey: string, effort: string | null) => void {
-  const { activeSession, activeChatUIState } = ctx;
-  return (modelKey, effort) => {
-    const entry = entries.find((e) => getModelKeyFromModel(e) === modelKey);
-    if (!entry) return;
-    const baseModelId = resolveBaseModelId(entry);
-    const targetBackendId = entry._backendId;
-    if (!baseModelId || !targetBackendId) {
-      modelOnChange(modelKey);
-      return;
-    }
-    const targetDescriptor = backendRegistry[targetBackendId];
-    if (!targetDescriptor) {
-      logError("[AgentMode] commitSelection references unknown backend", targetBackendId);
-      return;
-    }
-    if (!activeSession || activeSession.backendId !== targetBackendId) {
-      runCrossBackendPick(
-        manager,
-        activeSession?.internalId,
-        targetBackendId,
-        targetDescriptor,
-        baseModelId,
-        effort
-      );
-      return;
-    }
-    if (activeChatUIState?.canSwitchModel() === false) {
-      new Notice(
-        t("agentChat.picker.unsupportedRuntime", {
-          action: t(PICKER_ACTION_KEYS.model),
-        })
-      );
-      return;
-    }
-    manager.applySelection({ baseModelId, effort }).catch((err) => {
-      handlePickerSwitchError(err, "model");
-    });
-  };
+  const declared = configuredEntries?.find(
+    (entry) => entry.baseModelId === baseModelId
+  )?.effortOptions;
+  // 明确保存或撤回的能力声明优先于旧缓存，不能继续显示过期强度。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  if (declared !== undefined)
+    return declared.length ? sortEffortOptions(declared) : EMPTY_EFFORT_OPTIONS;
+  const found = manager
+    .getCachedModelCatalog(backendId)
+    ?.availableModels?.find((model) => model.baseModelId === baseModelId);
+  if (found?.effortOptions.length) return sortEffortOptions(found.effortOptions);
+  return EMPTY_EFFORT_OPTIONS;
 }
 
 export function buildAgentModelPicker(args: {
   manager: AgentSessionManager | null;
-  descriptors: BackendDescriptor[];
+  descriptor: BackendDescriptor;
   settings: VaultAgentSettings;
 }): AgentModelPickerOverride | null {
-  const { manager, descriptors, settings } = args;
+  const { manager, descriptor, settings } = args;
   if (!manager) return null;
-  const ctx = collectModelActiveContext(manager);
-  const { entries, valueKey } = buildPickerEntries(manager, descriptors, ctx, settings);
-  const onChange = buildModelOnChange(manager, ctx, entries);
+  const session = manager.getActiveSession();
+  // 旧聊天只读查看或显式导入，模型选择不能把历史记录替换成可执行会话。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  if (session && (session.backendId !== descriptor.id || session.isHistoricalOnly?.())) return null;
+  const ui = manager.getActiveChatUIState();
+  const enabled = descriptor.getEnabledModelEntries?.(settings) ?? EMPTY_CONFIGURED_MODELS;
+  const catalog = manager.getCachedModelCatalog(descriptor.id);
+  const preload = manager.getPreloadStatus(descriptor.id);
+  const reported = catalog?.availableModels;
+  const canUseConfigured = reported || (!catalog && (preload === "ready" || preload === "error"));
+  const entries: ModelSelectorEntry[] = canUseConfigured
+    ? enabled.map((model) => {
+        const offered = reported?.find((entry) => entry.baseModelId === model.baseModelId);
+        const entry = modelEntry(
+          descriptor,
+          model.baseModelId,
+          model.label || offered?.name || model.name
+        );
+        entry.capabilities = model.capabilities;
+        entry._subtitle = offered?.description ?? model.description;
+        if (model.credentialState === "missing_key")
+          entry._disabledReason = t("agentChat.defaultModel.missingKey");
+        else if (reported && !offered) entry._disabledReason = t("agentChat.picker.notOffered");
+        if (model.needsSelfHostWarning) entry._needsSelfHostWarning = true;
+        return entry;
+      })
+    : [];
+  if (!catalog && entries.length === 0 && preload !== "absent")
+    entries.push(preloadEntry(descriptor, preload === "pending"));
+
+  const state = session?.getState()?.model;
+  let selected = entries.find((entry) => entry.name === state?.current.baseModelId);
+  if (session?.getStatus() === "starting") {
+    const loading = preloadEntry(descriptor, true);
+    selected = entries.find((entry) => entry.name === loading.name);
+    if (!selected) {
+      entries.unshift(loading);
+      selected = loading;
+    }
+  }
+  const effortOptionsByModelKey: Record<string, EffortOption[]> = {};
+  for (const entry of entries) {
+    if (!entry._disabledReason)
+      effortOptionsByModelKey[getModelKeyFromModel(entry)] = resolveEffortOptions(
+        manager,
+        descriptor.id,
+        entry.name,
+        enabled
+      );
+  }
+
+  const apply = (modelKey: string, effort?: string | null): void => {
+    const entry = entries.find((candidate) => getModelKeyFromModel(candidate) === modelKey);
+    if (!entry || entry._disabledReason) return;
+    const current = manager.getActiveSession();
+    if (!current) {
+      manager
+        .createSession(descriptor.id, undefined, {
+          baseModelId: entry.name,
+          effort:
+            effort === undefined
+              ? (manager.getDefaultSelection(descriptor.id)?.effort ?? null)
+              : effort,
+        })
+        .catch((error) => handlePickerSwitchError(error, "model"));
+      return;
+    }
+    // 点击时重新核对当前聊天，迟到的菜单回调不能改变历史聊天或另一聊天。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (current !== session || current.backendId !== descriptor.id || current.isHistoricalOnly?.())
+      return;
+    if (ui?.canSwitchModel() === false) {
+      handlePickerSwitchError(new MethodUnsupportedError("setModel"), "model");
+      return;
+    }
+    manager
+      .applySelection(
+        { baseModelId: entry.name, ...(effort === undefined ? {} : { effort }) },
+        { expectBackendId: descriptor.id }
+      )
+      .catch((error) => handlePickerSwitchError(error, "model"));
+  };
+  const currentEffort = state
+    ? (effortOptionsByModelKey[
+        getModelKeyFromModel(modelEntry(descriptor, state.current.baseModelId, ""))
+      ] ?? EMPTY_EFFORT_OPTIONS)
+    : EMPTY_EFFORT_OPTIONS;
   return {
     models: entries,
-    value: valueKey,
-    disabled: false,
-    effort: buildEffortSibling(manager, ctx),
-    effortOptionsByModelKey: buildEffortOptionsByModelKey(manager, entries),
-    onChange,
-    commitSelection: buildCommitSelection(manager, ctx, entries, onChange),
+    value: selected ? getModelKeyFromModel(selected) : "",
+    disabled: ui?.canSwitchModel() === false,
+    effort:
+      state && currentEffort.length
+        ? {
+            options: currentEffort,
+            value: state.current.effort,
+            disabled: ui?.canSwitchEffort() === false,
+            onChange: (effort) => {
+              if (manager.getActiveSession() !== session || ui?.canSwitchEffort() === false) return;
+              manager
+                .applySelection({ effort }, { expectBackendId: descriptor.id })
+                .catch((error) => handlePickerSwitchError(error, "effort"));
+            },
+          }
+        : undefined,
+    effortOptionsByModelKey,
+    onChange: (key) => apply(key),
+    commitSelection: apply,
   };
 }

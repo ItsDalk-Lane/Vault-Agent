@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P12-T06",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P12-T06.json",
+    "reason": "生产项目/快捷命令尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P12-T06-01", "SC-P12-T06-02", "SC-P12-T06-03", "SC-P12-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 7,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P12-T06",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/ProjectContext.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 7,
+      "durationSeconds": 2.361,
+      "logPath": "/tmp/vault-agent-detailed-p12-t06.log",
+      "logSha256": "3682ac3c3ed2f90ece58c5f7c91e123e11a9fad4e19453bacb0314362dda41b1",
+      "testFile": "src/agentMode/sdk/pi/features/ProjectContext.test.ts",
+      "testSourceSha256": "4f6e1f53884d2777573693d53c8730db43f858998e90c0bfb47084bec42d9f73",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P12-T06-01",
+      "requirement": "切项目不误写新库",
+      "result": "passed",
+      "evidence": "真实A root待写审批期间新建/observe/load B项目；旧批准只A落盘1次，B sentinel/目录/消息不变，A/B export projectId保持。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T06-02",
+      "requirement": "旧卡审批仍绑定原scope",
+      "result": "passed",
+      "evidence": "旧PermissionPrompt及Durable va.approval仍原sessionId/targets A；B请求A路径审批前拒绝且零IO，不借A批准。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T06-03",
+      "requirement": "compact直达真实API",
+      "result": "passed",
+      "evidence": "实际/compact走PiRuntime真实压缩API，调用原生产模型并放置summary，不进普通命令或shell；当前本机真实LM和compaction runner已实测。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P12-T06-04",
+      "requirement": "未知命令返回错误",
+      "result": "passed",
+      "evidence": "生产/unknown明确reject Unknown command，provider调用计数不变，未交给模型或shell执行。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际技能、资料预算与来源、私有图片、完整图片备份重载、受控网页及快捷命令已接入；未编造网络结果。",
+    "actualRuntimeReferences": [
+      "production:local_skill_model_unknown_and_stop_commands",
+      "compaction"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "requiredStepChecks": [
+    {
+      "step": "新增LocalCommandCompleted状态在300/600宽真实图库可渲染",
+      "result": "passed",
+      "evidence": "最终4b2f879642c3原LocalCommandCompleted story在实际PiSmoke图库300/600宽均渲染完整，error=null且scrollWidth==clientWidth；父代理检查两张真实截图，无裁切/横溢出。5d缺TooltipProvider原始渲染失败保留；原生/主题严格视觉warning仍另列，不因新目标已绿而隐藏。",
+      "source": {
+        "path": "/tmp/vault-agent-pi-final3-local-command-gallery-real.json",
+        "sha256": "1ef27975209d5ed69ac928213d37556616b3d188d1864a16a1d2eefc97e44b8a"
+      },
+      "preservedFailurePath": "execution/evidence/repair-2026-10-22/active-acceptance-defects.json"
+    }
+  ]
+}

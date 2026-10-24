@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T03",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "package.json",
+    "package-lock.json",
+    "src/agentMode/sdk/pi/sdkContract.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T03.json"
+  ],
+  "scenarioIds": ["SC-P01-T03-01", "SC-P01-T03-02", "SC-P01-T03-03", "SC-P01-T03-04"],
+  "commands": [
+    {
+      "command": "node -e 'const pkg=require(\"./package.json\"), lock=require(\"./package-lock.json\"); const names=[\"@earendil-works/pi-durable\",\"@earendil-works/pi-ai\",\"@earendil-works/pi-mcp\",\"@earendil-works/chord\"]; const root=lock.packages[\"\"]; console.log(JSON.stringify({direct:Object.fromEntries(names.map(n=>[n,pkg.dependencies[n]])),lockRoot:Object.fromEntries(names.map(n=>[n,root.dependencies[n]])),installed:Object.fromEntries(names.map(n=>[n,lock.packages[\"node_modules/\"+n].version]))}));'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "direct / lockRoot / installed 三层均为 \"1.3.0\"，无 ^、~、main 或远程 URL。"
+    },
+    {
+      "command": "node -e 'const spike=require(\"/Users/study_superior/Desktop/Code/vault-agent-pi-spike/package.json\"); const repo=require(\"./package.json\"); const pi=Object.entries(repo.dependencies).filter(([k])=>k.startsWith(\"@earendil-works/\")); console.log(JSON.stringify({spikeDependencies:spike.dependencies,repoPiDependencies:Object.fromEntries(pi),removedAgentCore:!repo.dependencies[\"@earendil-works/pi-agent-core\"]}));'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "P00 spike 依赖 pi-ai@1.3.0 + pi-agent-core@1.3.0；本仓库现为 chord/pi-ai/pi-durable/pi-mcp 1.3.0，pi-agent-core 不再作为依赖（removedAgentCore=true）。"
+    },
+    {
+      "command": "node -e 'const fs=require(\"fs\");const s=fs.readFileSync(\"main.js\",\"utf8\");const refs=s.match(/require\\([\"\\x27][^\"\\x27]*\\.node[\"\\x27]\\)/g)||[];console.log(JSON.stringify({mainJsNativeRequires:refs.length}));'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"mainJsNativeRequires\":0}：production bundle 没有 require(\"*.node\") 原生 addon 引用。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551，与 P01-T01 登记的 P00 构建产物哈希完全相同：重建是字节等价的，未重置 PoC。"
+    },
+    {
+      "command": "node --check main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "node-check-ok：打包产物语法有效。"
+    },
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/sdkContract.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "无 error / warning；包含 issue-linked comment 与 no-explicit-any 规则。"
+    },
+    {
+      "command": "npm ls @earendil-works/pi-durable @earendil-works/pi-ai @earendil-works/pi-mcp @earendil-works/chord @anthropic-ai/sdk --depth=1",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "四个 Pi 包均为 1.3.0，chord/pi-ai 在 pi-durable 下 deduped；hoisted @anthropic-ai/sdk 为 0.129.0（满足 pi-ai 精确依赖，也满足 claude-agent-sdk 的 peer >=0.93.0）；npm ls 无 invalid/missing。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "M package-lock.json、M package.json、?? src/agentMode/sdk/pi/、?? designdocs/pi-rebuild/；用户 PoC 工件（仓库外）与安装副本未动。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "package-lock.json +1167/−31，package.json +4；除依赖锁外没有既有源码改动。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/sdkContract.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 11,
+      "durationSeconds": 2.84,
+      "logPath": "/tmp/vault-agent-required-current/31.log",
+      "logSha256": "6f2cae201fa8a2839bfad0be3c4dba44eb35e689f0d2bbd198b3271e14135a73",
+      "testFile": "src/agentMode/sdk/pi/sdkContract.test.ts",
+      "testSourceSha256": "22e7c22da054e80f8b554e883ffab0c8592cf197d2a7d8fdca9dd5b0541f427b",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T03-01",
+      "requirement": "版本不存在范围符号",
+      "result": "passed",
+      "evidence": "package.json 的四个直接依赖与 package-lock.json 的 root 依赖、安装版本均为精确 \"1.3.0\"；没有 ^、~、Git main 或远程 tarball。契约测试 packageDependencies()/lockfile() 两条断言通过。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T03-02",
+      "requirement": "没有dist私有import",
+      "result": "passed",
+      "evidence": "piImportsInSource() 解析 src 内真实 import/export/require 说明符：禁止 /dist/ 与 node_modules 路径、所有 @earendil-works import 必须在 src/agentMode/sdk/pi 内、且每个 subpath 必须存在于安装包 exports map。4 条相关测试通过；后续新增 SDK import 会自动受此约束。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T03-03",
+      "requirement": "工具execute使用Durable三参数签名",
+      "result": "passed",
+      "evidence": "assertTypeContract() 在类型层断言 Parameters<ToolRegistration[\"execute\"]> 长度为 3、第 2 参数为 ToolExecutionApi、第 3 参数为 chord Context、defineTool 接收 1 个参数，以及 Harness.open/watchEvents/openNodeJsonlStorage/createRegistry/createModels/McpClient 的公开签名；ts-jest 与 build 的 tsc 均通过。先写测试时该文件因依赖未安装失败（TS2307 Cannot find module @earendil-works/*），安装锁定依赖后才通过。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T03-04",
+      "requirement": "完整构建不引入native addon",
+      "result": "passed",
+      "evidence": "契约测试 nativeAddonFiles()（Pi 依赖树内无 .node 二进制）与 nativeAddonMarkers()（无 gypfile、binding.gyp、node-gyp/prebuild 依赖或原生 install hook）通过；npm run build:esbuild 退出 0；main.js 中 require(\"*.node\") 计数为 0；node --check main.js 通过。pi-durable 的 @silvia-odwyer/photon 为 WASM 资源，不是原生 addon。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "本任务只运行契约测试与 build:esbuild；全量单元测试、完整 build（含 tailwind）、全仓 lint、gallery/review 尚未运行，属于 P01 阶段 gate 的范围。",
+    "Pi 1.3.0 的 .d.ts 内部 re-export 使用 .ts 后缀（如 dist/index.d.ts -> ./harness/harness.ts）；在当前 TypeScript 5.7 + moduleResolution bundler + skipLibCheck 下解析通过，若升级 TypeScript/packaging 需重新验证（SDK 升级流程见 design/03）。",
+    "pi-ai 精确要求 @anthropic-ai/sdk@0.129.0，使仓库 hoisted 版本从 0.115.0 变为 0.129.0；现有 claude-agent-sdk peer 范围兼容且 npm ls 干净，但旧 Claude 后端未做运行时回归（本任务不重跑 P00）。",
+    "npm install 报告 55 个 vulnerabilities（8 moderate / 46 high / 1 critical，含新增传递依赖），本任务未做 audit 修复或评估，需在后续安全/发布任务处理。",
+    "生产代码尚未 import Pi 包（仅 sdk/pi 的类型契约测试），因此 production bundle 字节未变、Pi 代码尚未融入；真实接入从 P01-T06/P03 开始。",
+    "未创建 git commit：gitCommitAfter=null；执行包文档仍整体未跟踪。"
+  ],
+  "handoff": "P01-T03 完成；下一任务 P01-T04（限制SDK依赖传播范围，依赖 P01-T03）：先读任务卡与 design/00–03/16；修改 eslint.config.mjs，允许 src/agentMode/sdk/pi 导入已锁定的 @earendil-works 公共入口，同时禁止 session/ui/acp 等层直接 import 这些 SDK 或私有 dist；保留 acp 与 sdk 的兄弟边界；新增 scripts/check-pi-boundaries.mjs 自动 import 扫描并在 src/agentMode/sdk/pi/__tests__/boundaries.test.ts 中先写失败测试（UI 直接 import Harness 的负例失败、sdk/pi 合法 import 通过、注释中的包名不触发假阳性），再接入测试；为后续 legacy 历史读取器预留禁止 spawn 的边界；更新 src/agentMode/AGENTS.md；运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/boundaries.test.ts 与 npm run build:esbuild，写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

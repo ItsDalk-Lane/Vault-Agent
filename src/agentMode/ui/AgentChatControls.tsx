@@ -1,4 +1,4 @@
-import { backendRegistry } from "@/agentMode/backends/registry";
+import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import { ChatBookmarkMenuItem } from "@/agentMode/ui/ChatBookmarkMenuItem";
 import type { ChatBookmarkState } from "@/agentMode/ui/hooks/useAgentHistoryControls";
 import { describeChatDelete } from "@/lib/chatDeleteText";
@@ -25,14 +25,20 @@ import {
   Link,
   MessageCirclePlus,
   MoreHorizontal,
+  Pause,
+  Upload,
 } from "lucide-react";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 const resolveDeleteSummary = (item: ChatHistoryItem) =>
-  describeChatDelete(item.backendId ? backendRegistry[item.backendId] : undefined);
+  describeChatDelete(
+    item.backendId && describeBackendForHistory(item.backendId).agentProductName
+      ? describeBackendForHistory(item.backendId)
+      : undefined
+  );
 
 const resolveHistoryIcon = (item: ChatHistoryItem) =>
-  item.backendId ? backendRegistry[item.backendId]?.Icon : undefined;
+  item.backendId ? describeBackendForHistory(item.backendId).Icon : undefined;
 
 // An empty chat has no note to link or bookmark, so its items stay visible but explain why they are off.
 // https://github.com/Brevilabs/obsidian-copilot-private/issues/702
@@ -50,6 +56,11 @@ const NeedsMessageMenuItem: React.FC<{ children: React.ReactNode }> = ({ childre
 interface AgentChatControlsProps {
   onNewChat?: () => void;
   onSaveAsNote?: () => void | Promise<void>;
+  onExportArchive?: () => void | Promise<void>;
+  onRolloverSession?: () => void;
+  onPause?: () => Promise<void>;
+  rolloverDisabled?: boolean;
+  onImportArchive?: (file: File) => Promise<void>;
   chatHistoryItems?: ChatHistoryItem[];
   onLoadHistory?: () => void | Promise<void>;
   onLoadChat?: (id: string) => Promise<void>;
@@ -70,6 +81,11 @@ interface AgentChatControlsProps {
 export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
   onNewChat,
   onSaveAsNote,
+  onExportArchive,
+  onRolloverSession,
+  onPause,
+  rolloverDisabled = false,
+  onImportArchive,
   chatHistoryItems,
   onLoadHistory,
   onLoadChat,
@@ -86,6 +102,12 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
   usageMeter,
 }) => {
   const settings = useSettingsValue();
+  const archiveInput = useRef<HTMLInputElement>(null);
+  const handleArchiveFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (file && onImportArchive) await onImportArchive(file);
+  };
   const historyAvailable = Boolean(
     chatHistoryItems && onLoadChat && onUpdateChatTitle && onDeleteChat
   );
@@ -97,6 +119,16 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
 
   return (
     <div className="tw-flex tw-w-full tw-items-center tw-justify-between tw-p-1">
+      {onImportArchive && (
+        <input
+          ref={archiveInput}
+          type="file"
+          accept=".json,application/json"
+          className="tw-hidden"
+          aria-label={t("controls.importArchive")}
+          onChange={safeAsyncHandler(handleArchiveFile)}
+        />
+      )}
       <div className="tw-ml-1 tw-flex tw-min-w-0 tw-flex-1 tw-items-center tw-gap-1"></div>
       <div className="tw-flex tw-items-center tw-gap-1">
         {usageMeter}
@@ -185,6 +217,30 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                 <DropdownMenuItem onSelect={() => void onSaveAsNote()}>
                   <Download />
                   {t("controls.saveAsNote")}
+                </DropdownMenuItem>
+              )}
+              {onPause && (
+                <DropdownMenuItem onSelect={safeAsyncHandler(onPause)}>
+                  <Pause />
+                  {t("controls.pauseWork")}
+                </DropdownMenuItem>
+              )}
+              {onRolloverSession && (
+                <DropdownMenuItem disabled={rolloverDisabled} onSelect={onRolloverSession}>
+                  <MessageCirclePlus />
+                  {t("controls.rolloverSession")}
+                </DropdownMenuItem>
+              )}
+              {onExportArchive && (
+                <DropdownMenuItem onSelect={() => void onExportArchive()}>
+                  <Download />
+                  {t("controls.exportArchive")}
+                </DropdownMenuItem>
+              )}
+              {onImportArchive && (
+                <DropdownMenuItem onSelect={() => archiveInput.current?.click()}>
+                  <Upload />
+                  {t("controls.importArchive")}
                 </DropdownMenuItem>
               )}
               {/* A report from here names the chat's agent, model and session, so only a host with a chat offers it.

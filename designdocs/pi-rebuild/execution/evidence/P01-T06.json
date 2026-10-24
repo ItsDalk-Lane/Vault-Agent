@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T06",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/backends/pi/descriptor.ts",
+    "src/agentMode/sdk/pi/PiBackendProcess.ts",
+    "src/agentMode/backends/registry.ts",
+    "src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+    "src/agentMode/backends/registry.test.ts",
+    "src/i18n/messages/en/agentInfraUi.ts",
+    "src/i18n/messages/zh-cn/agentInfraUi.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T06.json"
+  ],
+  "scenarioIds": ["SC-P01-T06-01", "SC-P01-T06-02", "SC-P01-T06-03"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/backends/registry.test.ts src/i18n/index.test.ts src/agentMode/index.test.ts src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": 58,
+      "result": "passed",
+      "outputSummary": "4 suites / 58 tests passed：注册表、i18n 键同步、Agent Mode barrel 与 Pi 骨架均通过；旧默认产品路径未回退。"
+    },
+    {
+      "command": "npx eslint src/agentMode/backends/pi/descriptor.ts src/agentMode/backends/registry.ts src/agentMode/backends/registry.test.ts src/agentMode/sdk/pi/PiBackendProcess.ts src/agentMode/sdk/pi/PiBackendProcess.test.ts src/i18n/messages/en/agentInfraUi.ts src/i18n/messages/zh-cn/agentInfraUi.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-unused-vars、await-thenable 等规则通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1152 file(s)：descriptor 只经 sdk/pi/PiBackendProcess 使用 SDK，没有越界 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd（3,204,943 B）：Pi descriptor/i18n 首次进入 bundle，哈希相对 P00 构建变化是预期结果；仓库外 P00 安装副本未动。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "M 新增/修改：registry.ts、registry.test.ts、i18n en/zh、此前任务的 package*.json/eslint/AGENTS/session/types；?? src/agentMode/backends/pi/、?? src/agentMode/sdk/pi/、?? scripts/check-pi-boundaries.mjs、?? designdocs/pi-rebuild/。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "本任务：registry.ts +16/−?、registry.test.ts 6 行、i18n +3 行；其余为前序任务未提交改动。未改任何旧后端执行逻辑。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "testFile": "src/agentMode/sdk/pi/PiBackendProcess.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 26,
+      "elapsedSeconds": 3.127,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/01.log",
+      "logSha256": "73cff639c2bf15ea9170ca1d2bb00d6baf7cc1a729ca0e8403a9944d38907667",
+      "testSourceSha256": "6bb2f7605761b629f78bd71fdaf5c75f6de6af71e47ffb7543d2975ee44d942b",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T06-01",
+      "requirement": "Pi descriptor不触发binary检测",
+      "result": "passed",
+      "evidence": "测试把 @/utils/desktopRuntime.requireNodeModule mock 成一旦调用就抛错；PiBackendDescriptor.getInstallState() 返回 {kind:\"ready\",source:\"managed\"} 且 requireNodeModule 从未被调用。descriptor 没有 managedInstall、getResolvedBinaryPath、auth、SettingsPanel；subscribeInstallState 返回可退订 no-op；createBackendProcess 直接构造 PiBackendProcess。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T06-02",
+      "requirement": "旧默认产品仍运行",
+      "result": "passed",
+      "evidence": "RECOMMENDED_BACKEND_ID 仍为 \"opencode\"；backendDisplayOrder() 与 listBackendDescriptors() 都排除 pi；settings.activeBackend 为缺省、未知值或 \"pi\" 时 getActiveBackendDescriptor 均回退到 OpencodeBackendDescriptor；registry/i18n/agentMode barrel/Pi 骨架 58 个测试与 build:esbuild 全部通过；未改任何旧后端执行逻辑。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T06-03",
+      "requirement": "未就绪prompt得到明确错误",
+      "result": "passed",
+      "evidence": "未注入 runtime 时 PiBackendProcess.prompt() 返回 rejected PiRuntimeNotReadyError，code=\"PI_RUNTIME_NOT_READY\"、method=\"prompt\"、message 说明 Durable runtime 在 P03 接线；newSession/listSessions/cancel/loadSession 同样明确报错，不会出现伪成功。注入 isRuntimeReady:()=>true 后这些方法改为抛 MethodUnsupportedError，仍不伪造成功。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "本任务只建立生命周期骨架：即使注入 ready runtime，所有会话操作（newSession/prompt/cancel/loadSession/resumeSession/listSessions/setSession* 等）仍显式抛 MethodUnsupportedError；真实 Durable Harness、模型与投影接线在 P03/P04 实现。",
+    "Pi 后端仍隐藏于所有 UI 入口、不可被用户选择；没有 SettingsPanel 或 settings schema（当前无真实配置项，拒绝造假设置）。",
+    "Pi descriptor 的 skillsProjectDir 暂为 \"\" 占位（隐藏后不会进入技能目录收集），P12 接入技能时再给真实值。",
+    "main.js 因 Pi descriptor/i18n 首次进入 bundle 而哈希改变（990cae1b…）；P00 指的是旧构建/安装副本，仓库外 houde 安装目录未被覆盖，P00 状态未改写。",
+    "本任务未跑全仓单测、完整 build（tailwind）与 review:obsidian；只跑定向测试/build/lint，P01 阶段 gate 会统一跑。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P01-T06 完成；下一任务 P01-T07（建立 fake provider 和注入式宿主测试环境，依赖 P01-T06）：先读卡片与 design 00–03/16；使用 pi-ai 官方 fauxProvider（@earendil-works/pi-ai/providers/faux 或 public exports）建立响应脚本 src/agentMode/sdk/pi/testing/fauxRuntime.ts；src/agentMode/sdk/pi/testing/fakeVault.ts 模拟 Vault 接口但不 mock policy/mutation/translator；faultInjector.ts 提供明确 deferred 控制流（不 sleep）与 intent/approval/write/receipt 断点；保证生产 bundle 不启用故障注入；先写失败测试 src/agentMode/sdk/pi/testing/testHarness.test.ts（工具脚本确实经过 Harness、故障点精确停止且可等待、测试不访问网络或真实用户 Vault），运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/testing/testHarness.test.ts 与 npm run build:esbuild，然后写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

@@ -54,6 +54,19 @@ jest.mock("@/components/chat-components/ChatSingleMessage", () => ({
   },
 }));
 
+jest.mock("@/agentMode/ui/FanoutMessageCard", () => ({
+  FanoutMessageCard: ({ onResume }: { onResume?: () => void }) => (
+    <div>
+      Saved comparison
+      {onResume ? (
+        <button type="button" onClick={onResume}>
+          Continue comparison
+        </button>
+      ) : null}
+    </div>
+  ),
+}));
+
 jest.mock("@/agentMode/ui/AgentTrailView", () => ({
   AgentTrail: ({
     timestamp,
@@ -228,6 +241,98 @@ describe("AgentChatMessages", () => {
 
     afterEach(() => jest.useRealTimers());
 
+    it("hides comparison continuation while the backend exposes a read-only history snapshot https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const readOnly = true;
+      const resumeFanout = jest.fn(async () => undefined);
+      const backend = {
+        ...chatBackend,
+        resumeFanout,
+        getBackendState: () => ({ readOnly }),
+      } as unknown as AgentChatBackend;
+      const message = assistantMessage("saved-comparison", 1, {
+        fanout: {
+          checkpoint: {
+            fanoutId: "original",
+            mainModelKey: "a",
+            originalPromptText: "Compare",
+            prompt: [],
+            awaitingAdmission: true,
+          },
+          answers: { a: { backendId: "pi", status: "paused", text: "" } },
+          summary: { status: "paused", text: "", complete: false },
+        },
+      });
+      renderMessages([message], false, { chatBackend: backend });
+      expect(screen.queryByRole("button", { name: "Continue comparison" })).toBeNull();
+      expect(resumeFanout).not.toHaveBeenCalled();
+    });
+
+    it("opens a thousand-message archive in pages while retaining every original message and long response https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const messages = Array.from({ length: 1000 }, (_, index) =>
+        assistantMessage(`history-${index}`, index, {
+          sender: index % 2 === 0 ? "user" : "ai",
+          message: index === 999 ? "long-output-".repeat(8_000) : `Saved message ${index}`,
+        })
+      );
+      const { container } = renderMessages(messages, false);
+
+      expect(container.querySelectorAll("[data-message-key]")).toHaveLength(50);
+      expect(screen.queryByText("Saved message 0")).toBeNull();
+      expect(screen.getByText(messages[999].message)).toBeTruthy();
+      for (let page = 0; page < 19; page++) {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: `Load earlier messages (${950 - page * 50} remaining)`,
+          })
+        );
+      }
+
+      expect(container.querySelectorAll("[data-message-key]")).toHaveLength(1000);
+      expect(screen.getByText("Saved message 0")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /Load earlier messages/ })).toBeNull();
+      expect(messages).toHaveLength(1000);
+    });
+
+    it("loads tool cards from the same earlier turn and keeps the expanded window when a new answer arrives https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const messages = Array.from({ length: 120 }, (_, index) =>
+        assistantMessage(`history-${index}`, index, { message: `Saved message ${index}` })
+      );
+      messages[55] = assistantMessage("earlier-tool", 55, {
+        message: "",
+        parts: [
+          { kind: "tool_call", id: "same-turn-tool", title: "Read note", status: "completed" },
+        ],
+      });
+      const { container, props, rerender } = renderMessages(messages, false);
+      expect(mockTrailRender).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: /Load earlier messages/ }));
+      expect(mockTrailRender).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ id: "same-turn-tool" })])
+      );
+      const firstRow = container.querySelector("[data-message-key='history-20']");
+      expect(firstRow).toBeTruthy();
+
+      rerender(
+        <AgentChatMessages {...props} messages={[...messages, assistantMessage("latest", 121)]} />
+      );
+
+      expect(container.querySelector("[data-message-key='history-20']")).toBe(firstRow);
+      expect(container.querySelectorAll("[data-message-key]")).toHaveLength(101);
+    });
+
+    it("starts another chat with its bounded recent page instead of inheriting the previous chat's expansion https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const messages = Array.from({ length: 120 }, (_, index) =>
+        assistantMessage(`history-${index}`, index)
+      );
+      const { container, props, rerender } = renderMessages(messages, false);
+      fireEvent.click(screen.getByRole("button", { name: /Load earlier messages/ }));
+      expect(container.querySelectorAll("[data-message-key]")).toHaveLength(100);
+
+      rerender(<AgentChatMessages {...props} chatBackend={{ ...chatBackend }} />);
+
+      expect(container.querySelectorAll("[data-message-key]")).toHaveLength(50);
+    });
+
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/277 shows a return control over the paused transcript and resumes following on click", () => {
       mockScrollState.paused = true;
       renderMessages([assistantMessage("response", 1_000)], false);
@@ -244,9 +349,9 @@ describe("AgentChatMessages", () => {
       const text = container.textContent ?? "";
       expect(screen.getByTestId("agent-feedback-card")).toBeTruthy();
       expect(text.indexOf("Sorry about that.")).toBeLessThan(
-        text.indexOf("Report this to the Copilot team?")
+        text.indexOf("Report this to the Vault Agent team?")
       );
-      expect(text.indexOf("Report this to the Copilot team?")).toBeLessThan(
+      expect(text.indexOf("Report this to the Vault Agent team?")).toBeLessThan(
         text.indexOf("next question")
       );
     });
@@ -278,7 +383,6 @@ describe("AgentChatMessages", () => {
         {
           activeBackend: "codex",
           initialNote: expect.stringMatching(/^Replied in Swedish to an English request\n/),
-          preselectAllSources: true,
           onReported: expect.any(Function),
         }
       );
@@ -343,7 +447,7 @@ describe("AgentChatMessages", () => {
       expect(container.querySelector(".vault-agent-spinner-dot-0")).toBeNull();
     });
 
-    it("retires the prior duration when the next turn starts", () => {
+    it("keeps the prior turn's completed duration while the next turn streams https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
       const completed = assistantMessage("answer-1", 1_000, { turnDurationMs: 51_000 });
       const { container, rerender, props } = renderMessages([completed], false);
       expect(screen.getByText("51s")).toBeTruthy();
@@ -355,13 +459,13 @@ describe("AgentChatMessages", () => {
           isLoading
         />
       );
-
-      expect(screen.queryByText("51s")).toBeNull();
+      expect(screen.getByText("51s")).toBeTruthy();
       expect(screen.getByText("2s")).toBeTruthy();
       expect(container.querySelector(".vault-agent-spinner")).toBeTruthy();
 
       act(() => jest.advanceTimersByTime(1_000));
       expect(screen.getByText("3s")).toBeTruthy();
+      expect(screen.getByText("51s")).toBeTruthy();
     });
 
     it("passes the message timestamp to a structured trail without a duration", () => {
@@ -462,6 +566,23 @@ describe("AgentChatMessages", () => {
       fireEvent.click(screen.getByRole("button", { name: "notes/diff-demo/alpha.md" }));
 
       expect(openTurnDiff).toHaveBeenCalledWith(app, FILE_CHANGE, "answer-1");
+    });
+
+    it("shows recovered receipt-only changes without inventing an answer or stop reason https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      renderMessages(
+        [
+          assistantMessage("receipt-only", 62_000, {
+            message: "",
+            parts: [],
+            turnStopReason: undefined,
+            fileChanges: [FILE_CHANGE],
+          }),
+        ],
+        false
+      );
+
+      expect(screen.getByRole("button", { name: FILE_CHANGE.path })).toBeTruthy();
+      expect(mockTrailRender).toHaveBeenCalledWith([]);
     });
 
     it("logs a diff tab that fails to open instead of leaving the rejection unhandled", async () => {

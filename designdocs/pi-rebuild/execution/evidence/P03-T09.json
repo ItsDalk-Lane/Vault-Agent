@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T09",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P03-T09.json",
+    "reason": "实际 BackendProcess 模型/effort/模式选择尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P03-T09-01", "SC-P03-T09-02", "SC-P03-T09-03", "SC-P03-T09-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 16,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/backends/pi/descriptor.test.ts",
+      "testFile": "src/agentMode/backends/pi/descriptor.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 3,
+      "elapsedSeconds": 3.168,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/02.log",
+      "logSha256": "5250d42f956670383d696046392ad6900a3caf77c89faadb8b88d755877265a2",
+      "testSourceSha256": "d43763eceda96a04d9b765591b1a75c95a9d34d7ac03488fb057149ab94918c6",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T09-01",
+      "requirement": "模型选择UI与存储一致",
+      "result": "passed",
+      "evidence": "15a干净profile通过真实BYOK界面重配后仅1provider/1模型，选W16384和effort；c07实际同页保存能力后dropdown立即同步low/medium/xhigh，重载设置保持。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T09-02",
+      "requirement": "busy没有半切换",
+      "result": "passed",
+      "evidence": "实际Backend活动文本流期间setModel与setConfig effort都拒绝，配置无半切换、原流仍能Stop并重开。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T09-03",
+      "requirement": "不存在的effort拒绝",
+      "result": "passed",
+      "evidence": "生产setConfig在conversation.configure前调用同一个validateEffort；descriptor单测明确拒绝不存在的effort，失败不修改配置。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T09-04",
+      "requirement": "scope不会随模式变宽",
+      "result": "passed",
+      "evidence": "生产setMode只更新mode元数据，cwd/项目scope保留；transitionMode忙时扩权被推迟，readonly候选/备份拒绝扩权。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际PiBackendProcess/PiRuntime已组装；真实JSONL重开、稳定请求去重、取消与模型分发已有本轮入口回归；本机真实Qwen推理另记。",
+    "actualRuntimeReferences": [
+      "production:plan_approval_leaves_read_only_mode",
+      "production:local_skill_model_unknown_and_stop_commands",
+      "dispatch"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

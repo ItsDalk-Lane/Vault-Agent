@@ -30,6 +30,28 @@ export const SingleFile: StoryObj<FilesChangedCardProps> = {
   args: { changes: [change("projects/Alpha/Project brief.md", 30, 2)] },
 };
 
+export const RevertAvailable: StoryObj<FilesChangedCardProps> = {
+  args: {
+    changes: [{ ...change("notes/approved.md", 1, 1), mutationOperationIds: ["op-write"] }],
+    onRevert: async () => ({ ok: true }),
+  },
+};
+
+export const RevertConflict: StoryObj<FilesChangedCardProps> = {
+  args: {
+    changes: [{ ...change("notes/edited-later.md", 1, 1), mutationOperationIds: ["op-write"] }],
+    onRevert: async () => ({ ok: false, code: "CONFLICT" }),
+  },
+};
+
+export const RevertBusy: StoryObj<FilesChangedCardProps> = {
+  args: {
+    changes: [{ ...change("notes/working.md", 1, 1), mutationOperationIds: ["op-write"] }],
+    onRevert: async () => ({ ok: true }),
+    isBusy: true,
+  },
+};
+
 export const MixedTurn: StoryObj<FilesChangedCardProps> = {
   args: {
     changes: [

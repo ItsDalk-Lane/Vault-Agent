@@ -3,63 +3,38 @@ import type { AgentChatUIState } from "@/agentMode/session/AgentChatUIState";
 import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import type { BackendDescriptor, BackendState } from "@/agentMode/session/types";
-import type VaultAgentPlugin from "@/main";
 import { useAgentModelPicker } from "./useAgentModelPicker";
 
-let mockInstallKind: "ready" | "incompatible" = "ready";
-let mockInstallListener: (() => void) | null = null;
-const mockDescriptors = [
-  {
-    id: "opencode",
-    getInstallState: () =>
-      mockInstallKind === "ready"
-        ? ({ kind: "ready", source: "managed" } as const)
-        : ({
-            kind: "incompatible",
-            source: "managed",
-            currentVersion: "1.15.0",
-            minVersion: "1.16.0",
-            message: "Update required",
-          } as const),
-    subscribeInstallState: (_plugin: VaultAgentPlugin, listener: () => void) => {
-      mockInstallListener = listener;
-      return () => {
-        mockInstallListener = null;
-      };
-    },
-  },
-] as unknown as BackendDescriptor[];
-const plugin = {} as VaultAgentPlugin;
-
+const mockDescriptor = { id: "pi" } as BackendDescriptor;
 jest.mock("@/settings/model", () => ({
-  useSettingsValue: jest.fn().mockReturnValue({}),
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real exported hook
+  useSettingsValue: () => ({}),
 }));
-
 jest.mock("@/agentMode/backends/registry", () => ({
-  listBackendDescriptors: () => mockDescriptors,
+  creatableBackendDescriptors: () => [mockDescriptor],
 }));
-
 jest.mock("./agentModelPickerHelpers", () => ({
   buildAgentModelPicker: ({
     manager,
-    descriptors,
+    descriptor,
   }: {
-    manager: AgentSessionManager;
-    descriptors: BackendDescriptor[];
-  }) => ({
-    models: [],
-    value: `${
-      manager.getActiveSession()?.getState()?.model?.current.baseModelId ?? ""
-    }:${manager.getModelCacheSignature("opencode")}:${descriptors[0].getInstallState({} as never).kind}`,
-    onChange: jest.fn(),
-  }),
+    manager: AgentSessionManager | null;
+    descriptor: BackendDescriptor;
+  }) =>
+    manager
+      ? {
+          models: [],
+          value: `${manager.getActiveSession()?.getState()?.model?.current.baseModelId ?? ""}:${manager.getModelCacheSignature(descriptor.id)}`,
+          onChange: jest.fn(),
+        }
+      : null,
 }));
 
 function stateWithModel(baseModelId: string): BackendState {
   return {
     model: {
       current: { baseModelId, effort: null },
-      availableModels: [{ baseModelId, name: baseModelId, provider: null, effortOptions: [] }],
+      availableModels: [],
       apply: { kind: "setModel" },
     },
     mode: null,
@@ -67,59 +42,57 @@ function stateWithModel(baseModelId: string): BackendState {
 }
 
 describe("useAgentModelPicker", () => {
-  beforeEach(() => {
-    mockInstallKind = "ready";
-    mockInstallListener = null;
-  });
-
   describe("useAgentModelPicker()", () => {
-    it("rerenders from session, catalog, and backend readiness signals", () => {
+    it("updates for the built-in session and model cache without subscribing to historical engine installation https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       let state = stateWithModel("first");
-      let catalogSignal = "catalog-one";
-      let activeListener: (() => void) | null = null;
-      let cacheListener: (() => void) | null = null;
-      const activeUI = {
+      let catalog = "one";
+      let activeListener: (() => void) | undefined;
+      let cacheListener: (() => void) | undefined;
+      const ui = {
         subscribe: (listener: () => void) => {
           activeListener = listener;
           return () => {
-            activeListener = null;
+            activeListener = undefined;
           };
         },
       } as unknown as AgentChatUIState;
       const session = {
         internalId: "active",
-        backendId: "opencode",
+        backendId: "pi",
         getStatus: () => "idle",
         getState: () => state,
         hasUserVisibleMessages: () => false,
       } as unknown as AgentSession;
+      const getModelCacheSignature = jest.fn((_id: string) => catalog);
       const manager = {
         getActiveSession: () => session,
-        getActiveChatUIState: () => activeUI,
-        subscribe: () => jest.fn(),
+        getActiveChatUIState: () => ui,
+        subscribe: () => () => undefined,
         subscribeModelCache: (listener: () => void) => {
           cacheListener = listener;
           return () => {
-            cacheListener = null;
+            cacheListener = undefined;
           };
         },
-        getModelCacheSignature: () => catalogSignal,
+        getModelCacheSignature,
       } as unknown as AgentSessionManager;
-
-      const { result } = renderHook(() => useAgentModelPicker(manager, plugin));
-      expect(result.current?.value).toBe("first:catalog-one:ready");
-
+      const { result, unmount } = renderHook(() => useAgentModelPicker(manager));
+      expect(result.current?.value).toBe("first:one");
       state = stateWithModel("second");
       act(() => activeListener?.());
-      expect(result.current?.value).toBe("second:catalog-one:ready");
-
-      catalogSignal = "catalog-two";
+      expect(result.current?.value).toBe("second:one");
+      catalog = "two";
       act(() => cacheListener?.());
-      expect(result.current?.value).toBe("second:catalog-two:ready");
+      expect(result.current?.value).toBe("second:two");
+      expect(getModelCacheSignature.mock.calls.every((args) => args[0] === "pi")).toBe(true);
+      unmount();
+      expect(activeListener).toBeUndefined();
+      expect(cacheListener).toBeUndefined();
+    });
 
-      mockInstallKind = "incompatible";
-      act(() => mockInstallListener?.());
-      expect(result.current?.value).toBe("second:catalog-two:incompatible");
+    it("has no model override without a session manager", () => {
+      const { result } = renderHook(() => useAgentModelPicker(null));
+      expect(result.current).toBeNull();
     });
   });
 });

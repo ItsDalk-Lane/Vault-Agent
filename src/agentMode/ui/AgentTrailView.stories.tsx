@@ -25,6 +25,34 @@ function tool(
 const think = (text: string): AgentMessagePart => ({ kind: "thought", text });
 const say = (text: string): AgentMessagePart => ({ kind: "text", text });
 
+// Projected reasoning keeps one span per thinking block: the Pi ThinkingProjection supplies the
+// real start/end times and only public text, and the trail renders those spans as separate rows
+// instead of one growing reasoning block:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+const reasoned = (text: string, startedAtMs: number, durationMs?: number): AgentMessagePart => ({
+  kind: "thought",
+  text,
+  startedAtMs,
+  ...(durationMs !== undefined ? { durationMs } : {}),
+});
+
+const PROJECTED_REASONING: AgentMessagePart[] = [
+  reasoned(
+    "Read the durable projection before touching the renderer; the first block is a complete span.",
+    1_000,
+    12_400
+  ),
+  tool("read-1", "Read", {
+    locations: [{ path: "src/agentMode/sdk/pi/events/ThinkingProjection.ts" }],
+  }),
+  reasoned(
+    "A second thinking block starts a new span, so its timer begins after the tool result.",
+    18_000,
+    7_300
+  ),
+  say("Both reasoning blocks are public thinking from the model, not reconstructed prose."),
+];
+
 const TURN: AgentMessagePart[] = [
   think("The conference is probably on the calendar rather than in a note."),
   tool("s1", "Skill", { input: { skill: "gcal" } }),
@@ -64,10 +92,10 @@ const UNIFIED_CARDS: AgentMessagePart[] = [
     locations: [{ path: "src/agentMode/ui/AgentTrailView.tsx" }],
     output: [{ type: "text", text: "export const AgentTrail = ..." }],
   }),
-  say("A single expandable tool remains its own row."),
+  say("Every tool call stays its own row instead of folding into a group."),
   tool("read-2", "Read", { locations: [{ path: "src/agentMode/ui/ActionCard.tsx" }] }),
   tool("test-1", "Bash", { input: { description: "Run focused activity-card tests" } }),
-  say("Consecutive work folds into a group with the same header geometry."),
+  say("Consecutive tools render as consecutive blocks with the same header geometry."),
   tool("delegate-1", "Task", {
     input: { subagent_type: "Explore", description: "Check nested trail cards" },
   }),
@@ -75,7 +103,7 @@ const UNIFIED_CARDS: AgentMessagePart[] = [
     parentToolCallId: "delegate-1",
     locations: [{ path: "src/agentMode/ui/SubAgentCard.tsx" }],
   }),
-  say("Reasoning, individual tools, grouped work, and delegated work now align."),
+  say("Reasoning, individual tools, and delegated work now align."),
 ];
 
 const FAILED_FILE_CHANGES: AgentMessagePart[] = [
@@ -99,58 +127,56 @@ const FAILED_FILE_CHANGES: AgentMessagePart[] = [
   tool("done-edit", "Edit", { input: { file_path: "Projects/plan.md" } }),
 ];
 
-const MIYO_SEARCH_COMMAND =
-  'sh ".claude/skills/miyo-search/miyo-search.sh" "back pain standing desk"';
-const MIYO_RESULTS = JSON.stringify({
+const SEARCH_RESULTS = JSON.stringify({
   results: [{ path: "notes/Standing desk setup.md" }, { path: "notes/Untitled 3.md" }],
 });
 
-const MIYO_SEARCH: AgentMessagePart[] = [
-  tool("miyo-load", "Skill", { input: { skill: "miyo-search" } }),
-  tool("miyo-run", "Bash", {
-    toolKind: "execute",
-    input: { command: MIYO_SEARCH_COMMAND },
-    output: [{ type: "text", text: MIYO_RESULTS }],
+const VAULT_SEARCH: AgentMessagePart[] = [
+  tool("search-1", "vault_search", {
+    title: "Search notes for standing desk and back pain",
+    toolKind: "search",
+    input: { query: "standing desk back pain" },
+    output: [{ type: "text", text: SEARCH_RESULTS }],
   }),
-  tool("grep-1", "Grep", { input: { pattern: "standing desk|back pain" } }),
-  tool("read-1", "Read", { locations: [{ path: "notes/Standing desk setup.md" }] }),
+  tool("read-1", "vault_read", {
+    title: "Read Standing desk setup.md",
+    toolKind: "read",
+    input: { path: "notes/Standing desk setup.md" },
+    locations: [{ path: "notes/Standing desk setup.md" }],
+  }),
   say("You wrote that a monitor arm and a sit-stand rhythm fixed it. See [[Standing desk setup]]."),
 ];
 
-const MIYO_LINK_NOTES: Record<string, string> = {
+const LINK_NOTES: Record<string, string> = {
   "Standing desk setup": "notes/Standing desk setup.md",
   "Untitled 3": "notes/Untitled 3.md",
   "Reading list": "notes/Reading list.md",
   "Trip planning": "notes/Trip planning.md",
 };
 
-const MIYO_LINKS: AgentMessagePart[] = [
-  tool("miyo-run", "Bash", {
-    toolKind: "execute",
-    input: { command: MIYO_SEARCH_COMMAND },
-    output: [
-      {
-        type: "text",
-        text: JSON.stringify({
-          results: [
-            { path: "step-2/notes/Standing desk setup.md" },
-            { path: "step-2/notes/Untitled 3.md" },
-          ],
-        }),
-      },
-    ],
+const NOTE_REFERENCES: AgentMessagePart[] = [
+  tool("search-1", "vault_search", {
+    title: "Find notes about the standing desk",
+    toolKind: "search",
+    input: { query: "standing desk" },
+    output: [{ type: "text", text: SEARCH_RESULTS }],
   }),
-  tool("grep-1", "Grep", { input: { pattern: "ZX-4471" } }),
+  tool("search-2", "vault_search", {
+    title: "Find notes containing ZX-4471",
+    toolKind: "search",
+    input: { query: "ZX-4471" },
+  }),
   say(
-    "Miyo found [[Standing desk setup]] (see [[Standing desk setup#Fixes]]) and your scratch note, [[Untitled 3|desk scratchpad]]. A keyword search added [[Reading list]] and [Trip planning](notes/Trip%20planning.md)."
+    "The notes reference [[Standing desk setup]] (see [[Standing desk setup#Fixes]]) and your scratch note, [[Untitled 3|desk scratchpad]]. A second search added [[Reading list]] and [Trip planning](notes/Trip%20planning.md)."
   ),
 ];
 
-const MIYO_SEARCH_RUNNING: AgentMessagePart[] = [
-  tool("miyo-run", "Bash", {
-    toolKind: "execute",
+const VAULT_SEARCH_RUNNING: AgentMessagePart[] = [
+  tool("search-1", "vault_search", {
+    title: "Search notes for standing desk and back pain",
+    toolKind: "search",
     status: "in_progress",
-    input: { command: MIYO_SEARCH_COMMAND },
+    input: { query: "standing desk back pain" },
   }),
 ];
 
@@ -209,8 +235,41 @@ const meta = {
 } satisfies Meta<AgentTrailProps>;
 export default meta;
 
-export const GroupedTurn: StoryObj<AgentTrailProps> = {
+export const InterleavedRunBlocks: StoryObj<AgentTrailProps> = {
+  // 一个 run 的思考、工具与文本逐块独立渲染：https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
   render: () => <TrailDemo parts={TURN} />,
+};
+
+export const ProjectedReasoningSpans: StoryObj<AgentTrailProps> = {
+  render: () => <TrailDemo parts={PROJECTED_REASONING} />,
+};
+
+export const ProjectedReasoningStreaming: StoryObj<AgentTrailProps> = {
+  render: () => (
+    <TrailDemo
+      parts={[
+        ...PROJECTED_REASONING.slice(0, 3),
+        reasoned(
+          "The last block is still streaming, so its timer runs from its own start.",
+          30_000
+        ),
+      ]}
+      isStreaming
+    />
+  ),
+};
+
+export const NoPublicReasoning: StoryObj<AgentTrailProps> = {
+  render: () => (
+    <TrailDemo
+      parts={[
+        tool("read-2", "Read", {
+          locations: [{ path: "src/agentMode/ui/AgentTrailView.tsx" }],
+        }),
+        say("This model returned no thinking blocks, so no reasoning row is fabricated."),
+      ]}
+    />
+  ),
 };
 
 export const Streaming: StoryObj<AgentTrailProps> = {
@@ -225,16 +284,16 @@ export const FailedFileChanges: StoryObj<AgentTrailProps> = {
   render: () => <TrailDemo parts={FAILED_FILE_CHANGES} />,
 };
 
-export const MiyoSearch: StoryObj<AgentTrailProps> = {
-  render: () => <TrailDemo parts={MIYO_SEARCH} />,
+export const VaultSearch: StoryObj<AgentTrailProps> = {
+  render: () => <TrailDemo parts={VAULT_SEARCH} />,
 };
 
-export const MiyoLinkBadges: StoryObj<AgentTrailProps> = {
-  render: () => <TrailDemo parts={MIYO_LINKS} linkNotes={MIYO_LINK_NOTES} />,
+export const NoteReferences: StoryObj<AgentTrailProps> = {
+  render: () => <TrailDemo parts={NOTE_REFERENCES} linkNotes={LINK_NOTES} />,
 };
 
-export const MiyoSearchRunning: StoryObj<AgentTrailProps> = {
-  render: () => <TrailDemo parts={MIYO_SEARCH_RUNNING} isStreaming />,
+export const VaultSearchRunning: StoryObj<AgentTrailProps> = {
+  render: () => <TrailDemo parts={VAULT_SEARCH_RUNNING} isStreaming />,
 };
 
 export const CompletedWithoutDuration: StoryObj<AgentTrailProps> = {

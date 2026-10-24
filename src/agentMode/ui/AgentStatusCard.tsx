@@ -1,7 +1,5 @@
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import React from "react";
@@ -15,21 +13,11 @@ interface AgentStatusButtonAction {
   href?: never;
 }
 
-interface AgentStatusLinkAction {
-  label: string;
-  href: string;
-  onClick?: never;
-  disabled?: never;
-}
-
-type AgentStatusAction = AgentStatusButtonAction | AgentStatusLinkAction;
-
 interface AgentStatusCardProps {
   message: string;
   summary?: string;
   tone?: AgentStatusTone;
-  progress?: { percent?: number };
-  action?: AgentStatusAction;
+  action?: AgentStatusButtonAction;
   layout?: "stack" | "row";
 }
 
@@ -37,7 +25,6 @@ export const AgentStatusCard: React.FC<AgentStatusCardProps> = ({
   message,
   summary,
   tone = "neutral",
-  progress,
   action,
   layout = "stack",
 }) => (
@@ -78,38 +65,19 @@ export const AgentStatusCard: React.FC<AgentStatusCardProps> = ({
         {message}
       </p>
     )}
-    {progress && (
-      <Progress
-        value={progress.percent}
-        aria-valuenow={progress.percent}
-        aria-label={t("agentChat.statusCard.installationProgress")}
-      />
+    {action && (
+      <Button
+        className={cn(
+          "tw-h-auto tw-min-h-6 tw-max-w-full tw-whitespace-normal tw-break-words tw-border tw-border-solid tw-border-border tw-py-1 disabled:tw-opacity-100",
+          layout === "row" && "tw-shrink-0"
+        )}
+        variant={tone === "error" ? "ghost" : "secondary"}
+        size="sm"
+        disabled={action.disabled}
+        onClick={action.onClick}
+      >
+        {action.label}
+      </Button>
     )}
-    {action &&
-      ("href" in action ? (
-        <Button
-          asChild
-          className="tw-h-auto tw-min-h-6 tw-max-w-full tw-whitespace-normal tw-break-words tw-border tw-border-solid tw-border-border tw-py-1"
-          variant="secondary"
-          size="sm"
-        >
-          <a href={action.href} target="_blank" rel="noopener noreferrer">
-            {action.label}
-          </a>
-        </Button>
-      ) : (
-        <Button
-          className={cn(
-            "tw-h-auto tw-min-h-6 tw-max-w-full tw-whitespace-normal tw-break-words tw-border tw-border-solid tw-border-border tw-py-1 disabled:tw-opacity-100",
-            layout === "row" && "tw-shrink-0"
-          )}
-          variant={tone === "error" ? "ghost" : "secondary"}
-          size="sm"
-          disabled={action.disabled}
-          onClick={action.onClick}
-        >
-          {action.label}
-        </Button>
-      ))}
   </Card>
 );

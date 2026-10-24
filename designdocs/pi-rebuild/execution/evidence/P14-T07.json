@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T07",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T07.json",
+    "reason": "必需产品与平台验收未齐，不能宣称发布门槛通过。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T07-01", "SC-P14-T07-02", "SC-P14-T07-03", "SC-P14-T07-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": null,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm run build:esbuild",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "严格限定PiSmoke的test:vault实际执行npm run build及build:esbuild；TypeScript与生产打包成功。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "本轮实际执行的记录一致性检查；不能证明插件功能完成。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "c5d134ae6a97fdc7abc1b28019ff28a5445d3f87fa88f46a2e0b94c44a991552",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T07-01",
+      "requirement": "必需命令实际exit0且非零测试数",
+      "result": "passed",
+      "evidence": "当前冻结生产源 c2a7ef50-dirty-4b2f879642c3 全仓517 suites/5781 tests、format/check、lint、真实build/tsc、Obsidian review与1356文件边界检查均exit0；106条不同原必需命令另有各自日志/测试数，源变化的15条最终freeze后独立重跑244项。761条review warning与2条既有测试命名warning保留，2个fixture故意error不冒充source错误。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T07-02",
+      "requirement": "所有gate证据完整",
+      "result": "not_run",
+      "evidence": "P05平台/P11第二实际模型/P14跨平台及许可远程验收未齐，因此所有阶段gate证据仍不能全部passed。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T07-03",
+      "requirement": "无未标注能力限制",
+      "result": "passed",
+      "evidence": "当前报告逐项明确真实模型、受控SDK、macOS/Win/Linux、远程授权、主题图库warning与未验门槛；历史15f2/15a/c07按构建分别保存。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T07-04",
+      "requirement": "未执行外部发布保持未执行",
+      "result": "passed",
+      "evidence": "本次未提交、推送、创建外部发布或发送报告；外部发布保留未执行。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [
+    "SC-P14-T07-02：P05平台/P11第二实际模型/P14跨平台及许可远程验收未齐，因此所有阶段gate证据仍不能全部passed。",
+    "原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"
+  ],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "验收检查器改为逐scenario校验，featureCoverage仅目录契约，空PATH检查走实际生产入口；最终逐功能/恢复矩阵、真实性与跨平台仍须原门槛证据。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": false,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "specific_assertions_not_yet_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": ["SC-P14-T07-02"],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

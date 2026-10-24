@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T05",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/session/types.ts",
+    "src/agentMode/sdk/pi/types.ts",
+    "src/agentMode/session/piDomainContract.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T05.json"
+  ],
+  "scenarioIds": ["SC-P01-T05-01", "SC-P01-T05-02", "SC-P01-T05-03"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/sdkMessageTranslator.test.ts src/agentMode/session/AgentChatUIState.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": 83,
+      "result": "passed",
+      "outputSummary": "2 suites / 83 tests passed：旧 Claude 翻译器（SessionUpdate 生产者）与 AgentChatUIState（消费者）在扩宽 union 后行为不变。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1149 file(s)：新增 sdk/pi/types.ts 是唯一新增的 Pi import 位置，符合边界。"
+    },
+    {
+      "command": "npx eslint src/agentMode/session/types.ts src/agentMode/sdk/pi/types.ts src/agentMode/session/piDomainContract.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning；issue-linked comments、no-unnecessary-type-assertion、no-explicit-any 均通过。"
+    },
+    {
+      "command": "node -e 'const fs=require(\"fs\");const t=fs.readFileSync(\"src/agentMode/session/types.ts\",\"utf8\");const names=[\"session_projection\",\"todo_update\",\"plan_proposal_update\",\"approval_state\",\"recovery_state\",\"run_state\",\"budget_update\",\"isRunSuccessful\",\"StreamCursor\",\"RunStatus\",\"BudgetUpdate\",\"RecoveryStateUpdate\",\"SessionProjection\"];console.log(JSON.stringify(Object.fromEntries(names.map(n=>[n,t.includes(n)]))));'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "全部 13 个新领域导出存在于 src/agentMode/session/types.ts（7 个事件名 + StreamCursor/RunStatus/BudgetUpdate/RecoveryStateUpdate/SessionProjection/isRunSuccessful）。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551：纯类型改动，production bundle 与 P00 构建产物一致。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "M src/agentMode/session/types.ts 及此前任务的 package.json/package-lock/eslint/AGENTS；?? src/agentMode/sdk/pi/、?? src/agentMode/session/piDomainContract.test.ts、?? scripts/check-pi-boundaries.mjs、?? designdocs/pi-rebuild/。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "src/agentMode/session/types.ts +119/−?（新增领域事件类型 + isRunSuccessful 与 union 扩展）；其余为前序任务未提交改动；无生产执行逻辑改动。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/session/piDomainContract.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 8,
+      "durationSeconds": 3.87,
+      "logPath": "/tmp/vault-agent-required-current/54.log",
+      "logSha256": "6ffbb4b467d19ddd510981a2cea4a279c9f8b7ad2f0e2c2ba4c2860b9f97c5db",
+      "testFile": "src/agentMode/session/piDomainContract.test.ts",
+      "testSourceSha256": "751cad52a25c76ace19711d8a12c29f6ec236114c1bbd90d2aa6a34d36a640cc",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T05-01",
+      "requirement": "原SessionEvent消费者编译通过",
+      "result": "passed",
+      "evidence": "扩大 SessionUpdate union 后 `npm run build:esbuild` 的 tsc 全仓通过，旧 Claude/ACP/Codex/OpenCode 后端与 UI 消费者无需改动即可编译（AgentSession 等 switch 均有 default 分支，不需要伪造新事件）；`SessionEvent` 形状断言 keyof 仍为 sessionId/update/occurredAt；旧事件成员断言由类型测试保留；sdkMessageTranslator + AgentChatUIState 83 个既有测试通过。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T05-02",
+      "requirement": "未知状态不能落到默认成功",
+      "result": "passed",
+      "evidence": "RunStatus 显式包含 \"unknown\"（另有 interrupted/paused_budget 等），并新增 isRunSuccessful(status)：只有 \"completed\" 返回 true；测试对 unknown/interrupted/failed/cancelled/paused_budget/cancelling/running/awaiting_permission 逐一断言 false。BudgetUpdate.usage 为 SessionUsage | null，未知用量用 null 表示而非 0；ApprovalStateName/RecoveryStatus 也都有显式 unknown。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T05-03",
+      "requirement": "SDK类型不穿透UI层",
+      "result": "passed",
+      "evidence": "测试扫描 src/agentMode/session 与 src/agentMode/ui 全部源码：无任何 @earendil-works import；并断言 src/agentMode/session/types.ts 既无 SDK import 也无 @/agentMode/sdk/pi import。Pi 原生类型只出现在 src/agentMode/sdk/pi/types.ts（PiStreamFrame 使用 AgentEvent/ConversationId），其仅为 sdk/pi 内部类型；boundary scanner 1149 files / 0 violations。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "本任务只定义契约类型与最小成功判定；新事件目前没有生产者（旧后端不发送，Pi EventTranslator 在 P04 才实现），AgentSession 等消费者的 default 分支会暂时忽略这些更新。",
+    "design/02 要求的 reducer 测试本身属于 P04-T02（ProjectionReducer）；本任务提供了可被其消费的 discriminated union 与 isRunSuccessful 判定，未提前实现 reducer。",
+    "session_projection 的 prepend/replace 合并、去重和分页语义留给 P04-T02/P04-T03 实现，本任务只定义 cursor/mode/shape。",
+    "本任务未跑全仓单测与完整 build（含 tailwind）；只跑契约测试、build:esbuild、两条既有回归测试与定向 lint，阶段 gate 仍待执行。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P01-T05 完成；下一任务 P01-T06（注册尚未默认启用的 Pi 描述符，依赖 P01-T05）：先读卡片与 design 00–03/16；新增 src/agentMode/backends/pi/descriptor.ts（BackendDescriptor，标记自带引擎、不触发 binary 检测/安装流程）与 src/agentMode/sdk/pi/PiBackendProcess.ts（实现 BackendProcess 生命周期骨架：newSession/loadSession/resumeSession/prompt/cancel/closeSession/shutdown/listSessions 等，未实现能力必须显式 unsupported 或返回明确错误，不能伪造成功），在 src/agentMode/backends/registry.ts 注册但不切换默认后端；按实际 settings schema 增量注册设置；先写失败测试 src/agentMode/sdk/pi/PiBackendProcess.test.ts（descriptor 不触发 binary 检测、旧默认后端仍运行、未就绪 prompt 得到明确错误），运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/PiBackendProcess.test.ts 与 npm run build:esbuild，然后写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

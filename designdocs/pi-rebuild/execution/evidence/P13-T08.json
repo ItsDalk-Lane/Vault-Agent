@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P13-T08",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P13-T08.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P13-T08-01", "SC-P13-T08-02", "SC-P13-T08-03"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 6,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P13-T08",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noOpenCodeExecution.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 6,
+      "durationSeconds": 2.697,
+      "logPath": "/tmp/vault-agent-detailed-p13-t08.log",
+      "logSha256": "6b02fc8014ca6e3d0255dd03eb330d2c6d0c2d9f96e06c1776d6fa337b87ea9e",
+      "testFile": "src/agentMode/sdk/pi/__tests__/noOpenCodeExecution.test.ts",
+      "testSourceSha256": "3462a700773d9af6b2d473df64c641fbfdb7c92cf63c344fcc7bafb4916b009c",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P13-T08-01",
+      "requirement": "无OpenCode子进程",
+      "result": "passed",
+      "evidence": "OpenCode执行/下载/探测模块删除且无导入，历史descriptor无启动能力；新聊天选择唯一Pi。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T08-02",
+      "requirement": "旧会话打开不要求安装",
+      "result": "passed",
+      "evidence": "旧OpenCode Markdown经实际reader可见，describeBackendForHistory installRequired=false，不进入安装UI。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T08-03",
+      "requirement": "自定义OpenAI-compatible模型不受影响",
+      "result": "passed",
+      "evidence": "自定义OpenAI-compatible模型目录与已有标签保留；实际本机HTTP协议及LM Studio已从生产Pi入口回答。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

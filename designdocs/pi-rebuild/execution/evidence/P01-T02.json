@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T02",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "designdocs/pi-rebuild/fixtures/feature-matrix.json",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T02.json"
+  ],
+  "scenarioIds": ["SC-P01-T02-01", "SC-P01-T02-02", "SC-P01-T02-03"],
+  "commands": [
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "输出只有 `?? designdocs/pi-rebuild/`；已跟踪文件无改动，用户 PoC 工件不在仓库内且未被触碰。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "输出为空：审计基线 HEAD 与 feature-matrix.baseline 相同，没有真实工作树差异，因此没有新增功能行。"
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "c2a7ef50539397627a6e4446283d791ad423aff6（= feature-matrix baseline）。"
+    },
+    {
+      "command": "node -e 'const m=require(\"./designdocs/pi-rebuild/fixtures/feature-matrix.json\");const a=m.renderAudit;console.log(JSON.stringify({features:m.features.length,imports:a.importCoverage.length,switchGroups:a.switchBranches.length,switchBranches:a.switchBranches.reduce((n,s)=>n+s.branches.length,0),conditionalBranches:a.conditionalBranches.length,registration:a.registration.length,legacyBackendParsing:a.legacyBackendParsing.length,pureDisplay:a.pureDisplay.length,newFeatures:a.newFeatures.length}))'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"features\":46,\"imports\":25,\"switchGroups\":7,\"switchBranches\":30,\"conditionalBranches\":13,\"registration\":23,\"legacyBackendParsing\":13,\"pureDisplay\":15,\"newFeatures\":0}"
+    },
+    {
+      "command": "grep -n \"switch (\" src/agentMode/ui/AgentTrailView.tsx src/agentMode/ui/CompactionRow.tsx src/agentMode/ui/FanoutTurnView.tsx src/agentMode/ui/ToolPermissionCard.tsx src/agentMode/ui/activityGroups.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "实际找到 8 处渲染相关 switch：AgentTrailView:138、CompactionRow:53、FanoutTurnView:132、ToolPermissionCard:163、activityGroups:50/75/86/97；全部登记进 renderAudit.switchBranches（7 组 30 分支；activityGroups 的 toolKind 与 family switch 归入 fileFamilyFor/filePhraseFor 组）。"
+    },
+    {
+      "command": "grep -rln \"VENDOR_SUMMARIES\\|VENDOR_ICONS\\|task_result\\|subagent_type\\|ToolSearch\" src/agentMode/ui --include=\"*.ts\" --include=\"*.tsx\" | grep -v \".test.\\|.stories.\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "src/agentMode/ui/toolSummaries.ts、toolIcons.ts、agentTrail.ts；结合 activityGroups.ts 与 ToolPermissionCard.tsx 的厂商分支，共登记 13 条 legacyBackendParsing（含上游 src/agentMode/sdk/toolMeta.ts）。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "scope": "本轮实际执行的记录一致性检查；不能证明插件功能完成。",
+      "source": "/tmp/vault-agent-plan-current-consistency.json",
+      "sourceSha256": "c5d134ae6a97fdc7abc1b28019ff28a5445d3f87fa88f46a2e0b94c44a991552",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T02-01",
+      "requirement": "所有switch渲染分支均有功能行",
+      "result": "passed",
+      "evidence": "沿两个入口实际读取到 8 处渲染 switch，归并为 7 组 30 个分支；renderAudit.switchBranches 中每个分支都有非空 featureIds。renderNode 的 7 个 case：action→F03/F04/F39/F45、activityGroup→F05、subagent→F06/F41、reasoning→F02、text→F01、plan→F07、compaction→F13/F14；另 CompactionRow 5 状态→F13/F14、Fanout summary 4 状态→F19、权限选项 4 种→F12、activityGroups 分组/文件族分支→F03/F05/F23 等。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T02-02",
+      "requirement": "SubAgent/Plan/Compaction不是只标普通文本",
+      "result": "passed",
+      "evidence": "buildAgentTrail 把子代理（parentToolCallId / vendorToolName=Agent|Task）折叠为 subagent 节点渲染 SubAgentCard（F06/F41）；plan part 渲染 PlanPill（F07，待批准正文走 PlanProposalCard/PlanPreviewView，F09/F10）；compaction part 渲染 CompactionRow（F13/F14）。renderAudit.registration 中三者分别有独立组件与事件行（tool_call/va.todos/compaction_start…），未归入 F01 普通文本。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T02-03",
+      "requirement": "新增组件无producer时阶段不通过",
+      "result": "passed",
+      "evidence": "审计基线 = HEAD，git diff 为空，transitive imports 全部已有功能行，newFeatures=[]；25 个 import 中 23 个映射到非空 featureIds（producer 已在矩阵行给出），2 个（ChatTranscriptViewport/useChatScrolling、useTrailExpansion）明确标为 display-infra，无数据生产职责。F40/F46 是 new_required，均有 producer 与任务，不属于无 producer 的新组件。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "本任务为 documentationOnly：未运行 npm test / build / lint，不声称生产代码测试通过。",
+    "审计基线 = 当前 HEAD c2a7ef5，工作树无已跟踪文件差异，因此没有新增功能行；newFeatures=[] 是核对结果，不是省略。",
+    "registration 的事件列混合 Durable 来源（text_delta 等）、现有 SessionUpdate（agent_message_chunk 等）与 design/02 计划新增的领域事件（session_projection/todo_update/approval_state 等）；计划新增事件尚未实现，必须由 P02/P04 的契约与 reducer 测试落地。",
+    "只登记了两个渲染入口可达的面；F40/F46 等新界面尚未存在，留给对应任务实现。",
+    "未创建 git commit：gitCommitAfter=null；执行包仍整体未跟踪。",
+    "执行包 CHECKSUMS.sha256 为交付快照，修改 feature-matrix 后不再匹配（仓库内无脚本校验该文件）。"
+  ],
+  "handoff": "P01-T02 完成；下一任务 P01-T03：先读取卡片与 design/00–03/16；把 package.json 的四个直接依赖固定为 @earendil-works/pi-durable@1.3.0、pi-ai@1.3.0、pi-mcp@1.3.0、chord@1.3.0（无 ^/~）并同步 package-lock.json；不允许引入 pi-coding-agent/pi-agent-core 作为执行依赖；先补失败测试 src/agentMode/sdk/pi/sdkContract.test.ts，用真实包类型验证 Harness/createRegistry/watchEvents/openNodeJsonlStorage/defineTool 三参数 execute 签名/pi-ai createModels/pi-mcp 公开导出，验证无 /dist/ 私有 import、无 native addon；运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/sdkContract.test.ts 与 npm run build:esbuild，并记录相对 P00 spike 的依赖增量；完成时写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

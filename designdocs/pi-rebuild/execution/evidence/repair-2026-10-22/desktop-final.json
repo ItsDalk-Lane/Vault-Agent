@@ -1,0 +1,1548 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-10-22",
+  "status": "passed_for_listed_mac_local_model_scopes",
+  "buildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+  "pluginVersion": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+  "mainSha256": "db69eaf01b0087ea2ff2c77f6a1a2e159b9864e92f9ed83a657f1212aa36f743",
+  "environment": {
+    "source": "/tmp/vault-agent-pi-final3-clean-final-state.json",
+    "sourceSha256": "9fc83fa293aeeac9279b005d93e75fe135df0d4d96ed760c2d27bf3d114d0a6f",
+    "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+    "result": {
+      "status": "passed",
+      "vault": "PiSmoke",
+      "vaultPath": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+      "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+      "node": "22.22.1",
+      "cliPath": "/var/empty",
+      "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+      "sessionStatus": "idle",
+      "temporaryInstrumentationRemoved": true,
+      "taskMcpServerDisabled": true,
+      "servers": [
+        {
+          "serverId": "server-fb57a394-8521-4db7-834c-7366ee1cf04c",
+          "enabled": false
+        }
+      ],
+      "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+      "theme": "system",
+      "editorMatches": true
+    }
+  },
+  "currentRecordedSources": {
+    "build": {
+      "source": "/tmp/vault-agent-pi-final3-build.json",
+      "sourceSha256": "bef6f4d8b9482a03a8ceab126abc6ce8e723a826004cf81a7e11f0192d02ae8a",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "description": "[dev build: c2a7ef50-dirty-4b2f879642c3 | branch: main | built: 20261022-192836] Run a bundled AI agent inside your vault with your own provider API keys.",
+        "vault": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+        "files": {
+          "main.js": "db69eaf01b0087ea2ff2c77f6a1a2e159b9864e92f9ed83a657f1212aa36f743",
+          "styles.css": "733da1d7658a35eae2d3e896fb4606b51c233acab2fe6a4d63fd8afcdca45681"
+        },
+        "repoAndVaultArtifactsEqual": true
+      }
+    },
+    "clean-final-state": {
+      "source": "/tmp/vault-agent-pi-final3-clean-final-state.json",
+      "sourceSha256": "9fc83fa293aeeac9279b005d93e75fe135df0d4d96ed760c2d27bf3d114d0a6f",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "vault": "PiSmoke",
+        "vaultPath": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "node": "22.22.1",
+        "cliPath": "/var/empty",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "sessionStatus": "idle",
+        "temporaryInstrumentationRemoved": true,
+        "taskMcpServerDisabled": true,
+        "servers": [
+          {
+            "serverId": "server-fb57a394-8521-4db7-834c-7366ee1cf04c",
+            "enabled": false
+          }
+        ],
+        "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+        "theme": "system",
+        "editorMatches": true
+      }
+    },
+    "cleanup-settings-inventory": {
+      "source": "/tmp/vault-agent-pi-final3-cleanup-settings-inventory.json",
+      "sourceSha256": "6a27dd9be8137f11e1db3e70fab96c81dccac9165006c0c165e008971170ce2c",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "serverConfigs": [
+          {
+            "path": "agentMode.backends.pi.mcpServers",
+            "servers": [
+              {
+                "serverId": "server-fb57a394-8521-4db7-834c-7366ee1cf04c",
+                "enabled": true,
+                "displayName": "PiSmoke 只读验收"
+              }
+            ]
+          }
+        ],
+        "buttons": [],
+        "text": ""
+      }
+    },
+    "cleanup-settings-rendered": {
+      "source": "/tmp/vault-agent-pi-final3-cleanup-settings-rendered.json",
+      "sourceSha256": "f593e5e8faf80a43e07180e4b53ce9c564dca3fd98d57ed5265db6bbb93ae580",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "text": "Vault Agent 设置\nv1.0.0+dev.c2a7ef50.dirty.4b2f879642c3\n重置设置\n基础\nBYOK\n技能\n命令\n自托管\n高级\nAgent\n默认后端\n用于点击 + 新建会话以及挂载时自动启动。从模型选择器中选择模型也会更新此项。\nPi (experimental)\n通知\n当 Agent 完成一轮时播放简短提示音。\n提示音\n选择要播放的提示音。\n钢琴键\n马林巴\n铃铛\n门铃\nPi (experimental)\n快速对话\nPi (experimental)\n配置\n默认模型\n用于此 Agent 的新对话和多 Agent 回答。已打开的对话将在下一轮切换。\nAgent 默认\nqwen/qwen3.8-27b\n默认推理强度\nlow\nmedium\nxhigh\nLM Studio\n1\n请求发送至：本机上的服务器\nqwen/qwen3.8-27b\n允许运行经过批准的本地程序。本地服务可能访问资料库以外的电脑内容。\n模型能力\n\n部分本地服务只提供模型名称。请按服务说明明确声明能力，程序不会根据模型名字猜测。保存后请重新打开聊天。\n\nqwen/qwen3.8-27b · LM Studio\n图片输入\n未知，尚未声明\n支持\n不支持\n公开思考过程\n未知，尚未声明\n支持\n不支持\n调用工具\n未知，尚未声明\n支持\n不支持\n支持的思考强度\nminimal\nlow\nmedium\nhigh\nxhigh\nmax\n\n只勾选服务明确支持的强度。不确定能否调节时，请全部留空。\n\n保存模型能力\n允许写作子任务\n\n写作子任务只能在主聊天允许的文件范围内拟定修改。真正修改内容时，仍须按原有规则批准。\n\n其他文件夹\n\n授权访问该文件夹及子文件夹，有效期一小时。修改仍需遵守聊天中的批准规则。\n\n文件夹的完整路径\n同时允许修改此文件夹中的内容\n授权访问一小时\nMCP 服务器\n原生 MCP 服务器。新导入的配置默认禁用且未信任，需先审阅。\n添加服务器\nPiSmoke 只读验收\nserver-fb57a394-8521-4db7-834c-7366ee1cf04c\nHTTP\n空闲\ntrusted_host\n0 个工具\n作用域\n全局\n当前库\n项目\n禁用\n编辑\n删除\n测试\n连接\n\n添加或修改服务后，请重新打开未在运行的聊天以更新工具。\n\n常规\n语言\n跟随 Obsidian 或强制指定语言。命令名称和功能区按钮将在重新加载后更新。\n自动（跟随 Obsidian）\n英语\n简体中文\n打开插件的位置\n选择插件的打开方式。\n侧边栏视图\n编辑器\n发送快捷键\n发送消息的键盘快捷键。\nEnter\nShift + Enter\nVault Agent 文件夹位置\nVault Agent 用于保存对话、提示词、记忆等内容的位置。所有子文件夹都基于此目录。\n应用\n自定义指令\n自定义库指令\n你为 Agent 自定义的指令，在每次库交互中生效。保存到库根目录的 AGENTS.md，你也可以将其作为笔记编辑。\n打开 AGENTS.md\n保存对话\n以 Markdown 自动保存对话\n在每条用户消息和 AI 回复后，将对话写入库中的 Markdown 笔记。关闭后，Agent 对话仍会出现在最近对话中，只是不再写入 Markdown 笔记。\n高级",
+        "buttons": [
+          {
+            "text": "重置设置",
+            "aria": null
+          },
+          {
+            "text": "配置",
+            "aria": null
+          },
+          {
+            "text": "保存模型能力",
+            "aria": null
+          },
+          {
+            "text": "授权访问一小时",
+            "aria": null
+          },
+          {
+            "text": "添加服务器",
+            "aria": null
+          },
+          {
+            "text": "禁用",
+            "aria": null
+          },
+          {
+            "text": "编辑",
+            "aria": null
+          },
+          {
+            "text": "删除",
+            "aria": null
+          },
+          {
+            "text": "测试",
+            "aria": null
+          },
+          {
+            "text": "连接",
+            "aria": null
+          },
+          {
+            "text": "",
+            "aria": null
+          },
+          {
+            "text": "应用",
+            "aria": "应用 Vault Agent 文件夹"
+          },
+          {
+            "text": "",
+            "aria": "打开 Vault Agent 文件夹"
+          },
+          {
+            "text": "打开 AGENTS.md",
+            "aria": null
+          },
+          {
+            "text": "高级",
+            "aria": null
+          }
+        ]
+      }
+    },
+    "environment": {
+      "source": "/tmp/vault-agent-pi-final3-environment.json",
+      "sourceSha256": "036d9f80475503aacec17ecea76e804b7e784800ba10c4355269529e4df41ac0",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "vault": "PiSmoke",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "audit": {
+          "modelRequests": 0,
+          "requests": []
+        }
+      }
+    },
+    "final-ui-real": {
+      "source": "/tmp/vault-agent-pi-final3-final-ui-real.json",
+      "sourceSha256": "5462a786dbac0cb6291cbd54ccbabdd36b92ea5d31826533c3a723098bfe3cbe",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "composerVisible": true,
+        "renderedMessages": 7,
+        "temporaryInstrumentationRemoved": true
+      }
+    },
+    "gallery-command-inventory": {
+      "source": "/tmp/vault-agent-pi-final3-gallery-command-inventory.json",
+      "sourceSha256": "6a1ae7151b572f8a077c318b99cdebfc8da1755df7238987632fdc52c5a9400f",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "commands": [
+          {
+            "id": "editor:focus-top",
+            "name": "聚焦上方标签页组"
+          },
+          {
+            "id": "editor:focus-bottom",
+            "name": "聚焦下方标签页组"
+          },
+          {
+            "id": "editor:focus-left",
+            "name": "聚焦左侧标签页组"
+          },
+          {
+            "id": "editor:focus-right",
+            "name": "聚焦右侧标签页组"
+          },
+          {
+            "id": "app:toggle-left-sidebar",
+            "name": "折叠/展开左侧边栏"
+          },
+          {
+            "id": "app:toggle-right-sidebar",
+            "name": "折叠/展开右侧边栏"
+          }
+        ],
+        "leaves": [
+          {
+            "type": "markdown",
+            "path": "pi-clean-core.md"
+          }
+        ],
+        "sidebarButtons": [
+          {
+            "label": "",
+            "className": "sidebar-toggle-button mod-primary mod-left"
+          },
+          {
+            "label": "",
+            "className": "sidebar-toggle-button mod-secondary mod-right"
+          }
+        ]
+      }
+    },
+    "gallery-display": {
+      "source": "/tmp/vault-agent-pi-final3-gallery-display.json",
+      "sourceSha256": "7c7d10f7c0e72bbedc8059f79be8ac969c383a84f885336b5acbc6ef8c399fe0",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "displayed": true,
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3"
+      }
+    },
+    "gallery-layout-restored": {
+      "source": "/tmp/vault-agent-pi-final3-gallery-layout-restored.json",
+      "sourceSha256": "7327d46dc05bb87e21bfd781ac22ad15f7027d9c7f932decc2427dc756e2ff7b",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "restored": true,
+        "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+      }
+    },
+    "gallery-wide-display": {
+      "source": "/tmp/vault-agent-pi-final3-gallery-wide-display.json",
+      "sourceSha256": "3af52d8d8adff45ce9597bb77147c556df0d322c51a9e1fc12dc9f5c9f3c6195",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "displayed": "/skill canonical:review",
+        "rect": {
+          "x": 662,
+          "y": 271.71875,
+          "width": 300,
+          "height": 418,
+          "top": 271.71875,
+          "right": 962,
+          "bottom": 689.71875,
+          "left": 662
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 800
+        }
+      }
+    },
+    "gallery-wide600-real": {
+      "source": "/tmp/vault-agent-pi-final3-gallery-wide600-real.json",
+      "sourceSha256": "ae08392b59e248a7e5c6918e25ff2efd1e08447b96adcdc1c49e7d4f20b8fe4d",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "width": 600,
+        "text": "/skill canonical:review",
+        "left": 362,
+        "right": 962,
+        "viewport": 1024
+      }
+    },
+    "local-command-gallery-real": {
+      "source": "/tmp/vault-agent-pi-final3-local-command-gallery-real.json",
+      "sourceSha256": "1ef27975209d5ed69ac928213d37556616b3d188d1864a16a1d2eefc97e44b8a",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "results": [
+          {
+            "width": 300,
+            "actualWidth": 300,
+            "text": "/skill canonical:review",
+            "error": null,
+            "scrollWidth": 300,
+            "clientWidth": 300
+          },
+          {
+            "width": 600,
+            "actualWidth": 600,
+            "text": "/skill canonical:review",
+            "error": null,
+            "scrollWidth": 600,
+            "clientWidth": 600
+          }
+        ]
+      }
+    },
+    "local-model-inventory": {
+      "source": "/tmp/vault-agent-pi-final3-local-model-inventory.json",
+      "sourceSha256": "3bf6401d4c1d5b3c18c47da60aadad573c941db9a517705241d2206cfc90e686",
+      "scope": "actual_local_LMStudio_inventory_HTTP_no_model_inference",
+      "result": {
+        "url": "http://127.0.0.1:1234/api/v1/models",
+        "models": [
+          {
+            "key": "qwen/qwen3.8-27b",
+            "type": "llm",
+            "loaded_instances": 1,
+            "max_context_length": 262144
+          },
+          {
+            "key": "text-embedding-nomic-embed-text-v1.5",
+            "type": "embedding",
+            "loaded_instances": 0,
+            "max_context_length": 2048
+          }
+        ]
+      }
+    },
+    "mcp-cleanup-process": {
+      "source": "/tmp/vault-agent-pi-final3-mcp-cleanup-process.json",
+      "sourceSha256": "7cc5d0f2c6da585044ffeda9486acedef97ff331c6a74bd75bcfeb005409bf0d",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "disabledTaskServerViaSettings": true,
+        "terminatedOwnPid": 96092,
+        "verifiedCommand": "node /tmp/vault-agent-pi-readonly-mcp.mjs",
+        "otherServersChanged": false
+      }
+    },
+    "mcp-cleanup-real": {
+      "source": "/tmp/vault-agent-pi-final3-mcp-cleanup-real.json",
+      "sourceSha256": "05c265d236daa83c557f3b3944f67ca4e239cee7dcd74c851db794a2f009c23d",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "action": "actual-settings-disable-task-created-server",
+        "serverId": "server-fb57a394-8521-4db7-834c-7366ee1cf04c",
+        "enabled": false,
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "network": {
+          "modelRequests": 0,
+          "requests": []
+        },
+        "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+      }
+    },
+    "reopen-environment": {
+      "source": "/tmp/vault-agent-pi-final3-reopen-environment.json",
+      "sourceSha256": "036d9f80475503aacec17ecea76e804b7e784800ba10c4355269529e4df41ac0",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "vault": "PiSmoke",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "audit": {
+          "modelRequests": 0,
+          "requests": []
+        }
+      }
+    },
+    "revert-real": {
+      "source": "/tmp/vault-agent-pi-final3-revert-real.json",
+      "sourceSha256": "487e2602cf7c05ca65c7ac89b46ee2ed9592bdb153762f84219a3c1f8da8d2bf",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "mode": "auto",
+        "sourceMessage": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:48:0",
+        "sourceChange": [
+          {
+            "path": "pi-clean-core.md",
+            "status": "modified",
+            "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+            "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+            "additions": 1,
+            "deletions": 1,
+            "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+          }
+        ],
+        "networkBefore": 3,
+        "networkAfter": 3,
+        "editorsBefore": ["# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n"],
+        "editorsAfter": ["# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"],
+        "messages": [
+          {
+            "id": "msg-1792668569377-dfyb9nxx9",
+            "message": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。",
+            "sender": "user",
+            "timestamp": {
+              "fileName": "20261022_192929",
+              "display": "2026/10/22 19:29:29",
+              "epoch": 1792668569376
+            },
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "text",
+                "text": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。"
+              }
+            ]
+          },
+          {
+            "id": "msg-1792668569377-k7g93id5a",
+            "message": "",
+            "sender": "ai",
+            "timestamp": {
+              "fileName": "20261022_192929",
+              "display": "2026/10/22 19:29:29",
+              "epoch": 1792668569377
+            },
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The user wants me to:\n1. Call obsidian_get_selection to get the current selection\n2. Use the returned selectionToken to call obsidian_replace_selection, replacing \"蓝色\" with \"紫色\" while preserving all other text\n3. Do NOT use ask_user or other write tools\n4. Report briefly and honestly when done\n\nLet me start by getting the selection.\n",
+                "startedAtMs": 1792668570606,
+                "durationMs": 2563
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:433623822",
+                "title": "obsidian_get_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_get_selection",
+                "status": "completed",
+                "input": {},
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"selectionToken\":\"selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D\",\"snapshot\":{\"leafId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:editor:5\",\"filePath\":\"pi-clean-core.md\",\"contentHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"from\":{\"line\":1,\"ch\":3},\"to\":{\"line\":1,\"ch\":5},\"selectionHash\":\"504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85\",\"takenAtMs\":1792668573202},\"text\":\"蓝色\"}"
+                  }
+                ]
+              }
+            ],
+            "turnStopReason": "end_turn",
+            "turnDurationMs": 27415
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:28:0",
+            "message": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The selection is \"蓝色\" (2 characters, from line 1 ch 3 to line 1 ch 5). I need to replace it with \"紫色\". Let me use the selectionToken to call obsidian_replace_selection.\n",
+                "startedAtMs": 1792668576304,
+                "durationMs": 14448
+              },
+              {
+                "kind": "text",
+                "text": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n"
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:600193336",
+                "title": "obsidian_replace_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_replace_selection",
+                "status": "completed",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色"
+                },
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"filePath\":\"pi-clean-core.md\",\"newContentHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"receipt\":{\"operationId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336\",\"runId\":\"run-10e5b52c-3490-489d-b2e9-153eca94174a\",\"path\":\"pi-clean-core.md\",\"kind\":\"write\",\"beforeHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"beforeBlobRef\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"afterBlobRef\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"afterHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"committed\":true,\"commitOrder\":1}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "parts": [
+              {
+                "kind": "tool_call",
+                "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "审批 · obsidian_replace_selection",
+                "vendorToolName": "Permission",
+                "toolKind": "other",
+                "status": "completed",
+                "userResponse": "允许这一次",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "output": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "newText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+                  },
+                  {
+                    "type": "text",
+                    "text": "已批准这次请求；工具是否执行以实际结果为准。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:48:0",
+            "message": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The replacement was successful. The file `pi-clean-core.md` was updated, replacing \"蓝色\" with \"紫色\". The receipt shows `committed: true`, so the write was applied.\n",
+                "startedAtMs": 1792668594737,
+                "durationMs": 2073
+              },
+              {
+                "kind": "text",
+                "text": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。"
+              }
+            ],
+            "turnStopReason": "end_turn",
+            "turnDurationMs": 27415,
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "parts": [
+              {
+                "kind": "tool_call",
+                "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "审批 · vault_revert",
+                "vendorToolName": "Permission",
+                "toolKind": "other",
+                "status": "completed",
+                "userResponse": "允许这一次",
+                "input": {
+                  "operationId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                  "path": "pi-clean-core.md",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "output": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "newText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                    "oldText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n"
+                  },
+                  {
+                    "type": "text",
+                    "text": "已批准这次请求；工具是否执行以实际结果为准。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:mutation:59",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": [
+                  "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"
+                ]
+              }
+            ]
+          }
+        ],
+        "before": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+        "result": {
+          "ok": true
+        },
+        "approval": [
+          {
+            "request": {
+              "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+              "signal": {},
+              "binding": {
+                "toolId": "vault_revert",
+                "schemaHash": "df19d73ea3ea4af7d1aec781f1b098eefb478d4b6c7ad9e05cd7a42ed9884d4c",
+                "targets": ["pi-clean-core.md"],
+                "beforeHash": "42caba944cd9a82b466a63acac0683976ab1c48958602ab074f1bac979289d94",
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "vault_revert",
+                "kind": "edit",
+                "status": "pending",
+                "rawInput": {
+                  "operationId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                  "path": "pi-clean-core.md",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "content": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "oldText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                    "newText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+                  }
+                ]
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeApproval": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+            "at": 1792668618664,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "after": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+        "status": "idle"
+      }
+    },
+    "selection-prepared-real": {
+      "source": "/tmp/vault-agent-pi-final3-selection-prepared-real.json",
+      "sourceSha256": "06daae6f16f101c46ae1a113eaacdf878f6fce3d1d80c8413368803c3d304088",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "vault": "PiSmoke",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+        "selected": "蓝色",
+        "editorCount": 1,
+        "network": {
+          "modelRequests": 0,
+          "requests": []
+        }
+      }
+    },
+    "selection-progress-real": {
+      "source": "/tmp/vault-agent-pi-final3-selection-progress-real.json",
+      "sourceSha256": "80e7cefe1bba00592f041e8cf36e20bbacb85c288a3549eaf0dcdc0409d4cbc6",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "idle",
+        "pending": 0,
+        "questions": 0,
+        "network": {
+          "modelRequests": 3,
+          "requests": [
+            {
+              "at": 1792668569468,
+              "path": "/v1/chat/completions"
+            },
+            {
+              "at": 1792668573280,
+              "path": "/v1/chat/completions"
+            },
+            {
+              "at": 1792668591211,
+              "path": "/v1/chat/completions"
+            }
+          ]
+        },
+        "messages": [
+          {
+            "id": "msg-1792668569377-dfyb9nxx9",
+            "sender": "user",
+            "message": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。",
+            "tools": []
+          },
+          {
+            "id": "msg-1792668569377-k7g93id5a",
+            "sender": "ai",
+            "message": "",
+            "tools": [
+              {
+                "name": "obsidian_get_selection",
+                "status": "completed"
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:28:0",
+            "sender": "ai",
+            "message": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n",
+            "tools": [
+              {
+                "name": "obsidian_replace_selection",
+                "status": "completed"
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "sender": "ai",
+            "message": "",
+            "tools": [
+              {
+                "name": "Permission",
+                "status": "completed"
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:48:0",
+            "sender": "ai",
+            "message": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。",
+            "tools": [],
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "selection-reopen-real": {
+      "source": "/tmp/vault-agent-pi-final3-selection-reopen-real.json",
+      "sourceSha256": "56874757bb6b940fa4e1d0087385e519d7c8c718860ebf8137576533ebf793dc",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "networkBefore": 0,
+        "networkAfter": 0,
+        "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+        "editors": [],
+        "operationIds": [
+          "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+          "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"
+        ],
+        "changes": [
+          {
+            "path": "pi-clean-core.md",
+            "status": "modified",
+            "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+            "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+            "additions": 1,
+            "deletions": 1,
+            "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+          },
+          {
+            "path": "pi-clean-core.md",
+            "status": "modified",
+            "before": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+            "after": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+            "additions": 1,
+            "deletions": 1,
+            "mutationOperationIds": ["revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+          }
+        ],
+        "messages": [
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:11:0",
+            "message": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。",
+            "sender": "user",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "text",
+                "text": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。"
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:18:0",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The user wants me to:\n1. Call obsidian_get_selection to get the current selection\n2. Use the returned selectionToken to call obsidian_replace_selection, replacing \"蓝色\" with \"紫色\" while preserving all other text\n3. Do NOT use ask_user or other write tools\n4. Report briefly and honestly when done\n\nLet me start by getting the selection.\n",
+                "startedAtMs": 1792668570606,
+                "durationMs": 2563
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:433623822",
+                "title": "obsidian_get_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_get_selection",
+                "status": "completed",
+                "input": {},
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"selectionToken\":\"selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D\",\"snapshot\":{\"leafId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:editor:5\",\"filePath\":\"pi-clean-core.md\",\"contentHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"from\":{\"line\":1,\"ch\":3},\"to\":{\"line\":1,\"ch\":5},\"selectionHash\":\"504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85\",\"takenAtMs\":1792668573202},\"text\":\"蓝色\"}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:28:0",
+            "message": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The selection is \"蓝色\" (2 characters, from line 1 ch 3 to line 1 ch 5). I need to replace it with \"紫色\". Let me use the selectionToken to call obsidian_replace_selection.\n",
+                "startedAtMs": 1792668576304,
+                "durationMs": 14448
+              },
+              {
+                "kind": "text",
+                "text": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n"
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:600193336",
+                "title": "obsidian_replace_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_replace_selection",
+                "status": "completed",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色"
+                },
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"filePath\":\"pi-clean-core.md\",\"newContentHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"receipt\":{\"operationId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336\",\"runId\":\"run-10e5b52c-3490-489d-b2e9-153eca94174a\",\"path\":\"pi-clean-core.md\",\"kind\":\"write\",\"beforeHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"beforeBlobRef\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"afterBlobRef\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"afterHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"committed\":true,\"commitOrder\":1}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "parts": [
+              {
+                "kind": "tool_call",
+                "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "审批 · obsidian_replace_selection",
+                "vendorToolName": "Permission",
+                "toolKind": "other",
+                "status": "completed",
+                "userResponse": "允许这一次",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "output": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "newText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+                  },
+                  {
+                    "type": "text",
+                    "text": "已批准这次请求；工具是否执行以实际结果为准。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:48:0",
+            "message": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The replacement was successful. The file `pi-clean-core.md` was updated, replacing \"蓝色\" with \"紫色\". The receipt shows `committed: true`, so the write was applied.\n",
+                "startedAtMs": 1792668594737,
+                "durationMs": 2073
+              },
+              {
+                "kind": "text",
+                "text": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。"
+              }
+            ],
+            "turnStopReason": "end_turn",
+            "turnDurationMs": 27415,
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "parts": [
+              {
+                "kind": "tool_call",
+                "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "审批 · vault_revert",
+                "vendorToolName": "Permission",
+                "toolKind": "other",
+                "status": "completed",
+                "userResponse": "允许这一次",
+                "input": {
+                  "operationId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                  "path": "pi-clean-core.md",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "output": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "newText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                    "oldText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n"
+                  },
+                  {
+                    "type": "text",
+                    "text": "已批准这次请求；工具是否执行以实际结果为准。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:mutation:59",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": [
+                  "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"
+                ]
+              }
+            ]
+          }
+        ],
+        "state": {
+          "readOnly": false,
+          "model": {
+            "current": {
+              "baseModelId": "4de94f75-9b44-4cff-af98-21e08cbb1fc5",
+              "effort": "low"
+            },
+            "availableModels": [
+              {
+                "baseModelId": "4de94f75-9b44-4cff-af98-21e08cbb1fc5",
+                "name": "qwen/qwen3.8-27b",
+                "provider": "ad14ef27-05d3-41fb-b2cd-66a6ef1c2290",
+                "effortOptions": [
+                  {
+                    "value": "low",
+                    "label": "low"
+                  },
+                  {
+                    "value": "medium",
+                    "label": "medium"
+                  },
+                  {
+                    "value": "xhigh",
+                    "label": "xhigh"
+                  }
+                ]
+              }
+            ],
+            "apply": {
+              "kind": "setConfigOption",
+              "configId": "pi-model",
+              "effortConfigId": "pi-effort"
+            }
+          },
+          "mode": {
+            "current": "default",
+            "options": [
+              {
+                "value": "plan",
+                "label": "Plan"
+              },
+              {
+                "value": "default",
+                "label": "Default"
+              },
+              {
+                "value": "auto",
+                "label": "Auto"
+              }
+            ],
+            "apply": {
+              "plan": {
+                "kind": "setMode",
+                "nativeId": "plan"
+              },
+              "default": {
+                "kind": "setMode",
+                "nativeId": "default"
+              },
+              "auto": {
+                "kind": "setMode",
+                "nativeId": "auto"
+              }
+            }
+          }
+        },
+        "sessionStatus": "idle"
+      }
+    },
+    "selection-revert-proof": {
+      "source": "/tmp/vault-agent-pi-final3-selection-revert-proof.json",
+      "sourceSha256": "566774b5cf531ae678d473cd2c4e3e7372520da6262948aaea69cf0766098ee2",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "status": "passed",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "operationId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+        "realModelSelectionEdit": true,
+        "approvalCount": 1,
+        "revertApprovalCount": 1,
+        "revertNoModelRequests": true,
+        "diskAndEditorsMatch": true,
+        "originalTextRestored": true,
+        "journal": {
+          "version": 1,
+          "mutations": {
+            "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336": {
+              "operationId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+              "runId": "run-10e5b52c-3490-489d-b2e9-153eca94174a",
+              "path": "pi-clean-core.md",
+              "kind": "write",
+              "beforeHash": "6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d",
+              "beforeBlobRef": "6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d",
+              "afterBlobRef": "103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7",
+              "afterHash": "103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7",
+              "committed": true,
+              "commitOrder": 1
+            },
+            "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336": {
+              "operationId": "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+              "path": "pi-clean-core.md",
+              "kind": "write",
+              "beforeHash": "103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7",
+              "beforeBlobRef": "103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7",
+              "afterBlobRef": "6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d",
+              "afterHash": "6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d",
+              "committed": true,
+              "commitOrder": 2
+            }
+          },
+          "reverts": {
+            "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336": {
+              "operationId": "revert:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+              "revertOf": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+              "kind": "revert",
+              "mode": "restore",
+              "files": [
+                {
+                  "path": "pi-clean-core.md",
+                  "action": "restored"
+                }
+              ],
+              "status": "committed",
+              "committedAtMs": 1792668618729
+            }
+          }
+        }
+      }
+    },
+    "selection-write-real": {
+      "source": "/tmp/vault-agent-pi-final3-selection-write-real.json",
+      "sourceSha256": "036470685f15c8c334f3af2dcc14023ab02d32c2318cb4f18cd878e4d7b1c9f3",
+      "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+      "result": {
+        "scenario": "final-selection-receipt-actual-lm",
+        "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+        "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+        "started": 1792668569376,
+        "elapsed": 27467,
+        "stop": "end_turn",
+        "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+        "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+        "actions": [
+          {
+            "request": {
+              "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+              "signal": {},
+              "binding": {
+                "toolId": "obsidian_replace_selection",
+                "schemaHash": "325ee9e5c03763c29eb1114d63f201140b4d718e39f5699b3776b84c1a3e0776",
+                "targets": ["pi-clean-core.md"],
+                "beforeHash": "3228d8df94fbe9e2f682c775bf6770e561113ed34ed0c3f9e39c129d200e07b8",
+                "scopeVersion": 1,
+                "policyVersion": 1
+              },
+              "toolCall": {
+                "toolCallId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "obsidian_replace_selection",
+                "kind": "edit",
+                "status": "pending",
+                "rawInput": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "content": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                    "newText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n"
+                  }
+                ]
+              },
+              "options": [
+                {
+                  "optionId": "allow_once",
+                  "name": "允许这一次",
+                  "kind": "allow_once"
+                },
+                {
+                  "optionId": "reject_once",
+                  "name": "拒绝",
+                  "kind": "reject_once"
+                }
+              ]
+            },
+            "beforeDecision": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+            "at": 1792668591012,
+            "buttonText": "允许这一次"
+          }
+        ],
+        "messages": [
+          {
+            "id": "msg-1792668569377-dfyb9nxx9",
+            "message": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。",
+            "sender": "user",
+            "timestamp": {
+              "fileName": "20261022_192929",
+              "display": "2026/10/22 19:29:29",
+              "epoch": 1792668569376
+            },
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "text",
+                "text": "选区功能实测：请先调用 obsidian_get_selection，再原样使用返回的 selectionToken，直接调用 obsidian_replace_selection，把选中的“蓝色”替换为“紫色”，保留其他所有文字。插件会展示审批卡，由我在卡片决定；请不要另行口头询问或调用 ask_user，不要使用其他写入工具。完成后简短如实报告。"
+              }
+            ]
+          },
+          {
+            "id": "msg-1792668569377-k7g93id5a",
+            "message": "",
+            "sender": "ai",
+            "timestamp": {
+              "fileName": "20261022_192929",
+              "display": "2026/10/22 19:29:29",
+              "epoch": 1792668569377
+            },
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The user wants me to:\n1. Call obsidian_get_selection to get the current selection\n2. Use the returned selectionToken to call obsidian_replace_selection, replacing \"蓝色\" with \"紫色\" while preserving all other text\n3. Do NOT use ask_user or other write tools\n4. Report briefly and honestly when done\n\nLet me start by getting the selection.\n",
+                "startedAtMs": 1792668570606,
+                "durationMs": 2563
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:433623822",
+                "title": "obsidian_get_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_get_selection",
+                "status": "completed",
+                "input": {},
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"selectionToken\":\"selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D\",\"snapshot\":{\"leafId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:editor:5\",\"filePath\":\"pi-clean-core.md\",\"contentHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"from\":{\"line\":1,\"ch\":3},\"to\":{\"line\":1,\"ch\":5},\"selectionHash\":\"504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85\",\"takenAtMs\":1792668573202},\"text\":\"蓝色\"}"
+                  }
+                ]
+              }
+            ],
+            "turnStopReason": "end_turn",
+            "turnDurationMs": 27415
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:28:0",
+            "message": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The selection is \"蓝色\" (2 characters, from line 1 ch 3 to line 1 ch 5). I need to replace it with \"紫色\". Let me use the selectionToken to call obsidian_replace_selection.\n",
+                "startedAtMs": 1792668576304,
+                "durationMs": 14448
+              },
+              {
+                "kind": "text",
+                "text": "\n\n选区内容为\"蓝色\"，现在直接调用替换：\n\n"
+              },
+              {
+                "kind": "tool_call",
+                "id": "pi:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:600193336",
+                "title": "obsidian_replace_selection",
+                "toolKind": "other",
+                "vendorToolName": "obsidian_replace_selection",
+                "status": "completed",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色"
+                },
+                "output": [
+                  {
+                    "type": "text",
+                    "text": "{\"ok\":true,\"filePath\":\"pi-clean-core.md\",\"newContentHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"receipt\":{\"operationId\":\"root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336\",\"runId\":\"run-10e5b52c-3490-489d-b2e9-153eca94174a\",\"path\":\"pi-clean-core.md\",\"kind\":\"write\",\"beforeHash\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"beforeBlobRef\":\"6f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d\",\"afterBlobRef\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"afterHash\":\"103c17421714e14981ad29bae25bc60371df3e64649874a1ed9df3456ae354e7\",\"committed\":true,\"commitOrder\":1}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+            "message": "",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "isAuxiliary": true,
+            "parts": [
+              {
+                "kind": "tool_call",
+                "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:approval:root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336",
+                "title": "审批 · obsidian_replace_selection",
+                "vendorToolName": "Permission",
+                "toolKind": "other",
+                "status": "completed",
+                "userResponse": "允许这一次",
+                "input": {
+                  "selectionToken": "selection:v1:%7B%22leafId%22%3A%22root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a%3Aeditor%3A5%22%2C%22filePath%22%3A%22pi-clean-core.md%22%2C%22contentHash%22%3A%226f667dde94ff6c034e8ff6e2f9fd3691b601ce1c12536f92303dec77d3eeb08d%22%2C%22from%22%3A%7B%22line%22%3A1%2C%22ch%22%3A3%7D%2C%22to%22%3A%7B%22line%22%3A1%2C%22ch%22%3A5%7D%2C%22selectionHash%22%3A%22504307938eeba698cfda914170cc19f90d0b629a38f46af545ffe37873520e85%22%2C%22takenAtMs%22%3A1792668573202%7D",
+                  "text": "紫色",
+                  "affectedPaths": ["pi-clean-core.md"]
+                },
+                "output": [
+                  {
+                    "type": "diff",
+                    "path": "pi-clean-core.md",
+                    "newText": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                    "oldText": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n"
+                  },
+                  {
+                    "type": "text",
+                    "text": "已批准这次请求；工具是否执行以实际结果为准。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:48:0",
+            "message": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。",
+            "sender": "ai",
+            "timestamp": null,
+            "isVisible": true,
+            "parts": [
+              {
+                "kind": "thought",
+                "text": "The replacement was successful. The file `pi-clean-core.md` was updated, replacing \"蓝色\" with \"紫色\". The receipt shows `committed: true`, so the write was applied.\n",
+                "startedAtMs": 1792668594737,
+                "durationMs": 2073
+              },
+              {
+                "kind": "text",
+                "text": "\n\n完成。选区中的\"蓝色\"已替换为\"紫色\"，文件 `pi-clean-core.md` 已写入（`committed: true`），其他文字未受影响。"
+              }
+            ],
+            "turnStopReason": "end_turn",
+            "turnDurationMs": 27415,
+            "fileChanges": [
+              {
+                "path": "pi-clean-core.md",
+                "status": "modified",
+                "before": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+                "after": "# 验收笔记\n颜色：紫色\n手工保留：冲突验收\n",
+                "additions": 1,
+                "deletions": 1,
+                "mutationOperationIds": ["root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a:1:600193336"]
+              }
+            ]
+          }
+        ],
+        "status": "idle"
+      }
+    }
+  },
+  "resolvedDefects": [
+    {
+      "id": "selection-effect-without-receipt",
+      "status": "resolved",
+      "buildIdentity": "c2a7ef50-dirty-5d0645c34509",
+      "source": "/tmp/vault-agent-pi-final2-selection-tool-real.json",
+      "sourceSha256": "625655a59459c4ce1f217940f987ec3b9a6b858733f26289d94340a08597d497",
+      "scenarioId": "SC-P06-T09-01",
+      "taskIds": ["P06-T08", "P06-T09", "P06-T10"],
+      "featureIds": ["F15", "F16", "F17", "F33"],
+      "evidence": "真实PiSmoke本地Qwen调用obsidian_get_selection和obsidian_replace_selection，经一次具体Diff审批，实际紫色→蓝色且保留手工行；Editor.replaceRange绕过MutationCoordinator，所有fileChanges为空，原UI无回退。Vault写入原证据不替代本次Editor写入路径。",
+      "requiredFixAndVerification": "选区写入走同一公共mutation/blob/intent/receipt流程，审批后原视图快照重验，未知效果诚实暂停；真实新包写入后有同operationId COMMITTED Diff和实际回退入口，批准回退后恢复原文字，冷重开不丢失。",
+      "productionFix": {
+        "status": "passed_for_backend_sdk_filesystem_editor_fixture_pending_actual_bundle_ui",
+        "evidence": "真实Backend production selectionMutation9项通过；5套52项定向测试、tsc/lint/format通过。包括新增同文件第一叶已保存、第二叶未保存时必须拒绝；真实磁盘/editor夹具确认receipt和va.mutation同operationId、coldload零重写、Auto独立回退与幂等、CAS快照变化拒绝、Stop与unknown安全。原5d实际界面失败仍保留，等待root新包实测。",
+        "source": "/tmp/vault-agent-pi-selection-mutation-final.json",
+        "result": {
+          "status": "passed",
+          "checks": [
+            "actual_selection_write_uses_vault_cas_and_committed_receipt",
+            "cold_reopen_keeps_same_receipt_without_model_or_rewrite",
+            "auto_rollback_requires_new_approval_and_restores_original_content",
+            "cas_rechecks_leaf_range_full_buffer_and_disk_baseline",
+            "unsaved_buffer_is_not_overwritten",
+            "another_unsaved_editor_blocks_selection_disk_write",
+            "stop_at_actual_cas_and_reopen_never_apply_stale_operation",
+            "lost_host_ack_blocks_dispatch_and_reconciles_same_receipt_without_write",
+            "lost_receipt_blocks_dispatch_and_reopen_preserves_original_operation_id"
+          ],
+          "fileWrites": 5,
+          "directEditorWrites": 0
+        }
+      },
+      "resolvedBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+      "resolution": {
+        "evidence": "最终4b2f879642c3实际PiSmoke本地Qwen蓝→紫，写前一次具体批准，真实fileChanges与同operationId已出现；Auto原UI回退另一次批准、零模型，磁盘和真实editor一致恢复蓝色并保留手工行。完整冷启同原operationId及revert:operationId与两条真实变更仍在，0→0模型/无审批；再次干净冷启实际editor与磁盘一致、idle。原5d失败完整保留。",
+        "source": "/tmp/vault-agent-pi-final3-selection-reopen-real.json",
+        "sourceSha256": "56874757bb6b940fa4e1d0087385e519d7c8c718860ebf8137576533ebf793dc",
+        "additionalSources": [
+          {
+            "source": "/tmp/vault-agent-pi-final3-selection-write-real.json",
+            "sourceSha256": "036470685f15c8c334f3af2dcc14023ab02d32c2318cb4f18cd878e4d7b1c9f3"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-revert-real.json",
+            "sourceSha256": "487e2602cf7c05ca65c7ac89b46ee2ed9592bdb153762f84219a3c1f8da8d2bf"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-selection-revert-proof.json",
+            "sourceSha256": "566774b5cf531ae678d473cd2c4e3e7372520da6262948aaea69cf0766098ee2"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-final3-clean-final-state.json",
+            "sourceSha256": "9fc83fa293aeeac9279b005d93e75fe135df0d4d96ed760c2d27bf3d114d0a6f"
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-command-story-tooltip-provider",
+      "status": "resolved",
+      "kind": "required_visual_verification",
+      "buildIdentity": "c2a7ef50-dirty-5d0645c34509",
+      "source": "/tmp/vault-agent-pi-final2-local-command-gallery-real.json",
+      "sourceSha256": "de90038109bcee76fdb96ddd49c787e12b18ccdda96d0bea67e025c1f06562b5",
+      "scenarioId": null,
+      "taskIds": ["P12-T06"],
+      "featureIds": ["F43"],
+      "evidence": "实际PiSmoke组件图库LocalCommandCompleted在300/600宽均渲染失败：Tooltip must be used within TooltipProvider。5d实际/skill零模型与正常回答已通过，但不能代替新增story必需的图库渲染验证。",
+      "requiredFixAndVerification": "复用现有QueuedActionsDemo的TooltipProvider上下文；后续新包实际打开300/600均无render failure，再保留原失败并标resolved。",
+      "resolvedBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+      "resolution": {
+        "evidence": "最终4b2f879642c3原LocalCommandCompleted story在实际PiSmoke图库300/600宽均渲染完整，error=null且scrollWidth==clientWidth；父代理检查两张真实截图，无裁切/横溢出。5d缺TooltipProvider原始渲染失败保留；原生/主题严格视觉warning仍另列，不因新目标已绿而隐藏。",
+        "source": "/tmp/vault-agent-pi-final3-local-command-gallery-real.json",
+        "sourceSha256": "1ef27975209d5ed69ac928213d37556616b3d188d1864a16a1d2eefc97e44b8a",
+        "additionalSources": [
+          {
+            "source": "/tmp/vault-agent-pi-final3-gallery-wide600-real.json",
+            "sourceSha256": "ae08392b59e248a7e5c6918e25ff2efd1e08447b96adcdc1c49e7d4f20b8fe4d"
+          }
+        ]
+      }
+    }
+  ],
+  "historicalVerifiedScopes": {
+    "15f2": {
+      "path": "execution/evidence/repair-2026-10-22/desktop-15f2-history.json",
+      "verifiedScope": [
+        "实际SecretStorage唯一临时值跨完整进程重开保留及验后删除",
+        "1000原角色消息和80k长输出保留、DOM50、import70.2ms、未观察到>=50ms LongTask（修前416ms）",
+        "三个聊天135.5ms均idle",
+        "独立popout原20条回答可读"
+      ]
+    },
+    "15a": {
+      "path": "execution/evidence/repair-2026-10-22/continuation-15a-local-model.json",
+      "verifiedScope": [
+        "真实空PATH干净profile完整BYOK配置1服务1模型",
+        "原UI图片粘贴/模型识别",
+        "实际Vault写拒绝与重复回退零重写",
+        "本机MCP只读调用/拒绝/错误"
+      ]
+    },
+    "c07": {
+      "path": "execution/evidence/repair-2026-10-22/continuation-c07-local-model.json",
+      "verifiedScope": [
+        "冷重开原问题/计划决定仅保存零模型、明确Continue运行",
+        "真实write→后续文本Stop→冷重开保留COMMITTED Diff",
+        "同页能力声明即时effort选择",
+        "全量图库原生/主题/对比度警告保留"
+      ]
+    },
+    "be65": {
+      "path": "execution/evidence/repair-2026-10-22/continuation-be65-local-model.json",
+      "verifiedScope": [
+        "真实Markdown fenced code/两种本库内链/系统剪贴板复制核对",
+        "真实后台child读笔记→自动综合，user气泡仅1",
+        "同包rollover UI与最近尾部/默认模式复验由原始记录单列"
+      ]
+    },
+    "5d": {
+      "path": "execution/evidence/repair-2026-10-22/desktop-5d0645c34509-history.json",
+      "verifiedScope": [
+        "真实/skill零模型且无假错误，随后实际Qwen复述已选技能",
+        "MCP已加载工具恢复与本机调用/拒绝",
+        "原选区写成功但无receipt/Diff/回退，以及LocalCommandCompleted TooltipProvider渲染失败均保留，已由final3新证据明确修复。"
+      ]
+    }
+  },
+  "scopeLimits": [
+    "实际插件仅PiSmoke，实际推理仅本机LM Studio Qwen；不操作houde。",
+    "原始每份记录按真实build保留，某包通过的范围不自动扩为后续修改也通过。",
+    "final3实际选区写入/审批/原UI回退/冷开保留同operationId均passed；旧5d失败没有删除，不能以新证据篡改旧记录。",
+    "真正不同的第二模型、Windows/Linux机器及用户许可的远程只读HTTP MCP仍未执行；所选远程服务若要求OAuth还需可用账号及授权。",
+    "本轮新增LocalCommandCompleted在实际300/600无render error/横溢出，满足必需story渲染验证。既有原生select/option/主题和4.3:1对比度audit警告作为质量限制保留，原规则没有要求所有warning清零，不新增验收门槛。"
+  ],
+  "cleanup": {
+    "source": "/tmp/vault-agent-pi-final3-clean-final-state.json",
+    "sourceSha256": "9fc83fa293aeeac9279b005d93e75fe135df0d4d96ed760c2d27bf3d114d0a6f",
+    "scope": "actual_PiSmoke_Obsidian_UI_and_local_Qwen_at_final3_build_as_recorded_no_other_platform_or_remote_claim",
+    "result": {
+      "status": "passed",
+      "vault": "PiSmoke",
+      "vaultPath": "/var/folders/5r/wq54gtms21gfjgr5v94ynfyh0000gn/T/vault-agent-mac-e2e-zg9bedef/PiSmoke",
+      "build": "1.0.0+dev.c2a7ef50.dirty.4b2f879642c3",
+      "node": "22.22.1",
+      "cliPath": "/var/empty",
+      "sessionId": "root-a6d76225-83d1-4c6d-8c80-fc95d7ed873a",
+      "sessionStatus": "idle",
+      "temporaryInstrumentationRemoved": true,
+      "taskMcpServerDisabled": true,
+      "servers": [
+        {
+          "serverId": "server-fb57a394-8521-4db7-834c-7366ee1cf04c",
+          "enabled": false
+        }
+      ],
+      "note": "# 验收笔记\n颜色：蓝色\n手工保留：冲突验收\n",
+      "theme": "system",
+      "editorMatches": true
+    }
+  }
+}

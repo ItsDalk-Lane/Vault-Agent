@@ -13,7 +13,7 @@ const meta = {
 } satisfies Meta<Props>;
 export default meta;
 
-export const SummarySetupError: StoryObj<Props> = {
+export const SummaryRequestError: StoryObj<Props> = {
   render: function SummaryStory(args) {
     return (
       <FanoutTurnView
@@ -29,27 +29,41 @@ export const SummarySetupError: StoryObj<Props> = {
     onSelect: () => {},
     turn: {
       answers: {
-        codex: { backendId: "codex", status: "done", text: "The notes support a weekly review." },
+        "local-qwen": {
+          backendId: "pi",
+          modelKey: "local-qwen",
+          label: "Qwen · LM Studio",
+          status: "done",
+          text: "The notes support a weekly review.",
+        },
+        "cloud-sonnet": {
+          backendId: "pi",
+          modelKey: "cloud-sonnet",
+          label: "Claude Sonnet · Work",
+          status: "done",
+          text: "Keep the weekly review focused on the three unfinished actions.",
+        },
       },
       summary: {
         status: "done",
         text: "",
-        error:
-          "This Codex adapter cannot choose effort for a model-only switch. Choose an explicit effort or update the Codex adapter.",
+        error: "The configured summary model is unavailable. Choose an enabled model and retry.",
       },
     },
   },
 };
 
-export const SingleAgentAnswer: StoryObj<Props> = {
-  render: SummarySetupError.render,
+export const SingleModelAnswer: StoryObj<Props> = {
+  render: SummaryRequestError.render,
   args: {
-    value: "claude",
+    value: "local-qwen",
     onSelect: () => {},
     turn: {
       answers: {
-        claude: {
-          backendId: "claude",
+        "local-qwen": {
+          backendId: "pi",
+          modelKey: "local-qwen",
+          label: "Qwen · LM Studio",
           status: "done",
           text: "The active note supports a weekly review with three concrete follow-ups.",
         },
@@ -60,14 +74,14 @@ export const SingleAgentAnswer: StoryObj<Props> = {
 };
 
 export const PartialSummaryError: StoryObj<Props> = {
-  render: SummarySetupError.render,
+  render: SummaryRequestError.render,
   args: {
-    ...SummarySetupError.args,
+    ...SummaryRequestError.args,
     turn: {
-      ...SummarySetupError.args!.turn!,
+      ...SummaryRequestError.args!.turn!,
       summary: {
         status: "done",
-        text: "Both agents recommend a weekly review.",
+        text: "Both models recommend a weekly review.",
         error: "The summary request timed out.",
       },
     },

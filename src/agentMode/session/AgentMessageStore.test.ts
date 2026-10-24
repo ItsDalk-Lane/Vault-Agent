@@ -1,7 +1,8 @@
 import { AI_SENDER, USER_SENDER } from "@/constants";
-import { AgentMessagePart, TurnFileChange } from "@/agentMode/session/types";
+import { AgentChatMessage, AgentMessagePart, TurnFileChange } from "@/agentMode/session/types";
 import { serializeFanoutComposite, type FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import { formatDateTime } from "@/utils";
+import type { MessageContext } from "@/types/message";
 import { AgentMessageStore } from "./AgentMessageStore";
 
 jest.mock("@/logger", () => ({
@@ -579,6 +580,105 @@ describe("AgentMessageStore", () => {
       store.loadMessages(store.getDisplayMessages());
 
       expect(store.getMessage(id)?.fileChanges).toBeUndefined();
+    });
+  });
+
+  describe("replaceMessages()", () => {
+    const projected = (
+      id: string,
+      message: string,
+      sender: string,
+      overrides: Partial<AgentChatMessage> = {}
+    ): AgentChatMessage => ({
+      id,
+      sender,
+      message,
+      timestamp: null,
+      isVisible: true,
+      ...overrides,
+    });
+
+    it("replaces the loaded window with the projected messages in order", () => {
+      const store = new AgentMessageStore();
+      store.addMessage(placeholder());
+
+      expect(
+        store.replaceMessages([
+          projected("u1", "hello", USER_SENDER),
+          projected("a1", "hi", AI_SENDER),
+        ])
+      ).toBe(true);
+
+      expect(store.getDisplayMessages().map((message) => message.id)).toEqual(["u1", "a1"]);
+    });
+
+    it("keeps the existing message object and cached view when the projection did not change", () => {
+      const store = new AgentMessageStore();
+      store.replaceMessages([projected("a1", "hi", AI_SENDER)]);
+      const before = store.getDisplayMessages();
+
+      expect(store.replaceMessages([projected("a1", "hi", AI_SENDER)])).toBe(false);
+      expect(store.getDisplayMessages()).toBe(before);
+    });
+
+    it("refreshes the cached view when the projection changes the text", () => {
+      const store = new AgentMessageStore();
+      store.replaceMessages([projected("a1", "hi", AI_SENDER)]);
+      const before = store.getDisplayMessages()[0];
+
+      expect(store.replaceMessages([projected("a1", "hi again", AI_SENDER)])).toBe(true);
+      expect(store.getDisplayMessages()[0]?.message).toBe("hi again");
+      expect(store.getDisplayMessages()[0]).not.toBe(before);
+    });
+
+    it("keeps the displayed context and send time a projection omits", () => {
+      const store = new AgentMessageStore();
+      const context = { notes: [], urls: [] } as MessageContext;
+      store.replaceMessages([projected("u1", "hello", USER_SENDER, { context, timestamp: null })]);
+
+      store.replaceMessages([projected("u1", "hello", USER_SENDER)]);
+
+      expect(store.getMessage("u1")?.context).toBe(context);
+      expect(store.getMessage("u1")?.timestamp).toBeNull();
+    });
+
+    it("stores an empty parts array as an absent one instead of allocating it per frame", () => {
+      const store = new AgentMessageStore();
+      store.replaceMessages([projected("a1", "hi", AI_SENDER, { parts: [] })]);
+
+      expect(store.getMessage("a1")?.parts).toBeUndefined();
+    });
+  });
+
+  describe("prependMessages()", () => {
+    const projected = (id: string, message: string, sender: string): AgentChatMessage => ({
+      id,
+      sender,
+      message,
+      timestamp: null,
+      isVisible: true,
+    });
+
+    it("prepends older pages without disturbing the loaded window", () => {
+      const store = new AgentMessageStore();
+      store.replaceMessages([projected("a2", "current", AI_SENDER)]);
+
+      expect(
+        store.prependMessages([
+          projected("u1", "older question", USER_SENDER),
+          projected("a1", "older answer", AI_SENDER),
+        ])
+      ).toBe(true);
+
+      expect(store.getDisplayMessages().map((message) => message.id)).toEqual(["u1", "a1", "a2"]);
+    });
+
+    it("ignores messages whose id is already displayed", () => {
+      const store = new AgentMessageStore();
+      store.replaceMessages([projected("a2", "current", AI_SENDER)]);
+
+      expect(store.prependMessages([projected("a2", "current", AI_SENDER)])).toBe(false);
+      expect(store.getDisplayMessages().map((message) => message.id)).toEqual(["a2"]);
     });
   });
 

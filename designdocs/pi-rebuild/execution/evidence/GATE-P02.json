@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P02",
+  "status": "passed",
+  "taskIds": [
+    "P02-T01",
+    "P02-T02",
+    "P02-T03",
+    "P02-T04",
+    "P02-T05",
+    "P02-T06",
+    "P02-T07",
+    "P02-T08"
+  ],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "Test Suites: 428 passed, 428 total; Tests: 2 skipped, 5460 passed, 5462 total; 47.9 s。全仓既有测试与 P02 新增 110 个 storage/runtime 测试全部通过。"
+    },
+    {
+      "command": "npm run build",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "tailwind + tsc -noEmit -skipLibCheck + esbuild production 成功；main.js sha256=990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd（仍未包含未接线的 P02 模块），styles.css sha256=e173c72c47eb3154d92805b5e9b9aa1e31747d976aac5954b665980f7f28b499。"
+    },
+    {
+      "command": "npm run lint",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "eslint . 全仓 0 error（含 Pi SDK 边界、issue-linked comments、no-direct-node-imports、popout timer 等规则）。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLocator.test.ts src/agentMode/sdk/pi/storage/StoreLease.test.ts src/agentMode/sdk/pi/storage/DurableStore.test.ts src/agentMode/sdk/pi/storage/ProductDocs.test.ts src/agentMode/sdk/pi/runtime/Identity.test.ts src/agentMode/sdk/pi/storage/HistoryReader.test.ts src/agentMode/sdk/pi/runtime/RuntimePool.test.ts src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "P02 全部 8 个直接套件：8 suites / 110 tests passed。覆盖路径身份、lease、JSONL 打开关闭与真实 opener 集成、产品文档与事件、稳定 ID/提交幂等、完整历史分页、运行时池/大小策略、恢复与故障监督。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/gate-p02-demo.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "真实演示 JSON：{\"jsonlReopen\":{\"writeProcessEntries\":2,\"reopenProcessEntries\":2,\"assistantTexts\":[\"durable answer\"],\"entryIdsStable\":true},\"lease\":{\"first\":\"acquired\",\"second\":\"busy\",\"secondReason\":\"active_remote_owner\",\"reclaim\":\"acquired\"},\"result\":\"passed\"}。写进程退出后由独立 Node 进程用真实 openNodeJsonlStorage 重开同一临时目录，entry ID 序列与 assistant 文本一致；真实 fs 上第二个进程的 lease acquire 返回 busy/active_remote_owner 且未删除 owner 文件，holder 退出后第三个进程成功回收。"
+    },
+    {
+      "command": "npm run review:obsidian",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "依赖变更门禁：package/source/styles/audit/fixtures 全部通过；只有既有 styles.css warning 与 manifest fixture 预期负例，命令退出 0。生产 audit 无 critical。"
+    },
+    {
+      "command": "npm run format:check",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "prettier --check 'src/**/*.{js,ts,tsx,md}'：All matched files use Prettier code style。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1177 file(s)：P02 模块无 Pi SDK 泄漏，Pi 依赖仍只在 sdk/pi。"
+    },
+    {
+      "command": "shasum -a 256 \"/Users/study_superior/Desktop/Project/houde/.obsidian/plugins/vault-agent/main.js\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551：仓库外 P00 安装副本未被覆盖；P00 仍为 accepted_user_report。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    }
+  ],
+  "manualChecks": [
+    {
+      "name": "阶段可运行演示：临时 store 提交记录、关闭重开后完整恢复",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "运行 P02 全部 8 个直接套件（110 tests）：DurableStore 含真实 openNodeJsonlStorage 打开/关闭集成，StoreLocator/StoreLease/ProductDocs/Identity/HistoryReader/RuntimePool/RecoveryCoordinator 全部通过。",
+        "运行 node designdocs/pi-rebuild/scripts/gate-p02-demo.mjs：进程 A 用 esbuild 打包的真实 Harness + faux provider + 真实 openNodeJsonlStorage(fsync:true) 写入一轮对话并退出；进程 B 用真实 opener 重开同一临时目录，读到相同 entry ID 序列与 assistant 文本 'durable answer'。",
+        "验证 JSON 输出 jsonlReopen.entryIdsStable=true 且 write/reopen 均为 2 条 entry。"
+      ],
+      "evidence": "本 gate commands 中 npm test、P02 套件与 gate-p02-demo 命令输出。"
+    },
+    {
+      "name": "阶段可运行演示：第二个 writer 被拒绝",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "gate-p02-demo 在真实文件系统上建立 leaseDir，由独立 Node 进程持有 lease（打印 acquired 并等待 stdin 关闭）。",
+        "第二个独立 Node 进程执行 StoreLease.acquire：返回 busy/reason=active_remote_owner，且 owner.json 仍然存在（第二个 writer 未删除他人 lease）。",
+        "holder 退出（pid 已死）后第三个进程 acquire 成功，证明只回收可证明退出的 owner，没有按时间偷锁。"
+      ],
+      "evidence": "gate-p02-demo 输出 lease={first:accepted? acquired, second:busy/active_remote_owner, reclaim:acquired}；P02-T02 单测覆盖更多恢复/不完整 owner 分支。"
+    },
+    {
+      "name": "阶段可运行演示：读取历史不启用 scheduler",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "P02-T06 HistoryReader 套件通过：读取只调用 resolveConversation/entries/forkParentId，测试断言调用序列无 submit/resume/wait，取消读取时运行任务 cancel 计数为 0。",
+        "P02-T08 RecoveryCoordinator 套件通过：inspectAfterOpen 只调用 inspect，resume/abort 计数为 0；只有显式 continueAfterUserChoice 才 reload+reconcile+resume。"
+      ],
+      "evidence": "P02 套件命令（HistoryReader.test.ts、RecoveryCoordinator.test.ts）输出，证据文件 P02-T06.json / P02-T08.json。"
+    },
+    {
+      "name": "阶段可运行演示：存储故障终止执行",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "P02-T08 套件通过：inspect 抛存储错误时 RecoveryCoordinator 返回 kind=storage_failed，FailureSupervisor 记录 STORAGE_FAILED、hostIoBlocked=true、canStartWork=false，且未调用 resume；没有 MemoryStorage 替代路径。",
+        "FailureSupervisor 连续三次异常打开进入只读模式、阻断 start-work；recordSafeBoundary 归零后才允许显式 continue。"
+      ],
+      "evidence": "P02 套件中的 RecoveryCoordinator.test.ts 13 passed；证据文件 P02-T08.json。"
+    },
+    {
+      "name": "本阶段仅使用新 Pi 代码，未切回旧后端",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "演示与套件只 import P02 API（StoreLocator/StoreLease/DurableStore/ProductDocs/ProductEntries/Identity/SubmissionAdmission/HistoryReader/RuntimePool/StoreSizePolicy/RecoveryCoordinator/FailureSupervisor）与 pi-durable 公开入口，无旧 ACP/Claude 路径。",
+        "gate-p02-demo 使用真实 pi-durable Harness + 官方 faux provider，未启动任何外部 Agent CLI。"
+      ],
+      "evidence": "gate-p02-demo 脚本源码与命令输出；P02 套件源码。"
+    },
+    {
+      "name": "旧产品仍可构建，默认执行器未切换",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "npm run build、npm run lint、全仓测试通过；main.js 哈希与 P01 gate 相同（P02 模块尚未接线，生产行为不变）。",
+        "Pi descriptor 仍隐藏、未接线 runtime；P02 模块无生产入口引用。"
+      ],
+      "evidence": "build/lint/test 命令；main.js sha256。"
+    }
+  ],
+  "limitations": [
+    "JSONL 重开演示在隔离临时目录 + 子 Node 进程中验证真实 pi-durable 存储，不在 Obsidian renderer 内；真实平台证据属 P14。",
+    "第二个 writer 拒绝在同一 macOS 机器的两个 Node 进程间验证；跨机器/网络文件系统、Windows/Linux 的 pid/bootId 语义未验证。",
+    "读取历史“不启用 scheduler”由注入端口的单元断言证明，真实 Durable Conversation.entries 接线在 P03 完成后才能端到端验证。",
+    "存储故障终止由 FailureSupervisor/RecoveryCoordinator 单测证明，未在真实 Obsidian 进程制造磁盘 I/O 失败；崩溃环写 meta.json 的持久化接线在 P03/P05。",
+    "P02 产品文档/事件、SubmissionAdmission 目前只有单元级证据，未接入真实 Durable tx/doc snapshot。",
+    "无视觉变更，未运行 gallery；未运行 npm run dev；未提交 git（gitCommitAfter=null）。",
+    "npm audit 仍有既有 moderate/全量漏洞（P01-T03 记录），不属本阶段范围。"
+  ]
+}

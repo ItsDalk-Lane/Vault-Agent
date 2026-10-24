@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T07",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/StoreSizePolicy.ts",
+    "src/agentMode/sdk/pi/runtime/RuntimePool.ts",
+    "src/agentMode/sdk/pi/runtime/RuntimePool.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T07.json"
+  ],
+  "scenarioIds": ["SC-P02-T07-01", "SC-P02-T07-02", "SC-P02-T07-03", "SC-P02-T07-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/runtime/RuntimePool.ts src/agentMode/sdk/pi/runtime/RuntimePool.test.ts src/agentMode/sdk/pi/storage/StoreSizePolicy.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（prefer-window-timers 使用 window.setTimeout/clearTimeout、issue-linked comments、no-restricted-syntax 路径别名等均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1174 file(s)：pool/size policy 无 Pi SDK 或跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 storage/StoreSizePolicy.ts、runtime/RuntimePool.ts + test 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/RuntimePool.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 17,
+      "durationSeconds": 2.51,
+      "logPath": "/tmp/vault-agent-required-current/30.log",
+      "logSha256": "83dec5a0fd1fe0ecadc15a9efe5c38013a5ce0c734810b53722ba1c8e0651131",
+      "testFile": "src/agentMode/sdk/pi/runtime/RuntimePool.test.ts",
+      "testSourceSha256": "0826bc6b5eab231f3f4a6d85b24e4944a1acf31613e49e2fb182b05c3e1fb87f",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T07-01",
+      "requirement": "popout不产生第二writer",
+      "result": "passed",
+      "evidence": "同一 rootKey 重复 acquire 与 observe 都返回同一个 PooledRuntime 对象；测试断言 openRuntime 只调用 1 次、closed 为空、popout 拿到同一 handle；observe 未打开 root 时抛 RuntimePoolError(RUNTIME_NOT_OPEN)，不会自行 open。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T07-02",
+      "requirement": "active任务不被LRU关闭",
+      "result": "passed",
+      "evidence": "容量压力（2 个已打开、请求第 3 个）时只遍历 observers=0 且 activeRuns=0 的候选，并在关闭前探测 activity；activeForegroundTasks=1 的候选被跳过（即使无人观察），仅关闭 idle root，测试断言 closed=[\"root-idle\"] 且不含 root-active。没有可驱逐候选时 acquire 成为 waiter 排队，等某个 root 真正关闭后才打开。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T07-03",
+      "requirement": "32MiB不再接纳新run但可取消",
+      "result": "passed",
+      "evidence": "admitRun 每次读取真实大小：10MiB → accepted（无警告）；33MiB → blocked/code=STORE_SIZE_LIMIT/suggestion=summarize_and_new_session/status.verdict=stop_new_runs，且不增加 activeRuns；cancelRun 仍成功调用 cancelRuntime 返回 cancelled。16MiB 边界给出 warning=true。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T07-04",
+      "requirement": "压缩不伪减少文件大小",
+      "result": "passed",
+      "evidence": "StoreSizePolicy.status 每次调用 measureBytes，不缓存也不使用逻辑摘要大小；测试模拟压缩前 20MiB、压缩追加 JSONL 后真实文件 34MiB，第二次 status 返回 34MiB 且 verdict=stop_new_runs（若误用逻辑大小会显示变小/ok）；断言压缩后 bytes 大于压缩前。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "RuntimePool/StoreSizePolicy 均为注入端口单元：真实 Durable 打开/关闭（DurableStore）、真实任务活动探测、真实 JSONL 文件大小统计与滚动归档提交尚未接线（P03 runtime 任务）。",
+    "并发 acquire 在极短时间内可能超过 maxActive（openEntry 之间无互斥）；当前单进程 UI 顺序调用可接受，接线时如需要应加打开互斥。",
+    "滚动归档的“总结 + 原会话来源建立新 rootId”提交未实现，本任务只负责归档时机与边界判定；归档回调由后续 runtime 提供。",
+    "观察者计数与任务活动来自不同来源（pool observers 计数 + 注入 activity 探测），真实接线需保证两者一致；本任务不扫描真实任务图。",
+    "默认 timer 使用 window.setTimeout（Obsidian popout 规则），在纯 Node 的非渲染宿主中不可用；测试注入 setTimer，真实宿主验证留 P14。",
+    "32MiB 限制目前只返回 blocked 结果，UI 提示与“总结并新建会话”流程属后续 UI 任务；未跑全仓测试；未 commit。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T07 完成；下一任务 P02-T08（实现只读恢复入口和存储故障处理，依赖 P02-T07）：先读卡片与 design/04（4.7 恢复流程、4.8 副作用崩溃矩阵、4.9 存储故障和退出）、design/16；新增 src/agentMode/sdk/pi/storage/RecoveryCoordinator.ts（open 后 inspect 并生成恢复状态；无用户 Continue 绝不调用任何启动 scheduler/resume/submit；未知副作用列 needs_reconciliation 不自动重做；恢复审批重新校验绑定 hash/scope/policyVersion/文件基线）与 src/agentMode/sdk/pi/runtime/FailureSupervisor.ts（存储异常立即停止 host 新 I/O 并暴露错误；连续三次异常打开进入只读模式并在安全边界归零；不显示成功、不悄悄换 MemoryStorage）。先写失败测试 src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts（重开未完成会话无调用、显式继续才启动、存储失败不显示成功、crash-loop 阈值阻断自动执行），注入 inspect/scheduler/存储端口，不 mock 核心判定、禁止 sleep。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

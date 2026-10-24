@@ -1,0 +1,379 @@
+{
+  "recordedAt": "2026-10-22",
+  "runtimes": {
+    "production": {
+      "command": "node scripts/test-pi-runtime.mjs production",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "production_backend_prompt",
+          "durable_reopen_history",
+          "read_only_reopen",
+          "stable_request_deduplication",
+          "durable_todo_tool",
+          "plan_approval_callback",
+          "actual_user_question",
+          "feature_state_reopen",
+          "plan_approval_leaves_read_only_mode",
+          "rejected_plan_stays_rejected",
+          "web_denial_without_network",
+          "todo_revision_conflict",
+          "error_feedback_persisted_and_dismissed",
+          "stop_pending_question",
+          "legacy_import_idempotent_source_unchanged",
+          "full_backup_round_trip_read_only",
+          "markdown_export_real_history",
+          "nonincremental_stream_live_projection",
+          "public_thinking_only_with_durable_timing",
+          "local_skill_model_unknown_and_stop_commands",
+          "material_budget_and_source_on_real_request",
+          "image_private_blob_and_full_export_receipt",
+          "imported_chat_continues_without_changing_source",
+          "shutdown_rejects_new_calls_and_reopen_preserves_thinking"
+        ],
+        "providerCalls": 16,
+        "approvals": 1,
+        "questionCount": 1,
+        "environment": {
+          "pathEntries": 36
+        }
+      },
+      "sourceSha256": "5efeb1b98b8fa5b2a34a9ad9f3644d1d054809234579f609774a970b8b2e0e73",
+      "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+    },
+    "fanout": {
+      "command": "node scripts/test-pi-runtime.mjs fanout",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "two_saved_models_reach_real_runtime",
+          "independent_read_only_sessions",
+          "single_summary",
+          "reopen_is_read_only",
+          "single_parent_durable_store",
+          "shared_persisted_budget",
+          "stored_read_only_survives_predicate_removal",
+          "recover_completed_request_without_model_call"
+        ],
+        "providerCalls": 3
+      },
+      "sourcePath": "/tmp/vault-agent-current-fanout.json",
+      "sourceSha256": "be1034808b52a9c1f66da6e5fc6d1c1cabac70c1819e601671241e6126a6af16",
+      "scope": "本轮运行的真实生产PiBackendProcess/Harness/JSONL；模型流和Obsidian I/O为明确宿主夹具，不是实际LM推理/桌面。MCP两次调用为真实本机HTTP测试服务。",
+      "reportedBy": "runtime_feature_audit",
+      "recordedAt": "2026-10-22",
+      "limitations": [
+        "两个configuredModelKey分别路由到faux候选；本机只有一个实际对话模型，不能据此证明真正不同模型推理。"
+      ]
+    },
+    "mcp": {
+      "command": "node scripts/test-pi-runtime.mjs mcp",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "configured_mcp_reaches_production_registry",
+          "real_http_tool_call",
+          "concrete_arguments_approval",
+          "actual_server_progress",
+          "plan_denies_external_effects",
+          "read_only_child_cannot_borrow_parent_permissions",
+          "stop_pending_permission",
+          "disable_revokes_pending_approval",
+          "lazy_deferred_connect",
+          "native_deferred_tool_search",
+          "catalog_bearer_echo_redacted_in_durable_history",
+          "single_authorization_header_for_real_http_auth"
+        ],
+        "calls": 2,
+        "approvals": 2
+      },
+      "sourcePath": "/tmp/vault-agent-current-mcp.json",
+      "sourceSha256": "0e180ebb98acfbfca80a4248b9a3f88904698355eaf6379ea80859b351d13ed7",
+      "scope": "本轮运行的真实生产PiBackendProcess/Harness/JSONL；模型流和Obsidian I/O为明确宿主夹具，不是实际LM推理/桌面。MCP两次调用为真实本机HTTP测试服务。",
+      "reportedBy": "runtime_feature_audit",
+      "recordedAt": "2026-10-22"
+    },
+    "subagents": {
+      "command": "node scripts/test-pi-runtime.mjs subagents",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "scenario": "production-subagents",
+        "modelCalls": ["fixture-model", "fixture-child", "fixture-model"],
+        "answers": 1,
+        "reopenedWithoutRequests": true,
+        "readOnlyChildHistory": true
+      },
+      "sourcePath": "/tmp/vault-agent-current-subagents.json",
+      "sourceSha256": "3caf88227eac72af499bcba1bba911cfbeba7867d5b4eed38828eb863598019d",
+      "scope": "本轮运行的真实生产PiBackendProcess/Harness/JSONL；模型流和Obsidian I/O为明确宿主夹具，不是实际LM推理/桌面。MCP两次调用为真实本机HTTP测试服务。",
+      "reportedBy": "runtime_feature_audit",
+      "recordedAt": "2026-10-22"
+    },
+    "native": {
+      "command": "node scripts/test-pi-runtime.mjs native",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "official_external_write_via_production_backend",
+          "concrete_diff_permission",
+          "plan_denies_external_write",
+          "strict_spawns_nothing",
+          "trusted_single_approval_runs_supervised_process",
+          "stop_pending_write_blocks_late_permission"
+        ],
+        "approvals": 2
+      },
+      "sourceSha256": "bd96310ee45b4fcd5a87944389130a22e571e1e11485d38e0073f7205c7063da",
+      "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+    },
+    "models": {
+      "command": "node scripts/test-pi-runtime.mjs models",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "actual_openai_protocol",
+          "explicit_keyless_local_endpoint",
+          "real_stream_and_usage"
+        ],
+        "requests": 1
+      },
+      "sourceSha256": "3de4c87f8aa89d2aa0483738df9a4321cd302c4be5a8b9a08beaef964f26353e",
+      "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+    },
+    "dispatch": {
+      "command": "node scripts/test-pi-runtime.mjs dispatch",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "provider_session_identity_for_same_model_child",
+          "endpoint_change_during_guard_denied",
+          "actual_local_request_budget_is_visible",
+          "reopen_restores_local_budget_without_model_call",
+          "new_run_publishes_own_budget_before_provider"
+        ],
+        "providerCalls": 3,
+        "purposes": ["root", "subagent", "root"]
+      },
+      "sourcePath": "/tmp/vault-agent-current-dispatch.json",
+      "sourceSha256": "102184210b5b43f952944644a525b0c513b09a25ef1dd221b8aadb8953c053c2",
+      "scope": "本轮运行的真实生产PiBackendProcess/Harness/JSONL；模型流和Obsidian I/O为明确宿主夹具，不是实际LM推理/桌面。MCP两次调用为真实本机HTTP测试服务。",
+      "reportedBy": "runtime_feature_audit",
+      "recordedAt": "2026-10-22"
+    },
+    "pool": {
+      "command": "node scripts/test-pi-runtime.mjs pool",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "checks": [
+          "pre_registered_observer_keeps_writer",
+          "background_handlers_do_not_pin_writers",
+          "only_two_real_writers",
+          "unbind_releases_queued_root",
+          "evicted_session_api_reopens_metadata",
+          "shutdown_releases_all_leases",
+          "startup_failure_disposes_partial_resources",
+          "startup_retry_opens_fresh_harness",
+          "16mib_visible_warning",
+          "32mib_blocks_dispatch_but_allows_export"
+        ],
+        "providerCalls": 1
+      },
+      "sourcePath": "/tmp/vault-agent-current-pool.json",
+      "sourceSha256": "75a1d0b66e1ea6212f767569bba6a5bb8bcc5a2bd2aa150d25bf4521650aa874",
+      "scope": "本轮运行的真实生产PiBackendProcess/Harness/JSONL；模型流和Obsidian I/O为明确宿主夹具，不是实际LM推理/桌面。MCP两次调用为真实本机HTTP测试服务。",
+      "reportedBy": "runtime_feature_audit",
+      "recordedAt": "2026-10-22",
+      "limitations": [
+        "providerCalls=1来自retry root容量检查；没有宣称第三root实际prompt通过。实际PiSmoke三标签idle是另外的桌面证据。"
+      ]
+    },
+    "recovery": {
+      "command": "node scripts/test-pi-runtime.mjs recovery",
+      "exitCode": 0,
+      "result": {
+        "status": "passed",
+        "phase": "all",
+        "history": true,
+        "exported": true
+      },
+      "sourceSha256": "512db084cf8d5abab4d2d8d76e075e812bafd703bec7ab36d9c87366fc3f3c6f",
+      "scope": "主代理实际执行独立进程故障矩阵；使用实际PiRuntime/Harness/JSONL/恢复协调器，仅在模型或宿主I/O边界故障退出。",
+      "assertedBehaviors": [
+        "连续三次未正常退出后第三次只读，三次打开均零模型请求。",
+        "未选择恢复前新prompt拒绝，零请求/无工具效果。",
+        "用户abort后保留历史并可新建请求；用户continue后才恢复实际Vault写入并completed。",
+        "继续执行失败保留真实failed终态。",
+        "末尾半行只截断尾部；完整坏行与future schema只读，原日志不改写，真实历史可导出且零模型请求。",
+        "真实存储提交失败进入storage_failed并保留导出。"
+      ]
+    }
+  },
+  "cleanInstall": {
+    "command": "node scripts/pi-clean-install-check.mjs",
+    "exitCode": 0,
+    "result": {
+      "result": "passed",
+      "scope": "production_runtime_with_host_io_fixtures",
+      "pathClean": true,
+      "runtime": {
+        "status": "passed",
+        "checks": [
+          "production_backend_prompt",
+          "durable_reopen_history",
+          "read_only_reopen",
+          "stable_request_deduplication",
+          "durable_todo_tool",
+          "plan_approval_callback",
+          "actual_user_question",
+          "feature_state_reopen",
+          "plan_approval_leaves_read_only_mode",
+          "rejected_plan_stays_rejected",
+          "web_denial_without_network",
+          "todo_revision_conflict",
+          "error_feedback_persisted_and_dismissed",
+          "stop_pending_question",
+          "legacy_import_idempotent_source_unchanged",
+          "full_backup_round_trip_read_only",
+          "markdown_export_real_history",
+          "nonincremental_stream_live_projection",
+          "public_thinking_only_with_durable_timing",
+          "local_skill_model_unknown_and_stop_commands",
+          "material_budget_and_source_on_real_request",
+          "image_private_blob_and_full_export_receipt",
+          "imported_chat_continues_without_changing_source",
+          "shutdown_rejects_new_calls_and_reopen_preserves_thinking"
+        ],
+        "providerCalls": 16,
+        "approvals": 1,
+        "questionCount": 1,
+        "environment": {
+          "pathEntries": 0
+        }
+      },
+      "notRun": ["真实 Obsidian、真实 Keychain、真实供应商与跨平台验收"]
+    },
+    "scope": "空PATH和隔离HOME的开发测试进程；不是全部真实桌面安装验收。"
+  },
+  "historicalRuntimeResults": [
+    {
+      "runtime": "dispatch",
+      "record": {
+        "command": "node scripts/test-pi-runtime.mjs dispatch",
+        "exitCode": 0,
+        "result": {
+          "status": "passed",
+          "checks": [
+            "provider_session_identity_for_same_model_child",
+            "endpoint_change_during_guard_denied"
+          ],
+          "providerCalls": 3,
+          "purposes": ["root", "subagent", "root"]
+        },
+        "sourceSha256": "d3677dff0385a8e2d47cf7eeb73d4aa7255180fb871cd6551017f71536b5527a",
+        "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+      },
+      "supersededBySourceSha256": "102184210b5b43f952944644a525b0c513b09a25ef1dd221b8aadb8953c053c2"
+    },
+    {
+      "runtime": "subagents",
+      "record": {
+        "command": "node scripts/test-pi-runtime.mjs subagents",
+        "exitCode": 0,
+        "result": {
+          "status": "passed",
+          "scenario": "production-subagents",
+          "modelCalls": ["fixture-model", "fixture-child", "fixture-model"],
+          "answers": 1,
+          "reopenedWithoutRequests": true
+        },
+        "sourceSha256": "e1c58cbc146196b10b57f9045c92daec37ec355716dce0e52857799a0e1b1111",
+        "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+      },
+      "supersededBySourceSha256": "3caf88227eac72af499bcba1bba911cfbeba7867d5b4eed38828eb863598019d"
+    },
+    {
+      "runtime": "pool",
+      "record": {
+        "command": "node scripts/test-pi-runtime.mjs pool",
+        "exitCode": 0,
+        "result": {
+          "status": "passed",
+          "checks": [
+            "pre_registered_observer_keeps_writer",
+            "only_two_real_writers",
+            "unbind_releases_queued_root",
+            "evicted_session_api_reopens_metadata",
+            "shutdown_releases_all_leases",
+            "startup_failure_disposes_partial_resources",
+            "startup_retry_opens_fresh_harness"
+          ],
+          "providerCalls": 0
+        },
+        "sourceSha256": "88c05e22316aaecf80bdca86df03069d260cc3a89f899ea8735855a705133e1b",
+        "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+      },
+      "supersededBySourceSha256": "75a1d0b66e1ea6212f767569bba6a5bb8bcc5a2bd2aa150d25bf4521650aa874"
+    },
+    {
+      "runtime": "mcp",
+      "record": {
+        "command": "node scripts/test-pi-runtime.mjs mcp",
+        "exitCode": 0,
+        "result": {
+          "status": "passed",
+          "checks": [
+            "configured_mcp_reaches_production_registry",
+            "real_http_tool_call",
+            "concrete_arguments_approval",
+            "actual_server_progress",
+            "plan_denies_external_effects",
+            "read_only_child_cannot_borrow_parent_permissions",
+            "stop_pending_permission",
+            "disable_revokes_pending_approval",
+            "lazy_deferred_connect",
+            "native_deferred_tool_search",
+            "catalog_bearer_echo_redacted_in_durable_history",
+            "single_authorization_header_for_real_http_auth"
+          ],
+          "calls": 2,
+          "approvals": 2
+        },
+        "sourceSha256": "0e180ebb98acfbfca80a4248b9a3f88904698355eaf6379ea80859b351d13ed7",
+        "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+      },
+      "supersededBySourceSha256": "0e180ebb98acfbfca80a4248b9a3f88904698355eaf6379ea80859b351d13ed7"
+    },
+    {
+      "runtime": "fanout",
+      "record": {
+        "command": "node scripts/test-pi-runtime.mjs fanout",
+        "exitCode": 0,
+        "result": {
+          "status": "passed",
+          "checks": [
+            "two_saved_models_reach_real_runtime",
+            "independent_read_only_sessions",
+            "single_summary",
+            "reopen_is_read_only",
+            "single_parent_durable_store",
+            "shared_persisted_budget",
+            "stored_read_only_survives_predicate_removal",
+            "recover_completed_request_without_model_call"
+          ],
+          "providerCalls": 3
+        },
+        "sourceSha256": "be1034808b52a9c1f66da6e5fc6d1c1cabac70c1819e601671241e6126a6af16",
+        "scope": "实际PiBackendProcess与生产运行时；仅宿主I/O和模型流为隔离边界。HTTP MCP实际连接本机测试服务；models实际走官方OpenAI协议到本机HTTP测试端点。"
+      },
+      "supersededBySourceSha256": "be1034808b52a9c1f66da6e5fc6d1c1cabac70c1819e601671241e6126a6af16"
+    }
+  ]
+}

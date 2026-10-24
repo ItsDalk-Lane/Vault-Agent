@@ -14,18 +14,12 @@ import React, { useMemo, useState } from "react";
 interface ToolPermissionCardProps {
   request: PermissionPrompt;
   onResolve: (toolCallId: string, optionId: string) => void;
-  /**
-   * Name of the tool as the chat already shows it. Some agents send only the
-   * tool's argument as the request title (OpenCode's web search sends the bare
-   * query), which reads as if the query itself were a command.
-   * https://github.com/Brevilabs/obsidian-copilot-private/issues/599
-   */
+  // 仅带参数的标题仍需补工具名，避免把查询误认成命令。https://github.com/Brevilabs/obsidian-copilot-private/issues/599
   toolName?: string;
 }
 
 const EMPTY_OPTION_NAMES: readonly string[] = Object.freeze([]);
-// Codex quotes the whole command prefix in its "don't ask again" option name, which can fill the card.
-// https://github.com/Brevilabs/obsidian-copilot-private/issues/618
+// 较长的持久批准范围单独显示，避免挤满批准按钮。https://github.com/Brevilabs/obsidian-copilot-private/issues/618
 const QUOTED_CODE = /\s*`([^`\n]+)`/;
 
 interface OptionLabel {

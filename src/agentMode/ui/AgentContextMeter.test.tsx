@@ -30,6 +30,29 @@ function renderMeter(backend: AgentChatBackend) {
 }
 
 describe("AgentContextMeter", () => {
+  it("labels a real local task budget separately from provider subscription limits https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    renderMeter(
+      makeBackend(null, {
+        windows: [
+          {
+            id: "local_requests",
+            label: "Local budget · requests",
+            percent: 9,
+            source: "local_budget",
+          },
+        ],
+        updatedAt: 1,
+      })
+    );
+    fireEvent.focus(screen.getByLabelText("Usage"));
+    expect(screen.getAllByText("This task's local budget · model requests").length).toBeGreaterThan(
+      0
+    );
+    expect(screen.getAllByText("9%").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Weekly")).toBeNull();
+    expect(screen.queryByText("0%")).toBeNull();
+  });
+
   it("renders the % ring plus tooltip numbers when contextWindow is known", () => {
     const usage: SessionUsage = {
       usedTokens: 50_000,

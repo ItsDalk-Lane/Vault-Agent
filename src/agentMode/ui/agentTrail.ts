@@ -15,6 +15,13 @@ export type RenderNode =
   | { type: "plan"; part: PlanPart }
   | { type: "compaction"; part: CompactionPart };
 
+/** The subagent card keeps this stable parent id across reopens.
+ * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+ */
+export function subagentCardKey(part: ToolCallPart): string {
+  return part.id;
+}
+
 export interface BuildAgentTrailOptions {
   maxDepth?: number;
 }
@@ -31,11 +38,12 @@ function isHiddenTool(part: AgentMessagePart): boolean {
   return part.kind === "tool_call" && part.vendorToolName === "ToolSearch";
 }
 
-function isSubAgentLaunch(part: ToolCallPart): boolean {
-  if (!part.mcpServer && (part.vendorToolName === "Agent" || part.vendorToolName === "Task")) {
+export function isSubAgentLaunch(part: ToolCallPart): boolean {
+  if (part.mcpServer) return false;
+  if (part.vendorToolName === "Agent" || part.vendorToolName === "Task") {
     return true;
   }
-  if (part.vendorToolName || part.mcpServer) return false;
+  if (part.vendorToolName) return false;
   if (part.toolKind && part.toolKind !== "other") return false;
   const input = part.input as { subagent_type?: unknown } | null | undefined;
   return typeof input?.subagent_type === "string";

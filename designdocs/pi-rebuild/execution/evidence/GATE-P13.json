@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P13",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "taskIds": [
+    "P13-T01",
+    "P13-T02",
+    "P13-T03",
+    "P13-T04",
+    "P13-T05",
+    "P13-T06",
+    "P13-T07",
+    "P13-T08",
+    "P13-T09",
+    "P13-T10"
+  ],
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-P13.json",
+    "reason": "必需生产接线/验收尚未完成，原 passed 声明撤销；阶段定义与门槛保持不变。"
+  },
+  "commands": [],
+  "manualChecks": [
+    {
+      "check": "阶段任务完成且通过真实生产路径演示",
+      "required": true,
+      "result": "not_run",
+      "evidence": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。 任务与原定阶段演示尚未全部逐项验收，当前gate继续verify_failed。"
+    }
+  ],
+  "notRun": ["重新完成本阶段全部任务的必需断言和真实阶段演示。"],
+  "currentLocalProgress": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json"
+}

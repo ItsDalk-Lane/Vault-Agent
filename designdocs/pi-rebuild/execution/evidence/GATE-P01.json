@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P01",
+  "status": "passed",
+  "taskIds": ["P01-T01", "P01-T02", "P01-T03", "P01-T04", "P01-T05", "P01-T06", "P01-T07"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "Test Suites: 420 passed, 420 total; Tests: 2 skipped, 5350 passed, 5352 total; 51.7 s。全仓既有测试基线通过，P01 新增测试包含在内。"
+    },
+    {
+      "command": "npm run build",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "tailwind 构建 + tsc -noEmit -skipLibCheck + esbuild production 成功；main.js sha256=990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd，styles.css sha256=e173c72c47eb3154d92805b5e9b9aa1e31747d976aac5954b665980f7f28b499。"
+    },
+    {
+      "command": "npm run lint",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "eslint . 全仓 0 error（含 Pi SDK 边界、issue-linked comments、no-unused-vars 等规则）。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/sdkContract.test.ts src/agentMode/sdk/pi/__tests__/boundaries.test.ts src/agentMode/session/piDomainContract.test.ts src/agentMode/sdk/pi/PiBackendProcess.test.ts src/agentMode/sdk/pi/testing/testHarness.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "P01 全部 5 个验证套件：5 suites / 43 tests passed。覆盖锁文件与公开 API 契约、SDK import 边界、领域事件契约、隐藏 Pi descriptor/生命周期、真实 Durable Harness + faux provider + 故障断点。"
+    },
+    {
+      "command": "npm run review:obsidian",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "依赖变更门禁：package/source/styles/audit/fixtures 全部通过；styles.css 与 manifest 仅有既有 warning（!important、description 长度），fixtures 报错为既有 fixture 预期负例，命令退出 0。npm audit --omit=dev --audit-level=critical 仅 1 个 moderate（hono），无 critical。"
+    },
+    {
+      "command": "npm run format:check",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "prettier --check 'src/**/*.{js,ts,tsx,md}'：All matched files use Prettier code style。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1156 file(s)：Pi SDK 仅存在于 sdk/pi，legacy 读取器无进程 import，无私有 dist/node_modules 引用。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "node -e 'const pkg=require(\"./package.json\");const lock=require(\"./package-lock.json\");const m=require(\"./designdocs/pi-rebuild/fixtures/feature-matrix.json\");const names=[\"@earendil-works/pi-durable\",\"@earendil-works/pi-ai\",\"@earendil-works/pi-mcp\",\"@earendil-works/chord\"];const a=m.renderAudit;console.log(JSON.stringify({pins:Object.fromEntries(names.map(n=>[n,pkg.dependencies[n]])),lockRoot:Object.fromEntries(names.map(n=>[n,lock.packages[\"\"].dependencies[n]])),features:m.features.length,switchGroups:a.switchBranches.length,switchBranches:a.switchBranches.reduce((n,s)=>n+s.branches.length,0),registration:a.registration.length,newFeatures:a.newFeatures.length}));'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "四个 Pi 依赖 package.json 与 lock root 均为精确 1.3.0；feature-matrix 46 features / 7 switch 组 30 分支 / 23 登记行 / 0 新增功能（基线=当前 HEAD）。"
+    },
+    {
+      "command": "shasum -a 256 \"/Users/study_superior/Desktop/Project/houde/.obsidian/plugins/vault-agent/main.js\"",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "a69471cccbfd5c16c1c90ba6e324455c278bc9d1d4b50041dd208f28928bc551：仓库外 P00 安装副本未被覆盖；P00 仍为 accepted_user_report。"
+    },
+    {
+      "command": "node -e 'const s=require(\"./designdocs/pi-rebuild/execution/STATE.json\");console.log(JSON.stringify({phase0:s.phase0?.status,tasks:Object.fromEntries(Object.entries(s.tasks).slice(0,7).map(([k,v])=>[k,v.status]))}))'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "outputSummary": "{\"phase0\":\"accepted_user_report\",\"tasks\":{\"P01-T01\":\"done\",\"P01-T02\":\"done\",\"P01-T03\":\"done\",\"P01-T04\":\"done\",\"P01-T05\":\"done\",\"P01-T06\":\"done\",\"P01-T07\":\"done\"}}：gate 前 7 个任务均 done，P00 保持 accepted_user_report。"
+    }
+  ],
+  "manualChecks": [
+    {
+      "name": "阶段可运行演示：隔离 fake 宿主中的真实 Pi 路径",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "运行 P01 全套验证命令：sdkContract + boundaries + piDomainContract + PiBackendProcess + testHarness 共 5 suites / 43 tests 通过。",
+        "testHarness 在子 Node 进程用 esbuild 打包 smoke 入口，经真实 Harness.open(MemoryStorage, {models: faux, registry}) 执行 root.submit → faux tool call → 真实工具执行 → 最终回答；断言 toolExecutions=1、pi.tool-result/pi.assistant entries 存在、submissionStatus=done。",
+        "FaultInjector 在 before_write 暂停（vault.writes=0），release 后写入 1 次且 receipt=modified/updated；全程无 sleep、无网络（fetchCalls=0）、无真实用户 Vault（纯内存 fixture，root=/fixture/vault）。",
+        "生产 bundle 与源码均不含 testing/fault-injection 入口（静态扫描 0 offenders；main.js 扫描 0 泄漏；main.js 哈希与 P01-T06 相同）。"
+      ],
+      "evidence": "P01-T07 evidence + 本 gate 的 5-suite 命令输出；未切回旧后端完成演示。"
+    },
+    {
+      "name": "基线已登记且未覆盖 PoC",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "执行 git status --short：tracked 改动仅为 P01-T03–T06 的依赖锁/ESLint/AGENTS/session types/registry/i18n，新增项为 P01 的 sdk/pi、backends/pi、boundary script、契约测试与执行包；无 reset/clean，无用户文件被删除。",
+        "校验仓库外 P00 安装副本 main.js sha256=a69471cc…8bc551，与 P01-T01 登记一致；Pi spike RESULTS.md 仍存在。",
+        "BASELINE.md 记录 P00=accepted_user_report 且本会话未重跑；STATE.phase0 仍为 accepted_user_report。"
+      ],
+      "evidence": "BASELINE.md、P01-T01 evidence、worktree 与 sha256 命令输出。"
+    },
+    {
+      "name": "功能清单与真实渲染入口逐项对照",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "P01-T02 读取 AgentChatMessages/AgentTrailView 及传递组件，feature-matrix 46 行映射经 check-plan 校验（producer/task/scenario 均存在）。",
+        "renderAudit 记录 7 组 30 个 switch 分支全部有 featureIds；23 行组件→事件→任务登记；13 条旧后端解析标记与 15 条纯展示逻辑标记；newFeatures=0（基线=HEAD c2a7ef5）。",
+        "P01-T03 的 sdkContract 与 P01-T04 的 boundaries 测试通过，保证渲染层不会直接接触 Pi SDK。"
+      ],
+      "evidence": "fixtures/feature-matrix.json renderAudit + P01-T02 evidence + check-plan 输出。"
+    },
+    {
+      "name": "锁文件与公开 API 契约测试通过",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "package.json 与 package-lock.json 的四个直接依赖均为精确 1.3.0（无范围符号），pi-agent-core/pi-coding-agent 不在依赖中。",
+        "sdkContract.test.ts：公开 subpath exports、无 dist/node_modules 私有 import、无 native addon、Durable execute/Harness/watchEvents/JSONL/createModels/McpClient 类型签名全部通过。",
+        "boundaries.test.ts + scripts/check-pi-boundaries.mjs：Pi SDK 仅 sdk/pi 可用，UI/session 直连负例失败、sdk/pi 公共 import 正例通过、注释不误报；acp/sdk 既有兄弟边界保留。"
+      ],
+      "evidence": "P01-T03/P01-T04 evidence + 本 gate 5-suite 命令与 boundary scanner 输出。"
+    },
+    {
+      "name": "现有 build/lint/unit 基线已记录",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "全仓 npm test -- --runInBand：420/420 suites passed，5350 passed / 2 skipped，exit 0。",
+        "npm run build：tailwind + tsc + esbuild 通过，产物哈希已记录。",
+        "npm run lint：eslint . 全仓 0 error；npm run format:check 通过。"
+      ],
+      "evidence": "本 gate 的 commands 输出。"
+    },
+    {
+      "name": "默认执行器未切换 / 旧产品仍运行",
+      "required": true,
+      "result": "passed",
+      "steps": [
+        "Pi descriptor 注册在 backendRegistry 但被 HIDDEN_BACKEND_IDS 从 backendDisplayOrder/listBackendDescriptors 隐藏；getActiveBackendDescriptor 对缺省/未知/pi 均回退 Opencode。",
+        "PiBackendProcess 在未接线 runtime 时对 prompt/newSession 等显式抛 PI_RUNTIME_NOT_READY，不返回伪成功。",
+        "registry/i18n/agentMode barrel 等相关测试在全仓 420 suites 中通过。"
+      ],
+      "evidence": "P01-T06 evidence + 全仓测试命令。"
+    }
+  ],
+  "limitations": [
+    "P01 只冻结边界与契约：Pi 尚未接入真实 Durable runtime/模型/MCP/工具，descriptor 隐藏且不可被用户选择；真实执行能力从 P03/P04 开始。",
+    "无 Obsidian 平台内真实运行、真实供应商模型、HTTP/stdio MCP、三平台或性能证据；这些属于后续任务与 P14 验收。",
+    "全仓测试有 2 个既有 skipped 用例（非 P01 引入，本轮未改动其内容）；gate 判定依据 5350 passed / 0 failed。",
+    "review:obsidian 输出既有 warning（styles.css !important、manifest description 长度）与 fixture 预期负例；按仓库策略为非阻塞，本阶段未修。npm audit 生产依赖存在 1 个 moderate（hono）；P01-T03 记录的 55 个全量 vulnerabilities 未修复，属后续安全/发布任务。",
+    "未运行 gallery 流程（P01 无视觉变更）；未提交 git（working tree 为未提交状态，gate 用实际产物与命令结果）。",
+    "Feature-matrix 中 F40/F46 等 new_required 行仍是未来能力，P01 只确保它们有 producer/task 映射，不代表已实现。"
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P13-T09",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P13-T09.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P13-T09-01", "SC-P13-T09-02", "SC-P13-T09-03", "SC-P13-T09-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 6,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P13-T09",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/noLegacyExecution.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 7,
+      "durationSeconds": 2.812,
+      "logPath": "/tmp/vault-agent-detailed-p13-t09.log",
+      "logSha256": "2be0ded2466d48339ebed6afbed2377b3c97c5227a13431c61b1f875280a8aac",
+      "testFile": "src/agentMode/sdk/pi/__tests__/noLegacyExecution.test.ts",
+      "testSourceSha256": "f95f77520d292f0da9777d9a8584ed707ffc2564bacb9e90223905a785e9a237",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P13-T09-01",
+      "requirement": "所有新feature测试仍通过",
+      "result": "passed",
+      "evidence": "当前冻结生产源 c2a7ef50-dirty-4b2f879642c3 全仓517 suites/5781 tests、format/check、lint、真实build/tsc、Obsidian review与1356文件边界检查均exit0；106条不同原必需命令另有各自日志/测试数，源变化的15条最终freeze后独立重跑244项。761条review warning与2条既有测试命名warning保留，2个fixture故意error不冒充source错误。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T09-02",
+      "requirement": "技能管理可用",
+      "result": "passed",
+      "evidence": "canonical SkillsCatalog管理源保持可用，真实/skill已从生产端加载；旧多Agent分发目录已删。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T09-03",
+      "requirement": "无旧JSON-RPC进程桥",
+      "result": "passed",
+      "evidence": "旧ACP文件删除，边界扫描故意加入旧桥导入会红、删除探针恢复绿，防止无声恢复旧JSON-RPC链。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P13-T09-04",
+      "requirement": "legacy纯读取",
+      "result": "passed",
+      "evidence": "LegacyHistoryReader只有读取/墓碑端口，shell文本不执行；旧descriptor只提供历史身份。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "旧聊天只读入口不启动旧引擎；明确导入新Pi聊天/继续、幂等材料写入、完整备份只读恢复及Markdown导出已有真实入口回归。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

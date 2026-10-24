@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P06-T09",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P06-T09.json",
+    "reason": "真实修改凭据尚未接入会话 Diff。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P06-T09-01", "SC-P06-T09-02", "SC-P06-T09-03", "SC-P06-T09-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 6,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/MutationProjection.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 7,
+      "durationSeconds": 3.91,
+      "logPath": "/tmp/vault-agent-required-current/07.log",
+      "logSha256": "c14249ab0443467efd23cc03faa3f93e03210d47c4c4ca5d89ba2500f75ae194",
+      "testFile": "src/agentMode/sdk/pi/events/MutationProjection.test.ts",
+      "testSourceSha256": "88d4c1085c4e0fb1d9d6e439a060a934db4fdbbfc5487e357ed9b3baaa2d7636",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P06-T09-01",
+      "requirement": "FilesChanged与Diff实际内容一致",
+      "result": "passed",
+      "evidence": "最终4b2f879642c3实际PiSmoke本地Qwen蓝→紫，写前一次具体批准，真实fileChanges与同operationId已出现；Auto原UI回退另一次批准、零模型，磁盘和真实editor一致恢复蓝色并保留手工行。完整冷启同原operationId及revert:operationId与两条真实变更仍在，0→0模型/无审批；再次干净冷启实际editor与磁盘一致、idle。原5d失败完整保留。",
+      "proofScope": "actual_new_bundle_desktop_fix_after_preserved_old_bundle_failure",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T09-02",
+      "requirement": "同文件不重复计变更",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：MutationProjection project() merges multiple receipts for the same path into one first-before/last-after change。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T09-03",
+      "requirement": "unknown不伪造可回滚",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：MutationProjection project() marks effect_unknown without fabricating a rollbackable diff。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T09-04",
+      "requirement": "取消后变更仍可见",
+      "result": "passed",
+      "evidence": "实际PiSmoke批准写入后的后续真实流被Stop，冷重开同operationId COMMITTED Diff仍可见，文件内容与人工行保留，取消目标不新增。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际Vault工具、写入凭证、Diff与回退已接入；真实本机创建/读取/批准有实证，不以一次创建替代全部写入/故障矩阵。",
+    "actualRuntimeReferences": ["mac-local-model:write"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

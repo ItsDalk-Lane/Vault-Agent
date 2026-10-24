@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { FanoutTurnView } from "@/agentMode/ui/FanoutTurnView";
 import {
   defaultFanoutOption,
@@ -7,23 +9,29 @@ import {
 } from "@/agentMode/ui/fanoutDropdown";
 import { ChatButtons } from "@/components/chat-components/ChatButtons";
 import { AssistantResponseFooter } from "@/components/ui/AssistantResponseFooter";
-import type { FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import { renderFanoutComposite } from "@/agentMode/session/fanout/fanoutTypes";
+import type { FanoutProjectionView, FanoutTurn } from "@/agentMode/session/fanout/fanoutTypes";
 import type { AgentChatMessage } from "@/agentMode/session/types";
 import type { ChatMessage } from "@/types/message";
 import { insertAtCursor } from "@/utils";
 import { App } from "obsidian";
 import React, { memo, useCallback, useMemo, useState } from "react";
 
-interface FanoutMessageCardProps {
+export interface FanoutMessageCardProps {
   message: AgentChatMessage;
   turn: FanoutTurn;
   app: App;
   footerStart?: React.ReactNode;
+  /** Projected candidate/summary views from the runtime; the card renders them instead of re-deriving.
+   * https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+   */
+  projection?: FanoutProjectionView;
+  onResume?: () => void;
+  isRunning?: boolean;
 }
 
 export const FanoutMessageCard: React.FC<FanoutMessageCardProps> = memo(
-  ({ message, turn, app, footerStart }) => {
+  ({ message, turn, app, footerStart, projection, onResume, isRunning = false }) => {
     const [selected, setSelected] = useState<FanoutOptionValue>(() => defaultFanoutOption(turn));
 
     const activeValue =
@@ -31,12 +39,17 @@ export const FanoutMessageCard: React.FC<FanoutMessageCardProps> = memo(
         ? FANOUT_SUMMARY_OPTION
         : selected;
 
+    const summaryCopyText = useMemo(
+      () => projection?.summary.copyText ?? renderFanoutComposite(turn, fanoutDisplayName),
+      [projection, turn]
+    );
+
     const currentText = useMemo(
       () =>
         activeValue === FANOUT_SUMMARY_OPTION
-          ? renderFanoutComposite(turn, fanoutDisplayName)
+          ? summaryCopyText
           : (turn.answers[activeValue]?.text ?? ""),
-      [turn, activeValue]
+      [summaryCopyText, turn, activeValue]
     );
 
     const handleInsert = useCallback(() => {
@@ -59,6 +72,11 @@ export const FanoutMessageCard: React.FC<FanoutMessageCardProps> = memo(
         <div className="tw-group tw-mx-2 tw-rounded-md tw-p-2">
           <div className="tw-flex tw-max-w-full tw-flex-col tw-gap-2 tw-overflow-hidden">
             <FanoutTurnView turn={turn} app={app} value={activeValue} onSelect={setSelected} />
+            {turn.checkpoint && !turn.summary.complete && !isRunning && onResume ? (
+              <Button variant="secondary" size="sm" onClick={onResume}>
+                {t("agentChat.fanout.resume")}
+              </Button>
+            ) : null}
             <AssistantResponseFooter
               leading={footerStart}
               timestamp={message.timestamp?.display}

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "note": "步骤是实施测试的脚本规范，不是已经执行结果。使用测试世界；FLOW-12需真实Obsidian人工证据。",
+  "flows": [
+    {
+      "id": "FLOW-01",
+      "title": "文本与思考",
+      "taskId": "P03-T07",
+      "steps": [
+        "用户发送不含附件的问题",
+        "faux模型先发实际thinking块再发文本/代码块",
+        "保存终态并关闭重开"
+      ],
+      "expected": ["界面顺序与原块一致", "复制不包含thinking", "无重复user/assistant消息"]
+    },
+    {
+      "id": "FLOW-02",
+      "title": "Vault读改审批",
+      "taskId": "P06-T05",
+      "steps": [
+        "模型调用vault_read Notes/Agent.md",
+        "从工具结果取得hash，再请求替换旧内容为新内容",
+        "用户看Diff并批准",
+        "工具提交后模型给最终回答"
+      ],
+      "expected": ["批准前文件不变", "批准后只变预期片段", "receipt、Diff与真实文件一致"]
+    },
+    {
+      "id": "FLOW-03",
+      "title": "审批期间并发编辑",
+      "taskId": "P06-T05",
+      "steps": ["发起FLOW-02但暂停在审批", "用户编辑同一文件追加私人内容", "再批准旧请求"],
+      "expected": ["返回STALE_BASELINE", "用户内容不被覆盖", "新提案需要重新审批"]
+    },
+    {
+      "id": "FLOW-04",
+      "title": "写后崩溃",
+      "taskId": "P06-T11",
+      "steps": ["已批准的Vault.edit执行成功", "在receipt提交前注入关闭", "重开只读恢复再选择对账"],
+      "expected": ["只补receipt不再次替换", "实际写计数为1", "Diff仍可查看"]
+    },
+    {
+      "id": "FLOW-05",
+      "title": "计划与todo",
+      "taskId": "P08-T03",
+      "steps": [
+        "进入plan模式",
+        "模型todo_set再propose_plan",
+        "用户反馈要求修改",
+        "模型提交新revision，用户批准",
+        "模型请求写笔记"
+      ],
+      "expected": ["旧revision不能批准", "项目进度有真实todo", "写笔记仍需独立权限"]
+    },
+    {
+      "id": "FLOW-06",
+      "title": "提问恢复",
+      "taskId": "P08-T04",
+      "steps": [
+        "模型ask_user两题含多选",
+        "关闭并重开插件",
+        "恢复同requestId问题并回答",
+        "再收到重复UI响应"
+      ],
+      "expected": ["问题只显示一次", "首次有效答案驱动工具", "重复答案不再次继续模型"]
+    },
+    {
+      "id": "FLOW-07",
+      "title": "压缩保留历史",
+      "taskId": "P08-T05",
+      "steps": [
+        "建立超过测试阈值的多轮记录",
+        "调用/compact",
+        "等待summary真正placed",
+        "关闭重开并打开早期聊天"
+      ],
+      "expected": ["context缩小或明确skipped", "旧聊天不被snapshot删除", "出现真实压缩状态行"]
+    },
+    {
+      "id": "FLOW-08",
+      "title": "子代理与停止竞态",
+      "taskId": "P10-T08",
+      "steps": [
+        "创建后台researcher并启动任务",
+        "父回答结束但child仍运行",
+        "用户Stop",
+        "child迟到完成或reporter恢复"
+      ],
+      "expected": ["所有工作按取消epoch被管控", "不自动唤起新父run", "子结果可只读查看且仅记录一次"]
+    },
+    {
+      "id": "FLOW-09",
+      "title": "三模型Fan-out",
+      "taskId": "P11-T03",
+      "steps": [
+        "配置三模型A/B/C并选择综合D",
+        "A成功、B错误、C成功",
+        "候选settled后综合",
+        "在综合提交后关闭重开"
+      ],
+      "expected": ["B失败真实可见", "D只看到A/C真实答案及失败说明", "已完成候选不再次调用"]
+    },
+    {
+      "id": "FLOW-10",
+      "title": "HTTP MCP工具",
+      "taskId": "P09-T04",
+      "steps": [
+        "用户添加HTTP server并测试listTools",
+        "模型请求未知效果工具",
+        "用户明确批准",
+        "服务端返回progress和isError=true"
+      ],
+      "expected": ["测试阶段没有tool call", "调用阶段实际等待许可", "UI显示真实进度和失败"]
+    },
+    {
+      "id": "FLOW-11",
+      "title": "外部原生工具分流",
+      "taskId": "P07-T03",
+      "steps": [
+        "用户授权fixture external root",
+        "模型native read/write外部draft",
+        "随后native edit请求Vault文件",
+        "模型改用vault_edit"
+      ],
+      "expected": [
+        "外部操作走官方原生工具",
+        "native进Vault返回USE_VAULT_TOOL",
+        "Vault修改仍走Vault API和审批"
+      ]
+    },
+    {
+      "id": "FLOW-12",
+      "title": "零CLI核心安装",
+      "taskId": "P14-T04",
+      "steps": [
+        "测试profile没有任何AgentCLI或NodeCLI在PATH",
+        "只安装插件并在UI配置API Key",
+        "完成FLOW-02、FLOW-05、FLOW-07、FLOW-08和HTTPMCP",
+        "退出重开读取历史"
+      ],
+      "expected": ["无安装弹窗/二进制下载", "不用终端登录", "所有核心能力正常且数据可恢复"]
+    },
+    {
+      "id": "FLOW-13",
+      "title": "冲突安全回退",
+      "taskId": "P06-T10",
+      "steps": ["完成Agent文件修改", "用户手动再修改同一文件", "点击回退Agent变更并确认"],
+      "expected": ["回退检测afterHash不符", "不覆盖用户新内容", "显示可核对的冲突Diff"]
+    },
+    {
+      "id": "FLOW-14",
+      "title": "密钥与日志隔离",
+      "taskId": "P14-T03",
+      "steps": [
+        "配置fixtures中的伪秘密",
+        "触发模型错误与MCP错误含该秘密",
+        "执行明确批准的宿主命令打印环境",
+        "导出诊断与聊天"
+      ],
+      "expected": ["秘密不进入日志/导出", "子进程无模型凭据", "unknown费用不伪装成0"]
+    }
+  ]
+}

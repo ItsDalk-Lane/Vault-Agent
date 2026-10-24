@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P08-T04",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P08-T04.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P08-T04-01", "SC-P08-T04-02", "SC-P08-T04-03", "SC-P08-T04-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/Questions.test.ts",
+      "testFile": "src/agentMode/sdk/pi/features/Questions.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 16,
+      "elapsedSeconds": 3.2,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/03.log",
+      "logSha256": "64a43bb396addc7b1e077c2a55df70da3510904d45fc894bba9b2c70f15ad403",
+      "testSourceSha256": "d2a7c7553126a9c2dcb94259eaae49dc1cef9721339373228b1c70333e4b51ff",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P08-T04-01",
+      "requirement": "多选和其他文本可用",
+      "result": "passed",
+      "evidence": "生产使用同一Questions.ask校验与normalize逻辑；指定模块测试多选及其他文本按answerKey准确交付；真实LM单选答复另有记录。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T04-02",
+      "requirement": "重复答案只交付一次",
+      "result": "passed",
+      "evidence": "生产doc按taskId/requestId保存answered状态并在模型结果前提交；Questions模块重开answered只返回既有答案，不重问/不再交付。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T04-03",
+      "requirement": "重开请求不丢",
+      "result": "passed",
+      "evidence": "真实Backend真进程在ask_user待决时退出，pendingQuestions只读getter恢复同requestId；PiSmoke原radio保存答案0请求、Continue恰1本地请求回答格式。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T04-04",
+      "requirement": "Stop不会留下悬挂Promise",
+      "result": "passed",
+      "evidence": "实际Backend.pending ask_user经/stop结束，等待prompt明确cancelled且进程正常shutdown；模块测试取消不发默认答案、pendingCount回零。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际todo、计划批准/拒绝、提问/Stop、压缩、错误反馈和用量已接入；真实Qwen已实际使用todo/计划/提问/压缩。",
+    "actualRuntimeReferences": [
+      "production:actual_user_question",
+      "production:stop_pending_question",
+      "mac-local-model:question-final"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

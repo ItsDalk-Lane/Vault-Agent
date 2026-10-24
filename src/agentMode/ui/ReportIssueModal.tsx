@@ -1,6 +1,5 @@
 import { frameSink } from "@/agentMode/session/debugSink";
 import { logError, logInfo, logWarn } from "@/logger";
-import { flushRecordedPromptPayloadToLog } from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { logFileManager } from "@/logFileManager";
 import { t } from "@/i18n";
 import { isDesktopRuntime, requireNodeModule } from "@/utils/desktopRuntime";
@@ -11,7 +10,6 @@ import {
   getNodeReportRuntime,
   type ReportLogRequest,
 } from "@/utils/issueReport";
-import { findLatestOpencodeLog } from "@/utils/opencodeLog";
 import { createPluginRoot } from "@/utils/react/createPluginRoot";
 import { captureWindowBehindDialogs } from "./reportScreenshot";
 import { getSettings } from "@/settings/model";
@@ -25,24 +23,20 @@ import {
   type ReportSourceOption,
 } from "./ReportIssueFlow";
 
-const OPENCODE_BACKEND_ID = "opencode";
-
 const FRAME_LOG_NAME = "acp-frames.ndjson.txt";
 const CHAT_LOG_NAME = "vault-agent-log.md";
-const OPENCODE_LOG_NAME = "opencode.log";
 
 export interface ReportIssueModalParams {
   app: App;
   activeBackend: string;
   pluginVersion: string;
   initialNote?: string;
-  preselectAllSources?: boolean;
   onReported?: (report: { reportId: string; issueUrl: string }) => void;
 }
 
 export type OpenReportIssueOptions = Pick<
   ReportIssueModalParams,
-  "activeBackend" | "initialNote" | "preselectAllSources" | "onReported"
+  "activeBackend" | "initialNote" | "onReported"
 >;
 
 export function openReportIssueModal(
@@ -177,21 +171,9 @@ export class ReportIssueModal extends Modal {
         id: "chatLog",
         label: t("report.source.chatLog"),
         description: t("report.source.chatLogDesc"),
-        // OpenCode 2's server errors reach only this log, and reporters skipped it unchecked.
-        // https://github.com/Brevilabs/obsidian-copilot-private/issues/649
         defaultChecked: true,
       },
     ];
-    if (this.params.activeBackend === OPENCODE_BACKEND_ID) {
-      sources.push({
-        id: "opencodeLog",
-        label: t("report.source.opencodeLog"),
-        description: t("report.source.opencodeLogDesc"),
-        // A report opened from a chat is about that chat, so it ticks the log Settings leaves off for privacy.
-        // https://github.com/Brevilabs/obsidian-copilot-private/issues/672
-        defaultChecked: this.params.preselectAllSources === true,
-      });
-    }
     return sources;
   }
 
@@ -220,7 +202,6 @@ export class ReportIssueModal extends Modal {
     // https://github.com/Brevilabs/obsidian-copilot-private/issues/538
     const logs: ReportLogRequest[] = [];
     if (selected.has("chatLog")) logs.push(await chatLogRequest());
-    if (selected.has("opencodeLog")) logs.push(await opencodeLogRequest());
     if (selected.has("activityLog")) logs.push(await activityLogRequest());
 
     const bundle = await buildReportBundle(
@@ -253,14 +234,12 @@ export class ReportIssueModal extends Modal {
       throw err;
     }
 
-    logInfo(
-      `[ReportIssue] bundle ready at ${zipPath} (${formatBytes(bundle.uploadAttempt.body.byteLength)})`
-    );
+    logInfo(`[ReportIssue] bundle ready at ${zipPath} (${formatBytes(bundle.zip.byteLength)})`);
     this.prepared = {
       zipDir,
       zipPath,
       zipName: bundle.zipName,
-      uploadAttempt: bundle.uploadAttempt,
+      bytes: bundle.zip.byteLength,
       issueDraft: bundle.issueDraft,
       manualIssueUrl: buildManualIssueUrl(bundle.issueDraft),
       attachments: bundle.attachments,
@@ -318,29 +297,8 @@ async function activityLogRequest(): Promise<ReportLogRequest> {
 
 async function chatLogRequest(): Promise<ReportLogRequest> {
   const base = { id: "chatLog", name: CHAT_LOG_NAME };
-  await flushRecordedPromptPayloadToLog();
   const text = logFileManager.exportLogText();
   return text.length > 0
     ? { ...base, text }
     : { ...base, unavailableReason: t("report.unavailable.noChatLog") };
-}
-
-async function opencodeLogRequest(): Promise<ReportLogRequest> {
-  const base = { id: "opencodeLog", name: OPENCODE_LOG_NAME };
-  const path = await resolveOpencodeLogPath();
-  return path
-    ? { ...base, path }
-    : { ...base, unavailableReason: t("report.unavailable.noOpencodeLog") };
-}
-
-async function resolveOpencodeLogPath(): Promise<string | null> {
-  try {
-    const os = requireNodeModule<typeof import("node:os")>("os");
-    const envOverrides = getSettings().agentMode?.backends?.opencode?.envOverrides ?? {};
-    const env = { ...process.env, ...envOverrides };
-    const homeDir = envOverrides.HOME ?? os.homedir();
-    return await findLatestOpencodeLog(env, homeDir);
-  } catch {
-    return null;
-  }
 }

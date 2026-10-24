@@ -1,15 +1,7 @@
-import { AgentStatusCard } from "@/agentMode/ui/AgentStatusCard";
-import { useBackendAuthState } from "@/agentMode/session/useBackendAuthState";
 import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
 import { AgentHome } from "@/agentMode/ui/AgentHome";
 import { AgentModeStatus } from "@/agentMode/ui/AgentModeStatus";
-import { AgentSelectPanel } from "@/agentMode/ui/AgentSelectPanel";
-import { AgentSelectPane } from "@/agentMode/ui/AgentSelectPane";
-import {
-  useBackendInstallState,
-  useManagedInstallActionState,
-  useSessionBackendDescriptor,
-} from "@/agentMode/ui/useBackendDescriptor";
+import { creatableBackendDescriptors } from "@/agentMode/backends/registry";
 import { t } from "@/i18n";
 import { useLanguage } from "@/i18n/useLanguage";
 import type VaultAgentPlugin from "@/main";
@@ -29,14 +21,7 @@ export const AgentModeChat: React.FC<Props> = ({
 }) => {
   useLanguage();
   const manager = plugin.agentSessionManager;
-  const descriptor = useSessionBackendDescriptor(manager);
-  const installState = useBackendInstallState(descriptor, plugin);
-  const auth = useBackendAuthState(descriptor);
-  const awaitingAuth = Boolean(
-    installState.kind === "ready" && descriptor.auth && (auth.checking || auth.status === null)
-  );
-  const signedOut = Boolean(descriptor.auth && auth.status?.signedIn === false);
-  const managedInstall = useManagedInstallActionState(descriptor, plugin);
+  const descriptor = creatableBackendDescriptors()[0];
   const [tick, setTick] = React.useState(0);
 
   React.useEffect(() => {
@@ -48,27 +33,14 @@ export const AgentModeChat: React.FC<Props> = ({
 
   React.useEffect(() => {
     if (!manager) return;
-    if (!preloadReady || managedInstall.kind === "running" || awaitingAuth || signedOut) return;
+    if (!preloadReady) return;
     if (manager.getSessionsForScope(manager.getActiveProjectId()).length > 0) return;
     if (manager.getIsStarting()) return;
     if (manager.getLastError()) return;
-    if (installState.kind !== "ready") return;
     manager.getOrCreateActiveSession().catch((e) => {
       logError("[AgentMode] auto-start failed", e);
     });
-  }, [
-    manager,
-    installState.kind,
-    preloadReady,
-    managedInstall.kind,
-    awaitingAuth,
-    signedOut,
-    tick,
-  ]);
-
-  const handleInstall = React.useCallback(() => {
-    descriptor.openInstallUI(plugin);
-  }, [descriptor, plugin]);
+  }, [manager, preloadReady, tick]);
 
   if (!manager) return null;
 
@@ -88,47 +60,11 @@ export const AgentModeChat: React.FC<Props> = ({
     );
   }
 
-  // The prior supported installation can still report ready during its update.
-  // Show the shared download before model loading or creating a fresh chat.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/530
-  if (managedInstall.kind === "running") {
-    return (
-      <div className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
-        <div className="tw-flex-1" />
-        <AgentStatusCard
-          summary={t("agentChat.updating", { name: descriptor.displayName })}
-          message={managedInstall.label}
-          progress={{ percent: managedInstall.percent }}
-        />
-        <AgentChatControls />
-      </div>
-    );
-  }
-
-  // Known setup failures must remain actionable even when model discovery or a
-  // previous startup has failed. Managed updates retain their progress/Retry card.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/532
-  const cannotLaunch =
-    installState.kind === "absent" ||
-    installState.kind === "error" ||
-    (installState.kind === "incompatible" &&
-      (installState.source === "custom" || !descriptor.managedInstall)) ||
-    (installState.kind === "ready" && signedOut);
-
-  if (cannotLaunch) {
-    return (
-      <AgentSelectPane controls={<AgentChatControls />}>
-        <AgentSelectPanel plugin={plugin} manager={manager} />
-      </AgentSelectPane>
-    );
-  }
-
-  // Loading must never hide a surviving conversation or a known setup failure.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/532
-  if (!preloadReady || awaitingAuth) {
+  // 模型加载失败仍须显示真实重试入口，不能一直停留在加载提示。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  if (!preloadReady && !manager.getLastError()) {
     return (
       <div className="tw-flex tw-size-full tw-items-center tw-justify-center tw-text-muted">
-        {awaitingAuth ? t("agentChat.checkingSignIn") : t("agentChat.loadingModels")}
+        {t("agentChat.loadingModels")}
       </div>
     );
   }
@@ -136,7 +72,7 @@ export const AgentModeChat: React.FC<Props> = ({
   return (
     <div className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
       <div className="tw-flex-1" />
-      <AgentModeStatus manager={manager} plugin={plugin} onInstallClick={handleInstall} />
+      <AgentModeStatus manager={manager} plugin={plugin} />
       <AgentChatControls />
     </div>
   );

@@ -112,7 +112,6 @@ describe("feedbackMcpServer", () => {
       });
       expect(SEND_FEEDBACK_TOOL).toMatchObject({
         annotations: { readOnlyHint: true },
-        _meta: { "anthropic/alwaysLoad": true },
       });
     });
 

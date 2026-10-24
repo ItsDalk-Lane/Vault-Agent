@@ -1,4 +1,4 @@
-import { tryReadExitPlanModeCall, type AgentSession } from "@/agentMode/session/AgentSession";
+import type { AgentSession } from "@/agentMode/session/AgentSession";
 import type {
   AskUserQuestionPrompter,
   PermissionPrompter,
@@ -34,15 +34,7 @@ export function createDefaultPermissionPrompter(
     }
     const session = resolveSession(req.sessionId);
     if (!session) return Promise.resolve({ outcome: { outcome: "cancelled" } });
-    // Codex's ACP plan review carries the plan in a switch-mode request, without
-    // the SDK-only proposal marker. https://github.com/Brevilabs/obsidian-copilot-private/issues/551
-    if (
-      req.toolCall.isPlanProposal ||
-      tryReadExitPlanModeCall({
-        kind: req.toolCall.kind,
-        rawInput: req.toolCall.rawInput,
-      })
-    ) {
+    if (req.toolCall.isPlanProposal) {
       return session.handlePlanProposalPermission(req);
     }
     return session.handleToolPermission(req);

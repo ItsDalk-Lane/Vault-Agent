@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T01",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/models/KeychainCredentialStore.ts",
+    "src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P03-T01.json"
+  ],
+  "scenarioIds": ["SC-P03-T01-01", "SC-P03-T01-02", "SC-P03-T01-03", "SC-P03-T01-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/models/KeychainCredentialStore.ts src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（no-unnecessary-type-assertion、await-thenable、no-unused-vars、issue-linked comments 均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1179 file(s)：模型/凭据模块只依赖 host helper 与 Pi 公开类型，无跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 src/agentMode/sdk/pi/models/KeychainCredentialStore.ts + test 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 15,
+      "durationSeconds": 2.45,
+      "logPath": "/tmp/vault-agent-required-current/16.log",
+      "logSha256": "32a6b90bc6656aa654794a343c36f059c5082ea7deff0bb26187393ab985e063",
+      "testFile": "src/agentMode/sdk/pi/models/KeychainCredentialStore.test.ts",
+      "testSourceSha256": "95cbb18e603ff3c3d21f6aaf6681d48dc46864846385973b46e462a93f323a2f",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T01-01",
+      "requirement": "并发刷新只保存一个有效新token",
+      "result": "passed",
+      "evidence": "KeychainCredentialStore 对每个 provider 维护 promise chain 串行 modify；测试并发发起两次 refresh，第二次回调看到的 current 已是第一次写入的 rotated-access 并返回 undefined（无变更），最终 read 得到唯一有效的 rotated-access，凭据条目只被前两次合法写入（初始化 + 一次刷新），没有交错丢失更新或双 token 覆盖。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T01-02",
+      "requirement": "list不取secret",
+      "result": "passed",
+      "evidence": "list 只读取一个非秘密 metadata index（含 providerId/type），测试断言 list 期间 getCalls 恰好只有 index id，从未读取任何 provider 的 credential 条目；返回值仅有 {providerId,type}，不含 token；list 期间 keychain.setCalls 数量不变。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T01-03",
+      "requirement": "missing-key不读环境兜底",
+      "result": "passed",
+      "evidence": "read 在 keychain 无条目时直接 resolve undefined；即使测试把 process.env.OPENAI_API_KEY 设为 env-key-should-not-be-used，store 也没有任何环境读取路径（模块无 process.env 访问、无 auth ctx 注入），断言 read 返回 undefined 且无写入；设计 09 的“禁止隐式回退”由 API 面直接保证。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T01-04",
+      "requirement": "data.json不含key",
+      "result": "passed",
+      "evidence": "模块只与 KeychainPort 交互，不 import settings/fs，不存在 JSON 写路径；测试构造 dataJson 对象在 modify/read/list/delete 前后序列化完全一致，且不含 secret 值；无 SecretStorage 时四方法均抛 KEYCHAIN_UNAVAILABLE，不会退化为 data.json 或其他 JSON 存储。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "KeychainCredentialStore 通过注入的 KeychainPort 工作；真实 KeychainService.getInstance(app) 适配与 Obsidian SecretStorage 平台行为在后续接线任务验证（本任务不 import App/Obsidian，避免边界泄漏）。",
+    "metadata index 与凭据分别写入两个 keychain 条目，非原子；若第二次写入失败，会出现凭据存在但 index 缺失（list 看不到）或反之。当前没有事务机制，已记录为后续需要补偿/一致化策略的风险；单进程串行写降低但未消除。",
+    "跨进程并发 modify 未加锁（设计允许跨进程时尽量，但 keychain 无锁）；同一 vault 双 Obsidian 实例场景由 P02 lease 防止同时写 store，凭据刷新竞态在真实平台待验证。",
+    "list 顺序是 index 插入顺序，不排序；UI 需要确定性排序时由调用方处理。",
+    "对 api_key 凭据强制要求非空 key（拒绝无密钥凭据），OAuth 强制 refresh/access/expires；与 pi-ai 可选 key 语义不同，属于本产品“显式凭据、禁止空字符串绕过”的决定，已写入测试。",
+    "未运行全仓测试；未接真实 keychain/平台；无端到端证据；未创建 git commit（gitCommitAfter=null）。"
+  ],
+  "handoff": "P03-T01 完成；下一任务 P03-T02（适配既有模型配置到 Pi 模型目录，依赖 P03-T01）：先读卡片与 design/02、03、09；新增 src/agentMode/sdk/pi/models/ModelCatalog.ts 与 ModelIdentity.ts：分离 engineId 与 provider 实例/modelKey；建立四协议适配（如 openai-completions/openai-responses/anthropic-messages/google-generative-ai 等按 design/09 确认）与自定义端点（baseUrl/headers）配置；继承已保存选择与能力；未知协议保留并报需配置；同名不同 endpoint 的凭据隔离（keychain 命名空间/identity 必须区分）。先写失败测试 src/agentMode/sdk/pi/models/ModelCatalog.test.ts（具体 scenario 见卡片），注入既有 settings/catalog 数据，不 mock 核心映射、禁止 sleep。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelCatalog.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

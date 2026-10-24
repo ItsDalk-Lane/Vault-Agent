@@ -1,15 +1,13 @@
 import React, { useMemo } from "react";
-import { agentResponseText, buildAgentTrail } from "@/agentMode/ui/agentTrail";
-import type { AgentMessagePart, StopReason, TurnFileChange } from "@/agentMode/session/types";
+import { agentResponseText, buildAgentTrail, type RenderNode } from "@/agentMode/ui/agentTrail";
+import type {
+  AgentMessagePart,
+  StopReason,
+  TurnFileChange,
+  FileChangeRevertResult,
+} from "@/agentMode/session/types";
 import { ActionCard } from "@/agentMode/ui/ActionCard";
 import { FilesChangedCard } from "@/agentMode/ui/FilesChangedCard";
-import { ActivityGroupCard } from "@/agentMode/ui/ActivityGroupCard";
-import {
-  foldActivityGroups,
-  type ActivityGroupNode,
-  type GroupedTrailNode,
-} from "@/agentMode/ui/activityGroups";
-import { activityLiveStep, isReasoningActive } from "@/agentMode/ui/activityLiveStep";
 import { CompactionRow } from "@/agentMode/ui/CompactionRow";
 import { AgentMessageActions } from "@/agentMode/ui/AgentMessageActions";
 import { SubAgentCard } from "@/agentMode/ui/SubAgentCard";
@@ -17,7 +15,6 @@ import { ReasoningBlock } from "@/agentMode/ui/ReasoningBlock";
 import { AgentMarkdownText } from "@/agentMode/ui/AgentMarkdownText";
 import { planEntryClass, planEntryIcon } from "@/agentMode/ui/planEntryStyles";
 import { type ToolSummaryContext } from "@/agentMode/ui/toolSummaries";
-import { useThinkingClock } from "@/agentMode/ui/useThinkingClock";
 import { useTrailExpansion, type TrailExpansion } from "@/agentMode/ui/useTrailExpansion";
 import { AgentTurnDurationIndicator } from "@/agentMode/ui/AgentTurnDurationIndicator";
 import { AssistantResponseFooter } from "@/components/ui/AssistantResponseFooter";
@@ -36,6 +33,9 @@ interface AgentTrailProps {
   errorText?: string;
   fileChanges?: TurnFileChange[];
   onOpenFileChange?: (change: TurnFileChange) => void;
+  onRevertFileChange?: (change: TurnFileChange) => Promise<FileChangeRevertResult>;
+  isBusy?: boolean;
+  showMessageActions?: boolean;
 }
 
 const noopOpenFileChange = () => {};
@@ -51,6 +51,9 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
   errorText,
   fileChanges,
   onOpenFileChange = noopOpenFileChange,
+  onRevertFileChange,
+  isBusy,
+  showMessageActions = true,
 }) => {
   const answer = agentResponseText(parts);
   const hasRunningDuration = isStreaming && turnStartedAtMs !== undefined;
@@ -59,8 +62,9 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
   const trailNodes = buildAgentTrail(parts);
   const compactionOnly =
     trailNodes.length > 0 && trailNodes.every((node) => node.type === "compaction");
+  // 子任务历史只供查看，不能在历史窗口中提供写入编辑器的动作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
   const footer =
-    !isStreaming && turnStopReason !== "cancelled" && answer.length > 0 ? (
+    showMessageActions && !isStreaming && turnStopReason !== "cancelled" && answer.length > 0 ? (
       <AgentMessageActions
         text={answer}
         app={app}
@@ -87,8 +91,13 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
           <AgentMarkdownText text={errorText} app={app} />
         </div>
       ) : null}
-      {turnStopReason !== undefined && fileChanges && fileChanges.length > 0 ? (
-        <FilesChangedCard changes={fileChanges} onOpen={onOpenFileChange} />
+      {!isStreaming && fileChanges && fileChanges.length > 0 ? (
+        <FilesChangedCard
+          changes={fileChanges}
+          onOpen={onOpenFileChange}
+          onRevert={onRevertFileChange}
+          isBusy={isBusy}
+        />
       ) : null}
       {hasRunningDuration && !compactionOnly ? (
         <AgentTurnDurationIndicator status="running" startedAtMs={turnStartedAtMs} />
@@ -105,6 +114,7 @@ interface TrailContext {
   summaryCtx: ToolSummaryContext;
 }
 
+// 一个 run 的思考、工具与文本逐块独立渲染，不再折叠成活动组。https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
 const LinearTrail: React.FC<{
   parts: AgentMessagePart[];
   isStreaming: boolean;
@@ -112,7 +122,7 @@ const LinearTrail: React.FC<{
 }> = ({ parts, isStreaming, app }) => {
   const expansion = useTrailExpansion();
   const summaryCtx = useMemo(() => ({ vaultBase: getVaultBase(app) }), [app]);
-  const nodes = foldActivityGroups(buildAgentTrail(parts));
+  const nodes = buildAgentTrail(parts);
   const ctx: TrailContext = {
     app,
     lastPart: parts.length > 0 ? parts[parts.length - 1] : undefined,
@@ -129,7 +139,7 @@ const LinearTrail: React.FC<{
 };
 
 function renderNode(
-  node: GroupedTrailNode,
+  node: RenderNode,
   key: string | number,
   ctx: TrailContext,
   atLiveEdge: boolean,
@@ -147,18 +157,8 @@ function renderNode(
         />
       );
     }
-    case "activityGroup":
-      return (
-        <ActivityGroupRow
-          key={key}
-          group={node}
-          ctx={ctx}
-          atLiveEdge={atLiveEdge}
-          trailId={trailId}
-        />
-      );
     case "subagent": {
-      const children = foldActivityGroups(node.children);
+      const children = node.children;
       const lastChild = children[children.length - 1];
       const childTrailId = `${trailId}/subagent:${node.parent.id}`;
       return (
@@ -188,64 +188,6 @@ function renderNode(
       return <CompactionRow key={key} part={node.part} />;
   }
 }
-
-interface ActivityGroupRowProps {
-  group: ActivityGroupNode;
-  atLiveEdge: boolean;
-  ctx: TrailContext;
-  trailId: string;
-}
-
-const ActivityGroupRow: React.FC<ActivityGroupRowProps> = ({ group, atLiveEdge, ctx, trailId }) => {
-  const trailingMember = group.members[group.members.length - 1];
-  // A hidden trailing tool is absent from the rendered group but still ends
-  // the preceding reasoning span in the raw message parts.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/336
-  const groupAtLiveEdge = atLiveEdge && trailingMember?.part === ctx.lastPart;
-  const reasoningActive = isReasoningActive(group.members, groupAtLiveEdge);
-  const activeThoughtStartedAtMs =
-    reasoningActive && trailingMember?.type === "reasoning"
-      ? trailingMember.part.startedAtMs
-      : undefined;
-  const thinkingMs = useThinkingClock(reasoningActive, activeThoughtStartedAtMs);
-  const groupExpansionId = `${trailId}/group:${group.id}`;
-  const memberExpansionIds = group.members.flatMap((member) =>
-    member.type === "action" ? [actionExpansionId(trailId, member.part.id)] : []
-  );
-  const groupOpen =
-    ctx.expansion.isOpen(groupExpansionId) ||
-    memberExpansionIds.some((id) => ctx.expansion.isOpen(id));
-
-  const toggleGroup = () => {
-    if (!groupOpen) {
-      ctx.expansion.toggle(groupExpansionId);
-      return;
-    }
-    if (ctx.expansion.isOpen(groupExpansionId)) ctx.expansion.toggle(groupExpansionId);
-    for (const id of memberExpansionIds) {
-      if (ctx.expansion.isOpen(id)) ctx.expansion.toggle(id);
-    }
-  };
-
-  return (
-    <ActivityGroupCard
-      group={group}
-      thinkingMs={thinkingMs}
-      open={groupOpen}
-      onToggle={toggleGroup}
-      renderMember={(member, i) =>
-        renderNode(
-          member,
-          member.type === "action" ? member.part.id : `thought-${i}`,
-          ctx,
-          groupAtLiveEdge,
-          trailId
-        )
-      }
-      liveStep={activityLiveStep(group.members, groupAtLiveEdge, ctx.summaryCtx)}
-    />
-  );
-};
 
 function actionExpansionId(trailId: string, toolCallId: string): string {
   return `${trailId}/action:${toolCallId}`;

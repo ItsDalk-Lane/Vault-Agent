@@ -1,0 +1,150 @@
+{
+  "recordedAt": "2026-10-22",
+  "status": "passed_for_recorded_baseline_scope",
+  "buildIdentity": "c2a7ef50-dirty-15f2f5d21856",
+  "environment": {
+    "vault": "PiSmoke",
+    "profile": "clean-profile-20261022",
+    "path": "/var/empty",
+    "provider": "LM Studio",
+    "model": "qwen/qwen3.8-27b",
+    "contextWindowTokens": 16384,
+    "setup": "主代理通过插件完整BYOK界面添加本地/v1、空key、模型、窗口声明并设默认，无终端登录。"
+  },
+  "sources": [
+    {
+      "path": "/tmp/vault-agent-pi-continuation-first-real.json",
+      "sha256": "151bc6e6e1241a669eb17bddc1c31d8d9fd1b31c86af9f001b495f41ab7e4323"
+    },
+    {
+      "path": "/tmp/vault-agent-pi-continuation-question-ui.json",
+      "sha256": "35c65042ce180aabd3b82e544fea87c84c34e82d0af95ce62b35a965d2a9cad2"
+    },
+    {
+      "path": "/tmp/vault-agent-pi-continuation-plan-feedback2.json",
+      "sha256": "e829e5b169fd303dcc28376d88e0e615dc71dc6f92489284ed0c363998e6b957"
+    }
+  ],
+  "checks": [
+    {
+      "id": "clean_profile_ui_configuration_and_actual_reply",
+      "status": "idle",
+      "assistantAnswer": "\n\n本地模型配置成功。",
+      "scope": "无外部CLI的实际Obsidian内完成模型设置与首个回答；未替代全部核心路径验收。"
+    },
+    {
+      "id": "real_ui_question_selection_and_model_receipt",
+      "status": "idle",
+      "actions": [
+        {
+          "method": "handleAskUserQuestion",
+          "at": 1792659347477,
+          "id": "79",
+          "source": "    at s.<computed> [as handleAskUserQuestion] (<anonymous>:1:611)\n    at fCe.eval [as askUserQuestionPrompter] (plugin:vault-agent:1823:44439)\n    at ask (plugin:vault-agent:1680:11507)\n    at eval (plugin:vault-agent:1561:48844)"
+        },
+        {
+          "method": "resolveAskUserQuestion",
+          "at": 1792659414596,
+          "id": "79",
+          "source": "    at s.<computed> [as resolveAskUserQuestion] (<anonymous>:1:611)\n    at AK.resolveAskUserQuestion (plugin:vault-agent:1762:14858)\n    at S (plugin:vault-agent:1832:26520)\n    at E (plugin:vault-agent:1832:26541)"
+        },
+        {
+          "method": "resolveAskUserQuestion",
+          "at": 1792659414658,
+          "id": "79",
+          "source": "    at s.<computed> [as resolveAskUserQuestion] (<anonymous>:1:611)\n    at e.signal.addEventListener.once (plugin:vault-agent:1803:12137)\n    at yIe.gIe (plugin:vault-agent:1627:41503)\n    at eval (plugin:vault-agent:1627:39190)"
+        }
+      ],
+      "toolResults": [
+        {
+          "kind": "tool_call",
+          "id": "pi:root-8164c289-161a-4b4f-a852-0ad41ecf1ed3:553153307",
+          "title": "ask_user",
+          "toolKind": "other",
+          "vendorToolName": "ask_user",
+          "status": "completed",
+          "input": {
+            "questions": [
+              {
+                "question": "验收后先检查哪项？",
+                "header": "验收检查",
+                "options": [
+                  {
+                    "label": "内容",
+                    "description": "先检查笔记内容是否正确"
+                  },
+                  {
+                    "label": "格式",
+                    "description": "先检查笔记格式是否规范"
+                  }
+                ],
+                "answerKey": "check"
+              }
+            ]
+          },
+          "output": [
+            {
+              "type": "text",
+              "text": "{\"requestId\":\"79\",\"status\":\"answered\",\"answers\":{\"check\":\"内容\"},\"replayed\":false}"
+            }
+          ]
+        }
+      ],
+      "scope": "通过radio界面选项并提交；工具收到真实答案check=内容，模型确认。"
+    },
+    {
+      "id": "real_ui_plan_rejection_feedback_reaches_model",
+      "status": "idle",
+      "pendingPlanBefore": {
+        "id": "plan-e89fb9361ae8",
+        "revision": 1,
+        "body": "PISMOKE-PENDING-FEEDBACK-SECOND：先检查 pi-clean-core.md 的内容。",
+        "title": "PISMOKE-PENDING-FEEDBACK-SECOND：先检查 pi-clean-core.md 的内容。",
+        "permissionGated": true,
+        "pendingToolCallId": "pi:root-8164c289-161a-4b4f-a852-0ad41ecf1ed3:121584178",
+        "decision": "pending"
+      },
+      "savedDecision": {
+        "id": "plan-e89fb9361ae8",
+        "revision": 1,
+        "body": "PISMOKE-PENDING-FEEDBACK-SECOND：先检查 pi-clean-core.md 的内容。",
+        "title": "反馈验收自动操作",
+        "permissionGated": false,
+        "pendingToolCallId": "pi:root-8164c289-161a-4b4f-a852-0ad41ecf1ed3:121584178",
+        "decision": "rejected_with_feedback"
+      },
+      "feedback": "只检查格式，不改内容。反馈标识：PISMOKE-FEEDBACK-20261022。",
+      "toolResults": [
+        {
+          "kind": "tool_call",
+          "id": "pi:root-8164c289-161a-4b4f-a852-0ad41ecf1ed3:121584178",
+          "title": "propose_plan",
+          "toolKind": "other",
+          "vendorToolName": "propose_plan",
+          "status": "failed",
+          "input": {
+            "title": "反馈验收自动操作",
+            "body": "PISMOKE-PENDING-FEEDBACK-SECOND：先检查 pi-clean-core.md 的内容。",
+            "steps": ["读取笔记", "报告结果"]
+          },
+          "output": [
+            {
+              "type": "text",
+              "text": "{\"approved\":false,\"planId\":\"plan-e89fb9361ae8\",\"revision\":1,\"decision\":\"rejected_with_feedback\",\"feedback\":\"只检查格式，不改内容。反馈标识：PISMOKE-FEEDBACK-20261022。\"}"
+            }
+          ]
+        }
+      ],
+      "assistantReceipt": [
+        "\n\n收到拒绝反馈，原文复述如下：\n\n**拒绝反馈内容**：「只检查格式，不改内容。反馈标识：PISMOKE-FEEDBACK-20261022。」\n\n按您的要求：未执行该计划的任何步骤，也未再次提交计划。"
+      ],
+      "scope": "DOM观察pending后填写反馈并发送；工具原结果rejected_with_feedback与唯一反馈标识被模型复述。"
+    }
+  ],
+  "limitations": [
+    "这是旧15f2包的真实baseline；当前修复包尚待主代理重验，不与当前工程门禁混算。",
+    "待审批计划canonical标题被Session旧推导覆盖已另交policy修复；原始证据保留前后差异。",
+    "人工UI操作可能形成额外反馈user轮；此记录不证明request去重，不统计模型调用次数。",
+    "只有一个真实对话模型；不证明真正不同模型fanout、远程MCP、其他实际操作系统。"
+  ]
+}

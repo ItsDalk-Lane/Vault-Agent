@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T04",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T04.json",
+    "reason": "原干净安装脚本使用自定义 FakeVault 工具代替生产执行流程。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T04-01", "SC-P14-T04-02", "SC-P14-T04-03", "SC-P14-T04-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/installationContract.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 9,
+      "durationSeconds": 4.64,
+      "logPath": "/tmp/vault-agent-required-current/04.log",
+      "logSha256": "47b294a418899ec1e35e5a53d06107daad9c01ed131ee4e7a8998dbefddccc9f",
+      "testFile": "src/agentMode/sdk/pi/__tests__/installationContract.test.ts",
+      "testSourceSha256": "e9b6ca7c7da06fd68d0a54ac1698c6d2bbbfc185ff8e86412f179f8e59dfb73a",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T04-01",
+      "requirement": "无NodeCLI仍运行",
+      "result": "passed",
+      "evidence": "actual PiSmoke独立profile以PATH=/var/empty启动，完整BYOK UI配置后本地LM可答/读写/提问计划；另空PATH生产Runtime诊断16calls通过，明确区分编译用Node与用户运行不依赖外部NodeCLI。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T04-02",
+      "requirement": "无终端登录",
+      "result": "passed",
+      "evidence": "实际PiSmoke UI添加本地LM，keyless配置不要求终端登录；唯一Pi descriptor无binary/install/login探测。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T04-03",
+      "requirement": "无运行时包下载",
+      "result": "passed",
+      "evidence": "生产依赖/源码边界检查无npm/npx自动下载安装Agent或解释器；PATH空真实UI能进入核心流程，本机可选shell/MCP另需绝对授权。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T04-04",
+      "requirement": "核心路径无binary探测阻塞",
+      "result": "passed",
+      "evidence": "实际空白profile创建聊天、设置模型与核心工具不被二进制探测阻挡；新Pi入口和历史只读descriptor均不启动旧引擎。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "验收检查器改为逐scenario校验，featureCoverage仅目录契约，空PATH检查走实际生产入口；最终逐功能/恢复矩阵、真实性与跨平台仍须原门槛证据。",
+    "actualRuntimeReferences": ["cleanInstall"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

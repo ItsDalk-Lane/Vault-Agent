@@ -1,4 +1,4 @@
-import { backendRegistry } from "@/agentMode/backends/registry";
+import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import { formatChatDeleteNotice } from "@/lib/chatDeleteText";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { GLOBAL_SCOPE, type ProjectScopeId } from "@/agentMode/session/scope";
@@ -144,7 +144,11 @@ export function useAgentHistoryControls(
             const link = await getChatLink(plugin.app, id);
             await manager.deleteChatHistory(id);
             new Notice(
-              formatChatDeleteNotice(item?.backendId ? backendRegistry[item.backendId] : undefined)
+              formatChatDeleteNotice(
+                item?.backendId && describeBackendForHistory(item.backendId).agentProductName
+                  ? describeBackendForHistory(item.backendId)
+                  : undefined
+              )
             );
             // Obsidian's Bookmarks internals have no public API, so a failure there must not undo or hide a completed delete.
             // https://github.com/Brevilabs/obsidian-copilot-private/issues/694

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T01",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/StoreLocator.ts",
+    "src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T01.json"
+  ],
+  "scenarioIds": ["SC-P02-T01-01", "SC-P02-T01-02", "SC-P02-T01-03"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/StoreLocator.ts src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-explicit-any、no-direct-node-imports 规则通过；node:crypto 经 requireNodeModule 注入）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1158 file(s)：新 storage 模块只依赖 host helper，无 Pi SDK 泄漏或私有无害路径。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：与 P01 gate 记录的构建一致，纯新增模块未改变生产 bundle。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "本任务仅新增 src/agentMode/sdk/pi/storage/（StoreLocator.ts + test）并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 15,
+      "durationSeconds": 2.54,
+      "logPath": "/tmp/vault-agent-required-current/38.log",
+      "logSha256": "5162c1f35a6fe5ce64fa880d03e1416834b787f9d46ee44ce319267987b61d56",
+      "testFile": "src/agentMode/sdk/pi/storage/StoreLocator.test.ts",
+      "testSourceSha256": "59b3abf06b111401ac7a0e9473751bd068e81b7fee6bf6e8c8826eaf035f9f31",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T01-01",
+      "requirement": "三平台路径固定且不在Vault内",
+      "result": "passed",
+      "evidence": "resolveDataRoot()：macOS=~/Library/Application Support/VaultAgent；Windows=%LOCALAPPDATA%\\VaultAgent（缺失回退 home\\AppData\\Local\\VaultAgent）；Linux=$XDG_STATE_HOME/vault-agent（缺失回退 ~/.local/state/vault-agent）。构造器用 isPathInsideStoreRoot 检查 dataRoot 不得位于规范化后的 Vault 根内，违规抛 PRIVATE_ROOT_INSIDE_VAULT；protectedPaths() 暴露 dataRoot 给策略层，isProtectedPath 对 dataRoot 子路径 true、对 Vault 路径 false（Windows 大小写不敏感比较）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T01-02",
+      "requirement": "恶意rootId不能穿越",
+      "result": "passed",
+      "evidence": "assertHostRootId 只接受宿主铸造的 `/^root-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/`；测试逐一拒绝空串、`..`、`../escape`、`root-../escape`、正反斜杠、绝对路径、URL 编码、`root-.`、非 root 前缀与超长 id（共 10 个），均抛 INVALID_ROOT_ID；sessionStorePaths 在拼路径前先校验，恶意 id 不会进入 joinStorePath。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T01-03",
+      "requirement": "同名不同Vault不共享store",
+      "result": "passed",
+      "evidence": "vaultKey = SHA-256(normalizedVaultRoot + \"\\u0000\" + Keychain vaultId)。同一路径换 vaultId → 不同 key；同一 vaultId 移动路径 → 不同 key，且 relationTo(previous) 返回 requires_reassociation（不自动合并同名库）；同 key 才返回 same；首次返回 new。测试显式覆盖同名不同 id 与移动 Vault 两种情形。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "Vault 根规范化是文本级（分隔符折叠、Windows 小写、去尾部分隔符），未做 symlink/realpath 解析；调用方应传入 Obsidian FileSystemAdapter 的真实 base path，若需要 realpath 对账应在后续 runtime/迁移任务中按实际证据补充。",
+    "macOS 常见大小写不敏感文件系统未在 key 中大小写折叠（仅 Windows 小写）；若同一 Vault 以不同大小写路径出现，可能得到不同 key。记录为待验证风险，真实平台证据留给 P14；运行时优先使用系统提供的 canonical base path。",
+    "vaultId 由调用方注入（P02-T01 只做路径/身份计算，不直接依赖 keychainService）；真实接线在打开 runtime/store 的任务（P02-T07/P03）完成，避免在此处耦合 Obsidian App。",
+    "本任务只定位路径与身份：不创建目录、不写 meta.json、不实现 lease 或打开 JSONL（P02-T02/T03）；没有任何真实磁盘/平台写入副作用。",
+    "三平台路径规则由模拟 platform/env/homeDir 的单元测试验证，不是在真实 Windows/Linux 机器运行；三平台实测属 P14。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T01 完成；下一任务 P02-T02（实现独占 store lease，依赖 P02-T01）：先读卡片与 design/04/16；新增 src/agentMode/sdk/pi/storage/StoreLease.ts：用 mkdir(leaseDir) 原子创建 + owner token 文件（随机 token、pid、启动标识、storePath、createdAt）；实现进程内共享 registry 与跨进程占用检查；不以时间过期偷锁（长审批不算死进程）；只回收能证明已退出的 owner；释放前核对 token，失败不删除未知目录；不完整/无法验证 owner 进入人工恢复错误。先写失败测试 src/agentMode/sdk/pi/storage/StoreLease.test.ts（第二 writer 拒绝、活跃长审批不被偷锁、不同 token 不能释放、不完整 owner 需人工恢复），注入 fs/pid/时钟依赖，不 mock 核心判定；运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/StoreLease.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

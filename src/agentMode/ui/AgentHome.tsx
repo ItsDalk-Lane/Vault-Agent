@@ -1,6 +1,10 @@
 import AgentChatMessages from "@/agentMode/ui/AgentChatMessages";
 import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
 import { AgentChatInput } from "@/agentMode/ui/AgentChatInput";
+import { LegacyHistoryNotice } from "@/agentMode/ui/LegacyHistoryNotice";
+import { AgentRecoveryNotice } from "@/agentMode/ui/AgentRecoveryNotice";
+import { confirmSessionRollover } from "@/agentMode/ui/confirmSessionRollover";
+import { RECOMMENDED_BACKEND_ID } from "@/agentMode/backends/registry";
 import { openReportIssueModal } from "@/agentMode/ui/ReportIssueModal";
 import { formatChatReportNote } from "@/agentMode/session/feedback/feedbackOffer";
 import AgentContextMeter from "@/agentMode/ui/AgentContextMeter";
@@ -31,7 +35,6 @@ import { useChatInputAutoFocus } from "@/agentMode/ui/hooks/useChatInputAutoFocu
 import { useRefreshEmptyLandingOnContextSourceChange } from "@/agentMode/ui/hooks/useRefreshEmptyLandingOnContextSourceChange";
 import { useAgentModelPicker } from "@/agentMode/ui/useAgentModelPicker";
 import { useAgentModePicker } from "@/agentMode/ui/useAgentModePicker";
-import { useSessionBackendDescriptor } from "@/agentMode/ui/useBackendDescriptor";
 import { pickRandomGreeting } from "@/agentMode/ui/landingGreetings";
 import type { AgentChatBackend } from "@/agentMode/session/AgentChatBackend";
 import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
@@ -80,6 +83,55 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   const app = plugin.app || appContext;
   const settings = useSettingsValue();
   const draft = useAgentInputDrafts({ store: manager.drafts, chatInputId });
+  const historicalOnly = manager.getSession(sessionId)?.isHistoricalOnly?.() === true;
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const handleRolloverSession = useCallback(() => {
+    confirmSessionRollover(app, async () => {
+      setHistoryBusy(true);
+      try {
+        await manager.rolloverSession(sessionId);
+      } finally {
+        setHistoryBusy(false);
+      }
+    });
+  }, [app, manager, sessionId]);
+  const handleImportLegacy = useCallback(() => {
+    setHistoryBusy(true);
+    void manager
+      .importActiveLegacySession()
+      .catch((error: unknown) => {
+        logError("[AgentMode] legacy import failed", error);
+        new Notice(t("controls.importLegacyFailed"));
+      })
+      .finally(() => setHistoryBusy(false));
+  }, [manager]);
+  const handleExportArchive = useCallback(async () => {
+    setHistoryBusy(true);
+    try {
+      await manager.exportActiveSession("json");
+      new Notice(t("notice.savedAsNote"));
+    } catch (error) {
+      logError("[AgentMode] chat export failed", error);
+      new Notice(t("notice.saveFailed"));
+    } finally {
+      setHistoryBusy(false);
+    }
+  }, [manager]);
+  const handleImportArchive = useCallback(
+    async (file: File) => {
+      setHistoryBusy(true);
+      try {
+        if (file.size > 8 * 1024 * 1024) throw new Error("The chat backup exceeds 8 MiB.");
+        await manager.importSessionBackup(await file.text());
+      } catch (error) {
+        logError("[AgentMode] chat backup import failed", error);
+        new Notice(t("controls.importArchiveFailed"));
+      } finally {
+        setHistoryBusy(false);
+      }
+    },
+    [manager]
+  );
 
   useChatInputAutoFocus();
 
@@ -93,6 +145,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     pendingToolPermissions,
     pendingAskUserQuestions,
     feedbackOffer,
+    recovery,
   } = useAgentChatRuntimeState(backend);
   const isLoading = draft.loading || isTurnInFlight;
 
@@ -126,18 +179,16 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     const oldId = active.internalId;
     void (async () => {
       try {
-        await manager.replaceSessionInPlace(oldId, active.backendId);
+        await manager.replaceSessionInPlace(
+          oldId,
+          active.isHistoricalOnly?.() ? RECOMMENDED_BACKEND_ID : active.backendId
+        );
       } catch (e) {
         logError("[AgentMode] new chat failed", e);
         new Notice(t("notice.newChatFailed"));
       }
     })();
   }, [manager]);
-
-  const descriptor = useSessionBackendDescriptor(manager);
-  const handleInstall = useCallback(() => {
-    descriptor.openInstallUI(plugin);
-  }, [descriptor, plugin]);
 
   const projects = useProjects();
   const projectNamesById = useMemo<Readonly<Record<string, string>>>(() => {
@@ -261,7 +312,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     if (isOrphanedProject) new Notice(t("notice.projectGone"));
   }, [isOrphanedProject]);
 
-  const modelPickerOverride = useAgentModelPicker(manager, plugin);
+  const modelPickerOverride = useAgentModelPicker(manager);
   const modePickerOverride = useAgentModePicker(manager);
 
   const handleCycleMode = useCallback(() => {
@@ -493,7 +544,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     ]
   );
 
-  const composerNode = (
+  const chatInput = (
     <AgentChatInput
       backend={backend}
       plugin={plugin}
@@ -511,6 +562,29 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       disabled={isOrphanedProject}
     />
   );
+
+  const composerNode =
+    recovery && recovery.status !== "none" ? (
+      <AgentRecoveryNotice
+        recovery={recovery}
+        onRollover={handleRolloverSession}
+        onRecover={async (action) => {
+          if (!backend.recoverSession) throw new Error(t("controls.recoveryReadOnly"));
+          await backend.recoverSession(action);
+        }}
+      >
+        {chatInput}
+      </AgentRecoveryNotice>
+    ) : historicalOnly ? (
+      <LegacyHistoryNotice
+        busy={historyBusy}
+        canImport={manager.getSession(sessionId)?.backendId !== "pi"}
+        onImport={handleImportLegacy}
+        onExport={safeAsyncHandler(handleExportArchive)}
+      />
+    ) : (
+      chatInput
+    );
 
   const showProjectHero = isProjectLanding && !isOrphanedProject;
   const heroText = showProjectHero ? t("home.hero.chatIn", { project: projectName }) : greeting;
@@ -542,7 +616,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     openReportIssueModal(plugin, {
       activeBackend: evidence?.backendId ?? settings.agentMode.activeBackend,
       initialNote: evidence ? formatChatReportNote(evidence) : undefined,
-      preselectAllSources: true,
     });
   };
 
@@ -602,7 +675,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                   isProjectLanding ? "project" : isLanding ? "global" : "conversation"
                 }
               >
-                <AgentModeStatus manager={manager} plugin={plugin} onInstallClick={handleInstall} />
+                <AgentModeStatus manager={manager} plugin={plugin} />
                 {isLanding ? (
                   <AgentLandingStack
                     hero={hero}
@@ -669,6 +742,26 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                       onReportError={handleReportError}
                       onNewChat={handleNewChat}
                       onSaveAsNote={handleSaveAsNote}
+                      onExportArchive={handleExportArchive}
+                      onPause={
+                        isTurnInFlight && !historicalOnly && backend.pause
+                          ? () => backend.pause!()
+                          : undefined
+                      }
+                      onRolloverSession={
+                        activeSession?.backendId === "pi" && !historicalOnly
+                          ? handleRolloverSession
+                          : undefined
+                      }
+                      rolloverDisabled={
+                        historyBusy ||
+                        isStarting ||
+                        isTurnInFlight ||
+                        hasPendingPlanPermission ||
+                        pendingToolPermissions.length > 0 ||
+                        pendingAskUserQuestions.length > 0
+                      }
+                      onImportArchive={handleImportArchive}
                       chatHistoryItems={chatHistoryItems}
                       onLoadHistory={handleLoadChatHistory}
                       onLoadChat={handleLoadChat}

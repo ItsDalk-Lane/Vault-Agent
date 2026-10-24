@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "taskId": "REPLACE_WITH_REAL_ID",
+  "status": "not_run",
+  "gitCommitBefore": null,
+  "gitCommitAfter": null,
+  "filesChanged": [],
+  "scenarioIds": [],
+  "commands": [
+    {
+      "command": "REPLACE_WITH_ACTUAL_COMMAND",
+      "cwd": "REPLACE_WITH_REAL_CWD",
+      "exitCode": null,
+      "testCount": null,
+      "result": "not_run",
+      "outputSummary": ""
+    }
+  ],
+  "manualChecks": [],
+  "limitations": [],
+  "handoff": ""
+}

@@ -3,7 +3,7 @@ import type { AgentChatMessage } from "@/agentMode/session/types";
 import { FanoutMessageCard } from "@/agentMode/ui/FanoutMessageCard";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AI_SENDER } from "@/constants";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 
 jest.mock("@/agentMode/ui/AgentMarkdownText", () => ({
@@ -11,7 +11,7 @@ jest.mock("@/agentMode/ui/AgentMarkdownText", () => ({
 }));
 
 jest.mock("@/agentMode/backends/registry", () => ({
-  backendRegistry: {},
+  describeBackendForHistory: (id: string) => ({ id, label: id }),
 }));
 
 jest.mock("@/utils", () => ({
@@ -21,7 +21,49 @@ jest.mock("@/utils", () => ({
 
 describe("FanoutMessageCard", () => {
   describe("FanoutMessageCard()", () => {
-    it("shows supplied duration metadata instead of the timestamp in the response footer", () => {
+    it("offers explicit recovery for unfinished saved answers without starting work on render https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const resume = jest.fn();
+      const turn: FanoutTurn = {
+        answers: {
+          a: { backendId: "pi", status: "cancelled", text: "partial", modelKey: "a" },
+          b: { backendId: "pi", status: "done", text: "answer", modelKey: "b" },
+        },
+        summary: { status: "done", text: "", complete: false },
+        checkpoint: {
+          fanoutId: "turn",
+          mainModelKey: "a",
+          originalPromptText: "Question",
+          prompt: [{ type: "text", text: "Question" }],
+        },
+      };
+      const message = {
+        id: "resume",
+        sender: AI_SENDER,
+        message: "",
+        isVisible: true,
+      } as AgentChatMessage;
+      const { rerender } = render(
+        <TooltipProvider>
+          <FanoutMessageCard message={message} turn={turn} app={{} as never} onResume={resume} />
+        </TooltipProvider>
+      );
+      expect(resume).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Continue unfinished answers" }));
+      expect(resume).toHaveBeenCalledTimes(1);
+      rerender(
+        <TooltipProvider>
+          <FanoutMessageCard
+            message={message}
+            turn={turn}
+            app={{} as never}
+            onResume={resume}
+            isRunning
+          />
+        </TooltipProvider>
+      );
+      expect(screen.queryByRole("button", { name: "Continue unfinished answers" })).toBeNull();
+    });
+    it("shows supplied duration metadata beside the timestamp in the response footer https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
       const timestamp = "2026/08/07 20:31:10";
       const message: AgentChatMessage = {
         id: "fanout-1",
@@ -49,7 +91,7 @@ describe("FanoutMessageCard", () => {
       expect(screen.getByText("Summary response")).toBeTruthy();
       expect(screen.getByText("Worked for 24s")).toBeTruthy();
       expect(screen.getByTitle("Copy")).toBeTruthy();
-      expect(screen.queryByText(timestamp)).toBeNull();
+      expect(screen.getByText(timestamp)).toBeTruthy();
 
       rerender(
         <TooltipProvider>
@@ -57,6 +99,7 @@ describe("FanoutMessageCard", () => {
         </TooltipProvider>
       );
       expect(screen.getByText(timestamp)).toBeTruthy();
+      expect(screen.queryByText("Worked for 24s")).toBeNull();
     });
   });
 });

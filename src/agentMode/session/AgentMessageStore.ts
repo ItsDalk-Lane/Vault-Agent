@@ -1,6 +1,7 @@
 import { logInfo } from "@/logger";
 import {
   parseFanoutComposite,
+  serializeFanoutComposite,
   snapshotFanoutTurn,
   type FanoutTurn,
 } from "@/agentMode/session/fanout/fanoutTypes";
@@ -23,6 +24,7 @@ interface StoredAgentMessage {
   timestamp: FormattedDateTime | null;
   isVisible: boolean;
   isErrorMessage?: boolean;
+  isAuxiliary?: boolean;
   parts?: AgentMessagePart[];
   context?: MessageContext;
   content?: unknown[];
@@ -175,6 +177,59 @@ function textFingerprint(text: string): string {
   )}`;
 }
 
+function nonEmptyArray<T>(value: T[] | undefined): T[] | undefined {
+  return value !== undefined && value.length > 0 ? value : undefined;
+}
+
+// An absent field leaves the displayed UI-only value alone; an explicitly empty list means the
+// projection removed it, so the stored value must not survive as a ghost part:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+function projectedArray<T>(projected: T[] | undefined, existing: T[] | undefined): T[] | undefined {
+  return projected === undefined ? existing : nonEmptyArray(projected);
+}
+
+function sameStoredMessage(a: StoredAgentMessage, b: StoredAgentMessage): boolean {
+  if (a === b) return true;
+  return (
+    a.id === b.id &&
+    a.displayText === b.displayText &&
+    a.sender === b.sender &&
+    a.isVisible === b.isVisible &&
+    a.isErrorMessage === b.isErrorMessage &&
+    a.isAuxiliary === b.isAuxiliary &&
+    a.turnStopReason === b.turnStopReason &&
+    a.turnDurationMs === b.turnDurationMs &&
+    sameTimestamp(a.timestamp, b.timestamp) &&
+    sameParts(a.parts, b.parts) &&
+    sameValue(a.content, b.content) &&
+    sameValue(a.context, b.context) &&
+    sameValue(a.fanout, b.fanout) &&
+    sameValue(a.fileChanges, b.fileChanges)
+  );
+}
+
+function sameTimestamp(a: FormattedDateTime | null, b: FormattedDateTime | null): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  return a.epoch === b.epoch && a.display === b.display && a.fileName === b.fileName;
+}
+
+function sameParts(
+  a: readonly AgentMessagePart[] | undefined,
+  b: readonly AgentMessagePart[] | undefined
+): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  if (a.length !== b.length) return false;
+  return a.every((part, index) => partsEqual(part, b[index]));
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || a === null || b === null) return false;
+  return valueFingerprint(a) === valueFingerprint(b);
+}
+
 export class AgentMessageStore {
   private messages: StoredAgentMessage[] = [];
   private displayCache = new Map<string, { version: number; view: AgentChatMessage }>();
@@ -222,6 +277,7 @@ export class AgentMessageStore {
       context: message.context,
       isVisible: message.isVisible !== false,
       isErrorMessage: message.isErrorMessage,
+      isAuxiliary: message.isAuxiliary,
       content: message.content,
       parts: message.parts,
       turnStopReason: message.turnStopReason,
@@ -469,6 +525,7 @@ export class AgentMessageStore {
         context: msg.context,
         isVisible: msg.isVisible !== false,
         isErrorMessage: msg.isErrorMessage,
+        isAuxiliary: msg.isAuxiliary,
         content: msg.content,
         parts: msg.parts,
         turnStopReason: msg.turnStopReason,
@@ -480,15 +537,93 @@ export class AgentMessageStore {
     logInfo(`[AgentMessageStore] Loaded ${messages.length} messages`);
   }
 
+  // The display projection is authoritative for the loaded conversation, so one batch replaces
+  // the visible window without rebuilding a view whose content did not change; a projection that
+  // omits UI-only facts keeps the displayed context/timestamp instead of erasing them:
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  replaceMessages(messages: readonly AgentChatMessage[]): boolean {
+    const keep = new Set<string>();
+    const existingById = new Map(this.messages.map((message) => [message.id, message]));
+    const next: StoredAgentMessage[] = [];
+    for (const message of messages) {
+      const id = message.id || this.generateId();
+      keep.add(id);
+      const existing = existingById.get(id);
+      const candidate = this.fromProjection({ ...message, id }, existing);
+      if (existing !== undefined && sameStoredMessage(existing, candidate)) {
+        next.push(existing);
+        continue;
+      }
+      if (existing !== undefined) candidate.version = existing.version + 1;
+      next.push(candidate);
+    }
+    const changed =
+      next.length !== this.messages.length ||
+      next.some((message, index) => message !== this.messages[index]);
+    if (!changed) return false;
+    for (const id of [...this.displayCache.keys()]) {
+      if (!keep.has(id)) this.displayCache.delete(id);
+    }
+    this.messages = next;
+    this.lastDisplay = null;
+    return true;
+  }
+
+  prependMessages(messages: readonly AgentChatMessage[]): boolean {
+    const known = new Set(this.messages.map((message) => message.id));
+    const older: StoredAgentMessage[] = [];
+    for (const message of messages) {
+      if (!message.id || known.has(message.id)) continue;
+      known.add(message.id);
+      older.push(this.fromProjection(message, undefined));
+    }
+    if (older.length === 0) return false;
+    this.messages = [...older, ...this.messages];
+    this.lastDisplay = null;
+    return true;
+  }
+
+  private fromProjection(
+    message: AgentChatMessage,
+    existing: StoredAgentMessage | undefined
+  ): StoredAgentMessage {
+    const fanout =
+      message.fanout ??
+      (message.sender === USER_SENDER
+        ? undefined
+        : (parseFanoutComposite(message.message) ?? undefined));
+    return {
+      id: message.id || this.generateId(),
+      displayText: message.message,
+      sender: message.sender,
+      timestamp: message.timestamp ?? existing?.timestamp ?? null,
+      isVisible: message.isVisible !== false,
+      isErrorMessage: message.isErrorMessage,
+      isAuxiliary: message.isAuxiliary,
+      content: projectedArray(message.content, existing?.content),
+      parts: projectedArray(message.parts, existing?.parts),
+      context: message.context ?? existing?.context,
+      turnStopReason: message.turnStopReason ?? existing?.turnStopReason,
+      turnDurationMs: message.turnDurationMs ?? existing?.turnDurationMs,
+      fanout: fanout ?? existing?.fanout,
+      fileChanges: projectedArray(message.fileChanges, existing?.fileChanges),
+      version: existing?.version ?? 0,
+    };
+  }
+
   private toAgentChatMessage(m: StoredAgentMessage): AgentChatMessage {
     return {
       id: m.id,
-      message: m.displayText,
+      // 实时保存恢复检查点，避免退出前仅正文终态尚未写入。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      message: m.fanout?.checkpoint
+        ? serializeFanoutComposite(m.fanout, (id) => id)
+        : m.displayText,
       sender: m.sender,
       timestamp: m.timestamp,
       isVisible: m.isVisible,
       context: m.context,
       isErrorMessage: m.isErrorMessage,
+      isAuxiliary: m.isAuxiliary,
       content: m.content,
       parts: m.parts,
       turnStopReason: m.turnStopReason,

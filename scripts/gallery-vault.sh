@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian}"
+OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian-cli}"
 
 if [[ -z "${COPILOT_TEST_VAULT_PATH:-}" ]]; then
   cat >&2 <<'EOF'
@@ -43,6 +43,34 @@ EOF
     exit 1
     ;;
 esac
+
+VAULT_NAME="$(basename "$VAULT_REAL")"
+VAULT_IDENTITY_JSON=""
+if [[ -x "$OBSIDIAN_BIN" ]]; then
+  echo "==> Verifying the running Obsidian vault before deployment"
+  IDENTITY_CODE='JSON.stringify({name:app.vault.getName(),path:app.vault.adapter.getBasePath()})'
+  if ! VAULT_IDENTITY_JSON="$(cd "$VAULT_PATH" && "$OBSIDIAN_BIN" "vault=$VAULT_NAME" eval code="$IDENTITY_CODE")"; then
+    echo "error: could not verify the running test vault; refusing deployment and reload." >&2
+    exit 1
+  fi
+  if ! VAULT_IDENTITY_JSON="$(node -e '
+    const fs = require("node:fs");
+    const path = require("node:path");
+    try {
+      const target = JSON.parse(process.argv[1].trim().replace(/^=>\s*/, ""));
+      if (target?.name !== process.argv[3] || typeof target.path !== "string" ||
+          !path.isAbsolute(target.path) || fs.realpathSync(target.path) !== process.argv[2]) {
+        throw new Error("running vault does not match the configured test vault: " + JSON.stringify(target));
+      }
+      process.stdout.write(JSON.stringify({ name: target.name, path: target.path }));
+    } catch (error) {
+      process.stderr.write("error: refusing a different or unverified vault; " + error.message + "\n");
+      process.exit(1);
+    }
+  ' "$VAULT_IDENTITY_JSON" "$VAULT_REAL" "$VAULT_NAME")"; then
+    exit 1
+  fi
+fi
 
 if ! PLUGIN_ID="$(node -e '
   const id = require("./dev/gallery/manifest.json").id;
@@ -121,11 +149,13 @@ echo "==> Reloading gallery plugin in Obsidian (vault dir: $VAULT_PATH)"
 if [[ ! -x "$OBSIDIAN_BIN" ]]; then
   echo "warning: Obsidian CLI not found at $OBSIDIAN_BIN; skipping reload." >&2
 else
-  RELOAD_CODE="(async()=>{const id=$PLUGIN_ID_JSON;await app.plugins.loadManifests();if(app.plugins.plugins[id])await app.plugins.disablePlugin(id);await app.plugins.enablePluginAndSave(id);const state={manifest:!!app.plugins.manifests[id],loaded:!!app.plugins.plugins[id],enabled:app.plugins.enabledPlugins.has(id)};if(!state.manifest||!state.loaded||!state.enabled)throw new Error('Gallery plugin failed to load: '+JSON.stringify(state));return JSON.stringify(state);})()"
-  if (cd "$VAULT_PATH" && "$OBSIDIAN_BIN" eval code="$RELOAD_CODE" >/dev/null 2>&1); then
+  # 身份复核与重载放在同一次求值，防止预检后连接切换到其他库。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  RELOAD_CODE="(async()=>{const target=$VAULT_IDENTITY_JSON;if(app.vault.getName()!==target.name||app.vault.adapter.getBasePath()!==target.path)throw new Error('Refusing to reload a different vault');const id=$PLUGIN_ID_JSON;await app.plugins.loadManifests();if(app.plugins.plugins[id])await app.plugins.disablePlugin(id);await app.plugins.enablePluginAndSave(id);const state={manifest:!!app.plugins.manifests[id],loaded:!!app.plugins.plugins[id],enabled:app.plugins.enabledPlugins.has(id)};if(!state.manifest||!state.loaded||!state.enabled)throw new Error('Gallery plugin failed to load: '+JSON.stringify(state));return JSON.stringify(state);})()"
+  if (cd "$VAULT_PATH" && "$OBSIDIAN_BIN" "vault=$VAULT_NAME" eval code="$RELOAD_CODE" >/dev/null 2>&1); then
     echo "    reloaded"
   else
-    echo "warning: could not reload via the CLI. Is Obsidian running with this vault open? The plugin will load on next open." >&2
+    echo "error: reload failed or the running vault changed; no other vault will be selected." >&2
+    exit 1
   fi
 fi
 

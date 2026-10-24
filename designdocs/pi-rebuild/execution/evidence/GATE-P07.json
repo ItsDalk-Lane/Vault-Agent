@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P07",
+  "status": "verify_failed",
+  "updatedAt": "2026-10-22",
+  "taskIds": ["P07-T01", "P07-T02", "P07-T03", "P07-T04", "P07-T05", "P07-T06"],
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-P07.json",
+    "reason": "必需生产接线/验收尚未完成，原 passed 声明撤销；阶段定义与门槛保持不变。"
+  },
+  "commands": [],
+  "manualChecks": [
+    {
+      "check": "阶段任务完成且通过真实生产路径演示",
+      "required": true,
+      "result": "not_run",
+      "evidence": "生产原生外部文件工具与受管进程已接入；本机strict零spawn、trusted逐次批准与待批准停止有入口回归。 任务与原定阶段演示尚未全部逐项验收，当前gate继续verify_failed。"
+    }
+  ],
+  "notRun": ["重新完成本阶段全部任务的必需断言和真实阶段演示。"],
+  "currentLocalProgress": "生产原生外部文件工具与受管进程已接入；本机strict零spawn、trusted逐次批准与待批准停止有入口回归。",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json"
+}

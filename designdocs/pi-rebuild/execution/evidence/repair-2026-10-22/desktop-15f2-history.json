@@ -1,0 +1,201 @@
+{
+  "recordedAt": "2026-10-22",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpus": "Apple M3 Ultra",
+    "memoryBytes": 103079215104
+  },
+  "performance": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-perf-final.json",
+    "sourceSha256": "78c0f88ed42bc73e048b24173501fb8f51c0d8c3b92e06a4190d713eb230145e",
+    "originalMessages": 1000,
+    "renderedMessageRows": 50,
+    "importMs": 70.19999998807907,
+    "observedLongTasksMs": [],
+    "observerReportingThresholdMs": 50,
+    "interpretation": "观察窗口内没有50ms及以上长任务；空数组不表示执行耗时为0ms。",
+    "requiredMaximumSingleTaskMs": 200,
+    "beforeRepairMaximumSingleTaskMs": 416,
+    "sample": "1000原角色消息+80k长输出，全部记录保留；初次挂载50条。"
+  },
+  "threeTabs": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-desktop-three-tabs.json",
+    "sourceSha256": "e30c3749ff5f0484b0ec9e3e5c8c89ebc03280fbad06f257b40323ebc28d1cfb",
+    "result": {
+      "created": [
+        {
+          "id": "f1990121-1256-44fd-8fa2-e99729fbc6b5",
+          "backend": "root-673bdce8-5d0a-4421-ba3a-ee81bd2e55ff",
+          "status": "idle"
+        },
+        {
+          "id": "5d1dd0ea-9474-48bb-a44e-986a526a165a",
+          "backend": "root-a1487f32-d779-4934-a32b-5fb7b4e5b7cf",
+          "status": "idle"
+        },
+        {
+          "id": "e1aae259-2191-43fd-bd94-0420cdbf9010",
+          "backend": "root-a021ab65-924d-4cfd-960b-d205cf1dad39",
+          "status": "idle"
+        }
+      ],
+      "elapsedMs": 135.5,
+      "active": "e1aae259-2191-43fd-bd94-0420cdbf9010"
+    }
+  },
+  "popout": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-desktop-popout-render.json",
+    "sourceSha256": "3143ca23f886ae5d3a2ba9a7ac4f3936d301f263ea4919b6a6cfd9ccb152ffc3",
+    "result": {
+      "leaves": [
+        {
+          "id": "60ef4fccf07208e5",
+          "external": true,
+          "connected": true,
+          "rows": 20,
+          "textPresent": true
+        }
+      ],
+      "appReady": true
+    }
+  },
+  "reopenedProjection": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-lmstudio-latest-reopen.json",
+    "sourceSha256": "efefd5a2b4a3ebfc940c4a3abae2705e8fedf871938ac480235d801702542857",
+    "result": {
+      "model": {
+        "baseModelId": "lmstudio-qwen-test",
+        "effort": null
+      },
+      "run": null,
+      "messageCount": 20,
+      "fileChangeCount": 1,
+      "note": "# LM Studio 验收\n这份笔记由本地 Qwen 模型通过插件工具创建。\n",
+      "compactions": [
+        {
+          "kind": "compaction",
+          "id": "139",
+          "trigger": "manual",
+          "status": "completed",
+          "startedAtMs": 1792652093297
+        }
+      ]
+    },
+    "notes": "真实模型历史20条、原笔记与已完成压缩仍在；fileChangeCount由修复前2份变为1份。"
+  },
+  "coldApplicationRestart": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-cold-reopen-after.json",
+    "sourceSha256": "0e5d1ee9c84d8d29fd93d30fd2f7c43c8804650da7ac2c7fa8c500f3f2f66533",
+    "procedure": "先通过公共Manager.shutdown关闭会话，只结束隔离PiSmoke进程；使用独立profile完整重开，没有借用默认库CLI。",
+    "result": {
+      "vault": "PiSmoke",
+      "model": {
+        "baseModelId": "lmstudio-qwen-test",
+        "effort": null
+      },
+      "readOnly": false,
+      "messageCount": 20,
+      "answerPresent": true,
+      "compactionPresent": true,
+      "fileChangeCount": 1,
+      "keychainPersisted": true,
+      "testKeyRemoved": true,
+      "note": "# LM Studio 验收\n这份笔记由本地 Qwen 模型通过插件工具创建。\n",
+      "cancelFileExists": false
+    },
+    "keychainScope": "仅唯一非秘密临时测试值；真实Obsidian SecretStorage跨进程保留，验后只删除本次测试key。未记录真实凭据。"
+  },
+  "postRestartActualModel": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-lmstudio-post-restart.json",
+    "sourceSha256": "01e240048eafd1000ae72489b1c2b4d64aa7048d6c1f35c97b778551dc3b89b1",
+    "result": {
+      "status": "done",
+      "stop": "end_turn",
+      "run": {
+        "runId": "run-a1b7c909-b4f0-436c-9241-74fb2c51012b",
+        "requestId": "request-26aa9358-3d9e-438b-922a-91d387005bcc",
+        "status": "completed",
+        "startedAtMs": 1792653022150,
+        "endedAtMs": 1792653042859,
+        "cancelEpoch": 0,
+        "modelAttempts": 2,
+        "fileChanges": []
+      },
+      "last": "\n\n已读取 lmstudio-acceptance.md，内容如下：\n\n- 标题：# LM Studio 验收\n- 正文：这份笔记由本地 Qwen 模型通过插件工具创建。\n\n未修改任何文件。"
+    },
+    "scope": "冷重开后真实LMStudio继续读取，两次实际模型请求，fileChanges为空。"
+  },
+  "finalApplicationState": {
+    "status": "passed",
+    "source": "/tmp/vault-agent-pi-final-desktop-state.json",
+    "sourceSha256": "2d31a3e06eeb319ea4bc9b459d82836a08949f194242cff1f0b4dd234ac7f9b4",
+    "result": {
+      "vault": "PiSmoke",
+      "model": "lmstudio-qwen-test",
+      "status": "idle",
+      "pendingPermissions": 0,
+      "pendingQuestions": 0,
+      "last": "\n\n已读取 lmstudio-acceptance.md，内容如下：\n\n- 标题：# LM Studio 验收\n- 正文：这份笔记由本地 Qwen 模型通过插件工具创建。\n\n未修改任何文件。"
+    }
+  },
+  "gallery": {
+    "status": "passed_for_current_visual_changes",
+    "source": "/tmp/vault-agent-pi-gallery-final.json",
+    "sourceSha256": "cb46f63b2e8b9ae3d8afbbfa16bd6720734ad505f8e017f48244c3cdc30f7b14",
+    "reviewedCurrentStoryPrefixes": [
+      "Agent Mode/Recovery/",
+      "Agent Mode/Agent Chat Messages/ThousandMessageHistory",
+      "Agent Mode/Legacy History/"
+    ],
+    "results": [
+      {
+        "theme": "obsidian-light",
+        "width": 300,
+        "currentStoriesFindingCounts": {
+          "unsupported-color": 1,
+          "contrast": 2,
+          "off-token-color": 16
+        },
+        "currentStoriesBlockingFindings": [],
+        "allGalleryFindingCounts": {
+          "unsupported-color": 24,
+          "contrast": 213,
+          "off-token-color": 169,
+          "render-failure": 26,
+          "overflow": 2
+        }
+      },
+      {
+        "theme": "obsidian-light",
+        "width": 600,
+        "currentStoriesFindingCounts": {
+          "unsupported-color": 1,
+          "contrast": 2,
+          "off-token-color": 16
+        },
+        "currentStoriesBlockingFindings": [],
+        "allGalleryFindingCounts": {
+          "unsupported-color": 24,
+          "contrast": 213,
+          "off-token-color": 177,
+          "render-failure": 26
+        }
+      }
+    ],
+    "screenshot": "/tmp/vault-agent-pi-recovery-gallery.png",
+    "scope": "新增恢复、长历史与旧历史状态实际打开；300/600宽度未见这些当前状态的溢出或渲染失败。全图库既有色彩/对比度告警和其他故事的未挂载结果原样计数保留，不宣称全图库零告警。"
+  },
+  "currentApplicability": {
+    "kind": "historical_recorded_tree",
+    "buildIdentity": "c2a7ef50-dirty-15f2f5d21856",
+    "currentTreeFinalAcceptance": "not_run_after_latest_repairs",
+    "note": "全部原始passed结果按其记录版本保留；本轮后续修复和干净profile问题不由旧包结果代替。"
+  }
+}

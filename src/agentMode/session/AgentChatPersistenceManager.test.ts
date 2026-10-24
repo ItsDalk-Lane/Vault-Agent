@@ -1,6 +1,11 @@
 /* eslint-disable obsidianmd/no-tfile-tfolder-cast -- test fixtures; not real TFiles */
+import { sha256 } from "@/utils/hash";
+import { listMarkdownFiles } from "@/utils/vaultAdapterUtils";
 import { AI_SENDER, USER_SENDER } from "@/constants";
-import { AgentChatPersistenceManager } from "./AgentChatPersistenceManager";
+import {
+  AgentChatPersistenceManager,
+  placeholderMissingAttachments,
+} from "./AgentChatPersistenceManager";
 import { GLOBAL_SCOPE } from "./scope";
 import type { AgentChatMessage } from "./types";
 import { TFile } from "obsidian";
@@ -42,6 +47,9 @@ jest.mock("@/utils", () => ({
 jest.mock("@/utils/vaultAdapterUtils", () => ({
   listMarkdownFiles: jest.fn().mockReturnValue([]),
   patchFrontmatter: jest.requireActual("@/utils/vaultAdapterUtils").patchFrontmatter,
+  isFileAlreadyExistsError: jest.requireActual("@/utils/vaultAdapterUtils")
+    .isFileAlreadyExistsError,
+  isNameTooLongError: jest.requireActual("@/utils/vaultAdapterUtils").isNameTooLongError,
 }));
 
 interface FakeFile {
@@ -128,6 +136,30 @@ function makeMessage(sender: string, message: string, epoch = 1735732800000): Ag
   };
 }
 
+describe("placeholderMissingAttachments()", () => {
+  it("keeps a resolvable embed and names the original path of a missing one", () => {
+    const text = "See ![[attachments/present.png]] and ![[attachments/gone.png]].";
+
+    const rendered = placeholderMissingAttachments(
+      text,
+      (target: string) => target === "attachments/present.png"
+    );
+
+    expect(rendered).toBe(
+      "See ![[attachments/present.png]] and [missing attachment: attachments/gone.png]."
+    );
+  });
+
+  it("handles markdown embeds and leaves plain text alone", () => {
+    const text = "![photo](attachments/photo.jpg) plus prose";
+
+    expect(placeholderMissingAttachments(text, () => false)).toBe(
+      "[missing attachment: attachments/photo.jpg] plus prose"
+    );
+    expect(placeholderMissingAttachments("no embeds here", () => false)).toBe("no embeds here");
+  });
+});
+
 describe("AgentChatPersistenceManager", () => {
   let app: ReturnType<typeof makeApp>;
   let manager: AgentChatPersistenceManager;
@@ -135,9 +167,192 @@ describe("AgentChatPersistenceManager", () => {
   beforeEach(() => {
     app = makeApp();
     manager = new AgentChatPersistenceManager(app as unknown as App);
+    jest
+      .mocked(listMarkdownFiles)
+      .mockImplementation(
+        (_app, folder) =>
+          Array.from(app.files.values()).filter(
+            (file) => file instanceof TFile && file.path.startsWith(`${folder}/`)
+          ) as unknown as TFile[]
+      );
   });
 
   describe("saveSession()", () => {
+    it("uses the existing filename template for a new Pi chat and reuses its managed copy after reopening with a changed title https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      jest.mocked(getSettings).mockReturnValueOnce({
+        ...getSettings(),
+        defaultConversationNoteName: "我的聊天_{$topic}_{$date}",
+      });
+      const first = await manager.saveSession(
+        [makeMessage(USER_SENDER, "Original question")],
+        "pi",
+        { sessionId: "root-template", label: "原名称" }
+      );
+      expect(first?.path).toBe("test-folder/agent__我的聊天_Original_question_20260101.md");
+      const next = await new AgentChatPersistenceManager(app as unknown as App).saveSession(
+        [makeMessage(USER_SENDER, "Changed question"), makeMessage(AI_SENDER, "New answer")],
+        "pi",
+        { sessionId: "root-template", label: "新名称" }
+      );
+      expect(next?.path).toBe(first?.path);
+      expect(app.files.size).toBe(1);
+      expect(app.files.get(first!.path)?.contents).toContain("新名称");
+      jest.mocked(listMarkdownFiles).mockClear();
+      expect(
+        await manager.saveSession([makeMessage(USER_SENDER, "Original question")], "pi", {
+          sessionId: "root-template",
+          existingPath: first!.path,
+        })
+      ).toEqual(first);
+      expect(listMarkdownFiles).not.toHaveBeenCalled();
+    });
+
+    it("reuses an already deployed canonical hash copy after a cold open without renaming it https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const first = await manager.saveSession([makeMessage(USER_SENDER, "Original")], "pi", {
+        sessionId: "root-deployed",
+      });
+      const deployed = app.files.get(first!.path)!;
+      app.files.delete(first!.path);
+      deployed.path = `test-folder/agent__canonical-${sha256(JSON.stringify(["pi", "root-deployed"]))}.md`;
+      app.files.set(deployed.path, deployed);
+      const saved = await new AgentChatPersistenceManager(app as unknown as App).saveSession(
+        [makeMessage(USER_SENDER, "Changed")],
+        "pi",
+        { sessionId: "root-deployed" }
+      );
+      expect(saved?.path).toBe(deployed.path);
+      expect(app.files.size).toBe(1);
+      expect(deployed.contents).toContain("Changed");
+    });
+
+    it.each(["folder", "unindexed"])(
+      "skips a %s collision without retrying the same path or reading unrelated content https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      async (collision) => {
+        const occupied = "test-folder/agent__20260101_120000__new.md";
+        const create = app.vault.create.getMockImplementation()!;
+        let attempts = 0;
+        if (collision === "folder") app.files.set(occupied, { path: occupied, basename: "folder" });
+        app.vault.create.mockImplementation(async (path, content) => {
+          if (path === occupied) {
+            attempts++;
+            throw new Error(attempts === 1 ? "File already exists" : "repeated occupied path");
+          }
+          return create(path, content);
+        });
+        const saved = await manager.saveSession([makeMessage(USER_SENDER, "new")], "pi", {
+          sessionId: "root-collision",
+        });
+        expect(saved?.path).toBe(occupied.replace(/\.md$/, "-1.md"));
+        expect(attempts).toBeLessThanOrEqual(1);
+        expect(app.vault.adapter.read).not.toHaveBeenCalledWith(occupied);
+      }
+    );
+
+    it("preserves renamed Pi image links in a new safe copy and hashes the final saved body https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const message = {
+        ...makeMessage(USER_SENDER, "image"),
+        content: [{ type: "image_url", image_url: { url: "data:image/png;base64,AQID" } }],
+      };
+      const first = await manager.saveSession([message], "pi", { sessionId: "root-image" });
+      const original = app.files.get(first!.path)!;
+      original.contents = original.contents!.replace(/!\[\]\([^)]+\)/, "![[organized.png]]");
+      const originalHash = sha256(original.contents);
+      const reopened = new AgentChatPersistenceManager(app as unknown as App);
+      const loaded = await reopened.loadFile(original as unknown as TFile);
+      const saved = await reopened.saveSession(loaded.messages, "pi", {
+        sessionId: "root-image",
+        existingPath: original.path,
+      });
+      const copy = app.files.get(saved!.path)!;
+      expect(copy.path).not.toBe(original.path);
+      expect(copy.contents).toContain("![[organized.png]]");
+      expect(sha256(original.contents)).toBe(originalHash);
+      expect(await reopened.writableSessionPath(copy as unknown as TFile, "pi", "root-image")).toBe(
+        copy.path
+      );
+      const next = await reopened.saveSession(loaded.messages, "pi", {
+        sessionId: "root-image",
+        existingPath: copy.path,
+      });
+      expect(next?.path).toBe(copy.path);
+      expect(copy.contents).toContain("![[organized.png]]");
+      expect(await reopened.writableSessionPath(copy as unknown as TFile, "pi", "root-image")).toBe(
+        copy.path
+      );
+      expect(app.vault.createBinary).toHaveBeenCalledTimes(1);
+    });
+
+    it("preserves an unmarked Pi original and reuses one managed canonical copy after reopening or native-only saving https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const original = await app.vault.create(
+        "test-folder/original.md",
+        '---\nmode: agent\nbackendId: pi\nsessionId: "root-preserve"\n---\n**user**: 原问题\n**ai**: 旧备份独有说明，不得丢失'
+      );
+      const hash = sha256(original.contents!);
+      const messages = [makeMessage(USER_SENDER, "原问题"), makeMessage(AI_SENDER, "正式回答")];
+      const first = await manager.saveSession(messages, "pi", {
+        sessionId: "root-preserve",
+        existingPath: original.path,
+      });
+      expect(first?.path).not.toBe(original.path);
+      expect(sha256(original.contents!)).toBe(hash);
+      const cold = new AgentChatPersistenceManager(app as unknown as App);
+      const second = await cold.saveSession(
+        [...messages, makeMessage(USER_SENDER, "新请求")],
+        "pi",
+        { sessionId: "root-preserve" }
+      );
+      expect(second?.path).toBe(first?.path);
+      expect(app.files.get(second!.path)?.contents).toContain("新请求");
+      expect(sha256(original.contents!)).toBe(hash);
+      expect(app.files.size).toBe(2);
+    });
+
+    it("keeps a user-edited managed copy and unrelated collisions intact while reusing a stable untouched replacement https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const messages = [makeMessage(USER_SENDER, "原问题")];
+      const first = await manager.saveSession(messages, "pi", { sessionId: "root-collisions" });
+      const file = app.files.get(first!.path)!;
+      file.contents += "\n用户后来补充的独有文字";
+      const hash = sha256(file.contents!);
+      const cold = new AgentChatPersistenceManager(app as unknown as App);
+      const second = await cold.saveSession([...messages, makeMessage(AI_SENDER, "新结果")], "pi", {
+        sessionId: "root-collisions",
+        existingPath: file.path,
+      });
+      expect(second?.path).not.toBe(file.path);
+      expect(sha256(file.contents!)).toBe(hash);
+      const third = await new AgentChatPersistenceManager(app as unknown as App).saveSession(
+        [...messages, makeMessage(AI_SENDER, "最终结果")],
+        "pi",
+        { sessionId: "root-collisions" }
+      );
+      expect(third?.path).toBe(second?.path);
+      expect(app.files.size).toBe(2);
+    });
+
+    it("rechecks ownership inside the actual host write and preserves a file changed during preparation https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const first = await manager.saveSession([makeMessage(USER_SENDER, "hi")], "pi", {
+        sessionId: "root-write-race",
+      });
+      const file = app.files.get(first!.path)!;
+      app.vault.process.mockImplementationOnce(
+        async (current: FakeFile, render: (text: string) => string) => {
+          current.contents += "\n并发添加的用户文字";
+          const preserved = current.contents;
+          expect(() => render(current.contents!)).toThrow("已被修改");
+          expect(current.contents).toBe(preserved);
+          throw new Error("copy changed");
+        }
+      );
+      expect(
+        await manager.saveSession([makeMessage(USER_SENDER, "new input")], "pi", {
+          sessionId: "root-write-race",
+          existingPath: file.path,
+        })
+      ).toBeNull();
+      expect(file.contents).toContain("并发添加的用户文字");
+      expect(file.contents).not.toContain("new input");
+    });
+
     it("preserves organizer links after native rehydration, reopening and later deletion (https://github.com/Brevilabs/obsidian-copilot-private/issues/533)", async () => {
       const message = {
         ...makeMessage(USER_SENDER, "image"),
@@ -457,7 +672,7 @@ describe("AgentChatPersistenceManager", () => {
 
       expect(app.files.get(first!.path)!.contents).not.toContain("projectId:");
     });
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/698 writes a new chat's own properties instead of keeping another chat's when their filenames collide", async () => {
+    it("preserves both chats in separate files when generated filenames collide https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const first = await manager.saveSession([makeMessage(USER_SENDER, "hi")], "claude", {
         sessionId: "old-session",
         label: "Old agent",
@@ -467,11 +682,32 @@ describe("AgentChatPersistenceManager", () => {
         sessionId: "new-session",
       });
 
-      expect(second!.path).toBe(first!.path);
+      expect(second!.path).not.toBe(first!.path);
+      expect(app.files.get(first!.path)?.contents).toContain("old-session");
       const contents = app.files.get(second!.path)!.contents!;
       expect(contents).toContain('sessionId: "new-session"\n');
       expect(contents).not.toContain("old-session");
       expect(contents).not.toContain("Old agent");
+    });
+  });
+
+  describe("writableSessionPath()", () => {
+    it("accepts only an unchanged managed copy of the same session and refuses unmarked backups https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const saved = await manager.saveSession([makeMessage(USER_SENDER, "hi")], "pi", {
+        sessionId: "root-owned",
+      });
+      const file = app.files.get(saved!.path)! as unknown as TFile;
+      expect(await manager.writableSessionPath(file, "pi", "root-owned")).toBe(saved!.path);
+      expect(await manager.writableSessionPath(file, "pi", "different")).toBeUndefined();
+      app.files.get(saved!.path)!.contents += "\n手动追加";
+      expect(await manager.writableSessionPath(file, "pi", "root-owned")).toBeUndefined();
+      const original = await app.vault.create(
+        "test-folder/unmarked.md",
+        '---\nbackendId: pi\nsessionId: "root-owned"\n---\n旧正文'
+      );
+      expect(
+        await manager.writableSessionPath(original as unknown as TFile, "pi", "root-owned")
+      ).toBeUndefined();
     });
   });
 
@@ -538,6 +774,28 @@ describe("AgentChatPersistenceManager", () => {
       const loadedB = await manager.loadFile(file as unknown as TFile);
       expect(loadedA.messages.map((m) => m.id)).toEqual(loadedB.messages.map((m) => m.id));
       expect(loadedA.messages[0].id.startsWith("loaded-0-")).toBe(true);
+    });
+
+    it("marks a legacy Markdown chat as a text-only import when the Pi runtime asks for it", async () => {
+      const path = "test-folder/agent__textonly.md";
+      await app.vault.adapter.write(
+        path,
+        [
+          "---",
+          "epoch: 1735732800000",
+          "mode: agent",
+          "backendId: claude",
+          "---",
+          "",
+          "**user**: hi",
+        ].join("\n")
+      );
+      manager.setLegacyTextOnlyNoticeEnabled(true);
+
+      const loaded = await manager.loadFile(app.files.get(path) as unknown as TFile);
+
+      expect(loaded.messages[0]?.message).toContain("[Text-only import:");
+      expect(loaded.messages[0]?.message).toContain("hi");
     });
 
     it("maps a legacy agent__ chat with no projectId frontmatter to GLOBAL_SCOPE", async () => {

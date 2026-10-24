@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P14",
+  "taskId": "P14-T05",
+  "status": "partial",
+  "recordedAt": "2026-10-22",
+  "environment": {
+    "host": "macOS 27.0.1 (BuildVersion 26A434), Darwin 27.0.0, arm64 (Apple Silicon)",
+    "npm": "11.13.0",
+    "obsidian": "1.14.4 actual isolated PiSmoke; original installer 1.12.7",
+    "testVault": "隔离PiSmoke；最终调用限定独立调试端口9239、库名与库路径",
+    "workspaceVolume": "Actual case-insensitive host APFS and temporary Case-sensitive APFS both verified; temporary image detached and removed.",
+    "developerNode": "v24.16.0",
+    "node": "22.22.1 (actual Obsidian renderer; developer Node recorded separately)"
+  },
+  "platforms": [
+    {
+      "platform": "darwin",
+      "status": "partial_real_application",
+      "obsidianVersion": "1.14.4 (actual application; installer 1.12.7)",
+      "runtime": "Obsidian实际内嵌Node22.22.1；独立开发Node版本不当作插件运行时。",
+      "pathAliases": {
+        "status": "passed",
+        "evidence": "生产platformPath检查器在Mac真实不敏感卷与临时Case-sensitive APFS敏感卷均通过；链接越界、回库、不同大小写目录身份及硬链接写限制各自保留实际范围。不是Windows/Linux实测。",
+        "evidencePath": "execution/evidence/repair-2026-10-22/current-runtime-results.json",
+        "actualSources": [
+          {
+            "source": "/tmp/vault-agent-current-platform-path.json",
+            "sourceSha256": "0e8cb7af1b788b6ad6e8d97dc35bc2f60acb71b20af69f38ffad4484f6830b5f"
+          },
+          {
+            "source": "/tmp/vault-agent-pi-case-sensitive-mac.json",
+            "sourceSha256": "a4294f29862ddf398980ff520be3f4a1892db93c8f31fc9ca25c8e9e49191f5c"
+          }
+        ]
+      },
+      "keychain": {
+        "status": "passed_real_application",
+        "evidencePath": "execution/evidence/repair-2026-10-22/desktop-final.json",
+        "scope": "15f2历史包实际SecretStorage唯一非秘密临时值跨完整进程重启保留并清理；保留该包范围，不冒充final3重新执行。",
+        "historicalBuildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      },
+      "cancellation": {
+        "status": "passed_real_application",
+        "evidencePath": "execution/evidence/repair-2026-10-22/desktop-final.json",
+        "scope": "c07真实模型写后流中Stop、保留变更与部分回答，重开0请求；final3又复开旧Stop历史。分包证据保留，不笼统冒称全部为同一包。"
+      },
+      "quitAndReopen": {
+        "status": "passed_real_application",
+        "evidencePath": "execution/evidence/repair-2026-10-22/desktop-final.json",
+        "scope": "final3实际选区修改/回退后完整冷重开，原操作与回退编号保留，0模型请求；最终重开编辑器与磁盘一致。",
+        "actualSource": {
+          "source": "/tmp/vault-agent-pi-final3-selection-reopen-real.json",
+          "sourceSha256": "56874757bb6b940fa4e1d0087385e519d7c8c718860ebf8137576533ebf793dc"
+        }
+      },
+      "actualModel": {
+        "status": "passed_local_provider",
+        "evidencePath": "execution/evidence/repair-2026-10-22/mac-local-model.json",
+        "model": "qwen/qwen3.8-27b@4bit, MLX, 16384-token context",
+        "endpointKind": "真实本机LMStudio HTTP endpoint；不是faux，也不是远程供应商证明。",
+        "scope": "本轮本地LMStudio真实Qwen；新观察到的远程DeepSeek配置未调用、不修改。"
+      },
+      "performance": {
+        "status": "passed_real_application",
+        "evidencePath": "execution/evidence/repair-2026-10-22/desktop-final.json",
+        "summary": "1000消息保留，初载DOM50；import70.2ms，无>=50ms长任务。"
+      }
+    },
+    {
+      "platform": "win32",
+      "status": "not_run",
+      "reason": "No Windows host is available in this environment. Windows drive-letter casing, junction/reparse aliases, UNC roots and ADS behavior are covered only by simulated platform tests (PlatformPathPolicy/PathResolver) and must be re-run on real Windows before claiming support."
+    },
+    {
+      "platform": "linux",
+      "status": "not_run",
+      "reason": "No Linux host is available in this environment. POSIX symlink behavior is exercised on darwin (shared POSIX semantics) but real Linux symlink/volume verification is pending."
+    }
+  ],
+  "assertions": [
+    {
+      "scenarioId": "SC-P14-T05-01",
+      "requirement": "Windows junction/ADS 受控",
+      "result": "not_run",
+      "evidence": "相关保护已实现，Mac生产访问链已验；本条仅指Windows路径保护，不包含密钥/停止/重启。 尚缺：Windows上的真实Obsidian/PiSmoke，通过实际访问链检查junction和ADS；平台生命周期另归T05-04及任务必需步骤。"
+    },
+    {
+      "scenarioId": "SC-P14-T05-02",
+      "requirement": "mac 卷大小写准确",
+      "result": "passed",
+      "evidence": "生产platformPath检查器在Mac真实不敏感卷与临时Case-sensitive APFS敏感卷均通过；链接越界、回库、不同大小写目录身份及硬链接写限制各自保留实际范围。不是Windows/Linux实测。"
+    },
+    {
+      "scenarioId": "SC-P14-T05-03",
+      "requirement": "Linux symlink 受控",
+      "result": "not_run",
+      "evidence": "路径与链接规则已实现，Mac生产链接访问已验；本条不包含密钥/停止/重启。 尚缺：Linux上的真实Obsidian/PiSmoke，通过实际访问链检查越界链接与回库链接均被拒绝；生命周期另归T05-04。"
+    },
+    {
+      "scenarioId": "SC-P14-T05-04",
+      "requirement": "三平台核心路径各有证据",
+      "result": "not_run",
+      "evidence": "Mac路径、密钥保存、停止与重启恢复已有分范围实证；不是一个新增功能。 尚缺：补齐Windows/Linux实际版本、路径、密钥、停止、退出重开证据；当前本机没有已可用的目标执行环境。"
+    }
+  ],
+  "not_run": [
+    "SC-P14-T05-01：Windows实际访问链的junction/ADS保护。",
+    "SC-P14-T05-03：Linux实际访问链的符号链接保护。",
+    "SC-P14-T05-04及任务必需步骤：Windows/Linux版本、密钥、停止和重开。"
+  ],
+  "commands": [
+    {
+      "command": "uname -a && sw_vers && node --version && npm --version",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "Darwin 27.0.0 arm64; macOS 27.0.1 (26A434); Node v24.16.0; npm 11.13.0."
+    },
+    {
+      "command": "node /tmp/p14t05/probe.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "volumeCaseInsensitive=true; symlink realpath escapes the vault dir; hardLinkCount=2; unicode path readable; /Library exists."
+    },
+    {
+      "command": "npx esbuild /tmp/p14t05/resolver-check.cjs --bundle --platform=node --format=cjs --alias:@=./src --outfile=/tmp/p14t05/resolver-check.bundle.cjs && node /tmp/p14t05/resolver-check.bundle.cjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "insideResolved=true; outsideSymlinkCode=PATH_OUT_OF_SCOPE; protectedCode=PROTECTED_PATH; caseInsensitiveSamePath=true; caseSensitiveDetectsDifference=true; caseSensitiveExactMatch=true; hardLinkGuard=allowed (nlink=1 for a normal file)."
+    }
+  ],
+  "limitations": [
+    "本轮已实际打开隔离PiSmoke并调用真实本地模型；旧记录中app未启动的说法已被替代。",
+    "只有macOS主机；Windows/Linux仍为not_run，P14不得宣称三平台通过。",
+    "本机Qwen实际推理不代表其他供应商兼容，本机HTTP MCP不代表已获许可的远程服务连接。",
+    "真实1000消息基线416ms，50条分页后未观察到50ms及以上长任务；不声称0ms执行。"
+  ],
+  "handoff": "Mac分范围实证已齐；Windows/Linux目标系统检查仍未执行。远程服务及双模型属于其他原门槛，不混入单条平台路径断言。",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-platforms.json",
+    "reason": "原记录早于实际Obsidian与真实本地模型演示；保留原本机文件系统证据，更新本轮真实应用边界，不宣称三平台完成。"
+  },
+  "currentBuildIdentity": "c2a7ef50-dirty-4b2f879642c3",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json",
+  "clarificationArchive": "execution/evidence/history/before-remaining-nine-clarification-20261022T115826Z.json"
+}

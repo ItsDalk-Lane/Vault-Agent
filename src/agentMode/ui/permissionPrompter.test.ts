@@ -56,7 +56,23 @@ describe("permissionPrompter", () => {
       expect(handleToolPermission).toHaveBeenCalledTimes(1);
     });
 
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/551 routes a Codex collaboration plan review to the plan card", async () => {
+    it("does not reinterpret an unmarked legacy mode command as an executable plan https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const handleToolPermission = jest
+        .fn()
+        .mockResolvedValue({ outcome: { outcome: "cancelled" } });
+      const handlePlanProposalPermission = jest.fn();
+      const session = {
+        handleToolPermission,
+        handlePlanProposalPermission,
+      } as unknown as AgentSession;
+      const request = promptFor("pi", "switch_mode");
+      request.toolCall.rawInput = { plan: "Old protocol data" };
+      await createDefaultPermissionPrompter(() => session)(request);
+      expect(handleToolPermission).toHaveBeenCalledWith(request);
+      expect(handlePlanProposalPermission).not.toHaveBeenCalled();
+    });
+
+    it("routes an explicitly marked built-in plan review to its plan card https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const handlePlanProposalPermission = jest
         .fn()
         .mockResolvedValue({ outcome: { outcome: "cancelled" } });
@@ -66,7 +82,8 @@ describe("permissionPrompter", () => {
         handleToolPermission,
       } as unknown as AgentSession;
       const prompter = createDefaultPermissionPrompter(() => session);
-      const request = promptFor("codex", "switch_mode");
+      const request = promptFor("pi", "other");
+      request.toolCall.isPlanProposal = true;
       request.toolCall.rawInput = { plan: "# Build the note" };
 
       await prompter(request);

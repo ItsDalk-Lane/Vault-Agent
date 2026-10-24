@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "phaseId": "P04",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "taskIds": ["P04-T01", "P04-T02", "P04-T03", "P04-T04", "P04-T05", "P04-T06", "P04-T07"],
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.GATE-P04.json",
+    "reason": "必需生产接线/验收尚未完成，原 passed 声明撤销；阶段定义与门槛保持不变。"
+  },
+  "commands": [
+    {
+      "command": "npm run lint",
+      "warnings": 2,
+      "warningScope": "既有测试mock函数use前缀告警，零error。",
+      "source": "/tmp/vault-agent-pi-final3-lint.log",
+      "sourceSha256": "e2fc91fd828608e619b78d149b1a0147bbd96bcf16b35a8d9be2f9ce338316d8",
+      "exitCode": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "scope": "真实test:vault已执行的嵌套命令；日志含build/esbuild/tsc。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed"
+    }
+  ],
+  "manualChecks": [
+    {
+      "check": "快照和增量重同步无重复",
+      "required": true,
+      "result": "passed",
+      "evidence": "当前实际Backend+AgentSession初始化并行，UI ready未settle已有entry；load/completeResume后各1，用户原ID/selection对象保持；最终517套回归通过。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "压缩外历史不被清空",
+      "required": true,
+      "result": "passed",
+      "evidence": "实际SDK后台stale摘要/显示receipt前进程退出、context overflow仅一次重试、原JSONL完整导出均通过；PiSmoke实际冷重开原20条与completed压缩仍在。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "工具终态缺证据不显示成功",
+      "required": true,
+      "result": "passed",
+      "evidence": "真实审批pending不显示成功；实际SDK终态无结果不宣称completed；Audit/receipt故障进入只读、MCP断线保留interrupted/未知效果。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "check": "原Markdown/复制/时长渲染回归通过",
+      "required": true,
+      "result": "passed",
+      "evidence": "be65实际Obsidian parser代码块/两种内链和真实系统剪贴板精确核对；当前投影持久时长/partial错误/有界输出/唯一filechanges定向与全量均通过。",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "currentLocalProgress": "本阶段原任务、必需命令与原阶段演示均有明确实证；旧撤销记录保留历史，不以文档检查器当插件通过。",
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json",
+  "currentBuildIdentity": "c2a7ef50-dirty-4b2f879642c3"
+}

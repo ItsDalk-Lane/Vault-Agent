@@ -1,75 +1,54 @@
 # Agent Mode — layer rules
 
-Six element types, strict imports. Enforced by `eslint-plugin-boundaries`
+Layer imports are strict. Enforced by `eslint-plugin-boundaries`
 (see root `eslint.config.mjs`). The list below mirrors `boundaries/elements` and
 `boundaries/dependencies` exactly — when in doubt, the lint config wins.
 
 1. **`session/`** — **the contract layer.** Hosts the
    backend-agnostic session, message store, UI-state bridge,
    persistence manager.
-2. **`acp/`** — the generic ACP runtime (subprocess, JSON-RPC connection,
-   vault-backed ACP client, JSON-RPC stream tap) —
-   the only place that touches `@agentclientprotocol/sdk`. **All ACP knowledge is confined here.**
-3. **`sdk/`** — in-process SDK adapters that implement
-   `BackendProcess` directly. Today
-   this hosts the Claude Agent SDK driver. **Does not import `acp/` or `@agentclientprotocol/sdk`** —
-   `acp/` and `sdk/` are siblings, and the SDK adapter speaks the
-   session domain natively.
-4. **`backends/<id>/`** — one backend per folder. Exports a
-   `BackendDescriptor` whose `createBackendProcess` returns a finished
-   `BackendProcess`.
-5. **`backends/registry.ts`** — the only place that names every
-   backend.
-6. **`ui/`** — backend-agnostic React UI. — permission modals, model pickers, and
+2. **`sdk/`** — the in-process adapter layer. `sdk/pi/` is the only
+   execution runtime and the only place allowed to import the locked
+   `@earendil-works` Pi runtime (see [Pi SDK boundary](#pi-sdk-boundary)). The
+   Claude Agent SDK and ACP execution bridges were removed; the boundary scanner
+   rejects importing `acp/`, `ClaudeSdkBackendProcess`, `permissionBridge`, or
+   either removed SDK package.
+3. **`backends/pi/`** — 当前唯一运行装配入口；安装、登录、旧程序探测和旧后端描述符均已移除。
+4. **`backends/registry.ts`** — 只注册当前内置引擎 (`pi`)，作为模型发现和新聊天的唯一运行列表。
+5. **`ui/`** — backend-agnostic React UI. — permission modals, model pickers, and
    trail rendering all read session-domain types;
-7. **`skills/`** — canonical-store discovery, symlink lifecycle, reconciliation,
-   and the Skills settings UI.
+6. **`skills/`** — canonical-store discovery, SKILL.md parsing/editing, built-in
+   coordination, enable/disable metadata, and the Skills settings UI. Skill
+   distribution to agent directories (symlinks, reconcile passes, backend
+   restarts) was removed: Pi reads the canonical store directly through
+   `sdk/pi/features/SkillsCatalog.ts`.
 
-## Why two adapters under one session
+## Pi SDK boundary
 
-The contract lives in `session/types.ts` (`BackendProcess`,
-`BackendDescriptor`, the full session-domain type set) and
-`session/errors.ts` (`MethodUnsupportedError`). `acp/AcpBackendProcess`
-wraps a JSON-RPC subprocess and translates ACP wire ↔ session-domain
-at its public boundary (via `acp/wireTranslate.ts`);
-`sdk/ClaudeSdkBackendProcess` wraps an in-process async generator and
-emits session-domain events natively. Both produce the same
-`SessionEvent` stream and `BackendState`, so `AgentSession` stays
-oblivious. Crucially, **neither adapter imports the other**,
-`session/` doesn't import either, and `@agentclientprotocol/sdk`
-imports outside `acp/` are blocked by lint
-(`no-restricted-imports`).
+The locked Pi runtime (`@earendil-works/pi-durable`, `pi-ai`, `pi-mcp`, `chord` at
+`1.3.0`) is imported **only** from `sdk/pi/`, and only through public package entry
+points. Never import `/dist/` files, `node_modules` paths, or subpaths that are absent
+from the package's `exports` map — the locked contract is `sdk/pi/sdkContract.test.ts`.
 
-## Adding a new backend
+Every other layer — `session/`, `ui/`, `backends/`, `skills/` — consumes the
+backend-agnostic session-domain types in `session/types.ts` instead. `backends/pi/`
+descriptors assemble dependencies and construct `sdk/pi/` adapters; they do not import
+the Pi SDK directly.
 
-Pick a track based on what the agent gives you:
+`session/legacy/` 只保存旧聊天的读取、只读适配器及名称/图标元数据。旧 `backendId` 原样保留，不能加入当前运行注册表。该目录禁止引入 `child_process`、启动进程、旧执行桥或 Pi SDK。
 
-- **Subprocess track** (codex, opencode) — the agent speaks ACP
-  over stdio. Implement `AcpBackend` in `Backend.ts` and have the
-  descriptor's `createBackendProcess(args)` call
-  `simpleBinaryBackendProcess(args, new <Id>Backend())` from
-  `backends/shared/simpleBinaryBackend.ts`. The helper wraps the
-  spawn descriptor in `AcpBackendProcess` for you.
-- **In-process / SDK track** (claude) — the agent ships an
-  in-process SDK. Put the `BackendProcess` implementation in `sdk/`
-  if any logic is reusable (translator, debug tap) and
-  have the descriptor's `createBackendProcess(args)` construct it
-  directly.
+Enforced by `no-restricted-imports` in the root `eslint.config.mjs` (plus the existing
+`boundaries/dependencies` sibling rules) and by
+`node scripts/check-pi-boundaries.mjs`. The scanner's behavior is covered by
+`sdk/pi/__tests__/boundaries.test.ts`.
 
-Then in either case:
+## 当前运行入口
 
-1. Create `backends/<id>/` with:
-   - `descriptor.ts` — `export const <Id>BackendDescriptor: BackendDescriptor = {…}`
-   - any backend-specific UI (install modal, settings panel,
-     permission modal) co-located here
-   - `Backend.ts` (subprocess track only)
-2. Import the descriptor directly from `descriptor.ts` and add it to
-   `backends/registry.ts`.
-3. Settings: store backend-specific config under `agentMode.backends.<id>`
-   (extend `VaultAgentSettings.agentMode.backends` in `src/settings/model.ts`).
-4. Done. **No edits to `acp/`, `session/`, `sdk/`, or `ui/` should be
-   required.** If you need one, the boundary is leaking — extend the
-   descriptor surface instead.
+新聊天只通过 `backends/pi/descriptor.ts` 装配 `sdk/pi/PiBackendProcess.ts`。
+`session/` 与界面只能调用后端无关的契约。历史身份保存在 `session/legacy/historicalBackends.ts`，只用于只读显示，不能恢复旧程序。
+
+需要增加能力时，先使用现有 Pi 宿主工具和公共 SDK 接口，不重新引入 ACP、旧代理 SDK、二进制下载或后台守护程序。
+修改会话契约时，同时检查普通聊天、后台标签、多模型候选、恢复与只读历史。
 
 ## Adding a new layer
 
@@ -84,19 +63,14 @@ Then in either case:
 
 - "Backend-agnostic contract — `BackendProcess`, `BackendDescriptor`,
   the session-domain types, `MethodUnsupportedError`, debug sink,
-  `translateBackendState` helper" → `session/`
-- "ACP wire types, JSON-RPC subprocess plumbing, vault-backed ACP client,
-  ACP↔domain translators" → `acp/` (the **only** layer that imports
-  `@agentclientprotocol/sdk`)
+  model-state selectors and signatures" → `session/`
 - "In-process driver for an SDK that produces session-domain events
   natively" → `sdk/`
 - "Helper used by more than one backend" → `backends/shared/`
-- "Knows about a specific binary, install path, BYOK keys, vendor models" → `backends/<id>/`
+- "模型选择、设置与宿主依赖装配" → `backends/pi/`
 - "React component or modal" → `ui/` (generic) or `backends/<id>/`
   (backend-specific)
-- "Canonical-store skill discovery, symlink lifecycle, SKILL.md
-  parser/serializer, Skills settings tab (reads `backends/registry.ts`
-  for the brand list)" → `skills/`
+- "技能发现、SKILL.md 编辑、启用状态与设置界面" → `skills/`
 - "Plugin-level wiring" → `index.ts` only
 
 ## Modals and dialogs
@@ -119,51 +93,10 @@ If a UI component needs something the descriptor doesn't expose, **add
 it to the descriptor** — don't reach into a specific backend. The
 descriptor will keep growing; that's by design.
 
-## Debugging tips
+## 调试与验收
 
-### Inspect full Agent Mode frames
+使用 `scripts/test-pi-runtime.mjs` 的实际后端场景检查生产接线；模块单测和文件存在检查不能代替产品入口。
+每次 Obsidian 部署都要明确设置测试库位置，核对正在连接的库名和真实完整路径。禁止依赖当前窗口或默认库。
 
-The default debug log truncates each frame's payload to 400 chars. For
-diagnostic frame logs with larger payload summaries, turn on
-**Settings → Advanced → Log Full Agent Mode Frames**.
-
-When enabled, every parsed frame is appended as one NDJSON line outside the
-vault, under the OS temp directory:
-
-```text
-<tmp>/vault-agent/acp-frames/<vault-hash>/acp-frames.ndjson
-```
-
-Each line is a `FrameRecord` (`src/agentMode/session/debugSink.ts`):
-
-```ts
-{ ts, dir: "→" | "←", tag, kind: "request" | "notif" | "result" | "error" | "raw",
-  method, id, payload }
-```
-
-`dir` is from the plugin's perspective: `→` = sent to the agent,
-`←` = received from the agent. `tag` is the backend id (e.g. `claude-sdk`,
-`opencode`, `codex`). The ACP runtime (`acp/debugTap`) and the Claude SDK
-adapter (`sdk/sdkDebugTap`) both feed the shared sink, so JSON-RPC and
-SDK turns appear in the same file.
-
-Useful queries:
-
-```bash
-LOG="<path shown in Settings → Advanced → Agent Mode Frame Log>"
-
-# count frames by method
-jq -r .method "$LOG" | sort | uniq -c | sort -rn
-
-# inspect every session/update payload
-jq -c 'select(.method=="session/update") | .payload' "$LOG"
-
-# only frames for one backend
-jq -c 'select(.tag=="claude-sdk")' "$LOG"
-```
-
-The file is append-only and bounded. Oversized individual frames are replaced
-with a `__truncated` summary, and at 50 MB the file rotates to
-`acp-frames.old.ndjson` (overwriting any prior `.old`) in the same temp
-folder. Use the **Open** / **Clear** buttons in the same settings section, or
-delete the files directly. Disable the toggle when not actively debugging.
+历史和恢复以 Durable 的真实记录为准；取消、出错、摘要未放置、待恢复任务不能投影成完成。
+真实平台、真实模型与远程授权分别记录，缺少环境的检查标记为 `not_run`。

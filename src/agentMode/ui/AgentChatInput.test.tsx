@@ -1,3 +1,4 @@
+import { ModelCapability } from "@/constants";
 import { expandCustomCommandPrefix } from "@/agentMode/session/expandCustomCommandPrefix";
 import { AgentChatInput } from "@/agentMode/ui/AgentChatInput";
 import type { AgentChatBackend } from "@/agentMode/session/AgentChatBackend";
@@ -17,13 +18,15 @@ import React from "react";
 /* eslint-disable @eslint-react/hooks-extra/no-unnecessary-use-prefix */
 
 const mockUseCanUseMultiAgent = jest.fn<boolean, []>();
+let mockSettingsValue: unknown = {};
+let capturedMentionChange: ((ids: string[]) => void) | undefined;
 
 const FAKE_BRANDS = Object.freeze([{ id: "claude", displayName: "Claude", Icon: () => null }]);
 jest.mock("@/agentMode/ui/mentionedAgents", () => ({
   EMPTY_ANSWERERS: Object.freeze([]),
   isFanout: () => false,
   resolveAnswerers: () => [],
-  useInstalledAgentBrands: () => FAKE_BRANDS,
+  useFanoutModelBrands: () => FAKE_BRANDS,
 }));
 
 let capturedAgentBrands: ReadonlyArray<unknown> | undefined;
@@ -38,6 +41,7 @@ jest.mock("@/components/chat-components/ChatInput", () => ({
         handleSendMessage?: () => void;
         onStopGenerating?: () => void;
         isGenerating?: boolean;
+        onMentionedAgentsChange?: (ids: string[]) => void;
       },
       ref: React.ForwardedRef<import("@/components/chat-components/ChatInput").ChatInputHandle>
     ) => {
@@ -51,6 +55,7 @@ jest.mock("@/components/chat-components/ChatInput", () => ({
         },
       }));
       capturedAgentBrands = props.agentBrands;
+      capturedMentionChange = props.onMentionedAgentsChange;
       return (
         <>
           <span data-testid="generating-state">{props.isGenerating ? "running" : "idle"}</span>
@@ -81,7 +86,7 @@ jest.mock("@/settings/model", () => ({
     const baseKey = `${model.name}|${model.provider}`;
     return model._backendId ? `${model._backendId}:${baseKey}` : baseKey;
   },
-  useSettingsValue: () => ({}),
+  useSettingsValue: () => mockSettingsValue,
   getSettings: () => ({ debug: false }),
 }));
 /* eslint-enable @eslint-react/hooks-extra/no-unnecessary-use-prefix */
@@ -201,10 +206,428 @@ describe("AgentChatInput", () => {
     mockActiveWebTab = undefined;
     mockActiveFile = null;
     capturedAgentBrands = undefined;
+    mockSettingsValue = {};
+    capturedMentionChange = undefined;
     mockUseCanUseMultiAgent.mockReturnValue(true);
   });
 
   describe("AgentChatInput()", () => {
+    it("keeps normal sending available while background tasks run and stops them through one backend cancellation without clearing the draft https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      let stopped!: () => void;
+      const cancellation = new Promise<void>((resolve) => {
+        stopped = resolve;
+      });
+      const backend = {
+        getActiveBackgroundTaskCount: () => 2,
+        cancel: jest.fn(() => cancellation),
+        sendMessage: jest.fn(() => ({ id: "new-message", turn: Promise.resolve() })),
+      } as unknown as AgentChatBackend;
+      const draft = makeDraft({ input: "仍可发送新的要求", loading: false });
+      renderInput(backend, draft);
+      const stop = screen.getByRole("button", {
+        name: /Stop all background tasks|停止全部后台任务/,
+      });
+      fireEvent.click(stop);
+      expect(backend.cancel).toHaveBeenCalledTimes(1);
+      const pending = screen.getByRole("button", {
+        name: /Stopping background tasks|正在停止后台任务/,
+      });
+      expect(pending).toHaveProperty("disabled", true);
+      fireEvent.click(pending);
+      expect(backend.cancel).toHaveBeenCalledTimes(1);
+      expect(draft.resetCompose).not.toHaveBeenCalled();
+      expect(draft.setInput).not.toHaveBeenCalled();
+      expect(draft.setLoading).not.toHaveBeenCalled();
+      expect(draft.setQueue).not.toHaveBeenCalled();
+      expect(screen.getByTestId("generating-state").textContent).toBe("idle");
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        stopped();
+        await cancellation;
+      });
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: /Stop all background tasks|停止全部后台任务/ })
+        ).toHaveProperty("disabled", false)
+      );
+    });
+
+    it("adds a pure text requirement to active work without creating or queueing another turn and keeps the draft on a last-boundary rejection https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const backend = {
+        canSteer: () => true,
+        steerMessage: jest.fn(async () => undefined),
+        sendMessage: jest.fn(),
+      } as unknown as AgentChatBackend;
+      const draft = makeDraft({ input: "保留原文", loading: true });
+      const view = renderInput(backend, draft);
+      fireEvent.click(screen.getByRole("button", { name: /Supplement current work|补充当前工作/ }));
+      await waitFor(() => expect(draft.resetCompose).toHaveBeenCalledTimes(1));
+      expect(backend.steerMessage).toHaveBeenCalledWith("保留原文");
+      expect(backend.sendMessage).not.toHaveBeenCalled();
+      expect(draft.setQueue).not.toHaveBeenCalled();
+      expect(draft.setLoading).not.toHaveBeenCalled();
+      jest.mocked(backend.steerMessage!).mockRejectedValueOnce(new Error("未补充，请重新发送"));
+      view.rerender(inputNode(backend, draft));
+      fireEvent.click(screen.getByRole("button", { name: /Supplement current work|补充当前工作/ }));
+      await waitFor(() => expect(Notice).toHaveBeenCalledWith("未补充，请重新发送"));
+      expect(draft.resetCompose).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps attachments, commands and new context on the ordinary queue path rather than steering them https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const backend = {
+        canSteer: () => true,
+        steerMessage: jest.fn(),
+      } as unknown as AgentChatBackend;
+      const view = renderInput(backend, makeDraft({ input: "/compact", loading: true }));
+      const disabled = () =>
+        expect(
+          screen.getByRole("button", { name: /Supplement current work|补充当前工作/ })
+        ).toHaveProperty("disabled", true);
+      disabled();
+      for (const extra of [
+        { images: [image] },
+        { includeActiveNote: true },
+        { includeActiveWebTab: true },
+        { commandContext: { title: "command" } },
+      ]) {
+        view.rerender(
+          inputNode(
+            backend,
+            makeDraft({
+              input: "新要求",
+              loading: true,
+              ...extra,
+            } as Partial<AgentInputDraftControls>)
+          )
+        );
+        disabled();
+      }
+      expect(backend.steerMessage).not.toHaveBeenCalled();
+    });
+
+    it("applies a custom command's configured model before sending its expanded prompt https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const modelApplied: string[] = [];
+      const session = {
+        chatInputId: "input-1",
+        backendId: "pi",
+        applyModelWireId: jest.fn(async (model: string) => {
+          modelApplied.push(model);
+        }),
+      };
+      const backend = {
+        sendMessage: jest.fn(() => {
+          expect(modelApplied).toEqual(["command-model"]);
+          return { id: "sent", turn: Promise.resolve() };
+        }),
+      } as unknown as AgentChatBackend;
+      jest.mocked(expandCustomCommandPrefix).mockResolvedValueOnce({
+        text: "Summarize this",
+        matched: {
+          title: "summarize",
+          content: "Summarize this",
+          modelKey: "command-model",
+          order: 1,
+          lastUsedMs: 0,
+          showInContextMenu: true,
+          showInSlashMenu: true,
+        },
+      });
+      renderInput(backend, makeDraft({ input: "/summarize" }), {
+        plugin: {
+          modelManagement: {
+            backendConfigRegistry: {
+              resolveEnabled: () => [
+                {
+                  state: "ok",
+                  configuredModelId: "command-model",
+                  configuredModel: {
+                    configuredModelId: "command-model",
+                    providerId: "p",
+                    info: { id: "upstream", displayName: "Target" },
+                  },
+                  provider: {
+                    providerId: "p",
+                    providerType: "openai-compatible",
+                    displayName: "Provider",
+                    origin: { kind: "byok" },
+                    requiresApiKey: false,
+                  },
+                },
+              ],
+            },
+          },
+          agentSessionManager: { getSessions: () => [session] },
+        } as never,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() =>
+        expect(backend.sendMessage).toHaveBeenCalledWith(
+          "Summarize this",
+          undefined,
+          undefined,
+          undefined
+        )
+      );
+      expect(session.applyModelWireId).toHaveBeenCalledWith("command-model");
+    });
+    it("keeps a command draft and sends nothing when its configured model is no longer enabled https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const backend = { sendMessage: jest.fn() } as unknown as AgentChatBackend;
+      const draft = makeDraft({ input: "/removed" });
+      jest.mocked(expandCustomCommandPrefix).mockResolvedValueOnce({
+        text: "expanded",
+        matched: {
+          title: "removed",
+          content: "expanded",
+          modelKey: "deleted-model",
+          order: 1,
+          lastUsedMs: 0,
+          showInContextMenu: true,
+          showInSlashMenu: true,
+        },
+      });
+      renderInput(backend, draft, {
+        plugin: {
+          modelManagement: { backendConfigRegistry: { resolveEnabled: () => [] } },
+        } as never,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() =>
+        expect(Notice).toHaveBeenCalledWith(
+          expect.stringContaining("command's model is unavailable")
+        )
+      );
+      expect(backend.sendMessage).not.toHaveBeenCalled();
+      expect(draft.resetCompose).not.toHaveBeenCalled();
+    });
+    it("keeps queued prompts with different command models as separate turns and waits for each model switch https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const calls: string[] = [];
+      const session = {
+        chatInputId: "input-1",
+        applyModelWireId: jest.fn(async (model: string) => {
+          calls.push(model);
+        }),
+      };
+      const backend = {
+        sendMessage: jest.fn((text: string) => {
+          calls.push(text);
+          return { id: "sent", turn: Promise.resolve() };
+        }),
+      } as unknown as AgentChatBackend;
+      const store = new AgentInputDraftStore(makeApp(), () => true);
+      store.update("input-1", (draft) => ({
+        ...draft,
+        input: "",
+        queue: [
+          { id: "1", rawInput: "/first", text: "first prompt", commandModelId: "first-model" },
+          { id: "2", rawInput: "/second", text: "second prompt", commandModelId: "second-model" },
+        ],
+      }));
+      function Composer() {
+        const draft = useAgentInputDrafts({ store, chatInputId: "input-1" });
+        return inputNode(backend, draft, {
+          plugin: { agentSessionManager: { getSessions: () => [session] } } as never,
+        });
+      }
+      render(<Composer />);
+      await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(2));
+      expect(calls).toEqual(["first-model", "first prompt", "second-model", "second prompt"]);
+    });
+    it("expands an editor command using its original selection and source note even after the active note changes https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const source = makeFile("Original.md");
+      mockActiveFile = makeFile("Different.md");
+      const backend = {
+        sendMessage: jest.fn(() => ({ id: "sent", turn: Promise.resolve() })),
+      } as unknown as AgentChatBackend;
+      renderInput(
+        backend,
+        makeDraft({
+          input: "/summarize",
+          commandContext: { selectedText: "original excerpt", activeFile: source },
+        })
+      );
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1));
+      expect(expandCustomCommandPrefix).toHaveBeenCalledWith(
+        "/summarize",
+        [],
+        "original excerpt",
+        source,
+        true
+      );
+    });
+    it.each([true, false])(
+      "checks attached images against the command model rather than the previous chat model: vision=%s https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
+      async (vision) => {
+        const applyModelWireId = jest.fn().mockResolvedValue(undefined);
+        const backend = {
+          sendMessage: jest.fn(() => ({ id: "sent", turn: Promise.resolve() })),
+        } as unknown as AgentChatBackend;
+        const draft = makeDraft({ input: "/image-command", images: [image] });
+        jest.mocked(expandCustomCommandPrefix).mockResolvedValueOnce({
+          text: "Analyze attached image",
+          matched: {
+            title: "image-command",
+            content: "Analyze attached image",
+            modelKey: "command-model",
+            showInContextMenu: true,
+            showInSlashMenu: true,
+            order: 1,
+            lastUsedMs: 0,
+          },
+        });
+        renderInput(backend, draft, {
+          plugin: {
+            modelManagement: {
+              backendConfigRegistry: {
+                resolveEnabled: () => [
+                  {
+                    state: "ok",
+                    configuredModelId: "command-model",
+                    configuredModel: {
+                      configuredModelId: "command-model",
+                      providerId: "p",
+                      info: { id: "model", displayName: "Command model" },
+                    },
+                    provider: { providerType: "openai-compatible", origin: { kind: "byok" } },
+                  },
+                ],
+              },
+            },
+            agentSessionManager: {
+              getSessions: () => [{ chatInputId: "input-1", applyModelWireId }],
+            },
+          } as never,
+          modelPickerOverride: {
+            value: "current|agent",
+            onChange: jest.fn(),
+            models: [
+              {
+                name: "current",
+                provider: "agent",
+                enabled: true,
+                capabilities: vision ? [] : [ModelCapability.VISION],
+              },
+              {
+                name: "command-model",
+                provider: "agent",
+                enabled: true,
+                capabilities: vision ? [ModelCapability.VISION] : [],
+              },
+            ],
+          },
+        });
+        await act(async () => fireEvent.click(screen.getByRole("button", { name: "send" })));
+        if (vision) {
+          await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1));
+          expect(applyModelWireId).toHaveBeenCalledWith("command-model");
+        } else {
+          expect(backend.sendMessage).not.toHaveBeenCalled();
+          expect(draft.resetCompose).not.toHaveBeenCalled();
+        }
+      }
+    );
+    it("restores the unsent command, original selection and image when its model switch fails https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const backend = { sendMessage: jest.fn() } as unknown as AgentChatBackend;
+      const store = new AgentInputDraftStore(makeApp(), () => true);
+      const original = { selectedText: "excerpt", activeFile: makeFile("Original.md") };
+      store.update("input-1", (draft) => ({
+        ...draft,
+        input: "/command",
+        images: [image],
+        commandContext: original,
+      }));
+      jest.mocked(expandCustomCommandPrefix).mockResolvedValueOnce({
+        text: "expanded",
+        matched: {
+          title: "command",
+          content: "expanded",
+          modelKey: "target",
+          showInContextMenu: true,
+          showInSlashMenu: true,
+          order: 0,
+          lastUsedMs: 0,
+        },
+      });
+      function Composer() {
+        const draft = useAgentInputDrafts({ store, chatInputId: "input-1" });
+        return inputNode(backend, draft, {
+          plugin: {
+            modelManagement: {
+              backendConfigRegistry: {
+                resolveEnabled: () => [
+                  {
+                    state: "ok",
+                    configuredModelId: "target",
+                    configuredModel: {
+                      configuredModelId: "target",
+                      providerId: "p",
+                      info: { id: "target", displayName: "Target" },
+                    },
+                    provider: { providerType: "openai-compatible", origin: { kind: "byok" } },
+                  },
+                ],
+              },
+            },
+            agentSessionManager: {
+              drafts: store,
+              getSessions: () => [
+                {
+                  chatInputId: "input-1",
+                  applyModelWireId: async () => {
+                    throw new Error("Model removed during selection");
+                  },
+                },
+              ],
+            },
+          } as never,
+        });
+      }
+      render(<Composer />);
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() => expect(store.get("input-1")?.images).toHaveLength(1));
+      await waitFor(() => expect(store.get("input-1")?.loading).toBe(false));
+      expect(store.get("input-1")?.input).toBe("/command");
+      expect(store.get("input-1")?.commandContext).toEqual(original);
+      expect(backend.sendMessage).not.toHaveBeenCalled();
+    });
+    it("sends two selected saved model ids from the Pi composer https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      mockSettingsValue = {
+        backends: { pi: { enabledModels: ["cm-a", "cm-b"] } },
+        configuredModels: [
+          {
+            configuredModelId: "cm-a",
+            providerId: "p",
+            info: { id: "first", displayName: "First" },
+          },
+          {
+            configuredModelId: "cm-b",
+            providerId: "p",
+            info: { id: "second", displayName: "Second" },
+          },
+        ],
+        providers: {
+          p: {
+            providerType: "anthropic",
+            origin: { kind: "byok" },
+            apiKeyKeychainId: "key",
+            displayName: "Endpoint",
+          },
+        },
+      };
+      const backend = {
+        sendMessage: jest.fn(() => ({ id: "sent", turn: Promise.resolve() })),
+      } as unknown as AgentChatBackend;
+      renderInput(backend, makeDraft(), { mainAgentId: "pi" });
+      capturedMentionChange?.(["cm-a", "cm-b"]);
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() =>
+        expect(backend.sendMessage).toHaveBeenCalledWith("hello", undefined, undefined, [
+          "cm-a",
+          "cm-b",
+        ])
+      );
+    });
     it.each([
       {
         scenario: "the active note and its selection together",

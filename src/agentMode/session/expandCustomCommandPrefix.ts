@@ -13,7 +13,8 @@ export async function expandCustomCommandPrefix(
   input: string,
   commands: readonly CustomCommand[],
   selectedText: string,
-  activeNote: TFile | null
+  activeNote: TFile | null,
+  enableTemplating = true
 ): Promise<ExpandCustomCommandResult> {
   const resolved = resolveCustomCommandPrefix(input, commands);
   if (!resolved.matched) return resolved;
@@ -23,6 +24,8 @@ export async function expandCustomCommandPrefix(
     return { text: input };
   }
 
+  // 关闭模板开关时保留命令原文，不能继续替换选区或引用变量。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+  if (!enableTemplating) return resolved;
   const text = translateCommandToAgentText(resolved.text, selectedText, activeNote);
   return { text, matched: resolved.matched };
 }

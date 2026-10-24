@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { FilesChangedCard } from "@/agentMode/ui/FilesChangedCard";
 import type { TurnFileChange } from "@/agentMode/session/types";
 
@@ -26,6 +26,85 @@ function rowNames(): string[] {
 
 describe("FilesChangedCard", () => {
   describe("FilesChangedCard()", () => {
+    it("offers receipt-backed revert, waits for approval and reports confirmed completion https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      let complete!: (result: { ok: boolean }) => void;
+      const onRevert = jest.fn(
+        () => new Promise<{ ok: boolean }>((resolve) => (complete = resolve))
+      );
+      const target = change("notes/approved.md", { mutationOperationIds: ["op-write"] });
+      render(<FilesChangedCard changes={[target]} onOpen={jest.fn()} onRevert={onRevert} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+      expect(onRevert).toHaveBeenCalledWith(target);
+      expect(screen.getByRole("button", { name: "Reverting…" })).toHaveProperty("disabled", true);
+      expect(screen.queryByText("Reverted")).toBeNull();
+
+      await act(async () => complete({ ok: true }));
+      expect(screen.getByRole("button", { name: "Reverted" })).toHaveProperty("disabled", true);
+    });
+
+    it.each([
+      ["CONFLICT", "This note was edited later. Your changes were kept."],
+      [
+        "PARTIAL",
+        "Only part of the change was reverted. Review the affected notes before retrying.",
+      ],
+      [
+        "EFFECT_UNKNOWN",
+        "The revert result is unconfirmed. Check the note before taking another action.",
+      ],
+      ["CANCELLED", "The revert was cancelled or declined."],
+      ["PERMISSION_DENIED", "The revert was cancelled or declined."],
+    ])(
+      "shows %s without marking the change reverted https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      async (code, message) => {
+        render(
+          <FilesChangedCard
+            changes={[change("notes/changed.md", { mutationOperationIds: ["op-write"] })]}
+            onOpen={jest.fn()}
+            onRevert={async () => ({ ok: false, code, message: "internal detail" })}
+          />
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+        expect(await screen.findByRole("alert")).toHaveProperty("textContent", message);
+        expect(screen.queryByText("Reverted")).toBeNull();
+      }
+    );
+
+    it("shows a rejected host request and keeps retry available https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      render(
+        <FilesChangedCard
+          changes={[change("notes/closed.md", { mutationOperationIds: ["op-write"] })]}
+          onOpen={jest.fn()}
+          onRevert={async () => {
+            throw new Error("Chat closed");
+          }}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+      expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Chat closed");
+      expect(screen.getByRole("button", { name: "Revert" })).toHaveProperty("disabled", false);
+    });
+
+    it("offers no revert for legacy changes without receipts and disables it while another action runs https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const onRevert = jest.fn();
+      render(
+        <FilesChangedCard
+          changes={[
+            change("legacy.md"),
+            change("recorded.md", { mutationOperationIds: ["op-write"] }),
+          ]}
+          onOpen={jest.fn()}
+          onRevert={onRevert}
+          isBusy
+        />
+      );
+      const button = screen.getByRole("button", { name: "Revert" });
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(button);
+      expect(onRevert).not.toHaveBeenCalled();
+    });
+
     it("titles the card with the file count and the summed additions and deletions", () => {
       renderCard([
         change("notes/a.md", { additions: 30, deletions: 2 }),

@@ -1,0 +1,297 @@
+{
+  "checkedAt": "2026-10-21",
+  "vaultCommit": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "piRelease": "1.3.0",
+  "piCommit": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+  "piWebCommit": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+  "sources": [
+    {
+      "id": "V01",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "AGENTS.md",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/AGENTS.md",
+      "finding": "仓库工程、测试、注释与审查约束；实施时以工作树实际版本为准。"
+    },
+    {
+      "id": "V02",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/AGENTS.md",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/AGENTS.md",
+      "finding": "session 契约层、sdk/acp 适配层和 UI 边界；新增层需更新 ESLint。"
+    },
+    {
+      "id": "V03",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/types.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/types.ts",
+      "finding": "BackendProcess、SessionEvent、PermissionPrompt、AgentMessagePart、TurnFileChange 等既有契约。"
+    },
+    {
+      "id": "V04",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/descriptor.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/descriptor.ts",
+      "finding": "现有后端描述符包含安装、登录、模型、技能等外部执行器语义。"
+    },
+    {
+      "id": "V05",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/AgentChatPersistenceManager.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/AgentChatPersistenceManager.ts",
+      "finding": "Markdown 保存正文和时间等展示信息，不能等同完整模型执行历史。"
+    },
+    {
+      "id": "V06",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/AgentSessionIndex.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/AgentSessionIndex.ts",
+      "finding": "索引以 backendId:sessionId 为键，包含标题、时间、项目及墓碑。"
+    },
+    {
+      "id": "V07",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/AgentSession.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/AgentSession.ts",
+      "finding": "会话状态、文件变化、计划、问题、fan-out 与上下文集成的现有入口。"
+    },
+    {
+      "id": "V08",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/ui/AgentChatMessages.tsx",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/ui/AgentChatMessages.tsx",
+      "finding": "消息入口包含 AgentTrail、Fanout、计划、权限、提问、反馈、时长与 Diff。"
+    },
+    {
+      "id": "V09",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/ui/AgentTrailView.tsx",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/ui/AgentTrailView.tsx",
+      "finding": "工具、活动组、子代理、思考、文本、计划、压缩及文件变更渲染节点。"
+    },
+    {
+      "id": "V10",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/ui/agentTrail.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/ui/agentTrail.ts",
+      "finding": "以 Agent/Task 识别子代理，以 parentToolCallId 连接子工具；ToolSearch 被隐藏。"
+    },
+    {
+      "id": "V11",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/plan.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/plan.ts",
+      "finding": "CurrentPlan 的版本、审批状态及 permissionGated 字段。"
+    },
+    {
+      "id": "V12",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/session/planUsage.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/session/planUsage.ts",
+      "finding": "用量窗口类型；BYOK 不自动提供供应商订阅额度。"
+    },
+    {
+      "id": "V13",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/sdk/permissionBridge.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/sdk/permissionBridge.ts",
+      "finding": "旧权限桥依赖 Claude SDK 的决策和权限更新语义，不能原样用作新权限引擎。"
+    },
+    {
+      "id": "V14",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/services/keychainService.ts",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/services/keychainService.ts",
+      "finding": "已有 SecretStorage 适配与 getSecretById/setSecretById/deleteSecretById，可复用。"
+    },
+    {
+      "id": "V15",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "esbuild.config.mjs",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/esbuild.config.mjs",
+      "finding": "现有 CJS 单文件打包及 Node 外部模块配置；已完成的 PoC 不重新作为待办。"
+    },
+    {
+      "id": "V16",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "package.json",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/package.json",
+      "finding": "构建/测试/审查脚本及待删除的旧 Agent 依赖。"
+    },
+    {
+      "id": "V17",
+      "repo": "ItsDalk-Lane/Vault-Agent",
+      "ref": "c2a7ef50539397627a6e4446283d791ad423aff6",
+      "path": "src/agentMode/ui/ProjectInfoPopover.tsx",
+      "url": "https://github.com/ItsDalk-Lane/Vault-Agent/blob/c2a7ef50539397627a6e4446283d791ad423aff6/src/agentMode/ui/ProjectInfoPopover.tsx",
+      "finding": "现有项目进度区消费 AgentTodoListEntry；功能不能仅停留在工具卡。"
+    },
+    {
+      "id": "P01",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/README.md",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/README.md",
+      "finding": "Durable 是实验性完整 harness；提供持久化、工具、压缩、子会话、恢复与事件。"
+    },
+    {
+      "id": "P02",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/index.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/index.ts",
+      "finding": "1.3.0 公共导出，禁止深层私有 imports。"
+    },
+    {
+      "id": "P03",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/harness/types.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/types.ts",
+      "finding": "实际工具、Harness、Conversation、Hooks 与 Settings 类型。"
+    },
+    {
+      "id": "P04",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/harness/events.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/events.ts",
+      "finding": "watchEvents 原子快照/订阅、delta、snapshot 重同步和工具终态。"
+    },
+    {
+      "id": "P05",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/harness/view.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/view.ts",
+      "finding": "快照挂载 active entries 与内置文档，不是全部聊天历史，也不自动包含自定义文档。"
+    },
+    {
+      "id": "P06",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/storage/jsonl/node.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/storage/jsonl/node.ts",
+      "finding": "openNodeJsonlStorage(directory, context, options) 的真实签名。"
+    },
+    {
+      "id": "P07",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/tools/index.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/tools/index.ts",
+      "finding": "Durable 原生 read/write/edit/bash/PowerShell 工具的公共导出。"
+    },
+    {
+      "id": "P08",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/tools/bash.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/tools/bash.ts",
+      "finding": "原生命令工具通过 ExecutionEnv 执行；宿主必须添加超时、授权和环境约束。"
+    },
+    {
+      "id": "P09",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/ai/README.md",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/ai/README.md",
+      "finding": "Models 集合、Provider 工厂、凭据、模型能力与模型流事件。"
+    },
+    {
+      "id": "P10",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/mcp/README.md",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/mcp/README.md",
+      "finding": "独立 MCP 客户端、HTTP/stdio、OAuth、工具转换、取消与不支持的协议面。"
+    },
+    {
+      "id": "P11",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/test/examples/22-subagent-foreground.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/test/examples/22-subagent-foreground.ts",
+      "finding": "前台拥有关系和可恢复子代理示例。"
+    },
+    {
+      "id": "P12",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/test/examples/23-subagent-background.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/test/examples/23-subagent-background.ts",
+      "finding": "后台 anchor/reporter 与稳定 requestId；按示例理解，不直接复制产品逻辑。"
+    },
+    {
+      "id": "W01",
+      "repo": "agegr/pi-web",
+      "ref": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+      "path": "package.json",
+      "url": "https://github.com/agegr/pi-web/blob/e533d9b3975f8a74b378d5007c92fdf4d15d3fba/package.json",
+      "finding": "pi-web 0.12.2 使用 Pi 1.2.0，并非本方案 Durable 1.3.0 的可直接复制实现。"
+    },
+    {
+      "id": "W02",
+      "repo": "agegr/pi-web",
+      "ref": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+      "path": "lib/mcp-test.ts",
+      "url": "https://github.com/agegr/pi-web/blob/e533d9b3975f8a74b378d5007c92fdf4d15d3fba/lib/mcp-test.ts",
+      "finding": "测试连接的请求/总时限、同配置合并、脱敏优先与状态记录。"
+    },
+    {
+      "id": "W03",
+      "repo": "agegr/pi-web",
+      "ref": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+      "path": "lib/mcp-transport.ts",
+      "url": "https://github.com/agegr/pi-web/blob/e533d9b3975f8a74b378d5007c92fdf4d15d3fba/lib/mcp-transport.ts",
+      "finding": "stdio 清洗环境、inheritEnv:false，不回退到不受控环境。"
+    },
+    {
+      "id": "W04",
+      "repo": "agegr/pi-web",
+      "ref": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+      "path": "lib/subagent-extension.ts",
+      "url": "https://github.com/agegr/pi-web/blob/e533d9b3975f8a74b378d5007c92fdf4d15d3fba/lib/subagent-extension.ts",
+      "finding": "子代理 profile、生命周期、父工具关联与后台报告的来源标记。"
+    },
+    {
+      "id": "W05",
+      "repo": "agegr/pi-web",
+      "ref": "e533d9b3975f8a74b378d5007c92fdf4d15d3fba",
+      "path": "lib/subagent-input.ts",
+      "url": "https://github.com/agegr/pi-web/blob/e533d9b3975f8a74b378d5007c92fdf4d15d3fba/lib/subagent-input.ts",
+      "finding": "子代理输入文件/字节限制思路；本项目数值另行锁定。"
+    },
+    {
+      "id": "P13",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/src/harness/provider.ts",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/provider.ts",
+      "finding": "ProviderDoc持久化每个conversation的sessionId，fork得到新身份；用于宿主请求归属映射。"
+    },
+    {
+      "id": "P14",
+      "repo": "earendil-works/pi",
+      "ref": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+      "path": "packages/durable/package.json",
+      "url": "https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/package.json",
+      "finding": "确认1.3.0、public exports、Node引擎声明与chord/pi-ai依赖版本。"
+    }
+  ]
+}

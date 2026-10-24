@@ -196,6 +196,36 @@ const restrictedConsoleCalls = [
   },
 ];
 
+const ACP_SDK_IMPORT_RESTRICTION = {
+  name: "@agentclientprotocol/sdk",
+  message:
+    "ACP wire types are confined to src/agentMode/acp/. session/, sdk/, ui/, backends/, and skills/ should depend on the session-domain types in @/agentMode/session/types instead. See src/agentMode/AGENTS.md.",
+};
+
+const MODEL_MANAGEMENT_DEEP_IMPORT = {
+  group: ["@/modelManagement/*"],
+  message:
+    "Import from @/modelManagement (the barrel) only. Deep imports of @/modelManagement/types/* are not allowed from outside the module. See src/modelManagement/AGENTS.md.",
+};
+
+const PI_SDK_BOUNDARY_MESSAGE =
+  "The locked @earendil-works Pi SDK is confined to src/agentMode/sdk/pi/, and only public package entry points are importable (never /dist/ or node_modules paths). Other layers consume the session-domain types in @/agentMode/session/types instead. See src/agentMode/AGENTS.md.";
+
+const PI_SDK_OUTSIDE_SDK_PI = {
+  group: ["@earendil-works/*", "@earendil-works/**", "**/node_modules/@earendil-works/**"],
+  message: PI_SDK_BOUNDARY_MESSAGE,
+};
+
+const PI_SDK_PRIVATE_SUBPATH = {
+  group: [
+    "@earendil-works/*/dist",
+    "@earendil-works/*/dist/**",
+    "**/node_modules/@earendil-works/**",
+  ],
+  message:
+    "Private Pi SDK paths are not importable. Import a public subpath from the package's exports map instead. See src/agentMode/AGENTS.md.",
+};
+
 export default [
   {
     ignores: [
@@ -489,7 +519,6 @@ export default [
   {
     files: [
       "**/*.cjs",
-      "scripts/patchRendererUnsafeUnref.js",
       "scripts/bundleSizeGuard.js",
       "scripts/bundleSizeGuard.test.js",
     ],
@@ -580,20 +609,20 @@ export default [
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "@agentclientprotocol/sdk",
-              message:
-                "ACP wire types are confined to src/agentMode/acp/. session/, sdk/, ui/, backends/, and skills/ should depend on the session-domain types in @/agentMode/session/types instead. See src/agentMode/AGENTS.md.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["@/modelManagement/*"],
-              message:
-                "Import from @/modelManagement (the barrel) only. Deep imports of @/modelManagement/types/* are not allowed from outside the module. See src/modelManagement/AGENTS.md.",
-            },
-          ],
+          paths: [ACP_SDK_IMPORT_RESTRICTION],
+          patterns: [MODEL_MANAGEMENT_DEEP_IMPORT, PI_SDK_OUTSIDE_SDK_PI],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/agentMode/sdk/pi/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [ACP_SDK_IMPORT_RESTRICTION],
+          patterns: [MODEL_MANAGEMENT_DEEP_IMPORT, PI_SDK_PRIVATE_SUBPATH],
         },
       ],
     },
@@ -601,13 +630,25 @@ export default [
   {
     files: ["src/agentMode/acp/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [],
+          patterns: [MODEL_MANAGEMENT_DEEP_IMPORT, PI_SDK_OUTSIDE_SDK_PI],
+        },
+      ],
     },
   },
   {
     files: ["src/modelManagement/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": "off",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [ACP_SDK_IMPORT_RESTRICTION],
+          patterns: [PI_SDK_OUTSIDE_SDK_PI],
+        },
+      ],
     },
   },
 

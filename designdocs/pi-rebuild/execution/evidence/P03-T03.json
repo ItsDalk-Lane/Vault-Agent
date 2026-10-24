@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T03",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/models/ProviderFactory.ts",
+    "src/agentMode/sdk/pi/models/ModelRuntime.ts",
+    "src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P03-T03.json"
+  ],
+  "scenarioIds": ["SC-P03-T03-01", "SC-P03-T03-02", "SC-P03-T03-03", "SC-P03-T03-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/models/ProviderFactory.ts src/agentMode/sdk/pi/models/ModelRuntime.ts src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（no-unused-vars、no-unnecessary-type-assertion、no-restricted-syntax、issue-linked comments 均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1185 file(s)：Pi provider 模块只在 sdk/pi，动态 import 均为公开 exports 子路径（/models、/api/*.lazy）。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 models/ProviderFactory.ts、models/ModelRuntime.ts、models/ModelRuntime.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 17,
+      "durationSeconds": 2.6,
+      "logPath": "/tmp/vault-agent-required-current/18.log",
+      "logSha256": "e1b67014a5ee3a13718b386e3618a3354ff17ba77e22db6a1d19a4defa44c3a7",
+      "testFile": "src/agentMode/sdk/pi/models/ModelRuntime.test.ts",
+      "testSourceSha256": "b329985934328491d9b6aa62622ce63e54080e2076aa0f5e35097971047f1a95",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T03-01",
+      "requirement": "四协议fake请求按正确provider发出",
+      "result": "passed",
+      "evidence": "真实 Pi 集成（子 Node 进程）：ModelRuntime 用真实 createModels + createProvider 注册 4 个 provider（anthropic-messages / openai-responses / openai-completions / google-generative-ai），每个 provider 的 api streams 来自对应协议工厂（本测试经注入的 fake streams 记录协议）；testConnection 全部 connected，报告 providerProtocols 顺序与注册顺序一致，说明请求落到各自 provider/协议。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T03-02",
+      "requirement": "未授权环境key不被用",
+      "result": "passed",
+      "evidence": "createModels 注入 STRICT_NO_AMBIENT_AUTH（env 恒 undefined、fileExists 恒 false）；ProviderFactory 的 keychain-only auth resolve 完全不读 ctx.env，测试用 ctx.env 返回 ANTHROPIC_API_KEY 仍得到 undefined；真实集成中子进程设置 process.env.ANTHROPIC_API_KEY 后，无 Keychain credential 的 provider 返回 CREDENTIAL_REQUIRED 且 fake 请求数增量为 0。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T03-03",
+      "requirement": "测试不读笔记",
+      "result": "passed",
+      "evidence": "testConnection 只用 MINIMAL_CONNECTION_PROMPT='ping' 构造单条 user message 的 Context：测试断言 systemPrompt/tools 为 undefined、messages 长度为 1、content 为 'ping'，序列化后不含 Notes//.md/vault 字样；真实集成对所有 fake 请求做同样断言。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T03-04",
+      "requirement": "取消连接测试停止请求",
+      "result": "passed",
+      "evidence": "testConnection 接收 AbortSignal：已取消时直接返回 cancelled 且不调用 complete；在途时 abort 通过 signal 传入 models.complete，fake 在 signal abort 后以 aborted 响应结束，运行时返回 cancelled（而非 connected/success），complete 只调用一次；真实集成中 prov-cancel 的 fake 请求收到 abort 并结束。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "真实集成测试用注入的 fake streams（创建真实 AssistantMessageEventStream）替代真实网络请求；四协议 lazy api 真实模块加载路径已在子进程 bundle 中验证，但未向任何真实供应商发请求（也禁止）。",
+    "连接测试只验证 auth+一次最小补全；不验证模型工具调用/thinking/图片能力，也不代表供应商可用性（设计明确要求分别记录）。",
+    "ModelRuntime 目前不做预算/root/run 门禁；这些属 P03-T04 ProviderGuard + RunBudget。",
+    "ModelCatalog→ProviderBuildConfig 的接线未做（P03-T05 根运行时负责），requiresApiKey 由调用方根据既有 Provider 配置提供。",
+    "ProviderFactory 模型默认 contextWindow=8192、maxTokens=4096 为占位默认；未知窗口的真实模型需用户声明（design 9.7），接线时应拒绝把未知当已知。",
+    "测试子进程设置并清理 process.env.ANTHROPIC_API_KEY，未影响宿主环境；生产路径无 env 读取。",
+    "未运行全仓测试；未接真实 Obsidian/keychain/网络；未创建 git commit（gitCommitAfter=null）。"
+  ],
+  "handoff": "P03-T03 完成；下一任务 P03-T04（实现模型请求的硬分发门，依赖 P03-T03）：先读卡片与 design/02、03、09（9.4 ProviderGuard、9.6 预算）；新增 src/agentMode/sdk/pi/models/ProviderGuard.ts 与 src/agentMode/sdk/pi/runtime/RunBudget.ts：在真实 provider 网络流创建前核验 root/run 有效、未取消、scope 与 endpoint 指纹一致、凭据可用、允许协议、预算许可；用稳定 attemptId 先提交 durable reserve 再创建底层 stream；gate 失败产出正规错误流且绝不发网（不靠 beforeRequest 抛错）；标题/压缩/子代理/fan-out 等所有模型生成入口都经过同一 gate；网络请求失败不自动切换 endpoint。先写失败测试 src/agentMode/sdk/pi/models/ProviderGuard.test.ts（断言段见卡片），注入 models/预算/身份端口，不 mock 核心门禁、禁止真实网络与 sleep。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ProviderGuard.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

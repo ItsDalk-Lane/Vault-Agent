@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "scope": "production_backend_and_sdk_with_diagnostic_faux_provider_not_desktop_or_actual_model",
+  "checks": [
+    "partial_text_is_preserved_with_original_final_error",
+    "failed_request_never_reports_completed",
+    "two_actual_sdk_retries_preserve_partial_attempts",
+    "single_request_has_one_durable_user_entry",
+    "retry_finishes_once_with_three_attempts",
+    "prompt_resolves_after_final_projection",
+    "reopen_and_export_preserve_all_partial_text_without_model_call",
+    "same_request_id_after_reopen_does_not_dispatch_or_duplicate_user"
+  ],
+  "providerCalls": 4,
+  "failedRequestStates": ["running", "failed"],
+  "retriedRequestStates": ["running", "completed"],
+  "command": "node scripts/test-pi-runtime.mjs streamFailure",
+  "recordedAt": "2026-10-22",
+  "sourceFiles": [
+    {
+      "path": "src/agentMode/sdk/pi/testing/streamFailureRuntimeScenario.ts",
+      "sha256": "d4bd60ee527d94b62aedc6abe01264bebf003b38ee02526687622da54cef56ef"
+    },
+    {
+      "path": "scripts/pi-runtime-fixture.mjs",
+      "sha256": "72dda3c83bb6f3db209c41828760ea31db6570c191fe17004f317351497dd83f"
+    }
+  ]
+}

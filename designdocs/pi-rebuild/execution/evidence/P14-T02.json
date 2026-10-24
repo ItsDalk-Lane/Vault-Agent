@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T02",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T02.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T02-01", "SC-P14-T02-02", "SC-P14-T02-03", "SC-P14-T02-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 20,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/crashRecovery.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 20,
+      "durationSeconds": 3.98,
+      "logPath": "/tmp/vault-agent-required-current/02.log",
+      "logSha256": "f51239fa02bd3b213d9d74aeb735e94d6b59cd53a93099c2a5ea843687c17182",
+      "testFile": "src/agentMode/sdk/pi/__tests__/crashRecovery.test.ts",
+      "testSourceSha256": "60af0dc1371dedb2d69225dda220b02efbb312e257a8ad51103e5caf8103ce1c",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T02-01",
+      "requirement": "Vault写不重复",
+      "result": "passed",
+      "evidence": "真实Vault receipt故障全Runtime暂停、真实file写1次；冷重开只补receipt/零重写。批准后写前/实际IO后unknown等Root+Host故障组合另列。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T02-02",
+      "requirement": "unknown不盲重放",
+      "result": "passed",
+      "evidence": "真实Backend本地HTTP服务收到完整tools/call、尚无响应时SIGKILL执行进程；coldload/export零模型零批准且HTTP总1；明确Continue把原unsafe工具结为interrupted与未知效果提示，模型1次收到诚实警告，零外部重调；再次coldload仍全部零重放。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T02-03",
+      "requirement": "report不重复唤起",
+      "result": "passed",
+      "evidence": "报告实际JSONL落盘后/checkpoint前进程退出及综合答案落盘/checkpoint前第二断点，均同report Entry；Continue前者只综合1次、后者0新模型。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T02-04",
+      "requirement": "压缩前聊天仍保留",
+      "result": "passed",
+      "evidence": "真实SDK summary/head放置与stale拒绝均保留原JSONL/旧聊天；33MiB实际store仍可完整导出，rollover保存旧源不删历史。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "验收检查器改为逐scenario校验，featureCoverage仅目录契约，空PATH检查走实际生产入口；最终逐功能/恢复矩阵、真实性与跨平台仍须原门槛证据。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

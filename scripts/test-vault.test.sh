@@ -10,6 +10,10 @@ VAULT_ROOT="$TEST_ROOT/vault"
 FAKE_BIN="$TEST_ROOT/bin"
 mkdir -p "$FIXTURE_ROOT/scripts" "$VAULT_ROOT/.obsidian" "$FAKE_BIN"
 cp "$REPO_ROOT/scripts/test-vault.sh" "$FIXTURE_ROOT/scripts/test-vault.sh"
+if ! grep -qF 'OBSIDIAN_BIN="${OBSIDIAN_BIN:-/Applications/Obsidian.app/Contents/MacOS/obsidian-cli}"' "$FIXTURE_ROOT/scripts/test-vault.sh"; then
+  echo "expected the official CLI as the default instead of an application launcher" >&2
+  exit 1
+fi
 
 cat >"$FIXTURE_ROOT/manifest.json" <<'EOF'
 {
@@ -32,8 +36,41 @@ exit 0
 EOF
 cat >"$FAKE_BIN/obsidian" <<'EOF'
 #!/usr/bin/env bash
-echo "obsidian $*" >>"$DEPLOY_CALL_LOG"
-exit 0
+node - "$@" <<'JS'
+const fs = require("node:fs");
+const path = require("node:path");
+const args = process.argv.slice(2);
+const expectedName = path.basename(fs.realpathSync(process.env.COPILOT_TEST_VAULT_PATH));
+if (!args.includes("vault=" + expectedName)) throw new Error("missing explicit target vault");
+const record = value => fs.appendFileSync(process.env.DEPLOY_CALL_LOG, value + "\n");
+record("obsidian " + args.join(" "));
+const command = args.find(value => !value.startsWith("vault="));
+if (command !== "eval") {
+  record("mutation " + command);
+  process.exit(0);
+}
+const code = args.find(value => value.startsWith("code="))?.slice(5);
+const actualPath = (code.includes("app.plugins") ? process.env.FAKE_RELOAD_VAULT_PATH : null)
+  || process.env.FAKE_ACTUAL_VAULT_PATH;
+const plugins = { copilot: {}, "copilot-component-gallery": {} };
+const app = {
+  vault: {
+    getName: () => path.basename(fs.realpathSync(actualPath)),
+    adapter: { getBasePath: () => actualPath },
+  },
+  plugins: {
+    plugins,
+    manifests: plugins,
+    enabledPlugins: new Set(Object.keys(plugins)),
+    loadManifests: async () => record("mutation loadManifests"),
+    disablePlugin: async id => record("mutation disable " + id),
+    enablePluginAndSave: async id => record("mutation enable " + id),
+  },
+};
+Promise.resolve().then(() => Function("app", "return (" + code + ");")(app))
+  .then(value => process.stdout.write((process.env.FAKE_RESULT_PREFIX || "") + (typeof value === "string" ? value : JSON.stringify(value)) + "\n"))
+  .catch(error => { process.stderr.write(error.message + "\n"); process.exitCode = 1; });
+JS
 EOF
 chmod +x "$FAKE_BIN/npm" "$FAKE_BIN/obsidian"
 
@@ -51,8 +88,32 @@ run_deploy() {
     COPILOT_TEST_VAULT_PATH="$VAULT_ROOT" \
     OBSIDIAN_BIN="$FAKE_BIN/obsidian" \
     DEPLOY_CALL_LOG="$DEPLOY_CALL_LOG" \
+    FAKE_ACTUAL_VAULT_PATH="${FAKE_ACTUAL_VAULT_PATH:-$VAULT_ROOT}" \
+    FAKE_RELOAD_VAULT_PATH="${FAKE_RELOAD_VAULT_PATH:-}" \
+    FAKE_RESULT_PREFIX="${FAKE_RESULT_PREFIX:-}" \
     bash "$FIXTURE_ROOT/scripts/test-vault.sh" >/dev/null 2>"$DEPLOY_STDERR"
 }
+
+WRONG_VAULT="$TEST_ROOT/other/vault"
+mkdir -p "$WRONG_VAULT/.obsidian"
+if FAKE_ACTUAL_VAULT_PATH="$WRONG_VAULT" run_deploy; then
+  echo "expected a same-name vault with a different full path to fail before deployment" >&2
+  exit 1
+fi
+if grep -q '^mutation ' "$DEPLOY_CALL_LOG" || [[ -e "$VAULT_ROOT/.obsidian/plugins/copilot/main.js" ]]; then
+  echo "wrong-vault preflight allowed a plugin mutation or artifact deployment" >&2
+  exit 1
+fi
+
+if FAKE_RELOAD_VAULT_PATH="$WRONG_VAULT" run_deploy; then
+  echo "expected a vault changed after preflight to fail before reload mutation" >&2
+  exit 1
+fi
+if grep -q '^mutation ' "$DEPLOY_CALL_LOG"; then
+  echo "a reload mutated a vault that changed after preflight" >&2
+  exit 1
+fi
+rm -rf "$VAULT_ROOT/.obsidian/plugins"
 
 assert_manifest() {
   local state="$1"
@@ -96,6 +157,8 @@ mkdir -p "$VAULT_ROOT/.obsidian/plugins/copilot"
 ln -s "$FIXTURE_ROOT/main.js" "$VAULT_ROOT/.obsidian/plugins/copilot/main.js"
 ln -s "$FIXTURE_ROOT/styles.css" "$VAULT_ROOT/.obsidian/plugins/copilot/styles.css"
 run_deploy
+assert_manifest clean
+FAKE_RESULT_PREFIX='=> ' FAKE_ACTUAL_VAULT_PATH="$VAULT_ROOT/." run_deploy
 assert_manifest clean
 
 for artifact in main.js styles.css; do
@@ -155,7 +218,7 @@ if ! grep -q "npm run gallery:vault" "$DEPLOY_CALL_LOG"; then
   exit 1
 fi
 GALLERY_DEPLOY_LINE="$(grep -n -m1 '^npm run gallery:vault$' "$DEPLOY_CALL_LOG" | cut -d: -f1)"
-FIRST_RELOAD_LINE="$(grep -n -m1 '^obsidian ' "$DEPLOY_CALL_LOG" | cut -d: -f1)"
+FIRST_RELOAD_LINE="$(grep -n -m1 '^mutation ' "$DEPLOY_CALL_LOG" | cut -d: -f1)"
 if [[ -z "$GALLERY_DEPLOY_LINE" || -z "$FIRST_RELOAD_LINE" || "$FIRST_RELOAD_LINE" -le "$GALLERY_DEPLOY_LINE" ]]; then
   echo "reloaded Obsidian before both plugins were deployed" >&2
   exit 1

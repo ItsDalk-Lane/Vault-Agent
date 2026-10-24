@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P02-T08",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/storage/RecoveryCoordinator.ts",
+    "src/agentMode/sdk/pi/runtime/FailureSupervisor.ts",
+    "src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P02-T08.json"
+  ],
+  "scenarioIds": ["SC-P02-T08-01", "SC-P02-T08-02", "SC-P02-T08-03", "SC-P02-T08-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/storage/RecoveryCoordinator.ts src/agentMode/sdk/pi/runtime/FailureSupervisor.ts src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（no-restricted-syntax 路径别名、no-unsafe-return、no-unnecessary-type-assertion、issue-linked comments 均通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1177 file(s)：恢复模块无 Pi SDK 或跨层 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 storage/RecoveryCoordinator.ts、runtime/FailureSupervisor.ts、storage/RecoveryCoordinator.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 14,
+      "durationSeconds": 2.5,
+      "logPath": "/tmp/vault-agent-required-current/36.log",
+      "logSha256": "f1509f9e0f41f467137396f30d2afe6642b1a54722420afc0297cd23f73f3036",
+      "testFile": "src/agentMode/sdk/pi/storage/RecoveryCoordinator.test.ts",
+      "testSourceSha256": "be1618032bc772a878bc307918804f927486981fb30ba0f4a98629dcb5d12cd5",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P02-T08-01",
+      "requirement": "重开未完成会话无调用",
+      "result": "passed",
+      "evidence": "RecoveryCoordinator.inspectAfterOpen 只调用注入的 inspect，随后仅记录异常打开次数与生成恢复状态；测试断言调用序列严格为 [\"inspect\"]，resumeCalls=0、abortCalls=0，未触发任何 scheduler/resume/submit/wait 端口（这些端口只在显式 continue/stop 方法中被调用）。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T08-02",
+      "requirement": "显式继续才启动",
+      "result": "passed",
+      "evidence": "continueAfterUserChoice 是唯一调用 reloadCredentialsAndPolicy→reconcileUnknownEffects→resume 的入口；测试验证顺序 [inspect,reload,reconcile,resume] 且 resume 恰 1 次；存在未知副作用或审批失配时返回 blocked 且 resumeCalls=0。停止入口 stopAfterUserChoice 调用 abort 一次并等待其完成。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T08-03",
+      "requirement": "存储失败不显示成功",
+      "result": "passed",
+      "evidence": "inspect 抛错时 inspectAfterOpen 记录 StorageFailure{code:STORAGE_FAILED} 到 FailureSupervisor 并返回 kind=storage_failed（无 clean/needs_recovery 成功状态）；FailureSupervisor 将 hostIoBlocked 置真、canStartWork=false、assertCanStartWork 抛 START_WORK_BLOCKED；不存在 MemoryStorage 替代路径，也未调用 resume。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P02-T08-04",
+      "requirement": "crash-loop阈值阻断自动执行",
+      "result": "passed",
+      "evidence": "FailureSupervisor 默认 maxAbnormalOpens=3：第三次 recordAbnormalOpen 后 readOnly=true、mode=read_only、canStartWork=false；RecoveryCoordinator 在 readOnly 时 continue 返回 blocked/crash_loop_read_only 且不 resume；用户显式 stop 后 abort 调用一次并 recordSafeBoundary 归零（consecutive=0、readOnly=false），之后 Continue 才能 reload+reconcile+resume。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "RecoveryCoordinator/FailureSupervisor 全部依赖注入端口验证语义；尚未接入真实 Durable inspect、meta.json 连续异常计数持久化、真实 scheduler resume/abort（P03/P05 接线任务）。",
+    "inspect 返回的 run/pendingApprovals/unknownEffectMutations 形状是本任务定义的最小恢复投影；后续真实 inspect 适配时需要映射并补测试。",
+    "crash-loop 计数持久化端口由调用方提供（设计要求写 meta.json）；本任务只验证计数与模式，不实现文件写入。",
+    "审批重校验只比较注入快照（bindingHash/scope/policyVersion/beforeHashes），未包含“已执行工具不重新显示可执行批准”的 UI 展示逻辑（UI 任务）。",
+    "停止入口只验证 abort 被调用一次并等待完成；真实 abort 需等待任务终态、取消 observer 等由 runtime 任务实现。",
+    "storage_failed 后无自动恢复路径：需要外部重新打开/对账并显式 recordStorageRecovered；这是有意的 fail-closed 设计。",
+    "未运行全仓测试；未接真实存储/平台；无端到端证据。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P02-T08 完成，P02 全部 8 个任务均已 done；下一步不是新原子任务，而是执行 P02 阶段 gate：运行 node designdocs/pi-rebuild/scripts/next-task.mjs 确认 RUN GATE P02；读 execution/phases/P02.md；运行阶段相关单测（P02 storage/runtime 套件 + 全仓 npm test）、npm run build、npm run lint，按依赖变更情况跑 npm run review:obsidian；准备隔离 fake 宿主/临时目录中的真实演示（私有数据路径与 vaultKey、lease 互斥、JSONL 打开/关闭/重开、产品文档与 va.state 事件、提交幂等、完整历史分页、运行时池与大小策略、只读恢复与 crash-loop 阻断），写 execution/evidence/GATE-P02.json（status/phaseId/taskIds/commands 含 npm run build 与 npm run lint 且 exit 0/result passed/manualChecks 全 required passed/limitations），全部必需项 passed 后才把 STATE.phaseGates.P02 改为 passed 并进入 P03-T01，否则保持 not_started 记录失败项。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

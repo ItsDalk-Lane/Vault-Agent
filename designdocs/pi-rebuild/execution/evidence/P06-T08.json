@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P06-T08",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P06-T08.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P06-T08-01", "SC-P06-T08-02", "SC-P06-T08-03", "SC-P06-T08-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 9,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/tools/ObsidianActions.test.ts",
+      "testFile": "src/agentMode/sdk/pi/tools/ObsidianActions.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 19,
+      "elapsedSeconds": 2.585,
+      "logPath": "/tmp/vault-agent-required-final3-k9uo7y72/15.log",
+      "logSha256": "5dde8d4196b6477d5e9ba6a7b1e940f81604ae9d5c14c55246cc168734306161",
+      "testSourceSha256": "7cd12db8872541e06391e2062e67ea536dbaa1c7f6a9725df5a657f649d4a66d",
+      "testSourceUnchangedDuringExecution": true,
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P06-T08-01",
+      "requirement": "切换文件不能误改",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ObsidianActions replaceSelection() does not modify anything when the file was switched after approval。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T08-02",
+      "requirement": "popout使用注入App",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ObsidianActions openNote() uses the injected App workspace for a popout leaf。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T08-03",
+      "requirement": "未保存buffer不被磁盘写覆盖",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ObsidianActions checkOpenBuffer() reports OPEN_BUFFER_CONFLICT when the editor buffer differs from disk。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P06-T08-04",
+      "requirement": "未知commandId拒绝",
+      "result": "passed",
+      "evidence": "指定模块实际非零测试通过，按本断言核对核心类/函数与生产调用；精确断言：ObsidianActions runAction() rejects unknown actions, arbitrary command ids and JavaScript。真实SDK/IO组合另列，不把标题匹配或文件存在当整链通过。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际Vault工具、写入凭证、Diff与回退已接入；真实本机创建/读取/批准有实证，不以一次创建替代全部写入/故障矩阵。",
+    "actualRuntimeReferences": [],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "requiredStepChecks": [
+    {
+      "step": "真实选区写入遵守原mutation/receipt约束并形成既有Diff与可审阅回退",
+      "result": "passed",
+      "evidence": "最终4b2f879642c3实际PiSmoke本地Qwen蓝→紫，写前一次具体批准，真实fileChanges与同operationId已出现；Auto原UI回退另一次批准、零模型，磁盘和真实editor一致恢复蓝色并保留手工行。完整冷启同原operationId及revert:operationId与两条真实变更仍在，0→0模型/无审批；再次干净冷启实际editor与磁盘一致、idle。原5d失败完整保留。",
+      "source": {
+        "path": "/tmp/vault-agent-pi-final3-selection-reopen-real.json",
+        "sha256": "56874757bb6b940fa4e1d0087385e519d7c8c718860ebf8137576533ebf793dc"
+      },
+      "preservedFailurePath": "execution/evidence/repair-2026-10-22/active-acceptance-defects.json"
+    }
+  ]
+}

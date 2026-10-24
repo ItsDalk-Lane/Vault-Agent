@@ -1,4 +1,4 @@
-import { backendRegistry } from "@/agentMode/backends/registry";
+import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import {
   isDirectAnswerTurn,
   type AgentAnswer,
@@ -12,7 +12,7 @@ export const FANOUT_SUMMARY_OPTION = "__summary__";
 
 export type FanoutOptionValue = BackendId;
 
-export type FanoutAgentState = "streaming" | "answer" | "error" | "cancelled" | "empty";
+export type FanoutAgentState = "streaming" | "answer" | "error" | "cancelled" | "empty" | "paused";
 
 export function agentStateForStatus(status: AgentAnswerStatus): FanoutAgentState {
   switch (status) {
@@ -22,6 +22,8 @@ export function agentStateForStatus(status: AgentAnswerStatus): FanoutAgentState
       return "error";
     case "cancelled":
       return "cancelled";
+    case "paused":
+      return "paused";
     case "done":
       return "answer";
   }
@@ -32,9 +34,10 @@ export function agentStateForAnswer(answer: AgentAnswer): FanoutAgentState {
   return agentStateForStatus(answer.status);
 }
 
-export type FanoutSummaryState = "writing" | "waiting" | "cancelled" | "unavailable";
+export type FanoutSummaryState = "writing" | "waiting" | "cancelled" | "unavailable" | "paused";
 
 export function summaryDisplayState(turn: FanoutTurn): FanoutSummaryState {
+  if (turn.summary.status === "paused") return "paused";
   if (turn.summary.status === "streaming") return "writing";
   if (turn.summary.status === "pending") {
     const anyRunning = Object.values(turn.answers).some((a) => a.status === "running");
@@ -51,9 +54,8 @@ export interface FanoutOption {
 }
 
 function brandFor(backendId: BackendId): { displayName: string; Icon?: AgentBrand["Icon"] } {
-  const descriptor = backendRegistry[backendId];
-  if (!descriptor) return { displayName: backendId };
-  return { displayName: descriptor.displayName, Icon: descriptor.Icon };
+  const description = describeBackendForHistory(backendId);
+  return { displayName: description.label, Icon: description.Icon };
 }
 
 export function fanoutDisplayName(backendId: BackendId): string {
@@ -70,8 +72,9 @@ export function buildFanoutOptions(turn: FanoutTurn): FanoutOption[] {
     const { displayName, Icon } = brandFor(backendId);
     options.push({
       value: backendId,
-      label: displayName,
-      Icon,
+      label: answer.label ?? displayName,
+      // 模型候选使用已保存的模型身份，旧历史才显示原执行器标识。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+      Icon: answer.modelKey ? undefined : Icon,
       state: agentStateForAnswer(answer),
     });
   }

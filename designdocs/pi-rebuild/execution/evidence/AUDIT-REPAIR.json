@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-22",
+  "status": "partial",
+  "scope": "验收可信度、生产接线与本轮实证登记",
+  "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+  "changes": [
+    "逐条校验必需scenario的唯一manualChecks通过结果与非空证据，拒绝failed/not_run/缺失/以required:false降级。",
+    "阶段存在notRun/not_run不得passed；输出将document_consistency与completion状态分开。",
+    "检查器回归先重建独立todo夹具，不依赖仓库当前进度。",
+    "featureCoverage只检查目录契约，不证明功能已运行。",
+    "19项基础任务与2阶段保留原实证；90项任务和P03–P14 gate撤销完成声明，原始内容完整归档。",
+    "干净安装与P14演示改用同一实际PiBackendProcess生产入口；只在宿主I/O/模型流隔离，不以exists或自造apply工具冒充。",
+    "本轮109任务均复核；51条必需断言附当前实际证据，其余明确not_run；90项仍保持verify_failed而不批量done。",
+    "真实生产/历史导入导出/投影/资料图片/恢复UI/三标签观察和50条历史分页已补对应回归。",
+    "本机真实Qwen与HTTP MCP开发服务实证分开；远程许可和Windows/Linux保持not_run。",
+    "最终真实冷重开、临时Keychain值跨进程保留/删除、真实模型重开后继续、1000消息无>=50ms长任务、三标签与弹出窗、当前可视状态已实证；未完成原细粒度门槛保持未完成。"
+  ],
+  "commands": [
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.test.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": 18,
+      "result": "passed",
+      "outputSummary": "18/18检查器回归通过；新增failed断言用例已观察到旧checker错误接受后修复。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/featureCoverage.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": 5,
+      "result": "passed",
+      "outputSummary": "5个目录契约检查通过，不作为真实产品能力验收。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "记录一致；scope=document_consistency、completion=incomplete、19 done/2 passed gates。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/next-task.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "REPAIR/RESUME P03-T05，verify_failed。"
+    },
+    {
+      "command": "node scripts/test-pi-runtime.mjs production",
+      "exitCode": 0,
+      "result": "passed",
+      "checkCount": 24,
+      "outputSummary": "实际生产入口24项通过；16次隔离provider请求，1批准+1提问。"
+    },
+    {
+      "command": "node scripts/pi-clean-install-check.mjs",
+      "exitCode": 0,
+      "result": "passed",
+      "checkCount": 24,
+      "outputSummary": "同24项在PATH为空和隔离HOME通过；不代替完整真实桌面安装验收。"
+    },
+    {
+      "command": "npx jest src/agentMode/session/AgentSession.test.ts src/agentMode/sdk/pi/runtime/PiRuntimeProjection.test.ts src/agentMode/ui/AgentRecoveryNotice.test.tsx src/agentMode/session/AgentChatUIState.test.ts src/agentMode/ui/hooks/useAgentChatRuntimeState.test.tsx src/agentMode/ui/AgentChatMessages.test.tsx --runInBand --silent --json --outputFile=/tmp/vault-agent-ui-projection-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 91,
+      "outputSummary": "6 suites/91 passed；确切命令见本轮unit-results.json。"
+    },
+    {
+      "command": "npx tsc -noEmit -skipLibCheck",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "生产代码freeze时全工程类型检查通过。"
+    },
+    {
+      "command": "npm run gallery:build",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": null,
+      "outputSummary": "新增Recovery四状态和千条历史场景已构建；实际渲染另外记录。"
+    }
+  ],
+  "notRun": [
+    "用户明确许可的远程HTTP MCP只读连接。",
+    "真实Windows与Linux的路径、凭据、停止与持久化重开。",
+    "完整功能矩阵逐行producer→UI并核对错误/取消/恢复，及全部原副作用故障断言。",
+    "干净profile中通过插件界面配置模型并完成全部核心路径；空PATH开发夹具不能替代。",
+    "每张任务卡尚未逐条绑定的原scenario、指定验证命令与前置阶段演示，继续保持not_run/verify_failed，不批量恢复done。"
+  ],
+  "limitations": [
+    "未提交、推送、发布或外发。",
+    "ESLint对文档脚本有仓库既有ignore，脚本本身使用Node实际执行回归；TypeScript契约测试定向lint通过。"
+  ],
+  "currentVerificationPath": "execution/evidence/CURRENT-VERIFICATION.json",
+  "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+  "desktopResultsPath": "execution/evidence/repair-2026-10-22/desktop-final.json"
+}

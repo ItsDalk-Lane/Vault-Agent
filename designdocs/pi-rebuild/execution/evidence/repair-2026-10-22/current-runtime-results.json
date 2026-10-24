@@ -1,0 +1,723 @@
+{
+  "recordedAt": "2026-10-22",
+  "status": "passed_for_listed_scopes",
+  "runtimes": {
+    "production": {
+      "source": {
+        "path": "/tmp/vault-agent-current-production.json",
+        "sha256": "5efeb1b98b8fa5b2a34a9ad9f3644d1d054809234579f609774a970b8b2e0e73"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "production_backend_prompt",
+          "durable_reopen_history",
+          "read_only_reopen",
+          "stable_request_deduplication",
+          "durable_todo_tool",
+          "plan_approval_callback",
+          "actual_user_question",
+          "feature_state_reopen",
+          "plan_approval_leaves_read_only_mode",
+          "rejected_plan_stays_rejected",
+          "web_denial_without_network",
+          "todo_revision_conflict",
+          "error_feedback_persisted_and_dismissed",
+          "stop_pending_question",
+          "legacy_import_idempotent_source_unchanged",
+          "full_backup_round_trip_read_only",
+          "markdown_export_real_history",
+          "nonincremental_stream_live_projection",
+          "public_thinking_only_with_durable_timing",
+          "local_skill_model_unknown_and_stop_commands",
+          "material_budget_and_source_on_real_request",
+          "image_private_blob_and_full_export_receipt",
+          "imported_chat_continues_without_changing_source",
+          "shutdown_rejects_new_calls_and_reopen_preserves_thinking"
+        ],
+        "providerCalls": 16,
+        "approvals": 1,
+        "questionCount": 1,
+        "environment": {
+          "pathEntries": 36
+        }
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "native": {
+      "source": {
+        "path": "/tmp/vault-agent-current-native.json",
+        "sha256": "24ecfff6d53150186e7448d50e642d81c97c7a5bf2d1cadefd57dd1977822520"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "official_external_write_via_production_backend",
+          "concrete_diff_permission",
+          "plan_denies_external_write",
+          "strict_spawns_nothing",
+          "trusted_single_approval_runs_supervised_process",
+          "stop_pending_write_blocks_late_permission",
+          "private_durable_audit_records_effects_and_cancellation_without_arguments_or_secrets",
+          "actual_audit_storage_failure_stops_runtime_after_one_effect_and_keeps_read_only_export"
+        ],
+        "approvals": 3,
+        "auditFailure": {
+          "effectWrites": 1,
+          "modelRequests": 1,
+          "injectedFailures": 1,
+          "readOnlyExport": true
+        }
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "models": {
+      "source": {
+        "path": "/tmp/vault-agent-current-models.json",
+        "sha256": "3de4c87f8aa89d2aa0483738df9a4321cd302c4be5a8b9a08beaef964f26353e"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "actual_openai_protocol",
+          "explicit_keyless_local_endpoint",
+          "real_stream_and_usage"
+        ],
+        "requests": 1
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "rollover": {
+      "source": {
+        "path": "/tmp/vault-agent-current-rollover.json",
+        "sha256": "88b03917633ef6e4ef0634f801de2ca7b8f7466fb56867513d7a9f6a3e0afd97"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "explicit_action_only",
+          "stop_during_summary_keeps_source_writable",
+          "active_background_or_pending_question_blocks_rollover",
+          "failed_new_root_does_not_archive_or_publish_ghost",
+          "actual_32_mib_jsonl_blocks_new_work_but_allows_explicit_rollover",
+          "official_sdk_summary_carried_to_new_root_with_source",
+          "old_store_readonly_and_bytes_preserved",
+          "archived_reopen_has_no_provider_call",
+          "new_root_accepts_new_work"
+        ],
+        "providerCalls": 11
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "pool": {
+      "source": {
+        "path": "/tmp/vault-agent-current-pool.json",
+        "sha256": "75a1d0b66e1ea6212f767569bba6a5bb8bcc5a2bd2aa150d25bf4521650aa874"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "pre_registered_observer_keeps_writer",
+          "background_handlers_do_not_pin_writers",
+          "only_two_real_writers",
+          "unbind_releases_queued_root",
+          "evicted_session_api_reopens_metadata",
+          "shutdown_releases_all_leases",
+          "startup_failure_disposes_partial_resources",
+          "startup_retry_opens_fresh_harness",
+          "16mib_visible_warning",
+          "32mib_blocks_dispatch_but_allows_export"
+        ],
+        "providerCalls": 1
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "dispatch": {
+      "source": {
+        "path": "/tmp/vault-agent-current-dispatch.json",
+        "sha256": "102184210b5b43f952944644a525b0c513b09a25ef1dd221b8aadb8953c053c2"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "provider_session_identity_for_same_model_child",
+          "endpoint_change_during_guard_denied",
+          "actual_local_request_budget_is_visible",
+          "reopen_restores_local_budget_without_model_call",
+          "new_run_publishes_own_budget_before_provider"
+        ],
+        "providerCalls": 3,
+        "purposes": ["root", "subagent", "root"]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "mcp": {
+      "source": {
+        "path": "/tmp/vault-agent-current-mcp.json",
+        "sha256": "c5176c560e6b9d01231eeb03180f509e59eb843b9282397f3c8e237e898c7d1b"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "configured_mcp_reaches_production_registry",
+          "real_http_tool_call",
+          "concrete_arguments_approval",
+          "actual_server_progress",
+          "plan_denies_external_effects",
+          "read_only_child_cannot_borrow_parent_permissions",
+          "stop_pending_permission",
+          "disable_revokes_pending_approval",
+          "lazy_deferred_connect",
+          "native_deferred_tool_search",
+          "catalog_bearer_echo_redacted_in_durable_history",
+          "single_authorization_header_for_real_http_auth",
+          "private_durable_audit_preserves_actual_mcp_decision_without_raw_arguments",
+          "deferred_tools_restored_on_next_prompt_without_search_or_external_call_replay",
+          "real_http_image_result_reaches_selected_vision_model",
+          "switch_to_text_only_model_explains_omitted_mcp_image",
+          "real_sdk_failed_loaded_tools_commit_and_snapshot_publish_no_external_registration"
+        ],
+        "calls": 4,
+        "approvals": 4
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "fanout": {
+      "source": {
+        "path": "/tmp/vault-agent-current-fanout.json",
+        "sha256": "be1034808b52a9c1f66da6e5fc6d1c1cabac70c1819e601671241e6126a6af16"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "two_saved_models_reach_real_runtime",
+          "independent_read_only_sessions",
+          "single_summary",
+          "reopen_is_read_only",
+          "single_parent_durable_store",
+          "shared_persisted_budget",
+          "stored_read_only_survives_predicate_removal",
+          "recover_completed_request_without_model_call"
+        ],
+        "providerCalls": 3
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "subagents": {
+      "source": {
+        "path": "/tmp/vault-agent-current-subagents.json",
+        "sha256": "3caf88227eac72af499bcba1bba911cfbeba7867d5b4eed38828eb863598019d"
+      },
+      "result": {
+        "status": "passed",
+        "scenario": "production-subagents",
+        "modelCalls": ["fixture-model", "fixture-child", "fixture-model"],
+        "answers": 1,
+        "reopenedWithoutRequests": true,
+        "readOnlyChildHistory": true
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "skills": {
+      "source": {
+        "path": "/tmp/vault-agent-current-skills.json",
+        "sha256": "19ae9b6ab40aae24415939f7b8a4d13d7cf55b4ad73c4284850434fe25038926"
+      },
+      "result": {
+        "status": "passed",
+        "providerCalls": 15,
+        "approvals": 1,
+        "checks": [
+          "fixed_sections_reach_real_provider",
+          "skill_not_duplicated_in_user_history",
+          "selected_note_stays_untrusted",
+          "actual_requested_resource_loaded",
+          "resource_symlink_and_size_boundaries",
+          "other_project_skill_hidden",
+          "strict_skill_script_spawns_nothing",
+          "trusted_skill_script_uses_real_host_approval",
+          "stop_rejects_late_script_approval",
+          "changed_selected_skill_requires_reselection",
+          "reopen_restores_project_and_selected_skill_version"
+        ]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_no_desktop_claim"
+    },
+    "initialization": {
+      "source": {
+        "path": "/tmp/vault-agent-current-initialization.json",
+        "sha256": "26ba2988fc1403c1bf5efbd1b62d9de13cfeed73500f162e74db7a211e3341e3"
+      },
+      "result": {
+        "status": "passed",
+        "scope": "actual_backend_sdk_and_session_store_with_diagnostic_provider_not_desktop_or_actual_model",
+        "providerCalls": 2,
+        "checks": [
+          "actual_entry_arrives_before_ui_initialization_finishes_once",
+          "history_reload_does_not_duplicate_the_initializing_entry",
+          "actual_projection_preserves_optimistic_user_id_and_selection_identity",
+          "repeat_reload_preserves_display_order_and_ids",
+          "actual_local_command_has_no_model_request_or_false_empty_answer_error"
+        ]
+      },
+      "scope": "actual_backend_sdk_and_session_store_with_diagnostic_provider_not_desktop_or_actual_model"
+    },
+    "mcp-stdio": {
+      "source": {
+        "path": "/tmp/vault-agent-current-mcp-stdio.json",
+        "sha256": "597c638603ace48f80831465e04c1f8bb8a548eb11407faf41444a2196c884b1"
+      },
+      "result": {
+        "status": "passed",
+        "scenarioId": "SC-P09-T08-04",
+        "scope": "actual_local_stdio_mcp_os_processes_no_obsidian_no_ai_model",
+        "platform": "darwin",
+        "commandPath": "/Users/study_superior/.nvm/versions/node/v24.16.0/bin/node",
+        "approvals": 1,
+        "processes": [
+          {
+            "label": "production_service_manager",
+            "pid": 15725,
+            "exited": true,
+            "signal": "SIGTERM",
+            "stdinClosed": true
+          },
+          {
+            "label": "factory_handle",
+            "pid": 15726,
+            "exited": true,
+            "signal": "SIGTERM",
+            "stdinClosed": true
+          }
+        ],
+        "orphanedProcesses": 0,
+        "checks": [
+          "strict_gate_spawns_no_os_process",
+          "actual_sdk_initialize_list_and_call_over_stdio",
+          "production_service_manager_close_terminates_original_pid",
+          "factory_handle_close_requires_verified_os_process_exit",
+          "stdin_close_is_followed_by_real_sigterm_not_only_fake_cleanup",
+          "actual_child_environment_does_not_inherit_model_keys"
+        ]
+      },
+      "scope": "actual_local_stdio_mcp_os_processes_no_obsidian_no_ai_model"
+    },
+    "stream-failure": {
+      "source": {
+        "path": "/tmp/vault-agent-current-stream-failure.json",
+        "sha256": "96baf3034a9f1403d8773d213ccdc8f86691e85bbbec36def67ad0756f044ec0"
+      },
+      "result": {
+        "status": "passed",
+        "scope": "production_backend_and_sdk_with_diagnostic_faux_provider_not_desktop_or_actual_model",
+        "checks": [
+          "partial_text_is_preserved_with_original_final_error",
+          "failed_request_never_reports_completed",
+          "two_actual_sdk_retries_preserve_partial_attempts",
+          "single_request_has_one_durable_user_entry",
+          "retry_finishes_once_with_three_attempts",
+          "prompt_resolves_after_final_projection",
+          "reopen_and_export_preserve_all_partial_text_without_model_call",
+          "same_request_id_after_reopen_does_not_dispatch_or_duplicate_user",
+          "active_stream_rejects_model_and_effort_changes_without_partial_update",
+          "stop_aborts_actual_stream_and_preserves_visible_partial_text",
+          "repeated_stop_does_not_restart_or_abort_twice",
+          "closing_active_session_cancels_stream_and_reopen_retains_both_partials"
+        ],
+        "providerCalls": 6,
+        "actualAborts": 2,
+        "failedRequestStates": ["running", "failed"],
+        "retriedRequestStates": ["running", "completed"]
+      },
+      "scope": "production_backend_and_sdk_with_diagnostic_faux_provider_not_desktop_or_actual_model"
+    },
+    "background-report": {
+      "source": {
+        "path": "/tmp/vault-agent-current-background-report.json",
+        "sha256": "111dd422c276c57a5ea1f888e8d8f3ed8f29f8c98e4a3819bff046d5b6806c3a"
+      },
+      "result": {
+        "status": "passed",
+        "phase": "all",
+        "scope": "actual_backend_sdk_jsonl_and_process_crash_with_controlled_provider_not_desktop_or_actual_model",
+        "foreground": {
+          "childId": "22",
+          "childCount": 1,
+          "requestIds": ["delegate:21"],
+          "providerCalls": 2
+        },
+        "recovery": {
+          "afterReportContinueCalls": 1,
+          "afterSynthesisContinueCalls": 0,
+          "readCalls": 0
+        },
+        "calls": [
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root",
+          "fixture-child",
+          "fixture-root"
+        ],
+        "reportEntries": 1,
+        "summaries": 1,
+        "checks": [
+          "eligible_original_run_synthesizes_actual_background_answer",
+          "report_entry_is_tool_sourced_and_does_not_create_another_user_message",
+          "busy_original_run_waits_for_queued_background_synthesis_before_terminal",
+          "real_process_exits_after_report_append_before_report_checkpoint",
+          "read_only_reopen_preserves_report_and_does_not_start_model",
+          "explicit_continue_uses_same_report_and_starts_one_synthesis",
+          "second_reopen_keeps_one_report_one_synthesis_and_zero_requests",
+          "completed_synthesis_before_report_checkpoint_is_not_dispatched_again",
+          "unknown_reporter_kind_and_future_version_remain_readable_and_block_continue",
+          "real_report_checkpoint_storage_failure_stops_before_report_or_followup",
+          "foreground_create_before_submit_crash_restores_same_child_and_fixed_request_once",
+          "foreground_read_only_reopen_and_normal_shutdown_never_start_child"
+        ]
+      },
+      "scope": "actual_backend_sdk_jsonl_and_process_crash_with_controlled_provider_not_desktop_or_actual_model"
+    },
+    "compaction-boundaries": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-compaction-boundaries-final.json",
+        "sha256": "74c612e457061d662bf8321010c336053d050fdddbf791401722e674d028957b"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "SC-P08-T05-01-stale-summary-rejected-and-skipped-persists",
+          "SC-P08-T05-02-context-overflow-one-compaction-one-retry",
+          "latest-summary-and-new-context-used-after-late-result",
+          "cold-reopen-stale-row-without-provider",
+          "crash-after-task-before-display-receipt-reconciles-without-provider"
+        ],
+        "overflow": {
+          "generations": 2,
+          "summaries": 1,
+          "providerCalls": 3
+        },
+        "stale": {
+          "oldTaskId": "28",
+          "summaries": 2
+        }
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "mutation-failure": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-receipt-runtime.json",
+        "sha256": "fa59b5e2673049c20c9e99e8101871148e872d79c5cf624a463f88836f550a98"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "actual_effect_once_receipt_write_failed",
+          "live_runtime_readonly_before_next_provider_or_tool",
+          "blind_retry_rejected",
+          "failed_receipt_reopen_readonly_and_exportable",
+          "reopen_completes_receipt_without_rewriting_or_provider",
+          "unknown_during_deferred_budget_blocks_final_provider_open"
+        ]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "interaction-boundaries": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-interaction-boundaries-final.json",
+        "sha256": "01a4cb39abd56f59f925335796f5e62ca3fd814f27b81ddbd1e365ed0a1696bd"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "SC-P12-T06-01-switch-project-does-not-write-b",
+          "SC-P12-T06-02-old-approval-keeps-original-session-target-and-scope",
+          "other-root-cannot-reuse-original-scope-or-decision",
+          "SC-P08-T03-01-same-prompt-plan-approval-still-needs-new-file-approval"
+        ],
+        "actualFileWrites": ["projects/alpha/approved.md", "plan-separate-write.md"]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "native-mutation-failure": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-native-mutation-failure-final.json",
+        "sha256": "f052430ccf8e5ea4ea1fa214251f62e299a219edfeea525810eb4b38dc039654"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "actual_native_effect_once_receipt_failed",
+          "live_native_unknown_closes_provider_and_new_turn",
+          "native_unknown_reopen_readonly_and_exportable",
+          "saved_native_effect_unknown_stays_blocking_without_overwrite",
+          "native_receipt_reconciled_without_rewrite_or_model",
+          "native_host_ack_failure_blocks_after_one_actual_write"
+        ]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "rollover-tail": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-rollover-tail-final.json",
+        "sha256": "adfae9a4f8fc590404c7698c440bdd236fa938be6c8e2c6be4c4e073335d9770"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "explicit_action_only",
+          "stop_during_summary_keeps_source_writable",
+          "active_background_or_pending_question_blocks_rollover",
+          "failed_new_root_does_not_archive_or_publish_ghost",
+          "actual_32_mib_jsonl_blocks_new_work_but_allows_explicit_rollover",
+          "official_sdk_summary_carried_to_new_root_with_source",
+          "old_store_readonly_and_bytes_preserved",
+          "archived_reopen_has_no_provider_call",
+          "new_root_accepts_new_work",
+          "first_request_keeps_recent_user_and_assistant_tail",
+          "new_root_preserves_source_execution_mode"
+        ],
+        "providerCalls": 11
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "mcp-disconnect": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-mcp-disconnect-final.json",
+        "sha256": "e476e85e46bbd3050e1b50c3d13e0517c6289907fa5b63eaaa71159134a2e69d"
+      },
+      "result": {
+        "status": "passed",
+        "modelCalls": 1,
+        "approvals": 0,
+        "externalCalls": 1,
+        "checks": [
+          "actual_http_request_received_before_reply_and_process_killed",
+          "cold_open_and_export_do_not_resend_external_request_or_start_model",
+          "explicit_continue_settles_original_unsafe_tool_as_interrupted_without_recall",
+          "model_receives_honest_partial_effect_warning",
+          "second_cold_open_preserves_interrupted_result_with_zero_external_or_model_replay"
+        ]
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    },
+    "platform-path": {
+      "source": {
+        "path": "/tmp/vault-agent-current-platform-path.json",
+        "sha256": "0e8cb7af1b788b6ad6e8d97dc35bc2f60acb71b20af69f38ffad4484f6830b5f"
+      },
+      "result": {
+        "status": "passed",
+        "platform": "darwin",
+        "scope": "actual_host_filesystem_only_new_temporary_fixture_no_obsidian_no_model",
+        "caseSensitivity": "insensitive",
+        "rootIdentity": {
+          "dev": "16777229",
+          "ino": "335639715"
+        },
+        "aliasIdentity": {
+          "dev": "16777229",
+          "ino": "335639715"
+        },
+        "checks": [
+          "production_default_resolver_reads_relative_fixture_path",
+          "case_boundary_follows_actual_volume_identity",
+          "protected_root_or_distinct_root_is_judged_by_actual_identity",
+          "external_scope_cannot_alias_protected_root",
+          "symlink_target_and_missing_child_remain_outside_vault",
+          "explicit_external_scope_accepts_its_actual_file"
+        ],
+        "notRun": [
+          "actual_windows_volume",
+          "actual_linux_volume",
+          "actual_case_sensitive_macos_volume"
+        ]
+      },
+      "scope": "actual_host_filesystem_only_new_temporary_fixture_no_obsidian_no_model"
+    },
+    "case-sensitive-mac": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-case-sensitive-mac.json",
+        "sha256": "a4294f29862ddf398980ff520be3f4a1892db93c8f31fc9ca25c8e9e49191f5c"
+      },
+      "result": {
+        "status": "passed",
+        "scope": "own_temporary_disk_image_actual_macos_filesystem_no_obsidian_no_model_no_existing_disks_or_vaults",
+        "directory": "/tmp/vault-agent-mac-case-sensitive-xnykqndp",
+        "commands": [
+          {
+            "argv": [
+              "/usr/bin/hdiutil",
+              "create",
+              "-size",
+              "256m",
+              "-type",
+              "SPARSE",
+              "-fs",
+              "APFSX",
+              "-volname",
+              "VaultAgentPiCaseFixture",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/fixture.sparseimage"
+            ],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 1,
+            "stdout": "",
+            "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\nhdiutil: create failed - 无效的自变量\n"
+          },
+          {
+            "argv": [
+              "/usr/bin/hdiutil",
+              "create",
+              "-size",
+              "512m",
+              "-type",
+              "SPARSE",
+              "-fs",
+              "Case-sensitive APFS",
+              "-volname",
+              "VaultAgentPiCaseFixture",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/fixture-sensitive.sparseimage"
+            ],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 0,
+            "stdout": "created: /tmp/vault-agent-mac-case-sensitive-xnykqndp/fixture-sensitive.sparseimage\n",
+            "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\n"
+          },
+          {
+            "argv": [
+              "/usr/bin/hdiutil",
+              "attach",
+              "-nobrowse",
+              "-mountpoint",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount",
+              "-plist",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/fixture-sensitive.sparseimage"
+            ],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 0,
+            "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/private/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+            "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -mountpoint ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountPoint ...' instead.\n"
+          },
+          {
+            "argv": [
+              "/usr/sbin/diskutil",
+              "info",
+              "-plist",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount"
+            ],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 0,
+            "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>535040000</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk5</string>\n\t<key>APFSContainerSize</key>\n\t<integer>536829952</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk4s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>20480</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>51A2A203-7BB7-4690-A816-5503BA312B4A</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>536829952</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>VaultAgentPiCaseFixture</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>通用</string>\n\t<key>MountPoint</key>\n\t<string>/private/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>536829952</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>536829952</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>VaultAgentPiCaseFixture</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>51A2A203-7BB7-4690-A816-5503BA312B4A</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<true/>\n</dict>\n</plist>\n",
+            "stderr": ""
+          },
+          {
+            "argv": ["node", "scripts/test-pi-runtime.mjs", "platformPath"],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 0,
+            "stdout": "{\n  \"status\": \"passed\",\n  \"platform\": \"darwin\",\n  \"scope\": \"actual_host_filesystem_only_new_temporary_fixture_no_obsidian_no_model\",\n  \"caseSensitivity\": \"sensitive\",\n  \"rootIdentity\": {\n    \"dev\": \"16777239\",\n    \"ino\": \"19\"\n  },\n  \"aliasIdentity\": null,\n  \"checks\": [\n    \"production_default_resolver_reads_relative_fixture_path\",\n    \"case_boundary_follows_actual_volume_identity\",\n    \"protected_root_or_distinct_root_is_judged_by_actual_identity\",\n    \"external_scope_cannot_alias_protected_root\",\n    \"symlink_target_and_missing_child_remain_outside_vault\",\n    \"explicit_external_scope_accepts_its_actual_file\"\n  ],\n  \"notRun\": [\n    \"actual_windows_volume\",\n    \"actual_linux_volume\"\n  ]\n}\n",
+            "stderr": ""
+          },
+          {
+            "argv": [
+              "/usr/bin/hdiutil",
+              "detach",
+              "/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount"
+            ],
+            "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+            "exitCode": 0,
+            "stdout": "\"disk4\" ejected.\n",
+            "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+          }
+        ],
+        "mounted": false,
+        "createdAt": 1792668256.4494028,
+        "unmounted": true,
+        "logPath": "/tmp/vault-agent-mac-case-sensitive-xnykqndp/commands.log",
+        "imagePath": "/tmp/vault-agent-mac-case-sensitive-xnykqndp/fixture-sensitive.sparseimage",
+        "imageRetainedForAudit": false,
+        "filesystemInfo": {
+          "DeviceIdentifier": "disk5s1",
+          "FilesystemName": "Case-sensitive APFS",
+          "FilesystemType": "apfs",
+          "FilesystemUserVisibleName": "APFS (Case-sensitive)",
+          "VolumeName": "VaultAgentPiCaseFixture",
+          "MountPoint": "/private/tmp/vault-agent-mac-case-sensitive-xnykqndp/mount",
+          "Content": "41504653-0000-11AA-AA11-00306543ECAC"
+        },
+        "runner": {
+          "status": "passed",
+          "platform": "darwin",
+          "scope": "actual_host_filesystem_only_new_temporary_fixture_no_obsidian_no_model",
+          "caseSensitivity": "sensitive",
+          "rootIdentity": {
+            "dev": "16777239",
+            "ino": "19"
+          },
+          "aliasIdentity": null,
+          "checks": [
+            "production_default_resolver_reads_relative_fixture_path",
+            "case_boundary_follows_actual_volume_identity",
+            "protected_root_or_distinct_root_is_judged_by_actual_identity",
+            "external_scope_cannot_alias_protected_root",
+            "symlink_target_and_missing_child_remain_outside_vault",
+            "explicit_external_scope_accepts_its_actual_file"
+          ],
+          "notRun": ["actual_windows_volume", "actual_linux_volume"]
+        },
+        "imageSizeBytesBeforeCleanup": 8392704,
+        "imageAllocatedBytesBeforeCleanup": 8392704,
+        "imageRemovedAfterUnmount": true
+      },
+      "scope": "own_temporary_disk_image_actual_macos_filesystem_no_obsidian_no_model_no_existing_disks_or_vaults"
+    },
+    "selection-mutation": {
+      "source": {
+        "path": "/tmp/vault-agent-pi-selection-mutation-final.json",
+        "sha256": "461ed8966c0a66b7093db18821c40c2d0edd19732de480c390abc4e6abd31816"
+      },
+      "result": {
+        "status": "passed",
+        "checks": [
+          "actual_selection_write_uses_vault_cas_and_committed_receipt",
+          "cold_reopen_keeps_same_receipt_without_model_or_rewrite",
+          "auto_rollback_requires_new_approval_and_restores_original_content",
+          "cas_rechecks_leaf_range_full_buffer_and_disk_baseline",
+          "unsaved_buffer_is_not_overwritten",
+          "another_unsaved_editor_blocks_selection_disk_write",
+          "stop_at_actual_cas_and_reopen_never_apply_stale_operation",
+          "lost_host_ack_blocks_dispatch_and_reconciles_same_receipt_without_write",
+          "lost_receipt_blocks_dispatch_and_reopen_preserves_original_operation_id"
+        ],
+        "fileWrites": 5,
+        "directEditorWrites": 0
+      },
+      "scope": "actual_production_backend_sdk_and_host_io_with_controlled_provider_not_actual_model_or_desktop"
+    }
+  },
+  "limits": [
+    "仅模型流/Obsidian IO测试边界替换；实际Runtime/Harness/JSONL/工具路径保留。",
+    "受控provider不等于真实LM Studio；本机HTTP、真实OS子进程与真实模型分开登记。"
+  ]
+}

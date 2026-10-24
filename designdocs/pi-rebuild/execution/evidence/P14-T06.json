@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P14-T06",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P14-T06.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P14-T06-01", "SC-P14-T06-02", "SC-P14-T06-03", "SC-P14-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 12,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/__tests__/resourceBounds.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 12,
+      "durationSeconds": 3.95,
+      "logPath": "/tmp/vault-agent-required-current/05.log",
+      "logSha256": "3acdc663bc53ead2c86f94a46c68d3a9c26f2ec7f295954ca6ccbccdad697cef",
+      "testFile": "src/agentMode/sdk/pi/__tests__/resourceBounds.test.ts",
+      "testSourceSha256": "9e0cc1f82c00d51f4e19a1450d0bfdf49deb2d9fcaaee37f4727927f1e5cb41b",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P14-T06-01",
+      "requirement": "无无限输出数组",
+      "result": "passed",
+      "evidence": "live EventTranslator与committed Projection共用256000尾窗，完整原文仍在Durable Entry/导出；实际大输出/资源上限回归不无限追加数组。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T06-02",
+      "requirement": "UI长任务目标有测量",
+      "result": "passed",
+      "evidence": "15f2实际M3 Ultra/96GiB的1000原角色消息+80k输出，修前最长416ms；修后DOM50、载入70.2ms，观察期无>=50ms LongTask，符合200ms目标；这是记录版本测量，不称耗时0ms或当前包未测也绿。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T06-03",
+      "requirement": "idle关闭资源",
+      "result": "passed",
+      "evidence": "RuntimePool fake-clock仅测60s规则，真实Backend pool诊断2writer/第三排队/释放lease/重开真实store，真实stdio2PID关闭后ESRCH；活跃任务/审批/观察不被idle回收。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P14-T06-04",
+      "requirement": "超限可取消而不崩溃",
+      "result": "passed",
+      "evidence": "实际16MiB提醒、32MiB拒新请求仍保留读取/导出/停止/rollover；长输出受限仍可cancel，实际Backend故障不崩溃伪成功。",
+      "proofScope": "original_requirement_specific_review_and_listed_evidence",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "验收检查器改为逐scenario校验，featureCoverage仅目录契约，空PATH检查走实际生产入口；最终逐功能/恢复矩阵、真实性与跨平台仍须原门槛证据。",
+    "actualRuntimeReferences": ["pool"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

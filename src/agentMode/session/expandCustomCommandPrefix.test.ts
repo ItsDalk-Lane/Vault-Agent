@@ -17,6 +17,15 @@ const makeCommand = (overrides: Partial<CustomCommand>): CustomCommand => ({
 
 describe("expandCustomCommandPrefix", () => {
   describe("expandCustomCommandPrefix()", () => {
+    it("leaves command variables literal when custom prompt templating is disabled https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const command = makeCommand({
+        title: "literal",
+        content: "Keep {} and {activeNote} and {#tag}",
+      });
+      expect(
+        await expandCustomCommandPrefix("/literal", [command], "selected excerpt", null, false)
+      ).toEqual({ text: command.content, matched: command });
+    });
     it("returns input unchanged when text does not start with slash", async () => {
       const result = await expandCustomCommandPrefix("hello world", [], "", null);
       expect(result).toEqual({ text: "hello world" });

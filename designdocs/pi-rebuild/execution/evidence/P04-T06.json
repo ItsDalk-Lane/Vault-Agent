@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P04-T06",
+  "status": "passed",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P04-T06.json",
+    "reason": "生产会话没有接入真实运行/预算状态。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P04-T06-01", "SC-P04-T06-02", "SC-P04-T06-03", "SC-P04-T06-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 16,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "taskId": "P04-T06",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/events/RunProjection.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 16,
+      "durationSeconds": 3.639,
+      "logPath": "/tmp/vault-agent-detailed-p04-t06.log",
+      "logSha256": "5cd26b335e2b459f6a3ac2c25c0d1afd6121569b8f2648afe7514f14a689df5e",
+      "testFile": "src/agentMode/sdk/pi/events/RunProjection.test.ts",
+      "testSourceSha256": "b4c42dc67f01f3bfe1e09598a8c1af4c900e8ed1f56718249067b090f158925e",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P04-T06-01",
+      "requirement": "中间turn结束仍loading",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：keeps loading through intermediate turn ends。实际生产接线复核：PiRuntime.consume/watch + PiRuntimeProjection → EventTranslator → AgentSession.applySessionProjection → AgentChatMessages/AgentTrail。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T06-02",
+      "requirement": "取消保留已完成修改",
+      "result": "passed",
+      "evidence": "c07实际同回合批准vault_edit后紫→青，后续真实文本流Stop；冷重开0模型、partial仅1、cancelled、同operationId COMMITTED Diff与手工行完整保留。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T06-03",
+      "requirement": "unknown成本不写零",
+      "result": "passed",
+      "evidence": "已执行相应指定模块命令；精确断言：returns null for unknown or zero usage instead of writing zeros。实际生产接线复核：PiRuntime.consume/watch + PiRuntimeProjection → EventTranslator → AgentSession.applySessionProjection → AgentChatMessages/AgentTrail。",
+      "proofScope": "module_contract_with_production_wiring_review",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P04-T06-04",
+      "requirement": "重试不再造user消息",
+      "result": "passed",
+      "evidence": "真实Backend同requestId两次实际SDK重试合计3attempt但user entry仅1；各partial保留，最终completed；重开重复requestId不调模型。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": [],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际消息替换/回放、公开思考与持久计时、用量/压缩和逐轮变更已投影；真实LM暴露的空白卡/重复变更已修并有红绿回归。",
+    "actualRuntimeReferences": ["production:stop_pending_question", "models:real_stream_and_usage"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

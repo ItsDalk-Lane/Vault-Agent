@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P10-T05",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P10-T05.json",
+    "reason": "生产后台 Anchor/Reporter 尚未接线。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P10-T05-01", "SC-P10-T05-02", "SC-P10-T05-03", "SC-P10-T05-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 10,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/subagents/BackgroundTasks.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 10,
+      "durationSeconds": 2.5,
+      "logPath": "/tmp/vault-agent-required-current/09.log",
+      "logSha256": "49757793a62c104b7f3423d21826dcdaebad4088007f65187411fb7f46f52bc0",
+      "testFile": "src/agentMode/sdk/pi/features/subagents/BackgroundTasks.test.ts",
+      "testSourceSha256": "2be123660a580f710c919dbe7ecd68b0e3daf31ef34ce3cf51907dea0d6b903c",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P10-T05-01",
+      "requirement": "report提交后crash不会再次报告",
+      "result": "passed",
+      "evidence": "报告实际JSONL落盘后/checkpoint前进程退出及综合答案落盘/checkpoint前第二断点，均同report Entry；Continue前者只综合1次、后者0新模型。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T05-02",
+      "requirement": "后台仍有明确owner",
+      "result": "passed",
+      "evidence": "实际SDK创建Anchor(background=true)持有child所有权和稳定ownerTaskId；reporter持久化parentRunId/childId，恢复仍同child和父工具卡。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T05-03",
+      "requirement": "缺任务定义恢复blocked不丢弃",
+      "result": "passed",
+      "evidence": "真实非终态task侧文件构造未知Reporter kind与future version99，SDK inspect blocked传到Root readonly；历史/完整导出可读且Continue立即拒绝，不启动模型或丢弃原task。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P10-T05-04",
+      "requirement": "storage错误不继续发报告",
+      "result": "passed",
+      "evidence": "真实Reporter deliver→report的task侧文件append I/O EIO，SDK提交失败后没有任何va.subagent.report写入或综合provider，readonly历史仍可导出。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "生产同Harness子代理与持久关系/前后台控制已接入；当前明确记录的子代理实际模型调用与重开零请求见runtime结果。",
+    "actualRuntimeReferences": ["subagents"],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本轮已接入生产实现和明确记录的回归；未完成全部原定assertions、requiredCommands与前置gate前，不恢复done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  }
+}

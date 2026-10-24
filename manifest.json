@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "minAppVersion": "1.11.4",
   "isDesktopOnly": true,
-  "description": "Run Claude Code, Codex, and OpenCode inside your vault with your own API keys.",
+  "description": "Run a bundled AI agent inside your vault with your own provider API keys.",
   "author": "Vault Agent"
 }

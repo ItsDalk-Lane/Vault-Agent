@@ -4,11 +4,14 @@ import type { AgentAnswer, AgentAnswerStatus } from "@/agentMode/session/fanout/
 jest.mock("@/agentMode/backends/registry", () => {
   const Icon = () => null;
   return {
-    backendRegistry: {
-      opencode: { id: "opencode", displayName: "opencode", Icon },
-      claude: { id: "claude", displayName: "Claude", Icon },
-      codex: { id: "codex", displayName: "Codex", Icon },
-    },
+    describeBackendForHistory: (id: string) => ({
+      id,
+      label:
+        ({ opencode: "opencode", claude: "Claude", codex: "Codex" } as Record<string, string>)[
+          id
+        ] ?? id,
+      Icon: ["opencode", "claude", "codex"].includes(id) ? Icon : undefined,
+    }),
   };
 });
 
@@ -48,6 +51,7 @@ describe("fanoutDropdown", () => {
       expect(agentStateForStatus("done")).toBe("answer");
       expect(agentStateForStatus("error")).toBe("error");
       expect(agentStateForStatus("cancelled")).toBe("cancelled");
+      expect(agentStateForStatus("paused")).toBe("paused");
     });
   });
 
@@ -63,6 +67,22 @@ describe("fanoutDropdown", () => {
   });
 
   describe("buildFanoutOptions()", () => {
+    it("uses saved model labels instead of treating model ids as engine names https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const options = buildFanoutOptions({
+        answers: {
+          "saved-model": {
+            backendId: "pi",
+            modelKey: "saved-model",
+            label: "Claude · Work",
+            status: "done",
+            text: "Answer",
+          },
+        },
+        summary: { status: "done", text: "Summary" },
+      });
+      expect(options.find((option) => option.value === "saved-model")?.label).toBe("Claude · Work");
+      expect(options.find((option) => option.value === "saved-model")?.Icon).toBeUndefined();
+    });
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/481 omits Summary when exactly one agent answered", () => {
       const options = buildFanoutOptions(turn([answer("claude", "done", "Claude answer")]));
 

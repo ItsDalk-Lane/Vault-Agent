@@ -71,10 +71,23 @@ export interface VaultAgentSettings {
   _keychainVaultId?: string;
   _pendingCredentialRecovery?: { deviceId: string; path: string; encrypted: boolean };
   settingsVersion?: number;
+  settingsSchemaVersion?: number;
   agentMode: {
     byok: { anthropic?: string; openai?: string; google?: string };
     activeBackend: string;
     backends: {
+      pi?: {
+        defaultModel?: ModelSelection | null;
+        defaultMode?: VaultAgentMode | null;
+        mcpServers?: readonly unknown[];
+        hostExecutionMode?: "strict" | "trusted_host";
+        enabledSubagentProfiles?: readonly string[];
+        externalScopes?: readonly {
+          readonly root: string;
+          readonly permissions: readonly ("read" | "write")[];
+          readonly expiresAtMs?: number;
+        }[];
+      };
       opencode?: OpencodeBackendSettings;
       claude?: ClaudeBackendSettings;
       codex?: CodexBackendSettings;
@@ -82,7 +95,6 @@ export interface VaultAgentSettings {
     // Keyed by device id because binary paths must not sync across devices:
     // https://github.com/logancyang/obsidian-copilot/issues/2539
     deviceProfiles?: Record<string, DeviceAgentProfile>;
-    claudeCli?: { path?: string };
     debugFullFrames: boolean;
     offerFeedbackCards: boolean;
     notificationSound: boolean;
@@ -112,37 +124,22 @@ export interface ClaudeBackendSettings {
 }
 
 export interface CodexBackendSettings {
-  binaryVersion?: string;
-  binaryPath?: string;
-  binarySource?: "managed" | "custom";
   defaultModel?: ModelSelection | null;
   defaultMode?: VaultAgentMode | null;
   envOverrides?: Record<string, string>;
 }
 
 export interface OpencodeBackendSettings {
-  binaryVersion?: string;
-  binaryPath?: string;
-  binarySource?: "managed" | "custom";
   defaultModel?: ModelSelection | null;
   defaultMode?: VaultAgentMode | null;
-  probeSessionId?: string;
   envOverrides?: Record<string, string>;
 }
 
 export interface DeviceAgentProfile {
-  claudeCliPath?: string;
   codex?: {
-    binaryPath?: string;
-    binaryVersion?: string;
-    binarySource?: "managed" | "custom";
     envOverrides?: Record<string, string>;
   };
   opencode?: {
-    binaryPath?: string;
-    binaryVersion?: string;
-    binarySource?: "managed" | "custom";
-    probeSessionId?: string;
     envOverrides?: Record<string, string>;
   };
   claude?: {
@@ -524,6 +521,52 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
   const codexSlice = existingCodex ? sanitizeCodexBackendSettings(existingCodex) : undefined;
 
   const backends: VaultAgentSettings["agentMode"]["backends"] = {};
+  const existingPi = backendsRaw.pi;
+  if (existingPi && typeof existingPi === "object") {
+    const pi = existingPi as Record<string, unknown>;
+    backends.pi = {
+      defaultModel: sanitizeDefaultModel(pi.defaultModel),
+      defaultMode: sanitizeDefaultMode(pi.defaultMode),
+      ...(Array.isArray(pi.mcpServers) ? { mcpServers: pi.mcpServers } : {}),
+      hostExecutionMode: pi.hostExecutionMode === "trusted_host" ? "trusted_host" : "strict",
+      ...(Array.isArray(pi.enabledSubagentProfiles)
+        ? {
+            enabledSubagentProfiles: pi.enabledSubagentProfiles.filter(
+              (profile): profile is string =>
+                typeof profile === "string" &&
+                ["researcher", "reviewer", "writer"].includes(profile)
+            ),
+          }
+        : {}),
+      ...(Array.isArray(pi.externalScopes)
+        ? {
+            externalScopes: pi.externalScopes
+              .filter(
+                (
+                  scope
+                ): scope is {
+                  root: string;
+                  permissions: ("read" | "write")[];
+                  expiresAtMs?: number;
+                } =>
+                  typeof scope === "object" &&
+                  scope !== null &&
+                  typeof (scope as Record<string, unknown>).root === "string" &&
+                  Array.isArray((scope as Record<string, unknown>).permissions)
+              )
+              .map((scope) => ({
+                root: scope.root,
+                permissions: scope.permissions.filter(
+                  (permission) => permission === "read" || permission === "write"
+                ),
+                ...(typeof scope.expiresAtMs === "number" && Number.isFinite(scope.expiresAtMs)
+                  ? { expiresAtMs: scope.expiresAtMs }
+                  : {}),
+              })),
+          }
+        : {}),
+    };
+  }
   if (opencodeSlice) backends.opencode = opencodeSlice;
   if (claudeSlice) backends.claude = claudeSlice;
   if (codexSlice) backends.codex = codexSlice;
@@ -557,14 +600,6 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
       ? r.welcomeDismissed
       : DEFAULT_SETTINGS.agentMode.welcomeDismissed;
 
-  const claudeCliRaw =
-    r.claudeCli && typeof r.claudeCli === "object"
-      ? (r.claudeCli as Record<string, unknown>)
-      : null;
-  const claudeCliPath =
-    claudeCliRaw && typeof claudeCliRaw.path === "string" ? claudeCliRaw.path : undefined;
-  const claudeCli = claudeCliPath ? { path: claudeCliPath } : undefined;
-
   const skillsRaw =
     r.skills && typeof r.skills === "object" ? (r.skills as Record<string, unknown>) : null;
   const skillsFolderRaw = skillsRaw && typeof skillsRaw.folder === "string" ? skillsRaw.folder : "";
@@ -593,7 +628,6 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
     notificationSoundId,
     welcomeDismissed,
     skills,
-    ...(claudeCli ? { claudeCli } : {}),
     ...(deviceProfiles ? { deviceProfiles } : {}),
   };
 }
@@ -747,10 +781,6 @@ export function validateVaultAgentFolder(
   return { ok: true, folder: cleaned };
 }
 
-function nonEmptyString(v: unknown): string | undefined {
-  return typeof v === "string" && v ? v : undefined;
-}
-
 function sanitizeDefaultModel(raw: unknown): ModelSelection | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
@@ -810,18 +840,7 @@ function sanitizeClaudeBackendSettings(raw: unknown): ClaudeBackendSettings {
 function sanitizeCodexBackendSettings(raw: unknown): CodexBackendSettings {
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>;
-  const binaryPath = nonEmptyString(r.binaryPath);
-  const rawSource = r.binarySource;
   return {
-    binaryPath,
-    binaryVersion: binaryPath ? nonEmptyString(r.binaryVersion) : undefined,
-    // Never take ownership of an existing or cross-device path.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/368
-    binarySource: binaryPath
-      ? rawSource === "managed" || rawSource === "custom"
-        ? rawSource
-        : "custom"
-      : undefined,
     defaultModel: sanitizeDefaultModel(r.defaultModel),
     defaultMode: sanitizeDefaultMode(r.defaultMode),
     envOverrides: sanitizeEnvOverrides(r.envOverrides),
@@ -831,22 +850,9 @@ function sanitizeCodexBackendSettings(raw: unknown): CodexBackendSettings {
 function sanitizeOpencodeBackendSettings(raw: unknown): OpencodeBackendSettings {
   if (!raw || typeof raw !== "object") return {};
   const r = raw as Record<string, unknown>;
-  const binaryPath = nonEmptyString(r.binaryPath);
-  const binaryVersion = nonEmptyString(r.binaryVersion);
-  const rawSource = r.binarySource;
-  let binarySource: "managed" | "custom" | undefined;
-  if (rawSource === "managed" || rawSource === "custom") {
-    binarySource = binaryPath ? rawSource : undefined;
-  } else {
-    binarySource = binaryPath ? "managed" : undefined;
-  }
   return {
-    binaryPath,
-    binaryVersion,
-    binarySource,
     defaultModel: sanitizeDefaultModel(r.defaultModel),
     defaultMode: sanitizeDefaultMode(r.defaultMode),
-    probeSessionId: nonEmptyString(r.probeSessionId),
     envOverrides: sanitizeEnvOverrides(r.envOverrides),
   };
 }
@@ -856,43 +862,18 @@ function sanitizeDeviceAgentProfile(raw: unknown): DeviceAgentProfile | undefine
   const r = raw as Record<string, unknown>;
   const out: DeviceAgentProfile = {};
 
-  const claudeCliPath = nonEmptyString(r.claudeCliPath);
-  if (claudeCliPath) out.claudeCliPath = claudeCliPath;
-
   const codexRaw =
     r.codex && typeof r.codex === "object" ? (r.codex as Record<string, unknown>) : null;
   if (codexRaw) {
-    const codex: NonNullable<DeviceAgentProfile["codex"]> = {};
-    const binaryPath = nonEmptyString(codexRaw.binaryPath);
-    if (binaryPath) codex.binaryPath = binaryPath;
-    const binaryVersion = binaryPath ? nonEmptyString(codexRaw.binaryVersion) : undefined;
-    if (binaryVersion) codex.binaryVersion = binaryVersion;
-    const rawSource = codexRaw.binarySource;
-    if (binaryPath) {
-      codex.binarySource = rawSource === "managed" || rawSource === "custom" ? rawSource : "custom";
-    }
     const envOverrides = sanitizeEnvOverrides(codexRaw.envOverrides);
-    if (envOverrides) codex.envOverrides = envOverrides;
-    if (Object.keys(codex).length > 0) out.codex = codex;
+    if (envOverrides) out.codex = { envOverrides };
   }
 
   const opencodeRaw =
     r.opencode && typeof r.opencode === "object" ? (r.opencode as Record<string, unknown>) : null;
   if (opencodeRaw) {
-    const opencode: NonNullable<DeviceAgentProfile["opencode"]> = {};
-    const binaryPath = nonEmptyString(opencodeRaw.binaryPath);
-    if (binaryPath) opencode.binaryPath = binaryPath;
-    const binaryVersion = nonEmptyString(opencodeRaw.binaryVersion);
-    if (binaryVersion) opencode.binaryVersion = binaryVersion;
-    if (binaryPath) {
-      const rawSource = opencodeRaw.binarySource;
-      opencode.binarySource = rawSource === "custom" ? "custom" : "managed";
-    }
-    const probeSessionId = nonEmptyString(opencodeRaw.probeSessionId);
-    if (probeSessionId) opencode.probeSessionId = probeSessionId;
     const envOverrides = sanitizeEnvOverrides(opencodeRaw.envOverrides);
-    if (envOverrides) opencode.envOverrides = envOverrides;
-    if (Object.keys(opencode).length > 0) out.opencode = opencode;
+    if (envOverrides) out.opencode = { envOverrides };
   }
 
   const claudeRaw =

@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P03-T04",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/models/ProviderGuard.ts",
+    "src/agentMode/sdk/pi/runtime/RunBudget.ts",
+    "src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P03-T04.json"
+  ],
+  "scenarioIds": ["SC-P03-T04-01", "SC-P03-T04-02", "SC-P03-T04-03", "SC-P03-T04-04"],
+  "commands": [
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/models/ProviderGuard.ts src/agentMode/sdk/pi/runtime/RunBudget.ts src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（no-unused-vars、no-restricted-syntax、issue-linked comments 等通过）。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1188 files：guard/budget 只在 sdk/pi，无跨层或 Pi 私有 import。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd：纯新增未引用模块，生产 bundle 未变化。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "仅新增 models/ProviderGuard.ts、runtime/RunBudget.ts、models/ProviderGuard.test.ts 并更新执行包状态文件；无既有源码修改。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有 P01 的依赖/边界/领域事件/registry/i18n 改动；本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 17,
+      "durationSeconds": 2.47,
+      "logPath": "/tmp/vault-agent-required-current/19.log",
+      "logSha256": "3245c918d9b726352c8a8d3f45cb41501a52719a3a90508bfbb0a2407e2d320e",
+      "testFile": "src/agentMode/sdk/pi/models/ProviderGuard.test.ts",
+      "testSourceSha256": "cc47da5daa42f899605e6c1e5754c619e5fe6ede4957cf0c1666aa85a7b0339e",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P03-T04-01",
+      "requirement": "预算不足零网络请求",
+      "result": "passed",
+      "evidence": "ProviderGuard 在 openNetworkStream 之前完成 identity/cancel/endpoint/credential 检查并 await budget.reserve；maxModelAttempts=0 或 USD 预算耗尽时 reserve 返回 denied，guard 只返回 createErrorStream(BUDGET_EXCEEDED)，测试断言 networkCalls 为空、errorStreams 恰一条；RunBudget 的 durable persist 失败同样 fail closed 且 modelAttempts 保持 0。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T04-02",
+      "requirement": "取消后迟到请求被挡",
+      "result": "passed",
+      "evidence": "guard 检查 run state=cancelled、request.cancelEpoch 与已提交 cancelEpoch 不一致、以及 signal 已 abort 三种迟到形态，均返回 CANCELLED error stream 且不调用 openNetworkStream；测试还覆盖 resolveRun 与网络打开之间 abort：返回 CANCELLED、refund 后 modelAttempts=0、无网络调用。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T04-03",
+      "requirement": "并发子请求不超名额",
+      "result": "passed",
+      "evidence": "RunBudget 对 reserve 串行化（promise chain），purpose=subagent 时在 durable commit 前检查 activeSubagents 上限；并发 3 个 reserve 只有 2 个 reserved、1 个 SUBAGENT_LIMIT；ProviderGuard 并发 dispatch 同样得到 2 个 network stream + 1 个 SUBAGENT_LIMIT error stream，网络调用恰 2 次；settle 一个后名额释放可再次 reserve。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P03-T04-04",
+      "requirement": "压缩请求也计数",
+      "result": "passed",
+      "evidence": "purpose=compaction 与 root/title/subagent/fanout 走同一 RunBudget.reserve 与同一 modelAttempts 计数；测试 maxModelAttempts=1 时 root 成功发起一次网络请求，compaction 被 BUDGET_EXCEEDED 阻断且 networkCalls 仍为 1；另一测试五类 purpose 各 reserve 一次后 modelAttempts=5。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "ProviderGuard 与 RunBudget 通过注入端口验证；真实接线（每根 Harness 独立 guarded Models、durable reserve 写入 Durable.tx、真实 AssistantMessageEventStream 错误流、conversation→run 映射恢复）属于 P03-T05 根运行时与后续任务。",
+    "RunBudget 的 durable persistReserve 端口当前只提交记录，尚未实现 Durable 事务内的原子 reserve/usage 记账；跨重启的已用额度恢复与 replay 去重依赖后续接线。",
+    "USD 预算是保守的“已花 ≥ 上限即拒绝”，没有按单次请求预留上限（设计允许估算，不承诺账单精确）；unknown cost 只标记不阻塞。",
+    "工具调用次数（maxToolCalls）与 15 分钟活跃运行时长预算尚未在此模块实现/计数，属后续 gate/预算任务。",
+    "取消检测基于注入的 signal 与 cancelEpoch；真实 Durable cancel 传播、observer 取消与 provider stream abort 的端到端行为待接线验证。",
+    "未运行全仓测试；未接真实 Durable/网络/Obsidian；未创建 git commit（gitCommitAfter=null）。"
+  ],
+  "handoff": "P03-T04 完成；下一任务 P03-T05（建立唯一 Durable 根运行时，依赖 P03-T04）：先读卡片与 design/02、03、09；新增 src/agentMode/sdk/pi/runtime/RootSessionRuntime.ts：组合已验证的 DurableStore/Models/CredentialStore/ProviderGuard/registry；应用固定 progress/retry/sequential 设置；绑定 root 产品元数据（va.session/va.run/预算/取消上下文）与 conversation→run 映射；raw Harness 仅在适配层内部可见不得外泄；close 不把未完成 run 暗中 abort 成成功、也不启动新请求。先写失败测试 src/agentMode/sdk/pi/runtime/RootSessionRuntime.test.ts（断言段见卡片），注入 store/models/guard/registry 端口，不 mock 核心判定、禁止 sleep。运行 npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/runtime/RootSessionRuntime.test.ts 与 npm run build:esbuild；写 evidence、更新 STATE/HANDOFF、运行 check-plan。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

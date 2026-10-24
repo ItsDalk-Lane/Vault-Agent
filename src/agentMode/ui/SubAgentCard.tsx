@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { App } from "obsidian";
-import type { ToolCallPart } from "@/agentMode/ui/agentTrail";
-import type { GroupedTrailNode } from "@/agentMode/ui/activityGroups";
+import type { RenderNode, ToolCallPart } from "@/agentMode/ui/agentTrail";
 import { StatusBadge } from "@/agentMode/ui/ActionCard";
 import { AgentMarkdownText } from "@/agentMode/ui/AgentMarkdownText";
 import {
@@ -12,13 +11,18 @@ import {
 } from "@/agentMode/ui/toolSummaries";
 import { AgentActivityCard } from "@/components/chat-components/AgentActivityCard";
 import { t } from "@/i18n";
+import { Button } from "@/components/ui/button";
+
+export const SubagentHistoryOpenerContext = React.createContext<
+  ((conversationId: string) => Promise<void>) | null
+>(null);
 
 interface SubAgentCardProps {
   parent: ToolCallPart;
-  childNodes: GroupedTrailNode[];
+  childNodes: RenderNode[];
   truncated?: boolean;
   app: App;
-  renderNode: (node: GroupedTrailNode, key: string | number) => React.ReactNode;
+  renderNode: (node: RenderNode, key: string | number) => React.ReactNode;
 }
 
 export const SubAgentCard: React.FC<SubAgentCardProps> = ({
@@ -30,6 +34,11 @@ export const SubAgentCard: React.FC<SubAgentCardProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
+  const openHistory = React.useContext(SubagentHistoryOpenerContext);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const childConversationId = (parent.input as { childConversationId?: unknown } | undefined)
+    ?.childConversationId;
   const summary = lookupToolSummary(parent);
   const Icon = summary.icon;
   const line = summary.collapsedLine(parent);
@@ -82,6 +91,35 @@ export const SubAgentCard: React.FC<SubAgentCardProps> = ({
           <AgentMarkdownText text={returnText} app={app} />
         </div>
       ) : null}
+      {openHistory && typeof childConversationId === "string" ? (
+        <div className="tw-flex tw-flex-col tw-gap-1">
+          <div>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={historyLoading}
+              onClick={() => {
+                setHistoryLoading(true);
+                setHistoryError(null);
+                void openHistory(childConversationId)
+                  .catch((error: unknown) =>
+                    setHistoryError(error instanceof Error ? error.message : String(error))
+                  )
+                  .finally(() => setHistoryLoading(false));
+              }}
+            >
+              {historyLoading
+                ? t("agentChat.subAgent.historyLoading")
+                : t("agentChat.subAgent.viewHistory")}
+            </Button>
+          </div>
+          {historyError ? (
+            <p role="alert" className="tw-m-0 tw-text-ui-smaller tw-text-error">
+              {historyError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </AgentActivityCard>
   );
 };
@@ -91,18 +129,12 @@ interface ChildCounts {
   reasoning: number;
 }
 
-function countChildren(nodes: GroupedTrailNode[]): ChildCounts {
+function countChildren(nodes: RenderNode[]): ChildCounts {
   let tools = 0;
   let reasoning = 0;
   for (const n of nodes) {
     if (n.type === "action" || n.type === "subagent") tools += 1;
     else if (n.type === "reasoning") reasoning += 1;
-    else if (n.type === "activityGroup") {
-      for (const m of n.members) {
-        if (m.type === "action") tools += 1;
-        else reasoning += 1;
-      }
-    }
   }
   return { tools, reasoning };
 }

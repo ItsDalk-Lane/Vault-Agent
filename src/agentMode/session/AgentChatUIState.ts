@@ -12,8 +12,11 @@ import type {
   PermissionPrompt,
   PlanDecisionAction,
   PromptContent,
+  RecoveryStateUpdate,
   PlanUsage,
   SessionUsage,
+  TurnFileChange,
+  FileChangeRevertResult,
 } from "@/agentMode/session/types";
 import type { MessageContext } from "@/types/message";
 import type { FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
@@ -70,6 +73,41 @@ export class AgentChatUIState implements AgentChatBackend {
     return { id: userMessageId, turn: wrapped };
   }
 
+  canSteer(): boolean {
+    return this.session.canSteer();
+  }
+
+  async steerMessage(text: string): Promise<void> {
+    await this.session.steerPrompt(text);
+    this.notifyListeners();
+  }
+
+  async resumeFanout(messageId: string): Promise<void> {
+    const turn = this.session.resumeFanout(messageId);
+    this.currentTurn = turn;
+    await turn;
+  }
+
+  async readSubagentHistory(conversationId: string): Promise<readonly AgentChatMessage[]> {
+    return this.session.readSubagentHistory(conversationId);
+  }
+
+  getRecoveryState(): RecoveryStateUpdate | null {
+    return this.session.getRecoveryState();
+  }
+
+  async recoverSession(action: "continue" | "abort" | "reconcile"): Promise<void> {
+    await this.session.recoverSession(action);
+  }
+
+  async revertFileChange(change: TurnFileChange): Promise<FileChangeRevertResult> {
+    return this.session.revertFileChange(change);
+  }
+
+  async pause(): Promise<void> {
+    await this.session.pause();
+  }
+
   async cancel(): Promise<void> {
     await this.session.cancel();
   }
@@ -96,6 +134,10 @@ export class AgentChatUIState implements AgentChatBackend {
 
   isStarting(): boolean {
     return this.session.getStatus() === "starting";
+  }
+
+  getActiveBackgroundTaskCount(): number {
+    return this.session.getActiveBackgroundTaskCount();
   }
 
   isTurnInFlight(): boolean {
@@ -131,7 +173,9 @@ export class AgentChatUIState implements AgentChatBackend {
   }
 
   resolveToolPermission(toolCallId: string, optionId: string): void {
-    this.session.resolveToolPermission(toolCallId, optionId);
+    void this.session
+      .resolveToolPermission(toolCallId, optionId)
+      .catch((error) => logWarn("[AgentChatUIState] approval could not be saved", error));
     this.notifyListeners();
   }
 
@@ -140,7 +184,9 @@ export class AgentChatUIState implements AgentChatBackend {
   }
 
   resolveAskUserQuestion(requestId: string, answers: AgentQuestionAnswers): void {
-    this.session.resolveAskUserQuestion(requestId, answers);
+    void this.session
+      .resolveAskUserQuestion(requestId, answers)
+      .catch((error) => logWarn("[AgentChatUIState] answer could not be saved", error));
     this.notifyListeners();
   }
 
@@ -183,26 +229,15 @@ export class AgentChatUIState implements AgentChatBackend {
       logWarn("[AgentChatUIState] non-gated plan card has no resolution path");
       return;
     }
-    // Codex publishes the card from its tool call before the permission request;
-    // finalizing earlier would hide the card and leave that request unanswered.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/551
+    // 等待计划确认请求到达，避免提前隐藏卡片而留下未回答的请求。https://github.com/Brevilabs/obsidian-copilot-private/issues/551
     if (!this.session.hasPendingPlanPermission()) return;
     const trimmedFeedback = decision === "feedback" ? feedbackText?.trim() : undefined;
-    const sendNextTurn = !!trimmedFeedback && this.session.planFeedbackDelivery === "next_turn";
-    const pendingTurn = this.currentTurn;
-    // Some adapters end the turn on plan rejection without consuming a deny
-    // message. Their feedback must become a new user turn once this one settles.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/41
-    this.session.resolvePlanProposalPermission(
+    await this.session.resolvePlanProposalPermission(
       plan.pendingToolCallId,
       decision === "approve",
-      sendNextTurn ? undefined : trimmedFeedback
+      trimmedFeedback
     );
     this.session.finalizePlanDecision(plan.id, decision, trimmedFeedback);
     this.notifyListeners();
-    if (sendNextTurn) {
-      await pendingTurn;
-      await this.sendMessage(trimmedFeedback).turn;
-    }
   }
 }

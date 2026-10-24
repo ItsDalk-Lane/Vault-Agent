@@ -19,7 +19,7 @@ const request = {
       name: "Allow always",
       kind: "allow_always",
       description:
-        "Covers Edit(launch brief.md). Saved to .claude/settings.local.json in the vault folder (for a project chat, the project note's folder), for later chats there. Remove it there to undo.",
+        "Only the displayed target and permission scope are covered. This does not allow local programs or wider folder access.",
     },
     { optionId: "reject_once", name: "Deny once", kind: "reject_once" },
   ],
@@ -76,39 +76,6 @@ export const WebSearchQuery: StoryObj<ToolPermissionCardProps> = {
         kind: "other",
         rawInput: { query: "latest stable version of Node.js 2026" },
       },
-    },
-  },
-};
-
-const codexCommand =
-  'python3 -c \'from pathlib import Path; p = Path("/Users/me/Vault/launch-brief.md"); p.write_text("Review on Friday")\'';
-
-export const CodexCommandPrefix: StoryObj<ToolPermissionCardProps> = {
-  args: {
-    toolName: codexCommand,
-    request: {
-      ...request,
-      toolCall: {
-        ...request.toolCall,
-        title: "Run command",
-        kind: "execute",
-        rawInput: { command: codexCommand },
-      },
-      options: [
-        { optionId: "allow_once", name: "Yes, proceed", kind: "allow_once" },
-        {
-          optionId: "accept_execpolicy_amendment",
-          name: `Yes, and don't ask again for commands that start with \`${codexCommand}\``,
-          kind: "allow_always",
-          description:
-            "Saved to rules/default.rules in your Codex home (~/.codex by default) for all later Codex chats. Delete it there to undo.",
-        },
-        {
-          optionId: "cancel",
-          name: "No, and tell Codex what to do differently",
-          kind: "reject_once",
-        },
-      ],
     },
   },
 };

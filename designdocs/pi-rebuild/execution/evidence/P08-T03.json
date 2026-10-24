@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P08-T03",
+  "status": "blocked",
+  "updatedAt": "2026-10-22",
+  "supersedes": {
+    "archivePath": "execution/evidence/history/2026-10-22-before-adversarial-repair.json",
+    "record": "evidence.P08-T03.json",
+    "reason": "前置任务/阶段已因生产接线或必需验收缺失重开；保留原模块测试成果，整体完成资格待依赖修复和回归。"
+  },
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "scenarioIds": ["SC-P08-T03-01", "SC-P08-T03-02", "SC-P08-T03-03", "SC-P08-T03-04"],
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 5618,
+      "matchingTaskTestCount": 8,
+      "outputSummary": "本轮全仓502套5618测试通过；本任务对应模块的实际案例另见unit-results.json。",
+      "verificationScope": {
+        "kind": "historical_recorded_tree",
+        "buildIdentity": "c2a7ef50-dirty-15f2f5d21856"
+      }
+    },
+    {
+      "taskId": "P08-T03",
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/features/PlanDecision.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 8,
+      "durationSeconds": 2.623,
+      "logPath": "/tmp/vault-agent-detailed-p08-t03.log",
+      "logSha256": "683b4fba538c566aa056d71d4bd4bbf0a59cb255ebb1ef65719c6750c0b7347b",
+      "testFile": "src/agentMode/sdk/pi/features/PlanDecision.test.ts",
+      "testSourceSha256": "ded573bf978b63d515ba754d3d104a36893dc8a3dedb85b3e498df77eab780fe",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P08-T03-01",
+      "requirement": "批准计划后写文件仍审批",
+      "result": "passed",
+      "evidence": "同一实际Backend prompt plan→propose_plan→approve_plan→default→vault_create独立具体Diff审批；第二卡allow_once前零写，批准后恰1写。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T03-02",
+      "requirement": "拒绝不绕成auto",
+      "result": "passed",
+      "evidence": "真实生产scenario拒绝propose_plan，投影decision=rejected；拒绝分支不调用setMode(default/auto)，回传approved=false。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T03-03",
+      "requirement": "反馈真实进入下一次模型上下文",
+      "result": "passed",
+      "evidence": "实际Durable恢复后仅保存原计划反馈0模型，显式Continue的工具结果含rejected_with_feedback及唯一标识，PiSmoke真实Qwen复述原意见。",
+      "proofScope": "actual_runtime_or_desktop_combination_plus_contract_regression",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P08-T03-04",
+      "requirement": "关闭卡片不默认批准",
+      "result": "passed",
+      "evidence": "生产waitForPermission遇cancelled保留pending，未调用Plans.decide批准；PlanDecision.close模块测试也保留pending。",
+      "proofScope": "module_contract_and_production_wiring",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "notRun": ["原定依赖/前置阶段门槛仍待完成；本任务已证实的自身断言完整保留。"],
+  "limitations": [
+    "旧记录完整保留在supersedes.archivePath；本轮已修的历史缺陷理由不是当前生产代码仍缺接线的声明。",
+    "本机fixture、本机真实Qwen、真实远程服务与跨平台实证分别记录，不互相冒充。",
+    "未提交、推送或发布。"
+  ],
+  "revalidation": {
+    "status": "partial_local",
+    "reportPath": "execution/evidence/CURRENT-VERIFICATION.json",
+    "progress": "实际todo、计划批准/拒绝、提问/Stop、压缩、错误反馈和用量已接入；真实Qwen已实际使用todo/计划/提问/压缩。",
+    "actualRuntimeReferences": [
+      "production:plan_approval_leaves_read_only_mode",
+      "production:rejected_plan_stays_rejected"
+    ],
+    "currentModuleTestAvailable": true,
+    "moduleResultsPath": "execution/evidence/repair-2026-10-22/unit-results.json",
+    "acceptanceReason": "本次逐断言对应实际用例与生产接线；缺失条件逐项列明。自身断言全过仍须原依赖、前置gate和当前构建通过才done。",
+    "engineeringResultsPath": "execution/evidence/repair-2026-10-22/engineering-final.json",
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "acceptanceStatus": "assertions_satisfied_pending_original_dependencies",
+    "acceptedAssertions": 4,
+    "remainingAssertions": [],
+    "currentBuildStatus": "passed_current_frozen_source",
+    "continuationBaselinePath": "execution/evidence/repair-2026-10-22/continuation-local-model-baseline.json"
+  }
+}

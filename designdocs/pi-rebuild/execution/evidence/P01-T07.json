@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "taskId": "P01-T07",
+  "status": "passed",
+  "gitCommitBefore": "c2a7ef50539397627a6e4446283d791ad423aff6",
+  "gitCommitAfter": null,
+  "filesChanged": [
+    "src/agentMode/sdk/pi/testing/fauxRuntime.ts",
+    "src/agentMode/sdk/pi/testing/fakeVault.ts",
+    "src/agentMode/sdk/pi/testing/faultInjector.ts",
+    "src/agentMode/sdk/pi/testing/testHarness.test.ts",
+    "designdocs/pi-rebuild/execution/STATE.json",
+    "designdocs/pi-rebuild/execution/HANDOFF.md",
+    "designdocs/pi-rebuild/execution/evidence/P01-T07.json"
+  ],
+  "scenarioIds": ["SC-P01-T07-01", "SC-P01-T07-02", "SC-P01-T07-03"],
+  "commands": [
+    {
+      "command": "node -e 'const fs=require(\"fs\");const s=fs.readFileSync(\"main.js\",\"utf8\");const hits=[\"FaultInjector\",\"before_write\",\"createFauxRuntime\",\"apply_note_change\"].filter((token)=>s.includes(token));console.log(JSON.stringify({bundleTestHarnessLeaks:hits}))'",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"bundleTestHarnessLeaks\":[]}：生产 bundle 不含故障注入或 faux 测试入口。"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "passed: 0 violation(s) across 1156 file(s)；testing 模块位于 sdk/pi，Pi import 合法，无生产反向依赖。"
+    },
+    {
+      "command": "npx eslint src/agentMode/sdk/pi/testing/fauxRuntime.ts src/agentMode/sdk/pi/testing/fakeVault.ts src/agentMode/sdk/pi/testing/faultInjector.ts src/agentMode/sdk/pi/testing/testHarness.test.ts",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "0 error / 0 warning（issue-linked comments、no-explicit-any、no-unused-vars 等规则通过）。"
+    },
+    {
+      "command": "shasum -a 256 main.js",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "990cae1bf02749fcad9d2238fa21d37b379d95b4987fbcd164a689e01d81a5cd，与 P01-T06 构建相同：test harness 未进入生产 bundle。"
+    },
+    {
+      "command": "git status --short",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "本任务只新增 src/agentMode/sdk/pi/testing/ 下 4 个未跟踪文件并更新执行包状态文件；无既有源码改动。"
+    },
+    {
+      "command": "git diff --stat",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "tracked diff 仍只有前序任务改动（依赖锁、ESLint/AGENTS、session/types、registry、i18n），本任务无 tracked 修改。"
+    },
+    {
+      "command": "node designdocs/pi-rebuild/scripts/check-plan.mjs",
+      "cwd": "/Users/study_superior/Desktop/Code/Vault-Agent",
+      "exitCode": 0,
+      "testCount": null,
+      "result": "passed",
+      "outputSummary": "{\"result\":\"passed\",\"phases\":14,\"tasks\":109,\"features\":46,\"assertions\":427,\"flows\":14,\"errors\":[]}"
+    },
+    {
+      "command": "npm test -- --runInBand --runTestsByPath src/agentMode/sdk/pi/testing/testHarness.test.ts",
+      "exitCode": 0,
+      "result": "passed",
+      "testCount": 8,
+      "durationSeconds": 2.72,
+      "logPath": "/tmp/vault-agent-required-current/39.log",
+      "logSha256": "549d70ecbb4205debcfd10f5ceb41fbdae675f1d2e314ca36d101acb20091fff",
+      "testFile": "src/agentMode/sdk/pi/testing/testHarness.test.ts",
+      "testSourceSha256": "2bacd99d318a083b506385101a14043c73faba2957f3f35e0e467999a32eeddf",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    },
+    {
+      "command": "npm run build:esbuild",
+      "scope": "真实test:vault已执行的嵌套命令，无独立冒称再执行。",
+      "source": "/tmp/vault-agent-pi-final3-deploy.log",
+      "sourceSha256": "0dfa01f698aabd88399d26265018f36a1eb5a68aefa6b2e109cac8804aa4f9cd",
+      "exitCode": 0,
+      "result": "passed",
+      "verificationScope": {
+        "kind": "actual_targeted_command_at_recorded_test_source_hash"
+      }
+    }
+  ],
+  "manualChecks": [
+    {
+      "scenarioId": "SC-P01-T07-01",
+      "requirement": "工具脚本确实经过Harness",
+      "result": "passed",
+      "evidence": "Jest 在子 Node 进程中用 esbuild 打包真实 smoke 入口并执行：Harness.open(new MemoryStorage(), {models: faux models, registry}, BACKGROUND_CONTEXT) → registry.install(defineExtension({tools:[defineTool(...)]})) → root.submit(input) → faux 脚本返回 tool call → Harness 自己执行工具（toolExecutions=1）、写入 pi.tool-result 与 pi.assistant entry、submission=done。工具不是被测试直接调用；providerIds=[\"faux\"]。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T07-02",
+      "requirement": "故障点精确停止且可等待",
+      "result": "passed",
+      "evidence": "FaultInjector 是显式 Promise gate：工具 execute 内 await injector.pause(\"before_write\")；smoke 用 await injector.reached(\"before_write\") 等到停顿点，此时 vault.writes.length===0 与 writesDuringPause===0 成立；injector.release(\"before_write\") 后 submission 完成，writesAfterRelease===1、receipt.status=modified、after=updated。另有两个单测覆盖 pause→release 先后顺序（无 sleep/计时）与 failAt 在指定断点抛出预置错误。断点枚举含 before_intent/before_approval/before_write/after_write_before_receipt/after_receipt，供后续任务精确注入。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    },
+    {
+      "scenarioId": "SC-P01-T07-03",
+      "requirement": "测试不访问网络或真实用户Vault",
+      "result": "passed",
+      "evidence": "smoke 在执行任何 harness 代码前把 globalThis.fetch 替换为计数并抛错的守卫，报告 fetchCalls=0；models 只有 faux provider；FakeVault 是纯内存 Map，root=/fixture/vault，只接受 fixture 内相对路径（../ 与绝对路径直接抛错），不 import fs/path 访问真实磁盘；报告 vaultFilesAfter 仅为 fixture 文件。生产 bundle 扫描无 FaultInjector/faux 入口，main.js 哈希与上一任务相同。",
+      "proofScope": "preserved_baseline_with_executed_required_contract_tests",
+      "detailsPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json"
+    }
+  ],
+  "limitations": [
+    "Harness smoke 在子 Node 进程运行（Jest CJS 无法加载 Pi ESM），不是 Obsidian renderer 内的真实运行；真实宿主证据留给 P14/平台验收。",
+    "FakeVault 只覆盖文件读写 I/O 边界；P04–P06 的 EventTranslator、PolicyEngine、MutationCoordinator 尚未实现，因此本任务无法让它们跑真实实现（没有可 mock 的目标）。",
+    "当前 smoke 只实际经过 before_write 断点；before_intent/before_approval/after_write_before_receipt/after_receipt 已在 injector 中建模，待对应任务实现后接入。",
+    "所有测试用 faux provider，不代表真实供应商 thinking/tool/schema 支持；真实供应商测试属于后续 gate/发布证据。",
+    "未运行全仓测试、完整 build（tailwind）与 review:obsidian；P01 阶段 gate 会统一执行。",
+    "未创建 git commit：gitCommitAfter=null。"
+  ],
+  "handoff": "P01-T07 完成，P01 全部 7 个任务均已 done；下一步不是新原子任务，而是执行 P01 阶段 gate：读 execution/phases/P01.md，运行阶段相关单测 + npm run build + npm run lint（依赖/发布变更时 npm run review:obsidian），准备隔离 fake 宿主中的真实演示步骤（基线已登记且未覆盖 PoC、功能清单与真实渲染入口对照、锁文件与公开 API 契约测试通过、现有 build/lint/unit 基线）并写入 execution/evidence/GATE-P01.json（status/任务 ID/演示步骤/命令与退出码/人工检查/未执行项）；全部必需项 passed 后才更新 STATE.phaseGates.P01 并进入 P02-T01（否则保持 not_started 并记录未通过项）。",
+  "revalidation": {
+    "acceptanceStatus": "all_original_task_requirements_verified",
+    "acceptedAssertions": 3,
+    "remainingAssertions": [],
+    "detailedReviewPath": "execution/evidence/repair-2026-10-22/detailed-revalidation.json",
+    "currentBuildStatus": "passed_current_frozen_source"
+  },
+  "notRun": []
+}

@@ -65,7 +65,7 @@ describe("FeedbackCard", () => {
     it("shows the drafted title and the user's own words with review, dismiss and opt-out actions", () => {
       renderCard();
 
-      expect(screen.getByText("Report this to the Copilot team?")).toBeTruthy();
+      expect(screen.getByText("Report this to the Vault Agent team?")).toBeTruthy();
       expect(screen.getByText(OPEN_OFFER.draft.title)).toBeTruthy();
       expect(screen.getByText(`You said: “${OPEN_OFFER.draft.userSaid}”`)).toBeTruthy();
     });

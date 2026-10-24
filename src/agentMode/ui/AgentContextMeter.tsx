@@ -98,7 +98,9 @@ function PlanUsageRows({ planUsage }: { planUsage: PlanUsage }) {
           <div key={window.id} className="tw-flex tw-flex-col tw-gap-1">
             <div className="tw-flex tw-items-center tw-justify-between tw-gap-3 tw-text-ui-smaller">
               <span className="tw-whitespace-nowrap tw-text-muted">
-                {window.label}
+                {window.source === "local_budget" && window.id === "local_requests"
+                  ? t("agentChat.contextMeter.localRequests")
+                  : window.label}
                 {resetsIn && <span className="tw-text-faint"> · {resetsIn}</span>}
               </span>
               <span

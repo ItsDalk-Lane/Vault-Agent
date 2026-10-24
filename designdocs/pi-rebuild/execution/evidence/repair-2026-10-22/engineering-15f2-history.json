@@ -1,0 +1,94 @@
+{
+  "recordedAt": "2026-10-22",
+  "status": "passed",
+  "buildIdentity": "c2a7ef50-dirty-15f2f5d21856",
+  "commands": [
+    {
+      "command": "npm test -- --runInBand --json --outputFile=/tmp/vault-agent-pi-final-tests.json",
+      "exitCode": 0,
+      "result": "passed",
+      "testSuites": 502,
+      "testCount": 5618,
+      "pendingTests": 0,
+      "durationSeconds": 70.261,
+      "source": "/tmp/vault-agent-pi-final-tests.json",
+      "sourceSha256": "3065f433dacaf4b23504b580da3fd7b74d3479a3950b7236fbd5adc111aaf57c"
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "result": "passed",
+      "warnings": 4,
+      "warningScope": "既有mock hook命名告警，零error。",
+      "source": "/tmp/vault-agent-pi-final-lint.log",
+      "sourceSha256": "fdb72af808ebd1ae91c4fed3f5547fe0a30dc32bd7d77457d57fdcd85b7a0c09"
+    },
+    {
+      "command": "npm run review:obsidian",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final-review.log",
+      "sourceSha256": "25ea0c9ae2f9bbe5a8cc50fd2d61c8bd8bcb59ddaec5045b2b878fda6b4aab3b",
+      "notes": "review fixtures故意打印的负例error属于检查器样例；review source无阻断错误。npm audit记录0 vulnerabilities。"
+    },
+    {
+      "command": "npm run test:vault (限定PiSmoke的严格wrapper)",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final-deploy.log",
+      "sourceSha256": "9dda348632af287010f02b3114c5c15b911b37dacd37dfbd30c3935e43242b0c",
+      "nestedCommands": ["npm run build", "npm run build:esbuild", "npm run gallery:build"]
+    },
+    {
+      "command": "npm run format:check",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final-format-check.log",
+      "sourceSha256": "a4af907e6cfdfdf3a75475f894517f1286e22b93c75ec569a5af8343ca49d406"
+    },
+    {
+      "command": "node scripts/check-pi-boundaries.mjs",
+      "exitCode": 0,
+      "result": "passed",
+      "violations": 0,
+      "scannedFiles": 1322,
+      "evidence": "主代理已核对实际最终输出。"
+    },
+    {
+      "command": "node scripts/test-pi-runtime.mjs recovery",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final-recovery.json",
+      "sourceSha256": "512db084cf8d5abab4d2d8d76e075e812bafd703bec7ab36d9c87366fc3f3c6f"
+    },
+    {
+      "command": "node scripts/pi-clean-install-check.mjs",
+      "exitCode": 0,
+      "result": "passed",
+      "source": "/tmp/vault-agent-pi-final-clean-install.log",
+      "sourceSha256": "bc6354daf6a6b9f393cccf35559bae2a20e1e618a856796a5d7376be03af2a60"
+    }
+  ],
+  "limits": [
+    "全仓502套5618测试对应其记录时工作树；随后仅分页数字占位文案纠正，既有组件22测试定向通过，最终打包再次执行完整TypeScript与构建。",
+    "未执行项保持not_run；工程门禁不替代远程许可、完整逐功能或其他操作系统验收。"
+  ],
+  "builds": [
+    {
+      "buildIdentity": "c2a7ef50-dirty-64b999fd0f14",
+      "source": "/tmp/vault-agent-pi-final-deploy.log"
+    },
+    {
+      "buildIdentity": "c2a7ef50-dirty-15f2f5d21856",
+      "source": "/tmp/vault-agent-pi-final-deploy2.log",
+      "sourceSha256": "3eed8fabb34bf2881ca77d980df7560e568f16852b89c8fe00d079390bca4b2c",
+      "exitCode": 0
+    }
+  ],
+  "currentApplicability": {
+    "kind": "historical_recorded_tree",
+    "buildIdentity": "c2a7ef50-dirty-15f2f5d21856",
+    "currentTreeFinalAcceptance": "not_run_after_latest_repairs",
+    "note": "全部原始passed结果按其记录版本保留；本轮后续修复和干净profile问题不由旧包结果代替。"
+  }
+}

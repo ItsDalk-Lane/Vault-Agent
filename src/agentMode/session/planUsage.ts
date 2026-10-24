@@ -3,6 +3,7 @@ export interface UsageWindow {
   label: string;
   percent: number;
   resetsAt?: number;
+  source?: "provider" | "local_budget";
 }
 
 export interface PlanUsage {
