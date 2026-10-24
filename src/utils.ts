@@ -6,11 +6,11 @@ import {
   TEXT_READABLE_EXTENSIONS,
 } from "@/constants";
 import { t } from "@/i18n";
-import { logInfo, logWarn } from "@/logger";
+import { logWarn } from "@/logger";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { MemoryVariables } from "@langchain/core/memory";
 import { DateTime } from "luxon";
-import { App, MarkdownView, Notice, TFile, Vault, normalizePath, requestUrl } from "obsidian";
+import { App, MarkdownView, Notice, TFile, Vault, WorkspaceLeaf, normalizePath } from "obsidian";
 import { CustomModel } from "./aiParams";
 export { err2String } from "@/lib/model-display-utils";
 
@@ -23,14 +23,9 @@ export function getDomainFromUrl(url: string): string {
   }
 }
 
-interface APIError extends Error {
-  json?: unknown;
-}
-
 const ERROR_MESSAGES = {
   INVALID_LICENSE_KEY_USER: "Invalid license key. Please check your license key in settings.",
   UNKNOWN_ERROR: "An unknown error occurred",
-  REQUEST_FAILED: (status: number) => `Request failed, status ${status}`,
 } as const;
 
 interface ErrorDetail {
@@ -418,121 +413,6 @@ export function extractAllYoutubeUrls(text: string): string[] {
   return Array.from(matches, (match) => match[0]);
 }
 
-export async function safeFetch(
-  url: string,
-  options: RequestInit & { throwOnHttpError?: boolean } = {}
-): Promise<Response> {
-  const { throwOnHttpError = true } = options;
-  const normalizedHeaders = new Headers(options.headers);
-  const headers = Object.fromEntries(normalizedHeaders.entries());
-
-  delete (headers as Record<string, string>)["content-length"];
-
-  logInfo("safeFetch request");
-
-  const method = options.method?.toUpperCase() || "POST";
-  const methodsWithBody = ["POST", "PUT", "PATCH"];
-
-  const response = await requestUrl({
-    url,
-    contentType: "application/json",
-    headers: headers,
-    method: method,
-    ...(methodsWithBody.includes(method) &&
-      typeof options.body === "string" && { body: options.body }),
-    throw: false,
-  });
-
-  if (throwOnHttpError && response.status >= 400) {
-    type ErrorJson = {
-      detail?: { reason?: string; message?: string } | string;
-      reason?: string;
-      message?: string;
-    };
-    let errorJson: ErrorJson | null = null;
-    try {
-      errorJson = (
-        typeof response.json === "string" ? JSON.parse(response.json) : response.json
-      ) as ErrorJson;
-    } catch {
-      try {
-        errorJson = (
-          typeof response.text === "string" ? JSON.parse(response.text) : response.text
-        ) as ErrorJson;
-      } catch {
-        errorJson = null;
-      }
-    }
-
-    const error = new Error(ERROR_MESSAGES.REQUEST_FAILED(response.status)) as APIError;
-    error.json = errorJson;
-
-    const detail = errorJson && typeof errorJson.detail === "object" ? errorJson.detail : undefined;
-    if (detail?.reason === "Invalid license key" || errorJson?.reason === "Invalid license key") {
-      error.message = "Invalid license key";
-    } else if (detail?.message || errorJson?.message) {
-      const message = detail?.message || errorJson?.message;
-      const reason = detail?.reason || errorJson?.reason;
-      error.message = reason ? `${message}: ${reason}` : (message ?? "");
-    } else if (errorJson?.detail) {
-      error.message = JSON.stringify(errorJson.detail);
-    } else if (errorJson) {
-      error.message += ". " + JSON.stringify(errorJson);
-    }
-
-    throw error;
-  }
-
-  return {
-    ok: response.status >= 200 && response.status < 300,
-    status: response.status,
-    statusText: response.status.toString(),
-    headers: new Headers(response.headers),
-    url: url,
-    type: "basic" as ResponseType,
-    redirected: false,
-    bytes: () => Promise.resolve(new Uint8Array(0)),
-    body: createReadableStreamFromString(response.text),
-    bodyUsed: true,
-    json: (): Promise<unknown> => Promise.resolve(response.json as unknown),
-    text: async () => response.text,
-    arrayBuffer: () => Promise.resolve(response.arrayBuffer),
-    blob: () => {
-      throw new Error("not implemented");
-    },
-    formData: () => {
-      throw new Error("not implemented");
-    },
-    clone: () => {
-      throw new Error("not implemented");
-    },
-  };
-}
-
-/**
- * Wrapper around safeFetch that doesn't throw on HTTP errors (fetch-like behavior).
- *
- * The variant to hand a provider SDK as its `fetch`: an SDK given a throwing implementation
- * reads a 4xx as a dead connection and burns its retry budget on it.
- * https://github.com/logancyang/obsidian-copilot/issues/2959
- */
-export function safeFetchNoThrow(url: string, options: RequestInit = {}): Promise<Response> {
-  return safeFetch(url, { ...options, throwOnHttpError: false });
-}
-
-function createReadableStreamFromString(input: string) {
-  return new ReadableStream({
-    start(controller) {
-      const encoder = new TextEncoder();
-      const uint8Array = encoder.encode(input);
-
-      controller.enqueue(uint8Array);
-
-      controller.close();
-    },
-  });
-}
-
 export function modelSupportsVision(model: CustomModel): boolean {
   return !!model.capabilities?.includes(ModelCapability.VISION);
 }
@@ -566,31 +446,56 @@ export function cleanMessageForCopy(message: string): string {
   return cleanedMessage;
 }
 
-export async function insertAtCursor(app: App, text: string) {
-  let leaf = app.workspace.getMostRecentLeaf();
-  if (!leaf || !(leaf.view instanceof MarkdownView)) {
-    leaf = app.workspace.getLeaf(false);
-    if (!leaf || !(leaf.view instanceof MarkdownView)) return;
+type MarkdownLeaf = WorkspaceLeaf & { view: MarkdownView };
+
+// 聊天占用主编辑区标签页时，目标笔记是同一标签组里的隐藏页，而 getMostRecentLeaf() 只返回可见叶子。
+// 按最近打开顺序在已打开的 Markdown 叶子中找回那篇笔记，而不是新建空叶子后放弃。
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/9
+function findMarkdownLeafForInsertion(app: App): MarkdownLeaf | null {
+  const recentLeaf = app.workspace.getMostRecentLeaf();
+  if (recentLeaf?.view instanceof MarkdownView) {
+    return recentLeaf as MarkdownLeaf;
   }
-  const hasSelection = leaf.view.editor.getSelection().length > 0;
-  await insertIntoEditor(app, text, hasSelection);
+
+  const markdownLeaves = app.workspace
+    .getLeavesOfType("markdown")
+    .filter((leaf): leaf is MarkdownLeaf => leaf.view instanceof MarkdownView);
+
+  for (const path of app.workspace.getLastOpenFiles()) {
+    const leaf = markdownLeaves.find((candidate) => candidate.view.file?.path === path);
+    if (leaf) return leaf;
+  }
+
+  return (
+    markdownLeaves.find((leaf) => leaf.getRoot() === app.workspace.rootSplit) ??
+    markdownLeaves[0] ??
+    null
+  );
 }
 
-export async function insertIntoEditor(app: App, message: string, replace: boolean = false) {
-  let leaf = app.workspace.getMostRecentLeaf();
+export async function insertAtCursor(app: App, text: string) {
+  const leaf = findMarkdownLeafForInsertion(app);
+  if (!leaf) return;
+  const hasSelection = leaf.view.editor.getSelection().length > 0;
+  await insertIntoEditor(app, text, hasSelection, leaf);
+}
+
+export async function insertIntoEditor(
+  app: App,
+  message: string,
+  replace: boolean = false,
+  targetLeaf?: MarkdownLeaf
+) {
+  const leaf = targetLeaf ?? findMarkdownLeafForInsertion(app);
   if (!leaf) {
     new Notice(t("notice.noActiveLeaf"));
     return;
   }
 
-  if (!(leaf.view instanceof MarkdownView)) {
-    leaf = app.workspace.getLeaf(false);
-    await leaf.setViewState({ type: "markdown", state: leaf.view.getState() });
-  }
-
-  if (!(leaf.view instanceof MarkdownView)) {
-    new Notice(t("notice.openMarkdownFailed"));
-    return;
+  // 隐藏标签页里的编辑器拿不到焦点；先展示目标笔记，让插入结果可见。
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/9
+  if (!leaf.view.containerEl.isShown()) {
+    app.workspace.revealLeaf(leaf);
   }
 
   const editor = leaf.view.editor;

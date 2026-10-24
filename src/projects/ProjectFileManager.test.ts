@@ -25,10 +25,6 @@ jest.mock("@/utils", () => ({
   ensureFolderExists: jest.fn(async () => {}),
 }));
 
-jest.mock("@/projects/projectMigration", () => ({
-  ensureProjectsMigratedIfNeeded: jest.fn(async () => {}),
-}));
-
 function makeConfig(
   overrides: { id: string; name: string } & Partial<ProjectConfig>
 ): ProjectConfig {

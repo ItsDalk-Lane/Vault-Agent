@@ -50,7 +50,7 @@ function requireUrlBookmarks(app: App) {
   return bookmarks;
 }
 
-const CHAT_URL = "obsidian://copilot-chat?vault=Notes&id=epoch%3A1000";
+const CHAT_URL = "obsidian://vault-agent?vault=Notes&id=root-one";
 
 describe("obsidianBookmarks", () => {
   describe("getUrlBookmarks()", () => {
@@ -62,7 +62,7 @@ describe("obsidianBookmarks", () => {
       );
 
       expect(bookmarks.has(CHAT_URL)).toBe(true);
-      expect(bookmarks.has("obsidian://copilot-chat?vault=Notes&id=epoch%3A2000")).toBe(false);
+      expect(bookmarks.has("obsidian://vault-agent?vault=Notes&id=root-two")).toBe(false);
     });
 
     it("adds a URL bookmark with the given title and creation time at the root of the Bookmarks pane", () => {

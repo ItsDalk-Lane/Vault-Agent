@@ -1,5 +1,4 @@
 import { ProjectConfig } from "@/aiParams";
-import { removeGeneratedInstructionFiles } from "@/instructions/agentsFile";
 import { logError, logInfo, logWarn } from "@/logger";
 import { t } from "@/i18n";
 import {
@@ -30,8 +29,6 @@ import { ensureFolderExists } from "@/utils";
 import { RecentUsageManager } from "@/utils/recentUsageManager";
 import { trashFile } from "@/utils/vaultAdapterUtils";
 import { App, normalizePath, TFile, TFolder, Vault } from "obsidian";
-import { ensureProjectsMigratedIfNeeded } from "@/projects/projectMigration";
-import type { StartupMigrationItem } from "@/services/startupMigration";
 
 export class ProjectFileManager {
   private static instance: ProjectFileManager;
@@ -52,11 +49,9 @@ export class ProjectFileManager {
     return ProjectFileManager.instance;
   }
 
-  public async initialize(): Promise<StartupMigrationItem | null> {
+  public async initialize(): Promise<void> {
     logInfo("[Projects] Initializing ProjectFileManager");
-    const migrationResult = await ensureProjectsMigratedIfNeeded(this.app);
     await loadAllProjects(this.app);
-    return migrationResult;
   }
 
   public async fetchProjects(): Promise<ProjectFileRecord[]> {
@@ -365,8 +360,6 @@ export class ProjectFileManager {
       if (configFile instanceof TFile) await trashFile(this.app, configFile);
 
       deleteCachedProjectRecordById(normalizedId);
-
-      await removeGeneratedInstructionFiles(this.app, folderPath);
 
       try {
         const folder = this.vault.getAbstractFileByPath(folderPath);

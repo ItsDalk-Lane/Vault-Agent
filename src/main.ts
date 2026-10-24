@@ -8,7 +8,6 @@ import { CustomCommandManager } from "@/commands/customCommandManager";
 import { StartupLoadingView, type VaultAgentStartup } from "@/components/StartupLoadingView";
 import { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import {
-  AGENT_CHAT_MODE,
   AGENT_VIEW_TYPES,
   CHAT_AGENT_VIEWTYPE,
   VAULT_AGENT_ICON_ID,
@@ -25,7 +24,6 @@ import { logFileManager } from "@/logFileManager";
 import { createModelManagement, type ModelManagementApi } from "@/modelManagement";
 import { ProjectRegister } from "@/projects/projectRegister";
 import { KeychainService } from "@/services/keychainService";
-import { backupLegacyCredentials } from "@/services/legacyCredentialBackup";
 import {
   flushPersistence,
   loadSettingsWithKeychain,
@@ -37,43 +35,21 @@ import {
   startActiveWebTabTracking,
 } from "@/services/webViewerService/webViewerServiceSingleton";
 import { WebSelectionTracker } from "@/services/webViewerService/webViewerServiceSelection";
-import { getEffectiveConversationsFolder } from "@/settings/vaultAgentFolder";
-import { dehydrateDeviceProfile, hydrateDeviceProfile } from "@/settings/deviceProfiles";
-import {
-  type VaultAgentSettings,
-  getSettings,
-  setSettings,
-  subscribeToSettingsChange,
-} from "@/settings/model";
+
+import { getSettings, setSettings, subscribeToSettingsChange } from "@/settings/model";
 import { VaultAgentSettingTab } from "@/settings/SettingsPage";
-import { SystemPromptRegister } from "@/system-prompts/systemPromptRegister";
 import type { NoteSelectedTextContext, SelectedTextContext } from "@/types/message";
 import { withTimeout } from "@/utils";
-import {
-  extractChatLastAccessedAtMs,
-  extractChatTitle,
-  fileToHistoryItem,
-  filterChatHistoryFiles,
-} from "@/utils/chatHistoryUtils";
-import {
-  buildChatDeepLink,
-  buildChatMarkdownLink,
-  findChatFileByDeepLinkId,
-  getSavedChatDeepLinkId,
-} from "@/utils/chatDeepLink";
-import { isDesktopRuntime, requireNodeModule } from "@/utils/desktopRuntime";
-import { vaultAgentAppDataDir, getVaultId } from "@/utils/appPaths";
-import { getDeviceId } from "@/utils/deviceId";
+
+import { buildChatDeepLink, buildChatMarkdownLink } from "@/utils/chatDeepLink";
+import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { isNativeChatId, parseNativeChatId } from "@/utils/nativeChatId";
 import { disposeNotificationSound } from "@/utils/notificationSound";
-import { RecentUsageManager } from "@/utils/recentUsageManager";
 import { installRendererEventsShim } from "@/utils/rendererEventsShim";
-import { listMarkdownFiles, readFrontmatterViaAdapter, trashFile } from "@/utils/vaultAdapterUtils";
 import { EditorView } from "@codemirror/view";
 import {
   addIcon,
   editorInfoField,
-  FileSystemAdapter,
   MarkdownFileInfo,
   MarkdownView,
   Notice,
@@ -99,12 +75,10 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
   settingsUnsubscriber?: () => void;
   userMessageHistory: string[] = [];
   customCommandRegister!: CustomCommandRegister;
-  systemPromptRegister!: SystemPromptRegister;
   projectRegister!: ProjectRegister;
   private VaultAgentView?: typeof import("@/agentMode").VaultAgentView;
   private PlanPreviewView?: typeof import("@/agentMode").PlanPreviewView;
   private TurnDiffView?: typeof import("@/agentMode").TurnDiffView;
-  private readonly chatHistoryLastAccessedAtManager = new RecentUsageManager<string>();
   private pluginLifecycleActive = true;
   private initialization: Promise<void> = Promise.resolve();
   private readonly startedViewCreators = new Map<string, ViewCreator>();
@@ -192,7 +166,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
     ContextProcessor.getInstance(this.app);
     CustomCommandManager.getInstance(this.app);
-    logFileManager.setApp(this.app);
 
     if (agentMode) {
       const {
@@ -201,9 +174,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
         TurnDiffView,
         closeRestoredTurnDiffs,
         registerTurnDiffCommands,
-        acpFrameSink,
         createAgentSessionManager,
-        setFrameSinkVaultBasePath,
         SkillManager,
       } = agentMode;
       this.VaultAgentView = VaultAgentView;
@@ -211,14 +182,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
       this.TurnDiffView = TurnDiffView;
       closeRestoredTurnDiffs(this.app.workspace);
       registerTurnDiffCommands(this);
-
-      const adapter = this.app.vault.adapter;
-      setFrameSinkVaultBasePath(
-        adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null
-      );
-      // A log left permissive by an older build is only reachable here when
-      // frame logging is off. https://github.com/logancyang/obsidian-copilot-preview/issues/250
-      void acpFrameSink.narrowLegacyLogs();
 
       this.agentSessionManager = createAgentSessionManager(this.app, this);
       this.skills = SkillManager.getInstance();
@@ -254,11 +217,9 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     registerCommands(this);
 
     this.customCommandRegister = new CustomCommandRegister(this, this.app);
-    this.systemPromptRegister = new SystemPromptRegister(this.app);
     this.projectRegister = new ProjectRegister(this.app);
     await this.projectRegister.initialize();
     await this.customCommandRegister.initialize();
-    await this.systemPromptRegister.initialize();
 
     this.initSelectionHandler();
     registerEditorCommandMenu(this);
@@ -323,7 +284,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     await this.agentSessionManager?.shutdown();
 
     this.customCommandRegister?.cleanup();
-    this.systemPromptRegister?.cleanup();
     this.projectRegister?.cleanup();
     // The handoff releases the next copy once teardown resolves, so the drain must come after
     // the last settings change can queue a write. https://github.com/logancyang/obsidian-copilot/issues/3518
@@ -649,152 +609,31 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
   async loadSettings() {
     const rawData = (await this.loadData()) as unknown;
-    // The keychain bootstrap may persist a sparse snapshot of the raw on-disk
-    // data (vaultId backfill) before settings are hydrated. That snapshot is
-    // already in dehydrated, on-disk shape, so it must bypass the
-    // `dehydrateDeviceProfile` override below via `super.saveData` — routing it
-    // through `this.saveData` would read the absent flat fields as "cleared"
-    // and delete this device's `deviceProfiles` segment
-    // (https://github.com/logancyang/obsidian-copilot/issues/2539).
-    let settings = await loadSettingsWithKeychain(
-      this.app,
-      rawData,
-      (d) => super.saveData(d),
-      (raw) =>
-        backupLegacyCredentials(raw, this.manifest.dir ?? "", {
-          exists: (path) => this.app.vault.adapter.exists(path),
-          write: (path, contents) => this.app.vault.adapter.write(path, contents),
-          rename: (from, to) => this.app.vault.adapter.rename(from, to),
-        })
-    );
-    if (isDesktopRuntime()) {
-      const { migratePiSettingsAtStartup } = await import("@/agentMode");
-      const os = requireNodeModule<typeof import("node:os")>("node:os");
-      const path = requireNodeModule<typeof import("node:path")>("node:path");
-      const fs = requireNodeModule<typeof import("node:fs/promises")>("node:fs/promises");
-      const privateDir = path.join(
-        vaultAgentAppDataDir(os.homedir()),
-        "vaults",
-        getVaultId(this.app)
-      );
-      settings = await migratePiSettingsAtStartup({
-        settings,
-        backupDirectory: path.join(privateDir, "migration"),
-        saveSettings: (next) => super.saveData(next),
-        readSessionIndex: async () => {
-          try {
-            return await fs.readFile(path.join(privateDir, "agent-chat-index.json"), "utf8");
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-            throw error;
-          }
-        },
-      });
-    }
-    setSettings(hydrateDeviceProfile(settings, getDeviceId(this.app)));
+    const settings = await loadSettingsWithKeychain(rawData, (data) => this.saveData(data));
+    setSettings(settings);
     applyLanguage(getSettings().language);
   }
 
-  // Single choke point for persisted writes; the load-time keychain bootstrap bypasses it via
-  // `super.saveData` (see `loadSettings`).
-  // https://github.com/logancyang/obsidian-copilot/issues/2539
-  async saveData(data: unknown): Promise<void> {
-    return super.saveData(
-      dehydrateDeviceProfile(data as VaultAgentSettings, getDeviceId(this.app))
-    );
-  }
-
-  async getChatHistoryFiles(): Promise<TFile[]> {
-    const folderFiles = listMarkdownFiles(this.app, getEffectiveConversationsFolder());
-    if (folderFiles.length === 0) return [];
-
-    return filterChatHistoryFiles(this.app, folderFiles);
-  }
-
   async getChatHistoryItems(): Promise<ChatHistoryItem[]> {
-    const files = await this.getChatHistoryFiles();
-    return files.map((file) =>
-      fileToHistoryItem(this.app, file, this.chatHistoryLastAccessedAtManager)
-    );
+    return this.agentSessionManager?.getChatHistoryItems() ?? [];
   }
 
-  private async touchChatHistoryLastAccessedAt(file: TFile): Promise<void> {
+  async loadChatById(id: string): Promise<void> {
+    if (!isNativeChatId(id)) throw new Error(t("notice.linkNotFound"));
+    await this.loadNativeAgentChat(id);
+  }
+
+  async copyChatLink(resolveSession: () => Promise<string>): Promise<void> {
     try {
-      this.chatHistoryLastAccessedAtManager.touch(file.path);
-
-      const persistedLastAccessedAtMs = extractChatLastAccessedAtMs(this.app, file);
-      const timestampToPersist = this.chatHistoryLastAccessedAtManager.shouldPersist(
-        file.path,
-        persistedLastAccessedAtMs
-      );
-
-      if (timestampToPersist === null) {
-        return;
-      }
-
-      let persistedAtMs = timestampToPersist;
-
-      await this.app.fileManager.processFrontMatter(
-        file,
-        (frontmatter: Record<string, unknown>) => {
-          const existingValue = Number(frontmatter.lastAccessedAt);
-          const existingAtMs =
-            Number.isFinite(existingValue) && existingValue > 0 ? existingValue : 0;
-
-          persistedAtMs = Math.max(existingAtMs, timestampToPersist);
-
-          if (existingAtMs === persistedAtMs) {
-            return;
-          }
-
-          frontmatter.lastAccessedAt = persistedAtMs;
-        }
-      );
-
-      this.chatHistoryLastAccessedAtManager.markPersisted(file.path, persistedAtMs);
-    } catch (error) {
-      logWarn(`[VaultAgentPlugin] Failed to update chat lastAccessedAt for ${file.path}`, error);
-    }
-  }
-
-  getChatHistoryLastAccessedAtManager(): RecentUsageManager<string> {
-    return this.chatHistoryLastAccessedAtManager;
-  }
-
-  async loadChatById(fileId: string): Promise<void> {
-    if (isNativeChatId(fileId)) {
-      await this.loadNativeAgentChat(fileId);
-      return;
-    }
-    const file = this.app.vault.getAbstractFileByPath(fileId);
-    if (!(file instanceof TFile)) throw new Error("Chat file not found.");
-
-    const cachedMode = this.app.metadataCache.getFileCache(file)?.frontmatter?.mode;
-    let mode = typeof cachedMode === "string" ? cachedMode : undefined;
-    if (!mode) {
-      try {
-        const fm = await readFrontmatterViaAdapter(this.app, file.path);
-        if (typeof fm?.mode === "string") mode = fm.mode;
-      } catch (error) {
-        logWarn("Could not read the chat mode from frontmatter", error);
-      }
-    }
-    if (mode !== AGENT_CHAT_MODE) {
-      new Notice(t("notice.notAgentChat"));
-      return;
-    }
-    await this.loadAgentChatHistory(file);
-  }
-
-  async copyChatLink(resolveNotePath: () => Promise<string>): Promise<void> {
-    try {
-      const path = await resolveNotePath();
-      const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
-      const id = file instanceof TFile ? await getSavedChatDeepLinkId(this.app, file.path) : null;
-      if (!(file instanceof TFile) || !id) throw new Error(`No saved chat note to link: "${path}"`);
-      const url = buildChatDeepLink(this.app.vault.getName(), id);
+      const id = await resolveSession();
+      if (!isNativeChatId(id)) throw new Error(t("notice.linkNotFound"));
+      const title =
+        this.agentSessionManager?.getSessionByBackendId(id)?.getLabel() ??
+        (await this.agentSessionManager?.getChatHistoryItems())?.find((item) => item.id === id)
+          ?.title ??
+        t("agentInfra.session.untitledChat");
       await navigator.clipboard.writeText(
-        buildChatMarkdownLink(extractChatTitle(this.app, file), url)
+        buildChatMarkdownLink(title, buildChatDeepLink(this.app.vault.getName(), id))
       );
       new Notice(t("notice.linkCopied"));
     } catch (error) {
@@ -804,17 +643,17 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
   }
 
   async openChatDeepLink(params: Record<string, string>): Promise<void> {
-    const id = params.id ?? "";
     try {
-      const chatId = isNativeChatId(id) ? id : (await findChatFileByDeepLinkId(this.app, id))?.path;
-      if (!chatId) {
-        new Notice(t("notice.linkNotFound"));
-        return;
-      }
-      await this.loadChatById(chatId);
+      await this.loadChatById(params.id ?? "");
     } catch (error) {
       logError("Failed to open chat link", error);
-      new Notice(t("notice.openLinkFailed"));
+      new Notice(
+        t(
+          (error as { code?: unknown } | null | undefined)?.code === "SESSION_NOT_FOUND"
+            ? "localData.sessionMissing"
+            : "notice.linkNotFound"
+        )
+      );
     }
   }
 
@@ -830,82 +669,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
     if (this.isVaultAgentView(leaf.view)) {
       leaf.view.updateView();
-    }
-  }
-
-  private async loadAgentChatHistory(file: TFile): Promise<void> {
-    const manager = this.requireAgentView();
-    if (!manager) return;
-    const leaf = await this.activateAgentView();
-    if (!leaf) return;
-
-    const session = await manager.loadSessionFromHistory(file);
-    // 导入与只读历史保留原件字节，访问时间写回会改变来源校验并破坏重复导入的幂等性。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    if (
-      !session.isHistoricalOnly() &&
-      manager.getSessionSourcePath(session.internalId) === file.path
-    )
-      await this.touchChatHistoryLastAccessedAt(file);
-    else this.chatHistoryLastAccessedAtManager.touch(file.path);
-
-    if (this.isVaultAgentView(leaf.view)) {
-      leaf.view.updateView();
-    }
-  }
-
-  async openChatSourceFile(fileId: string): Promise<void> {
-    if (isNativeChatId(fileId)) {
-      new Notice(t("notice.noSavedNote"));
-      return;
-    }
-    const file = this.app.vault.getAbstractFileByPath(fileId);
-    if (file instanceof TFile) {
-      await this.app.workspace.getLeaf(true).openFile(file);
-    } else {
-      throw new Error("Chat file not found.");
-    }
-  }
-
-  async updateChatTitle(fileId: string, newTitle: string): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(fileId);
-    if (file instanceof TFile) {
-      await this.app.fileManager.processFrontMatter(
-        file,
-        (frontmatter: Record<string, unknown>) => {
-          frontmatter.topic = newTitle;
-        }
-      );
-
-      await new Promise<void>((resolve) => {
-        const handler = (updatedFile: TFile) => {
-          if (updatedFile.path === fileId) {
-            this.app.metadataCache.off("changed", handler);
-            window.clearTimeout(timeoutId);
-            resolve();
-          }
-        };
-
-        this.app.metadataCache.on("changed", handler);
-
-        const timeoutId = window.setTimeout(() => {
-          this.app.metadataCache.off("changed", handler);
-          resolve();
-        }, 500);
-      });
-
-      new Notice(t("notice.titleUpdated"));
-    } else {
-      throw new Error("Chat file not found.");
-    }
-  }
-
-  async deleteChatHistory(fileId: string): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(fileId);
-    if (file instanceof TFile) {
-      await trashFile(this.app, file);
-      new Notice(t("notice.chatDeleted"));
-    } else {
-      throw new Error("Chat file not found.");
     }
   }
 }

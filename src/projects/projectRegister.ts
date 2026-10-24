@@ -20,7 +20,6 @@ import { loadAllProjects } from "@/projects/projectUtils";
 import { PROJECT_CONFIG_FILE_NAME, PROJECTS_UNSUPPORTED_FOLDER_NAME } from "@/projects/constants";
 import { getSettings, subscribeToSettingsChange } from "@/settings/model";
 import { deriveProjectsFolder } from "@/settings/vaultAgentFolder";
-import type { StartupMigrationItem } from "@/services/startupMigration";
 import { debounce, type DebouncedFunction } from "@/utils/debounce";
 import { App, Notice, TAbstractFile, Vault } from "obsidian";
 
@@ -41,7 +40,7 @@ export class ProjectRegister {
     this.manager = ProjectFileManager.getInstance(app);
   }
 
-  async initialize(): Promise<StartupMigrationItem | null> {
+  async initialize(): Promise<void> {
     this.initializeEventListeners();
     return this.manager.initialize();
   }

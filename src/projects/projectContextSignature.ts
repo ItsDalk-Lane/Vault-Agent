@@ -49,5 +49,5 @@ function getInstructionsFingerprint(app: App, record: ProjectFileRecord): string
   const agentsPath = normalizePath(`${projectFolderPath}/${AGENTS_FILE_NAME}`);
   const file = findCachedInstructionFile(app, agentsPath);
   if (file) return `agents:${file.stat.mtime}:${file.stat.size}`;
-  return `legacy:${record.project.systemPrompt ?? ""}`;
+  return "";
 }

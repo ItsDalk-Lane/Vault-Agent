@@ -701,9 +701,10 @@ title: Test
   describe("insertAtCursor()", () => {
     const from = { line: 0, ch: 0 };
     const to = { line: 0, ch: 5 };
+    const mainRoot = {};
 
-    function makeApp(selection: string) {
-      const editor = {
+    function makeEditor(selection: string) {
+      return {
         getSelection: jest.fn(() => selection),
         getCursor: jest.fn((which: string) => (which === "from" ? from : to)),
         replaceRange: jest.fn(),
@@ -711,20 +712,42 @@ title: Test
         focus: jest.fn(),
         cm: undefined,
       };
-      const view = new (Obsidian.MarkdownView as unknown as new () => { editor: unknown })();
-      view.editor = editor;
-      const leaf = { view };
-      const app = {
+    }
+
+    function makeMarkdownLeaf(path: string, selection = "", visible = true) {
+      const editor = makeEditor(selection);
+      const view = new (Obsidian.MarkdownView as unknown as new () => Record<string, unknown>)();
+      Object.assign(view, {
+        editor,
+        file: { path },
+        containerEl: { isShown: () => visible },
+      });
+      return { leaf: { view, getRoot: () => mainRoot }, editor };
+    }
+
+    function makeApp({
+      recentLeaf,
+      markdownLeaves = [],
+      lastOpenFiles = [],
+    }: {
+      recentLeaf: unknown;
+      markdownLeaves?: unknown[];
+      lastOpenFiles?: string[];
+    }) {
+      return {
         workspace: {
-          getMostRecentLeaf: jest.fn(() => leaf),
-          getLeaf: jest.fn(() => leaf),
+          rootSplit: mainRoot,
+          getMostRecentLeaf: jest.fn(() => recentLeaf),
+          getLeavesOfType: jest.fn(() => markdownLeaves),
+          getLastOpenFiles: jest.fn(() => lastOpenFiles),
+          revealLeaf: jest.fn(),
         },
       };
-      return { app, editor };
     }
 
     it("inserts at the cursor when there is no selection", async () => {
-      const { app, editor } = makeApp("");
+      const { leaf, editor } = makeMarkdownLeaf("notes/active.md");
+      const app = makeApp({ recentLeaf: leaf });
 
       await insertAtCursor(app as never, "hello");
 
@@ -732,21 +755,58 @@ title: Test
     });
 
     it("replaces from the selection start when text is selected", async () => {
-      const { app, editor } = makeApp("selected");
+      const { leaf, editor } = makeMarkdownLeaf("notes/active.md", "selected");
+      const app = makeApp({ recentLeaf: leaf });
 
       await insertAtCursor(app as never, "hello");
 
       expect(editor.replaceRange).toHaveBeenCalledWith("hello", from, to);
     });
 
+    it("inserts into the note hidden behind a main-area chat tab and reveals it (https://github.com/ItsDalk-Lane/Vault-Agent/issues/9)", async () => {
+      const { leaf, editor } = makeMarkdownLeaf("notes/behind-chat.md", "", false);
+      const app = makeApp({
+        recentLeaf: { view: {} },
+        markdownLeaves: [leaf],
+        lastOpenFiles: ["notes/behind-chat.md"],
+      });
+
+      await insertAtCursor(app as never, "hello");
+
+      expect(editor.replaceRange).toHaveBeenCalledWith("hello", to, to);
+      expect(app.workspace.revealLeaf).toHaveBeenCalledWith(leaf);
+    });
+
+    it("prefers the most recently opened note among the hidden tabs (https://github.com/ItsDalk-Lane/Vault-Agent/issues/9)", async () => {
+      const older = makeMarkdownLeaf("notes/older.md", "", false);
+      const newer = makeMarkdownLeaf("notes/newer.md", "", false);
+      const app = makeApp({
+        recentLeaf: { view: {} },
+        markdownLeaves: [older.leaf, newer.leaf],
+        lastOpenFiles: ["notes/newer.md", "notes/older.md"],
+      });
+
+      await insertAtCursor(app as never, "hello");
+
+      expect(newer.editor.replaceRange).toHaveBeenCalledWith("hello", to, to);
+      expect(older.editor.replaceRange).not.toHaveBeenCalled();
+    });
+
+    it("falls back to an open markdown leaf the recent files list does not name (https://github.com/ItsDalk-Lane/Vault-Agent/issues/9)", async () => {
+      const { leaf, editor } = makeMarkdownLeaf("notes/open.md");
+      const app = makeApp({
+        recentLeaf: { view: {} },
+        markdownLeaves: [leaf],
+        lastOpenFiles: ["exports/diagram.pdf"],
+      });
+
+      await insertAtCursor(app as never, "hello");
+
+      expect(editor.replaceRange).toHaveBeenCalledWith("hello", to, to);
+    });
+
     it("does nothing when there is no markdown view to insert into", async () => {
-      const leaf = { view: {} };
-      const app = {
-        workspace: {
-          getMostRecentLeaf: jest.fn(() => leaf),
-          getLeaf: jest.fn(() => leaf),
-        },
-      };
+      const app = makeApp({ recentLeaf: { view: {} } });
 
       await expect(insertAtCursor(app as never, "hello")).resolves.toBeUndefined();
     });

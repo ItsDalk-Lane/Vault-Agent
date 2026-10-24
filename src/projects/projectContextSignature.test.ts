@@ -121,11 +121,11 @@ describe("projectContextSignature", () => {
       );
     });
 
-    it("falls back to the project.md body until AGENTS.md exists", () => {
+    it("ignores project.md text when no AGENTS.md exists https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       const before = makeRecord(makeProject({ systemPrompt: "old" }));
       const after = makeRecord(makeProject({ systemPrompt: "new" }));
       expect(getProjectContextSignature(before)).toBe(getProjectContextSignature(after));
-      expect(getProjectLandingCaptureSignature(noAgents, before)).not.toBe(
+      expect(getProjectLandingCaptureSignature(noAgents, before)).toBe(
         getProjectLandingCaptureSignature(noAgents, after)
       );
     });
