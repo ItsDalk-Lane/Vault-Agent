@@ -33,12 +33,6 @@ jest.mock("@/instructions/agentsFile", () => ({
   writeAgentsFile: (...a: unknown[]): Promise<void> => writeAgentsFile(...a),
 }));
 
-const systemPrompts = jest.fn<{ title: string }[], []>().mockReturnValue([]);
-jest.mock("@/system-prompts/state", () => ({
-  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks the real hook; name must match the export
-  useSystemPrompts: () => systemPrompts(),
-}));
-
 const applyVaultAgentRootChange = jest.fn<Promise<void>, unknown[]>().mockResolvedValue(undefined);
 const vaultAgentRootContainsNotes = jest.fn<boolean, unknown[]>().mockReturnValue(false);
 const findVaultAgentRootFileConflict = jest.fn<string | null, unknown[]>().mockReturnValue(null);
@@ -78,7 +72,6 @@ describe("BasicSettings", () => {
       settingsStore.set(settingsAtom, { ...DEFAULT_SETTINGS, vaultAgentFolder: "vault-agent" });
       vaultAgentRootContainsNotes.mockReturnValue(false);
       findVaultAgentRootFileConflict.mockReturnValue(null);
-      systemPrompts.mockReturnValue([]);
       isDesktopRuntime.mockReturnValue(true);
     });
 
@@ -110,27 +103,6 @@ describe("BasicSettings", () => {
       expect(screen.queryByTestId("agents-section")).toBeNull();
       expect(screen.queryByText("Quick Chat models")).toBeNull();
       expect(screen.getByText("General")).not.toBeNull();
-    });
-
-    it("hides the filename template behind a collapsed Advanced disclosure", () => {
-      render(<BasicSettings />);
-      expect(screen.getByRole("button", { name: "Advanced" })).not.toBeNull();
-      expect(screen.queryByText("Conversation Filename Template")).toBeNull();
-
-      fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
-      expect(screen.getByText("Conversation Filename Template")).not.toBeNull();
-    });
-
-    it("keeps the template reachable when autosave is off", () => {
-      settingsStore.set(settingsAtom, {
-        ...DEFAULT_SETTINGS,
-        vaultAgentFolder: "vault-agent",
-        autosaveChat: false,
-      });
-      render(<BasicSettings />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
-      expect(screen.getByText("Conversation Filename Template")).not.toBeNull();
     });
 
     it("binds the Vault Agent folder input to the persisted root", () => {
@@ -328,18 +300,6 @@ describe("BasicSettings", () => {
       } finally {
         jest.useRealTimers();
       }
-    });
-
-    it("points a user who saved Chat prompts at the folder still holding them", () => {
-      systemPrompts.mockReturnValue([{ title: "Editor" }, { title: "Researcher" }]);
-      render(<BasicSettings />);
-      expect(screen.getByText(/2 saved system prompts are/)).toBeTruthy();
-      expect(screen.getByText("vault-agent/system-prompts")).toBeTruthy();
-    });
-
-    it("says nothing about Chat prompts to a user who never saved one", () => {
-      render(<BasicSettings />);
-      expect(screen.queryByText(/saved system prompt/)).toBeNull();
     });
   });
 });

@@ -1,3 +1,4 @@
+import { LocalDataSettings } from "./components/LocalDataSettings";
 import { ResetSettingsConfirmModal } from "@/components/modals/ResetSettingsConfirmModal";
 import { Button } from "@/components/ui/button";
 import { TabContent, TabItem, type TabItem as TabItemType } from "@/components/ui/setting-tabs";
@@ -14,13 +15,13 @@ import {
 import { useSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { useLanguage } from "@/i18n/useLanguage";
 import { CommandSettings } from "@/settings/v2/components/CommandSettings";
-import { Cog, Command, Cpu, Plug, ShieldCheck, Sparkle, Wrench } from "lucide-react";
+import { Cog, Command, Cpu, Plug, Search, Sparkle, Wrench } from "lucide-react";
 import React from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { AdvancedSettings } from "./components/AdvancedSettings";
 import { BasicSettings } from "./components/BasicSettings";
 import { DesktopOnlySettingsPanel } from "./components/DesktopOnlySettingsPanel";
-import { SelfHostSettings } from "./components/SelfHostSettings";
+import { WebSearchSettings } from "./components/WebSearchSettings";
 import { McpSettingsPanel } from "./components/McpSettingsPanel";
 
 const LazySkillsSettings = React.lazy(() =>
@@ -41,31 +42,34 @@ const SkillsSettingsPanel: React.FC = () => {
 const icons: Record<VaultAgentSettingsTabId, JSX.Element> = {
   basic: <Cog className="tw-size-5" />,
   byok: <Cpu className="tw-size-5" />,
-  selfhost: <ShieldCheck className="tw-size-5" />,
+  search: <Search className="tw-size-5" />,
   command: <Command className="tw-size-5" />,
   skills: <Sparkle className="tw-size-5" />,
   mcp: <Plug className="tw-size-5" />,
+  localData: <Cog className="tw-size-5" />,
   advanced: <Wrench className="tw-size-5" />,
 };
 
 const components: Record<VaultAgentSettingsTabId, React.FC> = {
   basic: () => <BasicSettings />,
   byok: () => <ByokPanel />,
-  selfhost: () => <SelfHostSettings />,
+  search: () => <WebSearchSettings />,
   command: () => <CommandSettings />,
   skills: SkillsSettingsPanel,
   mcp: McpSettingsPanel,
   advanced: () => <AdvancedSettings />,
+  localData: LocalDataSettings,
 };
 
 const TAB_LABEL_KEYS: Record<VaultAgentSettingsTabId, MessageKey> = {
   basic: "settings.tab.basic",
   byok: "settings.tab.byok",
-  selfhost: "settings.tab.selfhost",
+  search: "settings.tab.search",
   command: "settings.tab.command",
   skills: "settings.tab.skills",
   mcp: "settings.tab.mcp",
   advanced: "settings.tab.advanced",
+  localData: "localData.title",
 };
 
 const SettingsContent: React.FC = () => {

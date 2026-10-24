@@ -153,7 +153,7 @@ describe("copilotRootChange", () => {
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
             ...getSettings(),
-            defaultConversationNoteName: "edit-A",
+            qaExclusions: "edit-A",
           });
           return Promise.resolve();
         })
@@ -169,7 +169,7 @@ describe("copilotRootChange", () => {
 
       const after = getSettings();
       expect(after.vaultAgentFolder).toBe("ai");
-      expect(after.defaultConversationNoteName).toBe("edit-A");
+      expect(after.qaExclusions).toBe("edit-A");
       expect(after.defaultModelKey).toBe("edit-B");
     });
 
@@ -179,7 +179,7 @@ describe("copilotRootChange", () => {
         .mockImplementationOnce(() => {
           settingsStore.set(settingsAtom, {
             ...getSettings(),
-            defaultConversationNoteName: "edit-A",
+            qaExclusions: "edit-A",
           });
           return Promise.resolve();
         })
@@ -188,7 +188,7 @@ describe("copilotRootChange", () => {
       await expect(applyVaultAgentRootChange(app, "ai")).resolves.toBeUndefined();
 
       expect(getSettings().vaultAgentFolder).toBe("ai");
-      expect(getSettings().defaultConversationNoteName).toBe("edit-A");
+      expect(getSettings().qaExclusions).toBe("edit-A");
     });
 
     it("keeps the old root when the durable save fails", async () => {

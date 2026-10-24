@@ -4,8 +4,9 @@ export const VAULT_AGENT_SETTINGS_TAB_IDS = [
   "skills",
   "mcp",
   "command",
-  "selfhost",
+  "search",
   "advanced",
+  "localData",
 ] as const;
 
 export type VaultAgentSettingsTabId = (typeof VAULT_AGENT_SETTINGS_TAB_IDS)[number];

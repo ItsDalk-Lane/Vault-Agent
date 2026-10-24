@@ -1,15 +1,15 @@
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Input } from "@/components/ui/input";
 import { SettingItem } from "@/components/ui/setting-item";
-import { SettingDisclosure } from "@/components/ui/setting-disclosure";
+
 import { SettingSection } from "@/components/ui/setting-section";
 import { DEFAULT_OPEN_AREA, SEND_SHORTCUT } from "@/constants";
 import { useApp } from "@/context";
 import { applyLanguage, t, type AppLanguage } from "@/i18n";
-import { cn } from "@/lib/utils";
+
 import { openAgentsFile, writeAgentsFile } from "@/instructions/agentsFile";
 import { useAgentsFileDraft } from "@/instructions/useAgentsFileDraft";
 import { logError } from "@/logger";
@@ -23,12 +23,11 @@ import {
 import { updateSetting, useSettingsValue, validateVaultAgentFolder } from "@/settings/model";
 import { DesktopOnlySettingsPanel } from "@/settings/v2/components/DesktopOnlySettingsPanel";
 import { VaultAgentFolderChangeNotice } from "@/settings/v2/components/VaultAgentFolderChangeNotice";
-import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
 import { VaultInstructionsSetting } from "@/settings/v2/components/VaultInstructionsSetting";
-import { formatDateTime } from "@/utils";
+
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { revealFolderInExplorer } from "@/utils/revealFolderInExplorer";
-import { Folder, Loader2 } from "lucide-react";
+import { Folder } from "lucide-react";
 import { Notice } from "obsidian";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -52,11 +51,6 @@ const AgentsSection: React.FC = () => {
 export const BasicSettings: React.FC = () => {
   const app = useApp();
   const settings = useSettingsValue();
-  const [isChecking, setIsChecking] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [conversationNoteName, setConversationNoteName] = useState(
-    settings.defaultConversationNoteName || "{$date}_{$time}__{$topic}"
-  );
 
   const persistedRoot = settings.vaultAgentFolder;
   const [folderDraft, setFolderDraft] = useState(persistedRoot);
@@ -130,56 +124,6 @@ export const BasicSettings: React.FC = () => {
       t("common.cancel"),
       () => setFolderDraft(persistedRoot)
     ).open();
-  };
-
-  const applyCustomNoteFormat = () => {
-    setIsChecking(true);
-
-    try {
-      const format = conversationNoteName || "{$date}_{$time}__{$topic}";
-      const requiredVars = ["{$date}", "{$time}", "{$topic}"];
-      const missingVars = requiredVars.filter((v) => !format.includes(v));
-
-      if (missingVars.length > 0) {
-        new Notice(
-          t("settings.basic.noteFormatMissing", { variables: missingVars.join(", ") }),
-          4000
-        );
-        return;
-      }
-
-      const illegalChars = /[\\/:*?"<>|]/;
-      const formatWithoutVars = format
-        .replace(/\{\$date}/g, "")
-        .replace(/\{\$time}/g, "")
-        .replace(/\{\$topic}/g, "");
-
-      if (illegalChars.test(formatWithoutVars)) {
-        new Notice(t("settings.basic.noteFormatIllegal"), 4000);
-        return;
-      }
-
-      const { fileName: timestampFileName } = formatDateTime(new Date());
-      const firstTenWords = "test topic name";
-
-      const customFileName = format
-        .replace("{$topic}", firstTenWords.slice(0, 100).replace(/\s+/g, "_"))
-        .replace("{$date}", timestampFileName.split("_")[0])
-        .replace("{$time}", timestampFileName.split("_")[1]);
-
-      updateSetting("defaultConversationNoteName", format);
-      setConversationNoteName(format);
-      new Notice(t("settings.basic.noteFormatApplied", { example: customFileName }), 4000);
-    } catch (error) {
-      new Notice(
-        t("settings.basic.noteFormatError", {
-          error: error instanceof Error ? error.message : String(error),
-        }),
-        4000
-      );
-    } finally {
-      setIsChecking(false);
-    }
   };
 
   return (
@@ -282,7 +226,6 @@ export const BasicSettings: React.FC = () => {
       </SettingSection>
 
       <SettingSection label={t("settings.basic.customInstructions")}>
-        <LegacyChatPromptsNotice />
         {vaultInstructions !== null && (
           <VaultInstructionsSetting
             value={vaultInstructions}
@@ -293,93 +236,6 @@ export const BasicSettings: React.FC = () => {
             onOpen={() => void handleOpenVaultInstructions()}
           />
         )}
-      </SettingSection>
-
-      <SettingSection label={t("settings.basic.savingConversations")}>
-        <SettingItem
-          type="switch"
-          title={t("settings.basic.autosave")}
-          description={t("settings.basic.autosaveDesc")}
-          checked={settings.autosaveChat}
-          onCheckedChange={(checked) => updateSetting("autosaveChat", checked)}
-        />
-
-        <Collapsible open={templateOpen} onOpenChange={setTemplateOpen}>
-          <CollapsibleTrigger asChild>
-            <SettingDisclosure open={templateOpen} />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SettingItem
-              type="custom"
-              title={t("settings.basic.filenameTemplate")}
-              description={
-                <div className="tw-flex tw-items-start tw-gap-1.5 ">
-                  <span className="tw-leading-none">{t("settings.basic.filenameDesc")}</span>
-                  <HelpTooltip
-                    content={
-                      <div className="tw-flex tw-max-w-96 tw-flex-col tw-gap-2 tw-py-4">
-                        <div className="tw-text-sm tw-font-medium tw-text-accent">
-                          {t("settings.basic.filenameRequired")}
-                        </div>
-                        <div>
-                          <div className="tw-text-sm tw-font-medium tw-text-muted">
-                            {t("settings.basic.availableVariables")}
-                          </div>
-                          <ul className="tw-pl-4 tw-text-sm tw-text-muted">
-                            <li>
-                              <strong>{"{$date}"}</strong>: {t("settings.basic.varDate")}
-                            </li>
-                            <li>
-                              <strong>{"{$time}"}</strong>: {t("settings.basic.varTime")}
-                            </li>
-                            <li>
-                              <strong>{"{$topic}"}</strong>: {t("settings.basic.varTopic")}
-                            </li>
-                          </ul>
-                          <i className="tw-mt-2 tw-text-sm tw-text-muted">
-                            {t("settings.basic.filenameExample", {
-                              example: "{$date}_{$time}__{$topic}",
-                            })}{" "}
-                            → 20250114_153232__polish_this_article_[[Readme]]
-                          </i>
-                        </div>
-                      </div>
-                    }
-                  />
-                </div>
-              }
-            >
-              <div className="tw-flex tw-w-[320px] tw-items-center tw-gap-1.5">
-                <Input
-                  type="text"
-                  className={cn(
-                    "tw-min-w-[80px] tw-grow tw-transition-all tw-duration-200",
-                    isChecking ? "tw-w-[80px]" : "tw-w-[120px]"
-                  )}
-                  placeholder="{$date}_{$time}__{$topic}"
-                  value={conversationNoteName}
-                  onChange={(e) => setConversationNoteName(e.target.value)}
-                  disabled={isChecking}
-                />
-
-                <Button
-                  onClick={() => applyCustomNoteFormat()}
-                  disabled={isChecking}
-                  variant="secondary"
-                >
-                  {isChecking ? (
-                    <>
-                      <Loader2 className="tw-mr-2 tw-size-4 tw-animate-spin" />
-                      {t("common.apply")}
-                    </>
-                  ) : (
-                    t("common.apply")
-                  )}
-                </Button>
-              </div>
-            </SettingItem>
-          </CollapsibleContent>
-        </Collapsible>
       </SettingSection>
     </div>
   );

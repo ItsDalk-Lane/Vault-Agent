@@ -18,20 +18,6 @@ function byokProvider(id: string, displayName: string): Provider {
   };
 }
 
-function agentProvider(
-  id: string,
-  agentType: "opencode" | "claude" | "codex",
-  displayName = id
-): Provider {
-  return {
-    providerId: id,
-    providerType: "openai-compatible",
-    displayName,
-    origin: { kind: "agent", agentType },
-    addedAt: 0,
-  };
-}
-
 function model(configuredModelId: string, providerId: string, infoId: string): ConfiguredModel {
   return {
     configuredModelId,
@@ -55,11 +41,10 @@ describe("configuredModelGrouping", () => {
       ).toEqual([true, false]);
     });
 
-    const agent = agentProvider("codex-agent", "codex", "Codex");
     const byok = byokProvider("byok-1", "Anthropic");
-    const providers = { [byok.providerId]: byok, [agent.providerId]: agent };
+    const providers = { [byok.providerId]: byok };
 
-    it("lists non-agent chat models with their enabled state and no agent-origin rows", () => {
+    it("lists current BYOK chat models with their enabled state", () => {
       const candidates = collectChatCandidates(
         [
           model("m-on", "byok-1", "claude-sonnet-4-5"),
@@ -74,7 +59,7 @@ describe("configuredModelGrouping", () => {
       ]);
     });
 
-    it("omits embedding models, agent-origin models, and models whose provider is missing", () => {
+    it("omits embedding models and models whose provider is missing", () => {
       const embedding: ConfiguredModel = {
         ...model("m-embed", "byok-1", "text-embedding-3-small"),
         info: { id: "text-embedding-3-small", displayName: "Embed", isEmbedding: true },
@@ -82,7 +67,6 @@ describe("configuredModelGrouping", () => {
       const candidates = collectChatCandidates(
         [
           embedding,
-          model("m-agent", "codex-agent", "gpt-5"),
           model("m-orphan", "missing-provider", "x"),
           model("m-chat", "byok-1", "claude-sonnet-4-5"),
         ],
@@ -91,6 +75,27 @@ describe("configuredModelGrouping", () => {
       );
       expect(candidates.map((c) => c.configuredModel.configuredModelId)).toEqual(["m-chat"]);
     });
+
+    it.each(["agent", "retired"])(
+      "excludes a loaded %s provider without rewriting its saved model https://github.com/ItsDalk-Lane/Vault-Agent/issues/2",
+      (kind) => {
+        const unavailable = {
+          ...byokProvider("unavailable", "Unavailable"),
+          origin: { kind },
+        } as unknown as Provider;
+        const models = [
+          model("m-current", byok.providerId, "chat"),
+          model("m-old", "unavailable", "old"),
+        ];
+        expect(
+          collectChatCandidates(models, { ...providers, unavailable }, new Set(["m-old"])).map(
+            (candidate) => candidate.configuredModel.configuredModelId
+          )
+        ).toEqual(["m-current"]);
+        expect(models).toHaveLength(2);
+        expect(unavailable.origin).toEqual({ kind });
+      }
+    );
   });
 
   describe("toRow()", () => {

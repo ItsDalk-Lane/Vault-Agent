@@ -93,7 +93,7 @@ describe("builtinSkillPreferences", () => {
           debug: true,
           agentMode: {
             ...current.agentMode,
-            skills: { ...current.agentMode.skills, suppressMigrationConfirm: true },
+            skills: { ...current.agentMode.skills, folder: "shared-skills" },
           },
         }));
       });
@@ -102,7 +102,7 @@ describe("builtinSkillPreferences", () => {
         jest.fn()
       );
       expect(getSettings().debug).toBe(true);
-      expect(getSettings().agentMode.skills.suppressMigrationConfirm).toBe(true);
+      expect(getSettings().agentMode.skills.folder).toBe("shared-skills");
       expect(getSettings().agentMode.skills.builtinPreferences).toEqual({
         "obsidian-markdown": { disabledAgents: ["opencode"] },
       });

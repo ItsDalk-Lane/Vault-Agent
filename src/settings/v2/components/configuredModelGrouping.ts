@@ -23,7 +23,8 @@ export function collectChatCandidates(
     if (configuredModel.info.isEmbedding) continue;
     const provider = providers[configuredModel.providerId];
     if (!provider || !isProviderEnabled(provider)) continue;
-    if (provider.origin.kind === "agent") continue;
+    // 只展示当前可配置来源，磁盘中不受支持的记录不能成为模型选项。https://github.com/ItsDalk-Lane/Vault-Agent/issues/2
+    if (provider.origin.kind !== "byok") continue;
     candidates.push({
       configuredModel,
       provider,

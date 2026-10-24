@@ -4,9 +4,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 jest.mock("@/settings/v2/components/BasicSettings", () => ({ BasicSettings: () => null }));
-jest.mock("@/settings/v2/components/SelfHostSettings", () => ({ SelfHostSettings: () => null }));
+jest.mock("@/settings/v2/components/WebSearchSettings", () => ({ WebSearchSettings: () => null }));
 jest.mock("@/settings/v2/components/CommandSettings", () => ({ CommandSettings: () => null }));
 jest.mock("@/settings/v2/components/AdvancedSettings", () => ({ AdvancedSettings: () => null }));
+jest.mock("@/settings/v2/components/LocalDataSettings", () => ({
+  LocalDataSettings: () => <div>Local disk usage</div>,
+}));
 jest.mock("@/settings/v2/components/McpSettingsPanel", () => ({
   McpSettingsPanel: () => <div>Server configuration</div>,
 }));
@@ -51,8 +54,9 @@ describe("SettingsMainV2", () => {
         "Skills",
         "MCP Servers",
         "Command",
-        "Self-Host",
+        "Web Search",
         "Advanced",
+        "Local data",
       ]);
     });
 
@@ -64,6 +68,13 @@ describe("SettingsMainV2", () => {
       expect(screen.getByRole("tabpanel").getAttribute("id")).toBe("tabpanel-mcp");
       fireEvent.click(screen.getByRole("tab", { name: "Advanced" }));
       expect(screen.queryByText("Server configuration")).toBeNull();
+    });
+
+    it("opens the local data page from its own settings tab https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      render(<SettingsMainV2 plugin={plugin} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Local data" }));
+      expect(screen.getByText("Local disk usage")).toBeTruthy();
+      expect(screen.getByRole("tabpanel").getAttribute("id")).toBe("tabpanel-localData");
     });
 
     it("marks the Skills tab while a skill failed to load for https://github.com/Brevilabs/obsidian-copilot-private/issues/166", () => {

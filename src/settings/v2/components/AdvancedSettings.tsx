@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { SettingItem } from "@/components/ui/setting-item";
 import { SettingSection } from "@/components/ui/setting-section";
 import { DebuggingSupportSection } from "@/settings/v2/components/DebuggingSupportSection";
-import { LegacyChatPromptsNotice } from "@/settings/v2/components/LegacyChatPromptsNotice";
 import { useApp } from "@/context";
 import { usePlugin } from "@/contexts/PluginContext";
 import { t } from "@/i18n";
@@ -10,11 +9,10 @@ import { getVaultAgentSaveData } from "@/settings/vaultAgentSaveData";
 import { KeychainService } from "@/services/keychainService";
 import {
   refreshLastPersistedSettings,
-  releaseLegacyCredentialHold,
   runPersistenceTransaction,
   suppressNextPersistOnce,
 } from "@/services/settingsPersistence";
-import { hasPersistedSecrets } from "@/services/settingsSecretTransforms";
+import { TOP_LEVEL_SECRET_FIELDS } from "@/services/settingsSecretTransforms";
 import { logError } from "@/logger";
 import {
   type VaultAgentSettings,
@@ -28,10 +26,6 @@ import { Notice } from "obsidian";
 import React, { useCallback, useEffect, useState } from "react";
 import { isDesktopRuntime } from "@/utils/desktopRuntime";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
-
-const LazyAgentToolsSettings = React.lazy(() =>
-  import("@/agentMode").then((module) => ({ default: module.AgentToolsSettings }))
-);
 
 export const AdvancedSettings: React.FC = () => {
   const app = useApp();
@@ -58,7 +52,13 @@ export const AdvancedSettings: React.FC = () => {
   }, []);
 
   const keychainAvailable = KeychainService.getInstance().isAvailable();
-  const keychainAppearsEmpty = keychainAvailable && !hasPersistedSecrets(settings);
+  const keychainAppearsEmpty =
+    keychainAvailable &&
+    !TOP_LEVEL_SECRET_FIELDS.some((key) =>
+      Boolean((settings as unknown as Record<string, unknown>)[key])
+    ) &&
+    !settings.activeModels.some((model) => Boolean(model.apiKey)) &&
+    !Object.values(settings.providers).some((provider) => Boolean(provider.apiKeyKeychainId));
 
   const handleReportIssue = useCallback(() => {
     if (!isDesktopRuntime()) {
@@ -129,7 +129,6 @@ export const AdvancedSettings: React.FC = () => {
         keychain.forgetAllSecrets(
           async (data) => {
             await saveData(data);
-            releaseLegacyCredentialHold();
           },
           (nextSettings) => {
             refreshLastPersistedSettings(nextSettings as VaultAgentSettings);
@@ -148,14 +147,6 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <div className="tw-space-y-4">
-      {/* 工具权限沿用原配置，只调整入口；唯一内置引擎无需安装或配置按钮。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1 */}
-      {isDesktopRuntime() && (
-        <React.Suspense fallback={null}>
-          <LazyAgentToolsSettings />
-        </React.Suspense>
-      )}
-      <LegacyChatPromptsNotice />
-
       <SettingSection label={t("settings.advanced.others")}>
         <SettingItem
           type="custom"

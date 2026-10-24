@@ -50,7 +50,7 @@ const SEARCH_PROVIDER_OPTIONS = Object.entries(SEARCH_PROVIDER_CONFIGS).map(([va
 
 export interface SelfHostWebSearchSettingsProps {
   apiKeys: Readonly<Record<SelfHostSearchProvider, string>>;
-  disabled: boolean;
+  disabled?: boolean;
   onApiKeyChange: (provider: SelfHostSearchProvider, value: string) => void;
   onProviderChange: (provider: SelfHostSearchProvider) => void;
   provider: SelfHostSearchProvider;
@@ -58,7 +58,7 @@ export interface SelfHostWebSearchSettingsProps {
 
 export const SelfHostWebSearchSettings: React.FC<SelfHostWebSearchSettingsProps> = ({
   apiKeys,
-  disabled,
+  disabled = false,
   onApiKeyChange,
   onProviderChange,
   provider,

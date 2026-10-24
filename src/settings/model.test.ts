@@ -8,7 +8,6 @@ import {
   normalizeRootFolders,
   sanitizeSettings,
   resetSettings,
-  sanitizeEnvOverrides,
   sanitizeBuiltinPreferences,
   sanitizeQaExclusions,
   settingsAtom,
@@ -75,67 +74,6 @@ describe("model", () => {
       const sanitized = sanitizeQaExclusions(rawValue);
 
       expect(sanitized.split(",")).toEqual([encodeURIComponent("folder")]);
-    });
-  });
-
-  describe("sanitizeEnvOverrides()", () => {
-    it("returns undefined for non-objects", () => {
-      expect(sanitizeEnvOverrides(undefined)).toBeUndefined();
-      expect(sanitizeEnvOverrides(null)).toBeUndefined();
-      expect(sanitizeEnvOverrides("foo")).toBeUndefined();
-      expect(sanitizeEnvOverrides(42)).toBeUndefined();
-      expect(sanitizeEnvOverrides([1, 2])).toBeUndefined();
-    });
-
-    it("returns undefined when no valid entries remain", () => {
-      expect(sanitizeEnvOverrides({})).toBeUndefined();
-      expect(sanitizeEnvOverrides({ "": "v", "1FOO": "v", "BAR=BAZ": "v" })).toBeUndefined();
-    });
-
-    it("keeps valid POSIX identifiers and string values", () => {
-      expect(
-        sanitizeEnvOverrides({
-          CLAUDE_CONFIG_DIR: "/tmp/claude",
-          _PRIVATE: "x",
-          myVar2: "y",
-        })
-      ).toEqual({
-        CLAUDE_CONFIG_DIR: "/tmp/claude",
-        _PRIVATE: "x",
-        myVar2: "y",
-      });
-    });
-
-    it("drops keys with leading digits, equals signs, whitespace, or invalid characters", () => {
-      expect(
-        sanitizeEnvOverrides({
-          "1FOO": "v",
-          "FOO BAR": "v",
-          "FOO=BAR": "v",
-          "FOO-BAR": "v",
-          VALID: "v",
-        })
-      ).toEqual({ VALID: "v" });
-    });
-
-    it("drops entries whose value isn't a string or contains control chars", () => {
-      expect(
-        sanitizeEnvOverrides({
-          OK: "fine",
-          NUM: 42,
-          NULLED: null,
-          UNDEF: undefined,
-          TABS: "ok\twith\ttabs",
-          NEWLINE: "ok\nnewline",
-        })
-      ).toEqual({ OK: "fine" });
-    });
-
-    it("caps at 64 entries to bound persisted size", () => {
-      const big: Record<string, string> = {};
-      for (let i = 0; i < 100; i++) big[`VAR_${i}`] = String(i);
-      const sanitized = sanitizeEnvOverrides(big);
-      expect(sanitized && Object.keys(sanitized).length).toBe(64);
     });
   });
 
@@ -478,7 +416,7 @@ describe("model", () => {
         },
         backends: {
           chat: { enabledModels: ["model-1", "model-2"] },
-          opencode: { enabledModels: ["model-3"] },
+          pi: { enabledModels: ["model-3"] },
         },
       });
 

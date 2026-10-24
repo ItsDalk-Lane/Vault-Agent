@@ -1,4 +1,4 @@
-import { CustomModel, ProjectConfig } from "@/aiParams";
+import { CustomModel } from "@/aiParams";
 import { ALL_MANAGED_SKILLS } from "@/builtinSkills/builtinSkills";
 import { isAppLanguage, t, type AppLanguage } from "@/i18n";
 import { getModelKeyFromModel } from "@/lib/model-key";
@@ -20,16 +20,6 @@ import {
 
 export { getModelKeyFromModel } from "@/lib/model-key";
 
-export interface LegacyCommandSettings {
-  name: string;
-
-  modelKey?: string;
-
-  prompt: string;
-
-  showInContextMenu: boolean;
-}
-
 export interface VaultAgentSettings {
   openAIApiKey: string;
   openAIOrgId: string;
@@ -45,7 +35,6 @@ export interface VaultAgentSettings {
   stream: boolean;
   vaultAgentFolder: string;
   vaultAgentRootHistory: string[];
-  autosaveChat: boolean;
   debug: boolean;
   enableInlineCitations: boolean;
   qaExclusions: string;
@@ -57,19 +46,14 @@ export interface VaultAgentSettings {
   defaultOpenArea: DEFAULT_OPEN_AREA;
   defaultSendShortcut: SEND_SHORTCUT;
   language: AppLanguage;
-  defaultConversationNoteName: string;
-  projectList: Array<ProjectConfig>;
   enableCustomPromptTemplating: boolean;
-  enableSelfHostMode: boolean;
   selfHostSearchProvider: SelfHostSearchProvider;
   firecrawlApiKey: string;
   perplexityApiKey: string;
   parallelApiKey: string;
   exaApiKey: string;
   reasoningEffort: "minimal" | "low" | "medium" | "high";
-  defaultSystemPromptTitle: string;
   _keychainVaultId?: string;
-  _pendingCredentialRecovery?: { deviceId: string; path: string; encrypted: boolean };
   settingsVersion?: number;
   settingsSchemaVersion?: number;
   agentMode: {
@@ -80,21 +64,8 @@ export interface VaultAgentSettings {
         defaultModel?: ModelSelection | null;
         defaultMode?: VaultAgentMode | null;
         mcpServers?: readonly unknown[];
-        hostExecutionMode?: "strict" | "trusted_host";
-        enabledSubagentProfiles?: readonly string[];
-        externalScopes?: readonly {
-          readonly root: string;
-          readonly permissions: readonly ("read" | "write")[];
-          readonly expiresAtMs?: number;
-        }[];
       };
-      opencode?: OpencodeBackendSettings;
-      claude?: ClaudeBackendSettings;
-      codex?: CodexBackendSettings;
     };
-    // Keyed by device id because binary paths must not sync across devices:
-    // https://github.com/logancyang/obsidian-copilot/issues/2539
-    deviceProfiles?: Record<string, DeviceAgentProfile>;
     debugFullFrames: boolean;
     offerFeedbackCards: boolean;
     notificationSound: boolean;
@@ -102,7 +73,6 @@ export interface VaultAgentSettings {
     welcomeDismissed: boolean;
     skills: {
       folder: string;
-      suppressMigrationConfirm?: boolean;
       builtinPreferences?: Record<string, { disabled?: boolean; disabledAgents?: string[] }>;
     };
   };
@@ -112,40 +82,6 @@ export interface VaultAgentSettings {
 }
 
 export type SelfHostSearchProvider = "firecrawl" | "perplexity" | "parallel" | "exa";
-
-export type ClaudeAutoModePermission = "acceptEdits" | "auto" | "bypassPermissions";
-
-export interface ClaudeBackendSettings {
-  defaultModel?: ModelSelection | null;
-  defaultMode?: VaultAgentMode | null;
-  autoModePermission?: ClaudeAutoModePermission;
-  enableThinking?: boolean;
-  envOverrides?: Record<string, string>;
-}
-
-export interface CodexBackendSettings {
-  defaultModel?: ModelSelection | null;
-  defaultMode?: VaultAgentMode | null;
-  envOverrides?: Record<string, string>;
-}
-
-export interface OpencodeBackendSettings {
-  defaultModel?: ModelSelection | null;
-  defaultMode?: VaultAgentMode | null;
-  envOverrides?: Record<string, string>;
-}
-
-export interface DeviceAgentProfile {
-  codex?: {
-    envOverrides?: Record<string, string>;
-  };
-  opencode?: {
-    envOverrides?: Record<string, string>;
-  };
-  claude?: {
-    envOverrides?: Record<string, string>;
-  };
-}
 
 export const settingsStore = createStore();
 export const settingsAtom = atom<VaultAgentSettings>(DEFAULT_SETTINGS);
@@ -389,34 +325,7 @@ export function useSettingsValue(): Readonly<VaultAgentSettings> {
 
 export function sanitizeSettings(settings: VaultAgentSettings): VaultAgentSettings {
   const settingsToSanitize = settings || DEFAULT_SETTINGS;
-  const rawSettings = settingsToSanitize as unknown as Record<string, unknown>;
-  const { enableSelfHostedSearch: legacyEnableSelfHostedSearch } = rawSettings;
-
   const sanitizedSettings: VaultAgentSettings = { ...settingsToSanitize };
-  const sanitizedSettingsRecord = sanitizedSettings as unknown as Record<string, unknown>;
-  // Amazon Bedrock is no longer a chat provider, so a stored key and region
-  // would only be credentials for a service the plugin can no longer reach.
-  // https://github.com/logancyang/obsidian-copilot/issues/2928
-  delete sanitizedSettingsRecord.amazonBedrockApiKey;
-  delete sanitizedSettingsRecord.amazonBedrockRegion;
-  // Azure OpenAI is no longer a chat provider, so a stored key and its routing
-  // fields would only address a service the plugin cannot reach.
-  // https://github.com/logancyang/obsidian-copilot/issues/2932
-  delete sanitizedSettingsRecord.azureOpenAIApiKey;
-  delete sanitizedSettingsRecord.azureOpenAIApiInstanceName;
-  delete sanitizedSettingsRecord.azureOpenAIApiDeploymentName;
-  delete sanitizedSettingsRecord.azureOpenAIApiVersion;
-  // Copilot no longer limits how long an answer may be, so a stored limit
-  // would only cut off answers the model was willing to finish.
-  // https://github.com/logancyang/obsidian-copilot-preview/issues/312
-  delete sanitizedSettingsRecord.maxTokens;
-
-  if (
-    legacyEnableSelfHostedSearch !== undefined &&
-    sanitizedSettings.enableSelfHostMode === undefined
-  ) {
-    sanitizedSettings.enableSelfHostMode = legacyEnableSelfHostedSearch as boolean;
-  }
 
   // Persisted Parallel and Exa choices must survive reload instead of silently
   // reverting to Firecrawl. https://github.com/Brevilabs/obsidian-copilot-private/issues/285
@@ -431,10 +340,6 @@ export function sanitizeSettings(settings: VaultAgentSettings): VaultAgentSettin
 
   if (typeof sanitizedSettings.enableCustomPromptTemplating !== "boolean") {
     sanitizedSettings.enableCustomPromptTemplating = DEFAULT_SETTINGS.enableCustomPromptTemplating;
-  }
-
-  if (typeof sanitizedSettings.autosaveChat !== "boolean") {
-    sanitizedSettings.autosaveChat = DEFAULT_SETTINGS.autosaveChat;
   }
 
   if (!Object.values(SEND_SHORTCUT).includes(sanitizedSettings.defaultSendShortcut)) {
@@ -510,16 +415,6 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
 
   const backendsRaw =
     r.backends && typeof r.backends === "object" ? (r.backends as Record<string, unknown>) : {};
-  const existingOpencode = backendsRaw.opencode as Record<string, unknown> | undefined;
-  const existingClaude = backendsRaw.claude as Record<string, unknown> | undefined;
-  const existingCodex = backendsRaw.codex as Record<string, unknown> | undefined;
-
-  const opencodeSlice = existingOpencode
-    ? sanitizeOpencodeBackendSettings(existingOpencode)
-    : undefined;
-  const claudeSlice = existingClaude ? sanitizeClaudeBackendSettings(existingClaude) : undefined;
-  const codexSlice = existingCodex ? sanitizeCodexBackendSettings(existingCodex) : undefined;
-
   const backends: VaultAgentSettings["agentMode"]["backends"] = {};
   const existingPi = backendsRaw.pi;
   if (existingPi && typeof existingPi === "object") {
@@ -528,51 +423,8 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
       defaultModel: sanitizeDefaultModel(pi.defaultModel),
       defaultMode: sanitizeDefaultMode(pi.defaultMode),
       ...(Array.isArray(pi.mcpServers) ? { mcpServers: pi.mcpServers } : {}),
-      hostExecutionMode: pi.hostExecutionMode === "trusted_host" ? "trusted_host" : "strict",
-      ...(Array.isArray(pi.enabledSubagentProfiles)
-        ? {
-            enabledSubagentProfiles: pi.enabledSubagentProfiles.filter(
-              (profile): profile is string =>
-                typeof profile === "string" &&
-                ["researcher", "reviewer", "writer"].includes(profile)
-            ),
-          }
-        : {}),
-      ...(Array.isArray(pi.externalScopes)
-        ? {
-            externalScopes: pi.externalScopes
-              .filter(
-                (
-                  scope
-                ): scope is {
-                  root: string;
-                  permissions: ("read" | "write")[];
-                  expiresAtMs?: number;
-                } =>
-                  typeof scope === "object" &&
-                  scope !== null &&
-                  typeof (scope as Record<string, unknown>).root === "string" &&
-                  Array.isArray((scope as Record<string, unknown>).permissions)
-              )
-              .map((scope) => ({
-                root: scope.root,
-                permissions: scope.permissions.filter(
-                  (permission) => permission === "read" || permission === "write"
-                ),
-                ...(typeof scope.expiresAtMs === "number" && Number.isFinite(scope.expiresAtMs)
-                  ? { expiresAtMs: scope.expiresAtMs }
-                  : {}),
-              })),
-          }
-        : {}),
     };
   }
-  if (opencodeSlice) backends.opencode = opencodeSlice;
-  if (claudeSlice) backends.claude = claudeSlice;
-  if (codexSlice) backends.codex = codexSlice;
-
-  const deviceProfiles = sanitizeDeviceProfiles(r.deviceProfiles);
-
   const debugFullFrames =
     typeof r.debugFullFrames === "boolean"
       ? r.debugFullFrames
@@ -604,15 +456,10 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
     r.skills && typeof r.skills === "object" ? (r.skills as Record<string, unknown>) : null;
   const skillsFolderRaw = skillsRaw && typeof skillsRaw.folder === "string" ? skillsRaw.folder : "";
   const skillsValidation = validateSkillsFolder(skillsFolderRaw);
-  const suppressMigrationConfirm =
-    skillsRaw && typeof skillsRaw.suppressMigrationConfirm === "boolean"
-      ? skillsRaw.suppressMigrationConfirm
-      : undefined;
   const skills: VaultAgentSettings["agentMode"]["skills"] = {
     folder: skillsValidation.ok
       ? skillsValidation.folder
       : DEFAULT_SETTINGS.agentMode.skills.folder,
-    ...(suppressMigrationConfirm !== undefined ? { suppressMigrationConfirm } : {}),
     ...(skillsRaw?.builtinPreferences !== undefined
       ? { builtinPreferences: sanitizeBuiltinPreferences(skillsRaw.builtinPreferences) }
       : {}),
@@ -628,7 +475,6 @@ function sanitizeAgentMode(raw: unknown): VaultAgentSettings["agentMode"] {
     notificationSoundId,
     welcomeDismissed,
     skills,
-    ...(deviceProfiles ? { deviceProfiles } : {}),
   };
 }
 
@@ -798,104 +644,6 @@ function sanitizeDefaultMode(raw: unknown): VaultAgentMode | undefined {
 }
 
 export const ENV_VAR_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-export function sanitizeEnvOverrides(raw: unknown): Record<string, string> | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof k !== "string") continue;
-    if (!ENV_VAR_NAME_RE.test(k)) continue;
-    if (typeof v !== "string") continue;
-    if (CONTROL_CHAR_RE.test(v)) continue;
-    out[k] = v;
-    if (Object.keys(out).length >= 64) break;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-const CLAUDE_AUTO_MODE_PERMISSIONS: readonly ClaudeAutoModePermission[] = [
-  "acceptEdits",
-  "auto",
-  "bypassPermissions",
-];
-function sanitizeClaudeAutoModePermission(raw: unknown): ClaudeAutoModePermission | undefined {
-  return typeof raw === "string" &&
-    (CLAUDE_AUTO_MODE_PERMISSIONS as readonly string[]).includes(raw)
-    ? (raw as ClaudeAutoModePermission)
-    : undefined;
-}
-
-function sanitizeClaudeBackendSettings(raw: unknown): ClaudeBackendSettings {
-  if (!raw || typeof raw !== "object") return {};
-  const r = raw as Record<string, unknown>;
-  return {
-    defaultModel: sanitizeDefaultModel(r.defaultModel),
-    defaultMode: sanitizeDefaultMode(r.defaultMode),
-    autoModePermission: sanitizeClaudeAutoModePermission(r.autoModePermission),
-    enableThinking: typeof r.enableThinking === "boolean" ? r.enableThinking : undefined,
-    envOverrides: sanitizeEnvOverrides(r.envOverrides),
-  };
-}
-
-function sanitizeCodexBackendSettings(raw: unknown): CodexBackendSettings {
-  if (!raw || typeof raw !== "object") return {};
-  const r = raw as Record<string, unknown>;
-  return {
-    defaultModel: sanitizeDefaultModel(r.defaultModel),
-    defaultMode: sanitizeDefaultMode(r.defaultMode),
-    envOverrides: sanitizeEnvOverrides(r.envOverrides),
-  };
-}
-
-function sanitizeOpencodeBackendSettings(raw: unknown): OpencodeBackendSettings {
-  if (!raw || typeof raw !== "object") return {};
-  const r = raw as Record<string, unknown>;
-  return {
-    defaultModel: sanitizeDefaultModel(r.defaultModel),
-    defaultMode: sanitizeDefaultMode(r.defaultMode),
-    envOverrides: sanitizeEnvOverrides(r.envOverrides),
-  };
-}
-
-function sanitizeDeviceAgentProfile(raw: unknown): DeviceAgentProfile | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as Record<string, unknown>;
-  const out: DeviceAgentProfile = {};
-
-  const codexRaw =
-    r.codex && typeof r.codex === "object" ? (r.codex as Record<string, unknown>) : null;
-  if (codexRaw) {
-    const envOverrides = sanitizeEnvOverrides(codexRaw.envOverrides);
-    if (envOverrides) out.codex = { envOverrides };
-  }
-
-  const opencodeRaw =
-    r.opencode && typeof r.opencode === "object" ? (r.opencode as Record<string, unknown>) : null;
-  if (opencodeRaw) {
-    const envOverrides = sanitizeEnvOverrides(opencodeRaw.envOverrides);
-    if (envOverrides) out.opencode = { envOverrides };
-  }
-
-  const claudeRaw =
-    r.claude && typeof r.claude === "object" ? (r.claude as Record<string, unknown>) : null;
-  if (claudeRaw) {
-    const envOverrides = sanitizeEnvOverrides(claudeRaw.envOverrides);
-    if (envOverrides) out.claude = { envOverrides };
-  }
-
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-function sanitizeDeviceProfiles(raw: unknown): Record<string, DeviceAgentProfile> | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const out: Record<string, DeviceAgentProfile> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof key !== "string" || key.length === 0) continue;
-    const profile = sanitizeDeviceAgentProfile(value);
-    if (profile) out[key] = profile;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
-}
 
 function mergeActiveChatModelsWithCoreModels(settings: VaultAgentSettings): VaultAgentSettings {
   settings.activeModels = mergeActiveModels(settings.activeModels, BUILTIN_CHAT_MODELS);
