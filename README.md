@@ -45,12 +45,10 @@ is not supported.
   contains provider API keys.
 - **Credentials** — stored in the OS keychain through Obsidian SecretStorage; provider keys and MCP
   tokens are referenced by id, not written to vault files.
-- **Chats** — an `agent-chat-index.json` index plus the durable session store in the plugin data
-  folder (JSONL, append-only). A single root store warns at 16 MiB and refuses new runs at 32 MiB
-  while reads, cancellation, export, and pending approvals stay available. Optional chat notes use
-  `mode: agent` frontmatter in the vault.
-- **Migration backups** — settings migrations write a backup to a private migration folder before
-  rewriting settings, with credential fields excluded.
+- **Chats** — stored only outside the vault under `~/.vault-agent/v2/`. Each session owns its
+  durable record, attachments, revert backups and chat diagnostic reports. The index is rebuildable; session size is unlimited.
+  Explicit exports are independent copies and are never loaded back into the plugin.
+- **Model catalog** — bundled with the plugin, available offline and updated only with the plugin.
 - **Network** — only the provider endpoints you configure, the HTTP MCP servers you add, and the URLs
   the agent explicitly fetches. No telemetry, hosted service, account system, or update channel.
 
@@ -68,12 +66,18 @@ is not supported.
 - **Background subagent reports** are delivered once, a cancelled root stores the report without
   waking the parent model, and closing Obsidian stops background work; reopening restores state only.
 
-## Legacy history
+## Session data
 
-Old chats recorded by earlier OpenCode / Claude Code / Codex engines stay readable and keep their
-original labels. When their records cannot be reconstructed faithfully they are imported as visible
-chat material (marked as legacy text, not a new instruction) rather than as a full tool history; the
-original data is not deleted or rewritten.
+This is a non-compatible storage release. Earlier chats and backups remain untouched but are not
+scanned, imported or opened. Earlier chat links no longer resolve. Current provider settings and
+keychain references remain usable.
+
+New chat links use stable session ids. Forking makes an independent copy of a stopped chat; notes
+in the vault remain shared. Deleting a chat permanently removes its owned files after confirmation,
+including attachments and revert backups. User exports remain independent.
+
+The Local Data settings tab shows actual file sizes, locations, session counts and credential counts.
+Sizes describe file content, not filesystem allocation, and exclude earlier data and user exports.
 
 ## Development
 

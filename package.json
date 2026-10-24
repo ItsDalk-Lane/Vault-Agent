@@ -18,7 +18,6 @@
     "build": "npm run build:tailwind && npm run build:esbuild || exit 1",
     "build:tailwind": "npx tailwindcss -i src/styles/tailwind.css -o styles.css --minify",
     "generate:pi-models": "node src/agentMode/sdk/pi/models/generateDeclaredModels.mjs",
-    "probe:catalog-endpoints": "node scripts/probe-catalog-endpoints.mjs",
     "build:esbuild": "npm run generate:pi-models && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "lint": "eslint .",
     "review:obsidian": "run-s review:obsidian:package review:obsidian:source review:obsidian:styles review:obsidian:audit review:obsidian:fixtures",

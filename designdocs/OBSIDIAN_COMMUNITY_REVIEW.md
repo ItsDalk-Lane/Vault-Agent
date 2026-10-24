@@ -60,9 +60,9 @@ Warnings remain for cases where automatic cleanup could change behavior or UI, i
 - `src/LLMProviders/chatModelManager.ts` — keyless OpenAI-compatible authentication wrapper preserves native streaming and AbortSignal cancellation when CORS compatibility is off.
 - `src/LLMProviders/ChatLMStudio.ts` — `window.fetch` fallback wrapped for LM Studio body sanitization in a streaming ChatOpenAI.
 
-Non-streaming JSON requests route through `safeFetchNoThrow`, which uses `requestUrl`. These include the Jina and custom OpenAI embedding adapters and every Amazon Bedrock request.
+The built-in model catalog makes no network requests. Provider configuration is saved locally; only an explicit model test sends inference requests through the selected model adapter.
 
-Provider smoke tests for Jina and Bedrock are needed only when their adapters or network boundaries change.
+Model connection tests are needed when the selected model adapters or their network boundaries change.
 
 ## Maintenance checklist
 

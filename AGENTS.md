@@ -6,7 +6,7 @@ This file provides guidance to any coding agent when working with code in this r
 
 Vault Agent is a desktop-only Obsidian plugin with one bundled, in-process Pi SDK runtime. Models and credentials come from user-configured BYOK providers; no external Claude Code, Codex, OpenCode, or Pi CLI is installed or launched as the agent engine. There is no hosted service, account system, paid plan, or telemetry — see `README.md`.
 
-The product retains agent chat, plans, diffs and revert, projects, skills with one enablement state, model-based fan-out, and read-only legacy history. Models are managed in BYOK, external tool services in the standalone MCP tab, and local-program/subtask/folder permissions in Advanced. Legacy engine identities are display metadata, never runnable descriptors.
+The product retains agent chat, plans, diffs and revert, projects, skills with one enablement state, and model-based fan-out. Models are managed in BYOK, external tool services in the standalone MCP tab. Tool permissions use a single layer: per-call approval cards are the only gate (https://github.com/ItsDalk-Lane/Vault-Agent/issues/15). This is a non-compatible storage release: previous chats, including previous Pi chats, are not read or migrated. Their original files remain untouched.
 
 The Agent Mode module lives in `src/agentMode/` and talks to the host through a single barrel (`src/agentMode/index.ts`). Read [`src/agentMode/AGENTS.md`](./src/agentMode/AGENTS.md) before changing it: its layer rules are enforced by `eslint-plugin-boundaries`.
 
@@ -64,7 +64,7 @@ Read the matching guide when your task touches that area — they aren't loaded 
 
 - The plugin declares `isDesktopOnly: true`: the bundled runtime uses desktop APIs and private durable storage. Optional, explicitly approved local tools can launch processes; the core agent runs inside the plugin. The bundle is never loaded on mobile.
 - Multiple BYOK providers with custom endpoints are supported; keys live in the OS keychain, not in `data.json`.
-- Agent sessions use private durable JSONL records plus a per-vault `agent-chat-index.json`; optional vault notes use `mode: agent` frontmatter. Opening history restores visible state without automatically resuming unfinished work.
+- Agent sessions use private durable transcripts and sidecar files outside the vault. Session records generate history directly; an explicit export is a standalone copy that is never indexed or read back. Opening history restores visible state without automatically resuming unfinished work.
 - Skills are discovered from the canonical vault folder with one enablement state; built-in skills ship with the plugin. No per-CLI symlinks or agent-directory distribution is performed.
 - Tech debt and known issues → [`designdocs/todo/TECHDEBT.md`](./designdocs/todo/TECHDEBT.md). Current session plan → [`TODO.md`](./TODO.md).
 - Available Tailwind tokens/classes → [`tailwind.config.js`](./tailwind.config.js).

@@ -68,7 +68,7 @@ Inside a Project:
 
 From the Projects list, hover over a Project to **Reveal in vault**, **Edit project**, or **Delete** it. The global **Recent Chats** list on the Agent Chat home screen includes conversations from across Projects.
 
-Deleting a Project removes its Vault Agent Project configuration. It does not delete your ordinary vault notes or conversation notes already saved in the vault.
+Deleting a Project removes its Vault Agent Project configuration. It does not delete your ordinary vault notes or stored chat sessions.
 
 ## When to use a Project
 
