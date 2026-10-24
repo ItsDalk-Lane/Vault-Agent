@@ -1,11 +1,7 @@
 import {
-  agentsFileIsUninitialized,
   captureInstructionFiles,
   restoreInstructionFiles,
-  isClaudeImportOnly,
   ensureAgentsFile,
-  removeGeneratedInstructionFiles,
-  ensureAgentsFileForDiscovery,
   openAgentsFile,
   readAgentsFile,
   writeAgentsFile,
@@ -109,18 +105,16 @@ describe("agentsFile", () => {
       expect(app.vault.modify).not.toHaveBeenCalled();
     });
 
-    it("initializes a missing project AGENTS file from the supplied compatibility body", async () => {
+    it("initializes a missing project instruction file from the supplied text", async () => {
       const { app, state } = makeApp({}, ["vault-agent/projects/Research"]);
 
-      await ensureAgentsFile(app, "vault-agent/projects/Research", "Legacy project rules");
+      await ensureAgentsFile(app, "vault-agent/projects/Research", "Project rules");
 
-      expect(state.files.get("vault-agent/projects/Research/AGENTS.md")).toBe(
-        "Legacy project rules"
-      );
+      expect(state.files.get("vault-agent/projects/Research/AGENTS.md")).toBe("Project rules");
       expect(state.files.has("vault-agent/projects/Research/CLAUDE.md")).toBe(false);
     });
 
-    it("converts a generated mirror back to the current project.md instruction body", async () => {
+    it("preserves an existing instruction file without converting its old marker https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const marker =
         "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
@@ -129,10 +123,12 @@ describe("agentsFile", () => {
 
       await ensureAgentsFile(app, "Projects/Research", "Fallback rules");
 
-      expect(state.files.get("Projects/Research/AGENTS.md")).toBe("Fallback rules");
+      expect(state.files.get("Projects/Research/AGENTS.md")).toBe(
+        `${marker}\n\nExisting instructions`
+      );
     });
 
-    it("keeps a generated mirror's body when there is nothing to replace it with", async () => {
+    it("leaves an existing instruction file unchanged when no initial text is supplied https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const marker =
         "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
@@ -141,28 +137,9 @@ describe("agentsFile", () => {
 
       await ensureAgentsFile(app, "Projects/Research", "");
 
-      expect(state.files.get("Projects/Research/AGENTS.md")).toBe("Existing instructions");
-    });
-  });
-
-  describe("agentsFileIsUninitialized()", () => {
-    it("is true when the file is absent", async () => {
-      const { app } = makeApp();
-      expect(await agentsFileIsUninitialized(app, "Projects/Research")).toBe(true);
-    });
-
-    it("is true for a generated mirror, which is Vault Agent's own output to replace", async () => {
-      const marker =
-        "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
-      const { app } = makeApp({
-        "Projects/Research/AGENTS.md": `${marker}\n\nExisting instructions`,
-      });
-      expect(await agentsFileIsUninitialized(app, "Projects/Research")).toBe(true);
-    });
-
-    it("is false once the file is the user's own", async () => {
-      const { app } = makeApp({ "Projects/Research/AGENTS.md": "The user's own rules" });
-      expect(await agentsFileIsUninitialized(app, "Projects/Research")).toBe(false);
+      expect(state.files.get("Projects/Research/AGENTS.md")).toBe(
+        `${marker}\n\nExisting instructions`
+      );
     });
   });
 
@@ -177,13 +154,15 @@ describe("agentsFile", () => {
       expect(await readAgentsFile(app, "")).toBe("Cite every source.\n");
     });
 
-    it("hides a legacy mirror's marker so an editor shows only the instructions", async () => {
+    it("returns all existing text without inspecting an old generated marker https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const marker =
         "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app } = makeApp({
         "Projects/Research/AGENTS.md": `${marker}\n\nCite every source.`,
       });
-      expect(await readAgentsFile(app, "Projects/Research")).toBe("Cite every source.");
+      expect(await readAgentsFile(app, "Projects/Research")).toBe(
+        `${marker}\n\nCite every source.`
+      );
     });
   });
 
@@ -222,7 +201,7 @@ describe("agentsFile", () => {
       expect(state.files.get("AGENTS.md")).toBe("");
     });
 
-    it("takes over a legacy mirror, leaving no marker behind", async () => {
+    it("replaces the complete file only when the user explicitly saves new instructions", async () => {
       const marker =
         "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
       const { app, state } = makeApp({
@@ -305,98 +284,6 @@ describe("agentsFile", () => {
       await restoreInstructionFiles(app, "Projects/Research", before);
 
       expect(state.files.get("Projects/Research/AGENTS.md")).toBe("");
-    });
-  });
-
-  describe("removeGeneratedInstructionFiles()", () => {
-    const marker =
-      "<!-- vault-agent:generated-agents-mirror v1 — Auto-generated; do not edit here. -->";
-
-    it("removes a marker-owned mirror, so a recreated project starts clean", async () => {
-      const { app, state } = makeApp({
-        "Projects/Research/AGENTS.md": `${marker}\n\nDead project's instructions`,
-      });
-
-      await removeGeneratedInstructionFiles(app, "Projects/Research");
-
-      expect(state.files.has("Projects/Research/AGENTS.md")).toBe(false);
-    });
-
-    it("keeps an import-only CLAUDE.md, which carries no marker to prove it is ours", async () => {
-      const { app, state } = makeApp({
-        "Projects/Research/AGENTS.md": `${marker}\n\nDead project's instructions`,
-        "Projects/Research/CLAUDE.md": "@AGENTS.md\n",
-      });
-
-      await removeGeneratedInstructionFiles(app, "Projects/Research");
-
-      expect(state.files.get("Projects/Research/CLAUDE.md")).toBe("@AGENTS.md\n");
-    });
-
-    it("preserves files carrying anything the user wrote", async () => {
-      const { app, state } = makeApp({
-        "Projects/Research/AGENTS.md": "The user's own rules",
-        "Projects/Research/CLAUDE.md": "# Claude notes\n\n@AGENTS.md\n",
-      });
-
-      await removeGeneratedInstructionFiles(app, "Projects/Research");
-
-      expect(state.files.get("Projects/Research/AGENTS.md")).toBe("The user's own rules");
-      expect(state.files.get("Projects/Research/CLAUDE.md")).toBe("# Claude notes\n\n@AGENTS.md\n");
-    });
-
-    it("never rejects when deletion fails", async () => {
-      const { app } = makeApp({
-        "Projects/Research/AGENTS.md": `${marker}\n\nbody`,
-      });
-      (app.vault.adapter.remove as jest.Mock | undefined)?.mockRejectedValue?.(new Error("locked"));
-      (
-        app as unknown as { fileManager?: { trashFile: jest.Mock } }
-      ).fileManager?.trashFile?.mockRejectedValue?.(new Error("locked"));
-
-      await expect(
-        removeGeneratedInstructionFiles(app, "Projects/Research")
-      ).resolves.toBeUndefined();
-    });
-  });
-
-  describe("ensureAgentsFileForDiscovery()", () => {
-    it("creates nothing for a scope with no AGENTS.md", async () => {
-      const { app, state } = makeApp({}, ["vault-agent/projects/Fresh"]);
-
-      await ensureAgentsFileForDiscovery(app, "vault-agent/projects/Fresh");
-
-      expect(state.files.size).toBe(0);
-    });
-
-    it("leaves a user-authored AGENTS.md unchanged and does not create a backend import https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-      const { app, state } = makeApp({ "AGENTS.md": "My vault rules" });
-
-      await ensureAgentsFileForDiscovery(app, "");
-
-      expect(state.files.get("AGENTS.md")).toBe("My vault rules");
-      expect(state.files.has("CLAUDE.md")).toBe(false);
-    });
-
-    it("never rejects when the vault write fails", async () => {
-      const { app } = makeApp({ "vault-agent/projects/Research/AGENTS.md": "rules" });
-      (app.vault.create as jest.Mock).mockRejectedValue(new Error("disk full"));
-
-      await expect(
-        ensureAgentsFileForDiscovery(app, "vault-agent/projects/Research")
-      ).resolves.toBeUndefined();
-    });
-  });
-
-  describe("isClaudeImportOnly()", () => {
-    it.each(["", "@AGENTS.md", "@./AGENTS.md", "\n@AGENTS.md\n"])(
-      "recognizes an import-only historical file %p",
-      (content) => {
-        expect(isClaudeImportOnly(content)).toBe(true);
-      }
-    );
-    it("preserves historical files containing user-authored rules", () => {
-      expect(isClaudeImportOnly("# Rules\n\n@AGENTS.md\n\nmore")).toBe(false);
     });
   });
 

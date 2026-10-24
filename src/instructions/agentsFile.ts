@@ -4,32 +4,11 @@ import { hasCaseInsensitiveFilesystem, trashFile } from "@/utils/vaultAdapterUti
 import { App, normalizePath, TFile, TFolder } from "obsidian";
 
 export const AGENTS_FILE_NAME = "AGENTS.md";
-export const CLAUDE_FILE_NAME = "CLAUDE.md";
-
-const CLAUDE_REFERENCE_PATTERN = /^[ \t>-]*@\.?\/?AGENTS\.md[ \t]*$/im;
-
-export function isClaudeImportOnly(content: string): boolean {
-  return content
-    .split(/\r?\n/)
-    .every((line) => line.trim().length === 0 || CLAUDE_REFERENCE_PATTERN.test(line));
-}
-
-const GENERATED_MIRROR_HEADER =
-  /^(\uFEFF?)<!-- vault-agent:generated-agents-mirror [^\r\n]* -->\r?\n\r?\n/;
-
-export async function agentsFileIsUninitialized(app: App, folderPath: string): Promise<boolean> {
-  const agentsPath = childPath(folderPath, AGENTS_FILE_NAME);
-  const file = findCachedInstructionFile(app, agentsPath);
-  if (!file) return true;
-  return GENERATED_MIRROR_HEADER.test(await app.vault.read(file));
-}
-
 export async function readAgentsFile(app: App, folderPath: string): Promise<string> {
   const agentsPath = childPath(folderPath, AGENTS_FILE_NAME);
   const file = findCachedInstructionFile(app, agentsPath);
   if (!file) return "";
-  const content = await app.vault.read(file);
-  return content.replace(GENERATED_MIRROR_HEADER, "$1");
+  return app.vault.read(file);
 }
 
 export async function writeAgentsFile(
@@ -42,20 +21,6 @@ export async function writeAgentsFile(
   const file = await ensureAgentsFile(app, folderPath, content);
   if ((await app.vault.read(file)) === content) return;
   await app.vault.modify(file, content);
-}
-
-export async function removeGeneratedInstructionFiles(app: App, folderPath: string): Promise<void> {
-  try {
-    const file = findCachedInstructionFile(app, childPath(folderPath, AGENTS_FILE_NAME));
-    if (!file) return;
-    if (!GENERATED_MIRROR_HEADER.test(await app.vault.read(file))) return;
-    await trashFile(app, file);
-  } catch (error) {
-    logWarn(
-      `[Instructions] Failed to remove the generated ${AGENTS_FILE_NAME} in "${folderPath}"`,
-      error
-    );
-  }
 }
 
 export interface InstructionFilesSnapshot {
@@ -109,23 +74,7 @@ export async function ensureAgentsFile(
   initialContent: string
 ): Promise<TFile> {
   const agentsPath = childPath(folderPath, AGENTS_FILE_NAME);
-  const agentsFile = await ensureFile(app, agentsPath, initialContent);
-  await convertLegacyGeneratedFile(app, agentsFile, initialContent);
-  return agentsFile;
-}
-
-export async function ensureAgentsFileForDiscovery(app: App, folderPath: string): Promise<void> {
-  try {
-    const agentsPath = childPath(folderPath, AGENTS_FILE_NAME);
-    const existing = findCachedInstructionFile(app, agentsPath);
-    if (!existing) return;
-    await ensureAgentsFile(app, folderPath, "");
-  } catch (error) {
-    logWarn(
-      `[Instructions] Failed to ensure AGENTS.md for "${folderPath || "<vault root>"}"`,
-      error
-    );
-  }
+  return ensureFile(app, agentsPath, initialContent);
 }
 
 export async function openAgentsFile(app: App, folderPath: string): Promise<void> {
@@ -163,19 +112,4 @@ async function ensureFile(app: App, filePath: string, content: string): Promise<
   const folderPath = filePath.split("/").slice(0, -1).join("/");
   if (folderPath) await ensureFolderExists(app.vault, folderPath);
   return await app.vault.create(filePath, content);
-}
-
-async function convertLegacyGeneratedFile(
-  app: App,
-  file: TFile,
-  initialContent: string
-): Promise<void> {
-  const content = await app.vault.read(file);
-  const match = content.match(GENERATED_MIRROR_HEADER);
-  if (!match) return;
-
-  const nextContent = initialContent
-    ? `${match[1]}${initialContent}`
-    : `${match[1]}${content.slice(match[0].length)}`;
-  await app.vault.modify(file, nextContent);
 }

@@ -10,7 +10,7 @@ jest.mock("@/logger", () => ({
 }));
 
 jest.mock("@/logFileManager", () => ({
-  logFileManager: { getLogPath: () => "vault-agent/vault-agent-log.md" },
+  logFileManager: { getLogPath: () => "AGENTS.md" },
 }));
 
 jest.mock(
@@ -199,7 +199,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("vault-agent/vault-agent-log.md"));
+        fire("modify", file("AGENTS.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(0);
@@ -232,7 +232,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("modify", file("vault-agent/vault-agent-log.md"));
+        fire("modify", file("AGENTS.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("a")).toBe(0);
@@ -311,7 +311,7 @@ describe("projectContentTracker", () => {
         const { app, fire } = makeApp();
         const tracker = new ProjectContentTracker(app);
 
-        fire("changed", file("vault-agent/vault-agent-log.md"));
+        fire("changed", file("AGENTS.md"));
         tracker.flushNow();
 
         expect(tracker.getEpoch("p")).toBe(0);

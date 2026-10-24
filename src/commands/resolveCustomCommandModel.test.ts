@@ -1,5 +1,5 @@
 import { resolveCustomCommandModel } from "./resolveCustomCommandModel";
-import type { ModelManagementApi, EnabledBackendEntry } from "@/modelManagement";
+import type { ModelManagementApi, EnabledBackendEntry, Provider } from "@/modelManagement";
 
 const ISSUE = "https://github.com/ItsDalk-Lane/Vault-Agent/issues/2";
 function entry(id = "target"): EnabledBackendEntry {
@@ -63,7 +63,7 @@ describe("resolveCustomCommandModel", () => {
         {
           ...supported,
           configuredModelId: "legacy",
-          provider: { ...supported.provider, origin: { kind: "agent", agentType: "opencode" } },
+          provider: { ...supported.provider, origin: { kind: "agent" } } as unknown as Provider,
         },
       ];
       for (const selection of ["deleted", "broken", "embedding", "no-tools", "legacy"])

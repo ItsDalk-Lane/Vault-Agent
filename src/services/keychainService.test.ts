@@ -41,6 +41,7 @@ import {
   isCopilotOwnedSecret,
   isSecretKey,
   providerKeychainName,
+  secretMetaId,
 } from "./keychainService";
 
 function makeSettings(overrides: Partial<VaultAgentSettings> = {}): VaultAgentSettings {
@@ -65,21 +66,6 @@ function makeSecretStorage() {
     setSecret: jest.fn(),
     deleteSecret: jest.fn(),
     listSecrets: jest.fn().mockReturnValue([]),
-  };
-}
-
-function makeMapStorage(entries: Record<string, string>) {
-  const secrets = new Map(Object.entries(entries));
-  return {
-    secrets,
-    getSecret: (id: string) => (secrets.has(id) ? secrets.get(id)! : null),
-    setSecret: (id: string, value: string) => {
-      secrets.set(id, value);
-    },
-    deleteSecret: (id: string) => {
-      secrets.delete(id);
-    },
-    listSecrets: () => Array.from(secrets.keys()),
   };
 }
 
@@ -210,108 +196,6 @@ describe("keychainService", () => {
   });
 
   describe("KeychainService", () => {
-    describe("migrateProviderNames()", () => {
-      function migrate(entries: Record<string, string>, settings: VaultAgentSettings) {
-        const storage = makeMapStorage(entries);
-        const service = KeychainService.getInstance(makeApp({ secretStorage: storage }));
-        service.setVaultId(VAULT_ID);
-        return { storage, service, migrated: service.migrateProviderNames(settings) };
-      }
-
-      const legacyPointer = `copilot-v${VAULT_ID}-provider-row-1`;
-      const stableName = `copilot-v${VAULT_ID}-provider-anthropic-api-key`;
-
-      it("moves a key from its random-id name to its stable name and rewrites the pointer (https://github.com/logancyang/obsidian-copilot/issues/3618)", () => {
-        const { storage, migrated } = migrate(
-          { [legacyPointer]: "sk-ant" },
-          makeSettings({
-            providers: { "row-1": makeProvider({ apiKeyKeychainId: legacyPointer }) },
-          })
-        );
-
-        expect(migrated.providers["row-1"].apiKeyKeychainId).toBe(stableName);
-        expect(storage.secrets.get(stableName)).toBe("sk-ant");
-        expect(storage.secrets.has(legacyPointer)).toBe(false);
-      });
-
-      it("rewrites a legacy pointer this device never held, so a re-entered key lands on the stable name", () => {
-        const { storage, migrated } = migrate(
-          {},
-          makeSettings({
-            providers: { "row-1": makeProvider({ apiKeyKeychainId: legacyPointer }) },
-          })
-        );
-
-        expect(migrated.providers["row-1"].apiKeyKeychainId).toBe(stableName);
-        expect(storage.secrets.has(stableName)).toBe(false);
-      });
-
-      it("fills a stable pointer synced from another device with this device's legacy key for the same provider (https://github.com/logancyang/obsidian-copilot/issues/3618)", () => {
-        const settings = makeSettings({
-          providers: { "row-1": makeProvider({ apiKeyKeychainId: stableName }) },
-        });
-
-        const { storage, migrated } = migrate({ [legacyPointer]: "sk-ant-local" }, settings);
-
-        expect(storage.secrets.get(stableName)).toBe("sk-ant-local");
-        expect(storage.secrets.has(legacyPointer)).toBe(false);
-        expect(migrated).toBe(settings);
-      });
-
-      it("leaves an existing stable entry untouched, so a key changed after migration is not reverted", () => {
-        const { storage } = migrate(
-          { [stableName]: "sk-new", [legacyPointer]: "sk-old" },
-          makeSettings({
-            providers: { "row-1": makeProvider({ apiKeyKeychainId: legacyPointer }) },
-          })
-        );
-
-        expect(storage.secrets.get(stableName)).toBe("sk-new");
-        expect(storage.secrets.has(legacyPointer)).toBe(false);
-      });
-
-      it("does not restore a key deleted from its stable name after migration (https://github.com/logancyang/obsidian-copilot/issues/3618)", () => {
-        const { storage, service, migrated } = migrate(
-          { [legacyPointer]: "sk-ant" },
-          makeSettings({
-            providers: { "row-1": makeProvider({ apiKeyKeychainId: legacyPointer }) },
-          })
-        );
-
-        storage.deleteSecret(stableName);
-        service.migrateProviderNames(migrated);
-
-        expect(storage.secrets.size).toBe(0);
-      });
-
-      it("leaves another vault's provider entries alone on a Keychain shared between vaults", () => {
-        const otherVaultEntry = `copilot-v${OTHER_VAULT_ID}-provider-row-1`;
-
-        const { storage } = migrate(
-          { [otherVaultEntry]: "sk-other-vault" },
-          makeSettings({ providers: { "row-1": makeProvider({ apiKeyKeychainId: stableName }) } })
-        );
-
-        expect(storage.secrets.get(otherVaultEntry)).toBe("sk-other-vault");
-        expect(storage.secrets.has(stableName)).toBe(false);
-      });
-
-      it("leaves a pointer to another plugin's secret and this vault's legacy entry alone (https://github.com/logancyang/obsidian-copilot/issues/3618)", () => {
-        const settings = makeSettings({
-          providers: { "row-1": makeProvider({ apiKeyKeychainId: "anthropic-api-key" }) },
-        });
-
-        const { storage, migrated } = migrate(
-          { "anthropic-api-key": "sk-plugin", [legacyPointer]: "sk-legacy" },
-          settings
-        );
-
-        expect(migrated).toBe(settings);
-        expect(storage.secrets.get("anthropic-api-key")).toBe("sk-plugin");
-        expect(storage.secrets.get(legacyPointer)).toBe("sk-legacy");
-      });
-    });
-
     describe("getVaultId()", () => {
       it("derives an 8-character hex ID from the desktop vault path", () => {
         const service = KeychainService.getInstance(makeApp({ basePath: "/Users/test/MyVault" }));
@@ -444,7 +328,7 @@ describe("keychainService", () => {
         expect(secretStorage.setSecret).not.toHaveBeenCalled();
       });
 
-      it("still hydrates legacy secret keys present on input but not in DEFAULT_SETTINGS", async () => {
+      it("does not read unknown old secret fields while hydrating current settings https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
         const secretStorage = makeSecretStorage();
         secretStorage.getSecret.mockImplementation((id: string) =>
           id.includes("legacy-provider-api-key") ? "legacy-value" : null
@@ -456,8 +340,13 @@ describe("keychainService", () => {
         );
 
         expect((result.settings as unknown as Record<string, string>).legacyProviderApiKey).toBe(
-          "legacy-value"
+          ""
         );
+        expect(secretStorage.getSecret).not.toHaveBeenCalledWith(
+          expect.stringContaining("legacy-provider-api-key")
+        );
+        expect(secretStorage.setSecret).not.toHaveBeenCalled();
+        expect(secretStorage.deleteSecret).not.toHaveBeenCalled();
       });
     });
 
@@ -494,6 +383,89 @@ describe("keychainService", () => {
         expect(current.activeModels[0].apiKey).toBe("chat-secret");
         expect(prev.openAIApiKey).toBe("sk-prev");
         expect(prev.activeModels[0].apiKey).toBe("chat-prev");
+      });
+      it("does not persist or clear keys named by unknown old settings fields https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+        const service = KeychainService.getInstance(makeApp());
+        const oldSettings = makeSettings({
+          legacyProviderApiKey: "old-secret",
+        } as unknown as Partial<VaultAgentSettings>);
+        const saved = service.persistSecrets(oldSettings);
+        const removed = service.persistSecrets(makeSettings(), oldSettings);
+        expect(saved.secretEntries).toEqual([]);
+        expect(saved.keychainIdsToDelete).toEqual([]);
+        expect(removed.secretEntries).toEqual([]);
+        expect(removed.keychainIdsToDelete).toEqual([]);
+        expect((oldSettings as unknown as Record<string, string>).legacyProviderApiKey).toBe(
+          "old-secret"
+        );
+      });
+    });
+
+    describe("getSecretMeta() and write tracking", () => {
+      const secretId = (vaultId: string) => `copilot-v${vaultId}-provider-anthropic-api-key`;
+
+      it("records created and updated times on first write and persists them in a non-secret registry entry https://github.com/ItsDalk-Lane/Vault-Agent/issues/8", () => {
+        const secretStorage = makeSecretStorage();
+        const service = KeychainService.getInstance(makeApp({ secretStorage }));
+        const id = secretId(service.getVaultId());
+
+        service.setSecretById(id, "first");
+
+        const metaId = secretMetaId(service.getVaultId());
+        expect(metaId).toBe(`copilot-v${service.getVaultId()}-secret-meta`);
+        expect(secretStorage.setSecret).toHaveBeenCalledWith(metaId, expect.any(String));
+        const entry = service.getSecretMeta()[id];
+        expect(typeof entry.createdAt).toBe("number");
+        expect(entry.updatedAt).toBe(entry.createdAt);
+      });
+
+      it("does not refresh the update time when a rewrite carries the same value https://github.com/ItsDalk-Lane/Vault-Agent/issues/8", () => {
+        const secretStorage = makeSecretStorage();
+        const service = KeychainService.getInstance(makeApp({ secretStorage }));
+        const id = secretId(service.getVaultId());
+
+        service.setSecretById(id, "same");
+        const before = service.getSecretMeta()[id];
+        service.setSecretById(id, "same");
+
+        expect(service.getSecretMeta()[id]).toEqual(before);
+      });
+
+      it("keeps the original created time when a secret value changes https://github.com/ItsDalk-Lane/Vault-Agent/issues/8", () => {
+        const secretStorage = makeSecretStorage();
+        const service = KeychainService.getInstance(makeApp({ secretStorage }));
+        const id = secretId(service.getVaultId());
+
+        service.setSecretById(id, "first");
+        const before = service.getSecretMeta()[id];
+        service.setSecretById(id, "second");
+        const after = service.getSecretMeta()[id];
+
+        expect(after.createdAt).toBe(before.createdAt);
+        expect(after.updatedAt).toBeGreaterThanOrEqual(before.updatedAt);
+      });
+
+      it("drops the tracked entry when a secret is deleted or tombstoned with an empty value https://github.com/ItsDalk-Lane/Vault-Agent/issues/8", () => {
+        const secretStorage = makeSecretStorage();
+        const service = KeychainService.getInstance(makeApp({ secretStorage }));
+        const id = secretId(service.getVaultId());
+        const otherId = `copilot-v${service.getVaultId()}-google-api-key`;
+
+        service.setSecretById(id, "value");
+        service.setSecretById(otherId, "value");
+        service.deleteSecretById(id);
+        expect(service.getSecretMeta()[id]).toBeUndefined();
+        service.setSecretById(otherId, "");
+        expect(service.getSecretMeta()[otherId]).toBeUndefined();
+      });
+
+      it("never tracks the registry entry itself as a stored secret https://github.com/ItsDalk-Lane/Vault-Agent/issues/8", () => {
+        const secretStorage = makeSecretStorage();
+        const service = KeychainService.getInstance(makeApp({ secretStorage }));
+
+        service.setSecretById(secretMetaId(service.getVaultId()), "{}");
+
+        expect(service.getSecretMeta()).toEqual({});
       });
     });
 
@@ -619,35 +591,6 @@ describe("keychainService", () => {
 
         expect(saveData).not.toHaveBeenCalled();
         expect(syncMemory).not.toHaveBeenCalled();
-        expect(secretStorage.deleteSecret).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("removeRetiredEmbeddingSecrets()", () => {
-      it("deletes only this vault's embedding-scoped model credentials (https://github.com/logancyang/obsidian-copilot/pull/3094#discussion_r3926692782)", () => {
-        const secretStorage = makeSecretStorage();
-        const service = KeychainService.getInstance(makeApp({ secretStorage }));
-        const vaultId = service.getVaultId();
-        const retired = `copilot-v${vaultId}-model-api-key-embedding-text-embedding-3-small`;
-        secretStorage.listSecrets.mockReturnValue([
-          retired,
-          `copilot-v${vaultId}-model-api-key-chat-gpt-4o`,
-          `copilot-v${vaultId}-open-a-i-api-key`,
-          "copilot-vother000-model-api-key-embedding-text-embedding-3-small",
-        ]);
-
-        service.removeRetiredEmbeddingSecrets();
-
-        expect(secretStorage.deleteSecret).toHaveBeenCalledTimes(1);
-        expect(secretStorage.deleteSecret).toHaveBeenCalledWith(retired);
-      });
-
-      it("leaves entries alone when the build cannot enumerate them", () => {
-        const secretStorage = makeSecretStorage();
-        (secretStorage as unknown as { listSecrets: unknown }).listSecrets = undefined;
-        const service = KeychainService.getInstance(makeApp({ secretStorage }));
-
-        expect(() => service.removeRetiredEmbeddingSecrets()).not.toThrow();
         expect(secretStorage.deleteSecret).not.toHaveBeenCalled();
       });
     });

@@ -4,7 +4,6 @@ import { type CustomModel } from "@/aiParams";
 import type { Provider } from "@/modelManagement";
 import {
   stripKeychainFields,
-  cleanupLegacyFields,
   isSensitiveKey,
   MODEL_SECRET_FIELDS,
   TOP_LEVEL_SECRET_FIELDS,
@@ -54,11 +53,6 @@ function getVaultBasePath(app: App): string | undefined {
 }
 
 const MAX_SECRET_ID_LENGTH = 64;
-// Provider names must not embed the provider's random id: `data.json` syncs, the Keychain does
-// not, so a pointer minted on one device has to name an entry every device can hold.
-// https://github.com/logancyang/obsidian-copilot/issues/3618
-const LEGACY_PROVIDER_SECRET_ID = /^copilot-v[0-9a-f]{8}-provider-(.+)$/;
-
 function slugify(raw: string): string {
   return raw
     .toLowerCase()
@@ -101,12 +95,7 @@ function toModelKeychainId(
 }
 
 function providerNameSource(provider: Provider): string {
-  switch (provider.origin.kind) {
-    case "byok":
-      return provider.origin.catalogProviderId ?? provider.displayName;
-    case "agent":
-      return provider.displayName;
-  }
+  return provider.origin.catalogProviderId ?? provider.displayName;
 }
 
 export function providerKeychainName(
@@ -133,6 +122,17 @@ export function isCopilotOwnedSecret(id: string): boolean {
   return id.startsWith("copilot-");
 }
 
+export interface SecretMetaEntry {
+  createdAt: number;
+  updatedAt: number;
+}
+
+const SECRET_META_SETTINGS_KEY = "secret-meta";
+
+export function secretMetaId(vaultId: string): string {
+  return toKeychainId(vaultId, SECRET_META_SETTINGS_KEY);
+}
+
 export interface HydrateResult {
   settings: VaultAgentSettings;
   hadFailures: boolean;
@@ -149,6 +149,7 @@ export class KeychainService {
   private static instance: KeychainService | null = null;
   private app: App;
   private vaultId: string;
+  private secretMeta: Record<string, SecretMetaEntry> | null = null;
 
   private constructor(app: App) {
     this.app = app;
@@ -179,6 +180,7 @@ export class KeychainService {
 
   setVaultId(id: string): void {
     this.vaultId = id;
+    this.secretMeta = null;
   }
 
   private get storage(): SecretStorage {
@@ -194,10 +196,68 @@ export class KeychainService {
     } else {
       this.storage.setSecret(id, "");
     }
+    this.recordSecretRemoval(id);
+  }
+
+  // SecretStorage 不暴露条目时间；写入与删除时把时间记录在同库的一条非密钥 JSON 条目里，
+  // 供本地数据页展示存储时间。值未变化的重写不刷新时间，注册表之前写入的旧条目没有时间。
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/8
+  getSecretMeta(): Readonly<Record<string, SecretMetaEntry>> {
+    return { ...this.loadSecretMeta() };
+  }
+
+  private loadSecretMeta(): Record<string, SecretMetaEntry> {
+    if (this.secretMeta) return this.secretMeta;
+    try {
+      const raw = this.storage.getSecret(secretMetaId(this.vaultId));
+      this.secretMeta = raw ? (JSON.parse(raw) as Record<string, SecretMetaEntry>) : {};
+    } catch {
+      this.secretMeta = {};
+    }
+    return this.secretMeta;
+  }
+
+  private saveSecretMeta(): void {
+    if (!this.secretMeta) return;
+    this.storage.setSecret(secretMetaId(this.vaultId), JSON.stringify(this.secretMeta));
+  }
+
+  private recordSecretWrite(keychainId: string, value: string, previous: string | null): void {
+    if (keychainId === secretMetaId(this.vaultId)) return;
+    if (value === "") {
+      this.recordSecretRemoval(keychainId);
+      return;
+    }
+    const meta = this.loadSecretMeta();
+    const existing = meta[keychainId];
+    if (existing && previous === value) return;
+    const now = Date.now();
+    meta[keychainId] = existing
+      ? { createdAt: existing.createdAt, updatedAt: now }
+      : { createdAt: now, updatedAt: now };
+    this.saveSecretMeta();
+  }
+
+  private recordSecretRemoval(keychainId: string): void {
+    if (keychainId === secretMetaId(this.vaultId)) {
+      this.secretMeta = {};
+      return;
+    }
+    const meta = this.loadSecretMeta();
+    if (!(keychainId in meta)) return;
+    delete meta[keychainId];
+    this.saveSecretMeta();
   }
 
   setSecretById(keychainId: string, value: string): void {
+    let previous: string | null = null;
+    try {
+      previous = this.storage.getSecret(keychainId);
+    } catch {
+      previous = null;
+    }
     this.storage.setSecret(keychainId, value);
+    this.recordSecretWrite(keychainId, value, previous);
   }
 
   getSecretById(keychainId: string): string | null {
@@ -226,11 +286,7 @@ export class KeychainService {
     const hydrated = { ...settings };
     let hadFailures = false;
 
-    const topLevelKeys = new Set<string>([
-      ...TOP_LEVEL_SECRET_FIELDS,
-      ...Object.keys(hydrated).filter((key) => isSecretKey(key)),
-    ]);
-    for (const key of topLevelKeys) {
+    for (const key of TOP_LEVEL_SECRET_FIELDS) {
       let keychainValue: string | null;
       try {
         keychainValue = this.getSecret(key);
@@ -265,8 +321,7 @@ export class KeychainService {
     const secretEntries: Array<[string, string]> = [];
     const clearedSecretIds: string[] = [];
 
-    for (const key of Object.keys(settings)) {
-      if (!isSecretKey(key)) continue;
+    for (const key of TOP_LEVEL_SECRET_FIELDS) {
       const value = (settings as unknown as Record<string, unknown>)[key];
       const id = toKeychainId(this.vaultId, key);
 
@@ -297,51 +352,6 @@ export class KeychainService {
     ];
 
     return { secretEntries, keychainIdsToDelete };
-  }
-
-  // Every device migrates on load because the pointer it reads may have been rewritten by another
-  // device that already ran this, while this device's key still sits under the old name.
-  // https://github.com/logancyang/obsidian-copilot/issues/3618
-  migrateProviderNames(settings: VaultAgentSettings): VaultAgentSettings {
-    const providers = { ...(settings.providers ?? {}) };
-    let changed = false;
-    for (const row of Object.values(settings.providers ?? {})) {
-      const pointer = row.apiKeyKeychainId;
-      if (!pointer || !isCopilotOwnedSecret(pointer)) continue;
-      const isLegacy = LEGACY_PROVIDER_SECRET_ID.exec(pointer)?.[1] === row.providerId;
-      const name = isLegacy ? providerKeychainName(this.vaultId, row, providers) : pointer;
-      const legacyIds = new Set([pointer, `copilot-v${this.vaultId}-provider-${row.providerId}`]);
-      legacyIds.delete(name);
-      for (const id of legacyIds) {
-        const value = this.storage.getSecret(id);
-        if (value === null) continue;
-        if (this.storage.getSecret(name) === null) this.storage.setSecret(name, value);
-        try {
-          this.removeSecret(id);
-        } catch (error) {
-          logWarn(`Keychain: failed to remove migrated provider secret ${id}`, error);
-        }
-      }
-      if (name !== pointer) {
-        providers[row.providerId] = { ...row, apiKeyKeychainId: name };
-        changed = true;
-      }
-    }
-    return changed ? { ...settings, providers } : settings;
-  }
-
-  removeRetiredEmbeddingSecrets(): void {
-    if (typeof this.storage.listSecrets !== "function") return;
-
-    const retiredPrefix = `copilot-v${this.vaultId}-model-api-key-embedding-`;
-    for (const id of this.storage.listSecrets()) {
-      if (!id.startsWith(retiredPrefix)) continue;
-      try {
-        this.removeSecret(id);
-      } catch (error) {
-        logWarn(`Keychain: failed to remove retired embedding secret ${id}`, error);
-      }
-    }
   }
 
   clearAllVaultSecrets(): void {
@@ -392,9 +402,8 @@ export class KeychainService {
 
     const stripped = stripKeychainFields(current);
 
-    const toSave = cleanupLegacyFields(stripped);
     try {
-      await saveData(toSave);
+      await saveData(stripped);
     } catch (error) {
       logError("forgetAllSecrets: saveData failed — aborting keychain clear", error);
       new Notice(t("notice.keysRemoveFailed"));

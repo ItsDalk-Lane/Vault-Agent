@@ -16,8 +16,6 @@ if (typeof window.structuredClone === "undefined") {
   window.structuredClone = <T>(val: T): T => JSON.parse(JSON.stringify(val)) as T;
 }
 
-const noLegacyBackup = async () => ({ status: "not-needed" }) as const;
-
 const VAULT_ID = "1234abcd";
 const STABLE_NAME = `copilot-v${VAULT_ID}-provider-anthropic-api-key`;
 
@@ -60,18 +58,12 @@ function diskSettings(pointer: string): VaultAgentSettings {
 }
 
 async function load(
-  app: App,
   raw: unknown
 ): Promise<{ settings: VaultAgentSettings; saved: VaultAgentSettings | undefined }> {
   let saved: VaultAgentSettings | undefined;
-  const settings = await loadSettingsWithKeychain(
-    app,
-    raw,
-    async (data) => {
-      saved = structuredClone(data);
-    },
-    noLegacyBackup
-  );
+  const settings = await loadSettingsWithKeychain(raw, async (data) => {
+    saved = structuredClone(data);
+  });
   return { settings, saved };
 }
 
@@ -88,14 +80,18 @@ describe("settingsPersistence", () => {
       KeychainService.resetInstance();
     });
 
-    it("resolves this device's key after another device's sync already rewrote the provider pointer (https://github.com/logancyang/obsidian-copilot/issues/3618)", async () => {
+    it("loads the configured Keychain pointer without moving or deleting unrelated keys https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const app = makeApp();
       KeychainService.getInstance(app);
-      secrets.set(`copilot-v${VAULT_ID}-provider-row-anthropic`, "sk-ant-12345");
+      secrets.set(STABLE_NAME, "sk-ant-12345");
+      secrets.set(`copilot-v${VAULT_ID}-provider-row-anthropic`, "untouched");
 
-      const { settings: loaded } = await load(app, diskSettings(STABLE_NAME));
+      const { settings: loaded, saved } = await load(diskSettings(STABLE_NAME));
 
       expect(apiKeyFor(app, loaded)).toBe("sk-ant-12345");
+      expect(saved).toBeUndefined();
+      expect(secrets.get(`copilot-v${VAULT_ID}-provider-row-anthropic`)).toBe("untouched");
+      expect(loaded.providers["row-anthropic"].apiKeyKeychainId).toBe(STABLE_NAME);
     });
   });
 });

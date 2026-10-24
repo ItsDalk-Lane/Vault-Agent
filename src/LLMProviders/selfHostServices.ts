@@ -1,5 +1,5 @@
 import { logInfo } from "@/logger";
-import { getSettings } from "@/settings/model";
+import { getSettings, type VaultAgentSettings } from "@/settings/model";
 import { desktopProviderFetch } from "@/utils/desktopProviderFetch";
 
 const FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search";
@@ -60,18 +60,25 @@ function normalizeProviderResults(
 }
 
 export function hasSelfHostSearchKey(): boolean {
-  const settings = getSettings();
-  switch (settings.selfHostSearchProvider) {
-    case "parallel":
-      return !!settings.parallelApiKey;
-    case "exa":
-      return !!settings.exaApiKey;
-    case "perplexity":
-      return !!settings.perplexityApiKey;
-    case "firecrawl":
-    default:
-      return !!settings.firecrawlApiKey;
-  }
+  return hasConfiguredSearchProvider(getSettings());
+}
+
+// 搜索可用性只取决于所选供应商的密钥，不再有自托管总开关：https://github.com/ItsDalk-Lane/Vault-Agent/issues/15
+const SEARCH_PROVIDER_KEYS = {
+  firecrawl: "firecrawlApiKey",
+  perplexity: "perplexityApiKey",
+  parallel: "parallelApiKey",
+  exa: "exaApiKey",
+} as const;
+
+export type SearchProviderSettings = Pick<
+  VaultAgentSettings,
+  "selfHostSearchProvider" | (typeof SEARCH_PROVIDER_KEYS)[keyof typeof SEARCH_PROVIDER_KEYS]
+>;
+
+export function hasConfiguredSearchProvider(settings: SearchProviderSettings): boolean {
+  const key = SEARCH_PROVIDER_KEYS[settings.selfHostSearchProvider] ?? "firecrawlApiKey";
+  return !!settings[key as keyof SearchProviderSettings];
 }
 
 async function firecrawlSearch(

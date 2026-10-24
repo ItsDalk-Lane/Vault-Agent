@@ -1,6 +1,4 @@
-import { CURRENT_SETTINGS_VERSION } from "@/settings/migrations/version";
 import type { VaultAgentSettings } from "@/settings/model";
-import type { StartupMigrationItem } from "@/services/startupMigration";
 
 if (typeof window.structuredClone === "undefined") {
   window.structuredClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -14,10 +12,6 @@ function makeSettings(overrides: Partial<VaultAgentSettings> = {}): VaultAgentSe
   } as unknown as VaultAgentSettings;
 }
 
-const backedUp = jest.fn().mockResolvedValue({ status: "not-needed" });
-const DEVICE_ID = "device-a";
-const APP = {} as import("obsidian").App;
-
 async function loadModule(overrides: Record<string, unknown> = {}) {
   jest.resetModules();
 
@@ -25,7 +19,6 @@ async function loadModule(overrides: Record<string, unknown> = {}) {
     isAvailable: jest.fn().mockReturnValue(true),
     getVaultId: jest.fn().mockReturnValue("abcd1234"),
     setVaultId: jest.fn(),
-    migrateProviderNames: jest.fn((settings: VaultAgentSettings) => settings),
     hydrateFromKeychain: jest.fn(async (settings: VaultAgentSettings) => ({
       settings,
       hadFailures: false,
@@ -45,7 +38,6 @@ async function loadModule(overrides: Record<string, unknown> = {}) {
   jest.doMock("@/settings/model", () => ({
     sanitizeSettings: jest.fn((settings: VaultAgentSettings) => settings),
   }));
-  jest.doMock("@/utils/deviceId", () => ({ getDeviceId: jest.fn(() => DEVICE_ID) }));
 
   const module = await import("@/services/settingsPersistence");
   return { module, keychain };
@@ -112,20 +104,24 @@ describe("settingsPersistence", () => {
     it("waits for the active settings write", async () => {
       const { module } = await loadModule();
       let release!: () => void;
+      let started!: () => void;
+      const saving = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       const saveData = jest.fn(
         () =>
           new Promise<void>((resolve) => {
             release = resolve;
+            started();
           })
       );
       const persist = module.persistSettings(makeSettings(), saveData);
-      await Promise.resolve();
+      await saving;
 
       let flushed = false;
       const flush = module.flushPersistence().then(() => {
         flushed = true;
       });
-      await Promise.resolve();
       expect(flushed).toBe(false);
 
       release();
@@ -135,309 +131,76 @@ describe("settingsPersistence", () => {
   });
 
   describe("loadSettingsWithKeychain()", () => {
-    it("discards disk credentials and exposes only Keychain-hydrated values", async () => {
+    it("preserves current settings and credential pointers without startup migration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const { module, keychain } = await loadModule();
+      const saveData = jest.fn().mockResolvedValue(undefined);
+      const settings = makeSettings({
+        _keychainVaultId: "1234abcd",
+        language: "zh-CN",
+        settingsSchemaVersion: 3,
+        providers: {
+          local: {
+            providerId: "local",
+            providerType: "openai-compatible",
+            displayName: "Local",
+            apiKeyKeychainId: "copilot-v1234abcd-provider-local-api-key",
+            origin: { kind: "byok" },
+            addedAt: 1,
+          },
+        },
+      });
+      const loaded = await module.loadSettingsWithKeychain(settings, saveData);
+      expect(loaded).toMatchObject(settings);
+      expect(keychain.setVaultId).toHaveBeenCalledWith("1234abcd");
+      expect(saveData).not.toHaveBeenCalled();
+      expect(keychain.setSecretById).not.toHaveBeenCalled();
+    });
+
+    it("uses only Keychain credentials without backing up or rewriting existing settings https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { module, keychain } = await loadModule();
       keychain.hydrateFromKeychain.mockImplementation(async (settings: VaultAgentSettings) => ({
         settings: { ...settings, openAIApiKey: "keychain-key" },
         hadFailures: false,
       }));
       const saveData = jest.fn().mockResolvedValue(undefined);
-
       const loaded = await module.loadSettingsWithKeychain(
-        APP,
         {
           _keychainVaultId: "1234abcd",
-          _keychainOnly: false,
-          openAIApiKey: "enc_desk_legacy",
-          activeModels: [{ name: "custom", provider: "openai", apiKey: "plaintext-disk-key" }],
+          openAIApiKey: "ignored-disk-value",
+          activeModels: [{ name: "custom", provider: "openai", apiKey: "ignored-model-value" }],
         },
-        saveData,
-        backedUp
+        saveData
       );
-
-      const hydrateInput = keychain.hydrateFromKeychain.mock.calls[0][0];
-      expect(hydrateInput.openAIApiKey).toBe("");
-      expect(hydrateInput.activeModels[0].apiKey).toBe("");
+      const baseline = keychain.hydrateFromKeychain.mock.calls[0][0];
+      expect(baseline.openAIApiKey).toBe("");
+      expect(baseline.activeModels[0].apiKey).toBe("");
       expect(loaded.openAIApiKey).toBe("keychain-key");
-      expect(saveData).toHaveBeenCalledWith(
-        expect.objectContaining({
-          _keychainVaultId: "1234abcd",
-          openAIApiKey: "",
-          activeModels: [expect.objectContaining({ apiKey: "" })],
-        })
-      );
-      expect(saveData.mock.calls[0][0]).not.toHaveProperty("_keychainOnly");
-    });
-
-    it("persists and loads the provider pointers the Keychain name migration rewrote (https://github.com/logancyang/obsidian-copilot/issues/3618)", async () => {
-      const { module, keychain } = await loadModule();
-      const legacyRow = {
-        providerId: "row-1",
-        apiKeyKeychainId: "copilot-v1234abcd-provider-row-1",
-      };
-      const stableName = "copilot-v1234abcd-provider-anthropic-api-key";
-      keychain.migrateProviderNames.mockImplementation(
-        (settings: VaultAgentSettings) =>
-          ({
-            ...settings,
-            providers: { "row-1": { ...legacyRow, apiKeyKeychainId: stableName } },
-          }) as unknown as VaultAgentSettings
-      );
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      const loaded = await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", providers: { "row-1": legacyRow } },
-        saveData,
-        backedUp
-      );
-
-      expect(keychain.setVaultId.mock.invocationCallOrder[0]).toBeLessThan(
-        keychain.migrateProviderNames.mock.invocationCallOrder[0]
-      );
-      expect(saveData.mock.calls[0][0].providers["row-1"].apiKeyKeychainId).toBe(stableName);
-      expect(loaded.providers["row-1"].apiKeyKeychainId).toBe(stableName);
-    });
-
-    it("loads with the stored pointers when the Keychain name migration throws, so the next load retries", async () => {
-      const { module, keychain } = await loadModule();
-      const legacyRow = {
-        providerId: "row-1",
-        apiKeyKeychainId: "copilot-v1234abcd-provider-row-1",
-      };
-      keychain.migrateProviderNames.mockImplementation(() => {
-        throw new Error("keychain locked");
-      });
-
-      const loaded = await module.loadSettingsWithKeychain(
-        APP,
-        { providers: { "row-1": legacyRow } },
-        jest.fn().mockResolvedValue(undefined),
-        backedUp
-      );
-
-      expect(loaded.providers["row-1"].apiKeyKeychainId).toBe("copilot-v1234abcd-provider-row-1");
+      expect(saveData).not.toHaveBeenCalled();
     });
 
     it("keeps credentials empty when Keychain is unavailable", async () => {
       const { module, keychain } = await loadModule();
       keychain.isAvailable.mockReturnValue(false);
-
       const loaded = await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        jest.fn().mockResolvedValue(undefined),
-        backedUp
+        { _keychainVaultId: "1234abcd", openAIApiKey: "ignored-disk-value" },
+        jest.fn()
       );
-
       expect(loaded.openAIApiKey).toBe("");
       expect(keychain.hydrateFromKeychain).not.toHaveBeenCalled();
     });
 
-    it("persists a vault namespace and current schema version for a fresh install", async () => {
+    it("persists the default settings and vault namespace for a new install", async () => {
       const { module, keychain } = await loadModule();
       const saveData = jest.fn().mockResolvedValue(undefined);
-
-      await module.loadSettingsWithKeychain(APP, null, saveData, backedUp);
-
+      const loaded = await module.loadSettingsWithKeychain(null, saveData);
       expect(keychain.setVaultId).toHaveBeenCalledWith("abcd1234");
-      expect(saveData).toHaveBeenCalledWith({
-        _keychainVaultId: "abcd1234",
-        settingsVersion: CURRENT_SETTINGS_VERSION,
-      });
-    });
-    it("leaves data.json intact when the credential backup fails", async () => {
-      const { module } = await loadModule();
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        saveData,
-        jest.fn().mockResolvedValue({ status: "failed", error: new Error("read-only") })
-      );
-
-      expect(saveData).not.toHaveBeenCalled();
-    });
-
-    it("strips data.json once the credentials are backed up", async () => {
-      const { module } = await loadModule();
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        saveData,
-        jest.fn().mockResolvedValue({
-          status: "backed-up",
-          path: "plugins/vault-agent/backup.json",
-          encrypted: false,
-        })
-      );
-
-      expect(saveData.mock.calls[0][0].openAIApiKey).toBe("");
-    });
-
-    it("reports a backed-up credential migration instead of opening a separate notice", async () => {
-      const { module } = await loadModule();
-      const onMigration = jest.fn();
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      const result = await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        saveData,
-        jest.fn().mockResolvedValue({
-          status: "backed-up",
-          path: "config/plugins/vault-agent/backup.json",
-          encrypted: false,
-        }),
-        onMigration
-      );
-
-      expect(onMigration).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "credentials", status: "action-required" })
-      );
       expect(saveData).toHaveBeenCalledWith(
         expect.objectContaining({
-          _pendingCredentialRecovery: {
-            deviceId: DEVICE_ID,
-            path: "config/plugins/vault-agent/backup.json",
-            encrypted: false,
-          },
+          _keychainVaultId: "abcd1234",
+          providers: {},
         })
       );
-      expect(result._pendingCredentialRecovery).toEqual({
-        deviceId: DEVICE_ID,
-        path: "config/plugins/vault-agent/backup.json",
-        encrypted: false,
-      });
-    });
-
-    it("replays pending credential recovery after data.json was stripped", async () => {
-      const { module } = await loadModule();
-      const onMigration = jest.fn();
-
-      await module.loadSettingsWithKeychain(
-        APP,
-        {
-          _keychainVaultId: "1234abcd",
-          _pendingCredentialRecovery: {
-            deviceId: DEVICE_ID,
-            path: "config/plugins/vault-agent/backup.json",
-            encrypted: false,
-          },
-        },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({ status: "not-needed" }),
-        onMigration
-      );
-
-      const result = onMigration.mock.calls[0][0] as StartupMigrationItem;
-      expect(result.id).toBe("credentials");
-      expect(result.details?.some((detail) => detail.includes("backup.json"))).toBe(true);
-    });
-
-    it("preserves another device's credential recovery without reporting it locally", async () => {
-      const { module } = await loadModule();
-      const onMigration = jest.fn();
-      const recovery = {
-        deviceId: "device-b",
-        path: "config/plugins/vault-agent/device-b-backup.json",
-        encrypted: false,
-      };
-
-      const result = await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", _pendingCredentialRecovery: recovery },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({ status: "not-needed" }),
-        onMigration
-      );
-
-      expect(onMigration).not.toHaveBeenCalled();
-      expect(result._pendingCredentialRecovery).toEqual(recovery);
-    });
-
-    it("includes Keychain availability failures in the credential migration result", async () => {
-      const { module, keychain } = await loadModule();
-      keychain.isAvailable.mockReturnValue(false);
-      const onMigration = jest.fn();
-
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({
-          status: "backed-up",
-          path: "config/plugins/vault-agent/backup.json",
-          encrypted: false,
-        }),
-        onMigration
-      );
-
-      const result = onMigration.mock.calls[0][0] as StartupMigrationItem;
-      expect(result.status).toBe("error");
-      expect(result.details?.some((detail) => detail.includes("Keychain is unavailable"))).toBe(
-        true
-      );
-    });
-
-    it("rejects later settings writes rather than skipping them when the backup fails", async () => {
-      const { module, keychain } = await loadModule({
-        persistSecrets: jest.fn().mockReturnValue({
-          secretEntries: [["copilot-vabcd1234-open-a-i-api-key", "re-entered"]],
-          keychainIdsToDelete: [],
-        }),
-      });
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({ status: "failed", error: new Error("read-only") })
-      );
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      await expect(module.persistSettings(makeSettings(), saveData)).rejects.toThrow(
-        "cannot save settings"
-      );
-      expect(saveData).not.toHaveBeenCalled();
-      expect(keychain.setSecretById).not.toHaveBeenCalled();
-    });
-
-    it("rejects a durable transaction while the hold is active", async () => {
-      const { module } = await loadModule();
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({ status: "failed", error: new Error("read-only") })
-      );
-
-      await expect(
-        module.persistSettingsWithinTransaction(
-          makeSettings(),
-          jest.fn().mockResolvedValue(undefined)
-        )
-      ).rejects.toThrow("cannot save settings");
-    });
-  });
-
-  describe("releaseLegacyCredentialHold()", () => {
-    it("resumes writing once a dedicated flow has stripped data.json", async () => {
-      const { module } = await loadModule();
-      await module.loadSettingsWithKeychain(
-        APP,
-        { _keychainVaultId: "1234abcd", openAIApiKey: "plaintext-disk-key" },
-        jest.fn().mockResolvedValue(undefined),
-        jest.fn().mockResolvedValue({ status: "failed", error: new Error("read-only") })
-      );
-      const saveData = jest.fn().mockResolvedValue(undefined);
-
-      module.releaseLegacyCredentialHold();
-      await module.persistSettings(makeSettings(), saveData);
-
-      expect(saveData).toHaveBeenCalledTimes(1);
+      expect(loaded._keychainVaultId).toBe("abcd1234");
     });
   });
 
