@@ -1,59 +1,11 @@
-# Windows setup for Agent Chat
+# Windows 使用与验收状态
 
-Agent Chat runs in the Obsidian desktop app. On Windows, start with **opencode** unless you already use Claude Code or Codex.
+当前版本在插件内部运行 Agent。安装插件后，在设置中连接自己的模型即可；不需要安装 OpenCode、Claude Code、Codex、Node.js 或 npm 才能使用核心聊天和笔记工具。
 
-## 1. Install opencode with Copilot
+本地模型仍需要由用户运行对应的模型服务。若使用本机命令或本地 MCP 服务，相关程序需要已经安装并明确配置；插件不会自动安装它们。
 
-1. Open [**Settings → Copilot → Basic → Agents**](settings.md#basic).
-2. Open the **opencode** tab.
-3. Open **Configure**, choose **Managed by Copilot**, then select **Download & install**. Copilot downloads and manages the Windows executable outside your vault.
-4. When the status shows **Ready**, choose a **Default model** and set **Default backend** to **opencode**.
+旧版的命令行安装说明不适用于当前新聊天。目录中保留的旧安装脚本只用于旧版资料参考，不应当作当前版本的安装步骤。
 
-The managed installation does not require a PowerShell command or PATH changes.
+Windows 实机验收尚未完成，盘符、链接目录、网络共享路径、系统密码存储和停止后的进程清理仍需在 Windows 上验证。不能用 macOS 检查或模拟路径测试代替这些结果。
 
-If opencode is already installed, open **Configure**, choose **My own binary**, then select **Auto-detect** or enter the absolute path to `opencode.exe` and select **Apply**.
-
-If Copilot reports that your opencode version is unsupported, update opencode and run detection again.
-
-## 2. Connect Claude Code
-
-The Claude backend uses the Claude Code installation and account already on your computer.
-
-1. Open **Settings → Copilot → Basic → Agents → Claude** and select **Configure**.
-2. If Claude Code is installed, select **Auto-detect** under **Claude Code binary**.
-3. If it is not installed, copy the current **Install it** command from the dialog and run it in PowerShell.
-4. Return to **Configure Claude** and select **Auto-detect** again. If detection still fails, enter the absolute path to `claude.exe` and select **Apply**.
-5. If the dialog shows **Sign in**, select it and complete the browser login.
-
-You can also start the Claude Code login from PowerShell:
-
-```powershell
-claude auth login --claudeai
-```
-
-Copilot uses Claude Code's credentials. Do not add an Anthropic API key to this dialog. If Copilot reports that the installed version is unsupported, update Claude Code and detect it again.
-
-## 3. Connect Codex
-
-For manual installations, the Codex backend needs a supported `@agentclientprotocol/codex-acp` adapter, which includes a compatible Codex CLI. Copilot checks compatibility in **Configure**. Managed downloads use Windows `tar.exe` to extract ZIP files. See [Codex installation details](agent-mode-and-tools.md#codex).
-
-1. Open **Settings → Copilot → Basic → Agents → Codex** and select **Configure**.
-2. Under **Managed by Copilot**, choose **Download & install**. Copilot downloads a verified native adapter and its Codex runtime. You do not need Node.js or npm.
-3. Click **Sign in** and complete authentication in your browser. If the browser does not open, click **Open sign-in page**. Return to Obsidian to see the signed-in status.
-4. To use your own supported adapter, choose **My own binary** and Auto-detect it or enter its path. Copilot keeps your binary and credentials when you uninstall managed downloads.
-
-You can also choose **Sign in to Codex** on the Agent Chat status card. For terminal login, run your configured adapter with `cli login` using the same `CODEX_HOME` as Copilot.
-
-## Share Skills across agents
-
-Open [**Settings → Copilot → Skills**](settings.md#skills) and toggle the opencode, Claude, or Codex icons for each Skill. Copilot keeps one shared copy and creates folder links into `.opencode/skills/`, `.claude/skills/`, and `.agents/skills/`.
-
-Windows may block creation of these links. Enable **Windows Settings → Privacy & security → For developers → Developer Mode**, or run Obsidian with administrator access, then toggle the affected agent off and on in the **Skills** tab.
-
-If a sync service replaces a folder link and a Skill disappears from an agent, toggle that agent off and on again to recreate the link.
-
-## Open Agent Chat
-
-Select the **Agent Chat** ribbon icon or run **Open Copilot Agent Chat Window** from the command palette. Choose an installed agent and select **Start chat**.
-
-For models, effort, permissions, Projects, and multi-agent answers, see [Agent Chat](agent-mode-and-tools.md).
+日常操作见 [Agent Chat 使用说明](agent-mode-and-tools.md)。

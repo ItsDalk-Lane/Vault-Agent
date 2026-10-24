@@ -1,6 +1,6 @@
 # `AGENTS.md` Examples for Agent Chat
 
-`AGENTS.md` holds instructions that Agent Chat should keep following. Write shared vault rules once at the vault root. Copilot makes them available to **opencode**, **Claude**, and **Codex**. A Project can add a second `AGENTS.md` in its folder, and those more specific rules take precedence when the two files conflict.
+`AGENTS.md` holds instructions that Agent Chat should keep following. Write shared vault rules once at the vault root. Vault Agent reads them through its built-in agent. A Project can add a second `AGENTS.md` in its folder, and those more specific rules take precedence when the two files conflict.
 
 Start small. A useful file describes how _your_ vault works, not everything an AI might ever need to know.
 
@@ -32,7 +32,7 @@ Copy this to the root of your vault, then change it to match your habits:
 - When finished, name the notes you changed and mention anything you could not verify.
 ```
 
-Start a new Agent Chat after editing `AGENTS.md` so every backend reads the latest version. Quick Chat has its own [system prompts](system-prompts.md#system-prompts-for-quick-chat) and does not use this file.
+Start a new Agent Chat after editing `AGENTS.md` to use the latest version.
 
 ## Patterns worth adding
 
@@ -43,7 +43,7 @@ Add only patterns that describe real, recurring preferences:
 - **Evidence:** when the agent must read source notes, search the vault, or verify current facts.
 - **Boundaries:** which edits are routine and which actions require confirmation.
 - **Definition of done:** checks to run and what the final handoff should report.
-- **Routing:** which repeatable jobs belong to a [Skill](agent-mode-and-tools.md#skills-across-agents).
+- **Routing:** which repeatable jobs belong to a [Skill](settings.md#技能).
 
 For a project, keep the override short. For example:
 
@@ -76,6 +76,6 @@ Review the file occasionally. Keep rules that prevent a recurring mistake or exp
 
 ## Related
 
-- [Instructions for Agent Chat and Quick Chat](system-prompts.md)
+- [Instructions for Agent Chat](system-prompts.md)
 - [Agent Chat](agent-mode-and-tools.md)
 - [Projects](projects.md)

@@ -1,173 +1,90 @@
-# Troubleshooting Copilot V4
+# 常见问题
 
-Start in **Settings → Copilot → Basic → Agents** and check the status beside the Agent Chat backend you want to use.
+当前版本使用插件自带的执行引擎。新聊天不需要安装 OpenCode、Claude Code、Codex 或它们的登录适配器。旧版安装、订阅和 Miyo 连接教程不适用于当前版本。
 
-## Copilot is starting or did not start
+## 插件没有启动
 
-### A Copilot tab or Copilot's settings say “Starting Copilot…”
+确认 Obsidian 为 1.11.4 或更新的桌面版本，社区插件中已启用 Vault Agent。启动期间请等待原页面加载，不要重复删除设置或创建测试资料库。
 
-Copilot finishes loading in the background after Obsidian opens your vault, so the vault never waits for it. Until it is ready, Copilot tabs that were open last time and **Settings → Copilot** show **Starting Copilot…**, and Copilot's commands and ribbon icon are not there yet. This usually lasts a moment. The first start after an update can take longer while Copilot updates your settings.
+如果出现启动错误，保留完整错误信息，再通过社区插件开关重新加载或重开 Obsidian。错误持续时使用手动问题报告。
 
-Keep the tab open. It turns back into your chat as soon as Copilot is ready, and the settings page fills in on its own.
+## 没有可用模型
 
-### “Copilot failed to start”
+在 **模型（BYOK）** 中核对：
 
-Copilot ran into an error while loading and stayed off for this session. To see the error, open the developer console (**View → Toggle Developer Tools**, then the **Console** tab). Then turn Copilot off and on again under **Settings → Community plugins**, or restart Obsidian. If the notice comes back, open an issue and include the error from the console.
+- 服务地址和请求格式是否符合所用服务。
+- 服务本身是否启用，目标模型是否显示。
+- 服务需要密钥时，本机是否保存了有效 API Key。
+- 本地模型服务是否运行，目标模型是否可调用。
+- 模型实际容量是否足够，能力声明是否与服务一致。
 
-## Agent Chat setup
+模型服务可能收费，但插件没有自己的套餐或订阅登录。Claude 等模型品牌仍可通过你配置的供应商使用，不需要恢复旧版 Claude Code 后端。
 
-### opencode shows “Not set up” or “Error”
+当前在聊天中选择模型，模型及能力统一在 **模型（BYOK）** 管理。旧版快速对话没有运行入口，原有配置数据保留供兼容读取。
 
-1. Open **Basic → Agents → opencode**.
-2. Open **Configure → Managed by Copilot** and select **Download & install**. If it fails, read the displayed error and retry.
-3. If opencode is already installed, open **Configure → My own binary** and select **Auto-detect**. If detection misses it, enter its absolute path and choose **Apply**.
+## 密钥不可用
 
-Use **Configure → Managed by Copilot** to reinstall or uninstall it. Setup is complete at **Ready**.
+密钥通过 Obsidian 的密码存储按设备保存。资料库同步不会复制另一台设备的密钥，需要在当前设备重新填写。
 
-### Claude shows “Update required,” cannot be found, or is signed out
+不要手动删除插件设置文件，它保存着密码存储的对应关系。“重置设置”与“删除所有密钥”是不同操作；先阅读确认说明。
 
-- **Update required:** update Claude Code to the minimum version shown by Copilot, then run **Configure Claude → Auto-detect**. For a custom path, update that installation or choose **Clear**.
-- **Not found:** run the displayed install command, then choose **Auto-detect**, or enter the absolute path to `claude`.
-- **Signed out:** choose **Sign in**. If **Open sign-in page** appears, use it to finish authentication.
+## 发送后一直等待
 
-Copilot uses your Claude Code login; there is no API key to paste here.
+查看是否存在待批准操作、计划或提问卡片；另一个聊天标签也可能有待处理提示。检查输入和目标后作出选择。
 
-### Codex is installed, but Copilot cannot find it
+“停止”会取消当前任务及未回答的请求。已经执行过的写入不会因停止自动回滚，可以查看变更记录并使用实际提供的回退入口。
 
-Copilot connects through `codex-acp`, not the `codex` executable alone. Manual installations require a supported `@agentclientprotocol/codex-acp` adapter. **Configure** reports any required compatibility update; managed downloads use the version pinned by Copilot.
+模型服务连接失败时，保留错误并检查服务；没有必要安装旧 Agent 程序或使用旧后端配置按钮。
 
-1. Open **Basic → Agents → Codex → Configure**.
-2. Choose **Download & install** under **Managed by Copilot**. If this first installation fails, read the error in Configure, fix the reported problem, then choose **Download & install** again. Failed updates of an already-managed adapter show the same error in Settings and Agent Chat. Open **Configure** in Settings to retry, or use **Retry** in Agent Chat.
-3. For an adapter you manage yourself, choose **My own binary**, then **Auto-detect** or enter the absolute path to `codex-acp` on macOS/Linux or its `dist\index.js` on Windows. Copilot does not update custom binaries.
-4. Click **Sign in** and finish authentication in your browser. If it does not open, click **Open sign-in page**. Cancel or retry if needed. Managed Codex includes its runtime; Node.js and npm are not required.
+## 技能没有出现
 
-You can also choose **Sign in to Codex** on the Agent Chat status card. For terminal login, run your configured adapter with `cli login` using the same `CODEX_HOME` as Copilot.
+在 **技能** 中核对技能是否成功加载并已启用。自定义技能需要有效的 `SKILL.md`。当前只有一套启用状态，不再按旧 Agent 分别开关或建立链接，不需要 Windows 开发者模式来重新分发技能。
 
-See [Getting Started](getting-started.md) for the complete setup flow and [Windows setup for Agent Chat](agent-mode-windows-setup.md) for Windows-specific commands.
+技能启用不能绕过文件范围、程序执行和聊天审批。需要外部工具时，请检查 **MCP** 或高级设置中的对应权限。
 
-## Models, licenses, and API keys
+## MCP 连接或工具不可用
 
-### No models are enabled for Quick Chat
+使用与 **技能** 同级的 **MCP** 标签页，不在基础或高级设置中找服务器列表。
 
-Open **Basic → Agents → Quick Chat**, enable a model, and choose a **Default model**. If none are configured, first add a provider under **Settings → Copilot → BYOK**.
+检查服务地址、启用状态、使用范围和登录授权。先测试，再按需要连接。项目范围的服务需要选择对应项目；本地服务还要求相关程序已经安装且允许本地执行。
 
-- **Add API key:** edit that provider under **BYOK**.
-- **Not offered by agent:** the active agent no longer advertises that saved model. Select one it currently offers.
-- A locked Copilot-hosted model requires an active license under **Basic → Copilot License**. **Invalid license key** means that key was not accepted.
+工具搜索不到时，检查服务的工具提供方式。服务变更后重新打开受影响聊天；撤销授权后不能沿用旧批准继续执行。
 
-Claude and Codex models come from their CLI accounts; BYOK serves opencode and Quick Chat. See [Models](models-and-parameters.md) and [Providers](llm-providers.md).
+## 旧聊天不能继续运行
 
-### Keys disappeared, or “API Key Storage” says “Unavailable”
+旧版 OpenCode、Claude Code 和 Codex 聊天保留历史显示，但不会启动旧引擎。可以阅读、导出，或将可见内容导入新聊天。
 
-V4 stores secrets in the Obsidian Keychain.
+仅打开记录不会自动重复旧工具操作。异常退出后的新引擎聊天也先恢复可见状态；需要恢复任务时，查看提示并明确选择继续。
 
-- **Unavailable:** update Obsidian to 1.11.4 or newer.
-- **No API keys found in this device's Obsidian Keychain:** re-enter them. Keys are per device and do not follow a synced vault.
-- To remove every stored secret, use **Advanced → API Key Storage → Delete All Keys**.
+## 文件搜索或修改失败
 
-Do not delete `data.json`: it contains the vault's Keychain namespace. Use the in-app reset; it does not delete Keychain entries.
+查看目标文件是否在允许范围内，外部文件夹授权是否过期。笔记被其他操作改变后，旧差异预览可能失效，需要重新检查后再批准。
 
-## Agent Chat is waiting or behaving unexpectedly
+不要清空资料库、批量重置设置或重新创建测试库来尝试修复。搜索操作见[资料库搜索](vault-search-and-indexing.md)，批准规则见[Agent Chat](agent-mode-and-tools.md)。
 
-### Nothing happens after you send
+## 问题报告
 
-Look for **Permission required** or **Question from agent**. Review the inputs or diff, then choose an offered option. Another session tab may show an attention indicator.
+在 **高级设置 → 调试与支持 → 报告问题** 中准备报告，也可使用聊天中的报告入口。
 
-Permission choices depend on the active agent. **Stop** cancels the current turn, including unanswered requests. Review every persistent permission carefully.
+1. 描述实际操作、看到的结果和预期结果。
+2. 选择截图、Agent 运行日志或插件日志。
+3. 在本机准备 zip，检查附件清单和未收集项的原因。
+4. 用“显示 zip”检查文件；需要反馈时，手动打开问题页面并决定是否附加文件和提交。
 
-### You cannot switch agents in the current session
+插件不会自动上传报告或替你提交问题，也不会读取旧 OpenCode 程序日志。关闭尚未交接的报告会清理本次临时文件；已交接的本地文件由你决定何时删除。
 
-An Agent Chat keeps its original backend after work begins. Create an empty chat to choose another. Use **Recent Chats** for earlier work.
+文字清理是尽力而为，不能保证识别所有秘密。截图不会自动遮挡内容。报告可能包含笔记、提示词、文件路径和工具参数，分享前请自行检查。
 
-### A skill or skill command is missing
+## 支持哪些平台
 
-In **Settings → Copilot → Skills**, confirm the skill has a valid `SKILL.md` and is enabled for your agent. Toggle the agent off and on to recreate its link.
+插件仅支持桌面 Obsidian，不在移动端加载。Windows 和 Linux 的完整实机验收仍未补齐；自动测试或 macOS 的通过结果不能当作三平台全部完成。
 
-On Windows, **Windows needs Developer Mode for multi-agent fanout** means you must enable **Settings → Privacy & security → For developers → Developer Mode** (or run Obsidian as administrator), then toggle again. The same repair works when vault sync replaces a link.
+- [设置指南](settings.md)
+- [Windows 使用与验收状态](agent-mode-windows-setup.md)
+- [使用指南](index.md)
 
-Learn more in [Skills across agents](agent-mode-and-tools.md#skills-across-agents).
+## 连接成功，实际工具操作却失败
 
-## Miyo is unavailable or search is not running
+在模型设置中再次测试。支持工具的模型会分别检查普通连接、发起工具调用和读取实际返回值。连接通过而工具检查未通过，说明当前模型或服务的工具调用方式尚不可用；请保留具体提示，检查供应商地址及模型能力。测试不会读取或修改笔记，也不会重置已有配置。
 
-Open **Settings → Copilot → Miyo**.
-
-- **Miyo isn't running:** open Miyo, then choose **Retry** beside **Disconnect**.
-- **Register this vault with Miyo:** choose **Register & connect** on the same computer. For a remote connection or mobile device, register the vault in Miyo first, then retry.
-- **Chat sources are not set up:** this belongs to the separate **Search chat** row and does not block Agent Chat vault search. Configure chat sources only if you want ChatGPT or Claude history search.
-
-Under **Powered by Miyo**, check that **Semantic search for agents** is on. Copilot installs `miyo-search` for opencode, Claude, and Codex. If Copilot reports a same-name collision, rename or remove the existing Skill and try again.
-
-## Quick Ask does not open or has no model
-
-- **Quick Ask is not available in source mode:** switch the note to Live Preview and try again.
-- **No active editor found:** open a Markdown note in an editor pane.
-- **No active model configured:** configure and select a default under **Basic → Agents → Quick Chat**.
-- **Error generating response. Please try again:** retry once; if it continues, collect a log as described below.
-
-See [Copilot Commands and Quick Ask](custom-commands.md#quick-ask) for selection and note-context behavior.
-
-## Logs and bug reports
-
-Use **Advanced → Debugging & support → Report an issue** for any Copilot problem, Agent Chat or Quick Chat alike. Turn on **Debug Mode** in the same section first and reproduce the problem, so the logs you send actually contain it.
-
-### Filing a report
-
-1. **Describe what went wrong, and tick what to include.** The sources on offer are a screenshot of the Obsidian window, the **Agent Mode activity log**, the regular Copilot chat log, and the opencode log when opencode is your backend. Anything you tick that turns out to have nothing to collect is listed on the next page with the reason, so you never have to guess whether it was gathered.
-2. **Let Copilot prepare the report.** The review page shows **Preparing report…** until the zip is ready. Copilot briefly hides open dialogs, including Settings, to photograph the window behind them, reads and cleans the logs you asked for, and packs everything into one zip on your own computer — the zip is the only file it writes.
-3. **Review what was packed, then upload.** Copilot lists what actually went into the zip, source by source, with the finished file's size and, beside anything skipped or failed, the reason. **Show zip** opens the file in your file manager if you want to look inside. Uploading is a separate click — **Upload & open issue** — and nothing leaves your machine until you press it. **Cancel** here deletes the zip unless you have already chosen **Open issue anyway**.
-4. **Finish the issue in your browser.** As soon as the upload lands, Copilot opens a prefilled GitHub issue with the report ID already in the body, closes the dialog, and shows a short notice. If your browser could not be opened, the notice carries the report ID and a link to the issue page instead. Nothing is filed until you press Submit in your browser.
-
-### Reporting from Agent Chat
-
-When something goes wrong in an Agent Chat, select **More Actions** (⋯) above the composer and choose **Report error**. **Report an issue** opens for that chat without going through Settings: the screenshot is of the Obsidian window, every available attachment starts ticked, and the description ends with which agent, model and chat the report came from. Write what went wrong above that line, then continue with the steps above.
-
-When you tell Agent Chat it got something wrong, or the agent notices its own mistake, it may draft a report for you. A **Report this to the Copilot team?** card appears under its reply, with a one-line summary and your own words. The card never interrupts the agent, and it appears at most once each time you open a chat. The card is not saved with the chat, so it is gone once you close the chat or reload Obsidian.
-
-- **Review & report** opens **Report an issue** with the agent's draft already in the description: what happened, what you said, steps to reproduce, and which agent, model and chat it came from. Every available attachment starts ticked, so untick anything you would rather not send. Edit the description freely, then continue with the steps above. Once the upload lands, the card shows the report ID.
-- **Dismiss** removes the card. Nothing is sent.
-- **Don't offer again** removes the card and turns off **Offer feedback reports in Agent Chat** in **Advanced → Debugging & support**.
-
-### What gets sent, and what does not
-
-Before anything is written into the zip, Copilot cleans every log and your own description on this device: usernames taken from home-folder paths, email addresses, and recognizable credentials such as API keys and tokens are replaced with visible markers so you can see that something was removed. This is a best-effort pass over the formats Copilot knows, so an unfamiliar secret can still slip through — which is exactly what the review step is for.
-
-**The screenshot is not cleaned at all.** It is a picture, so nothing can be found and removed in it. Look at it before you upload.
-
-A log too large for the report keeps its newest entries rather than being dropped, and the file itself opens with a banner identifying it as a truncated log and naming the original size. Cleaning always runs over the whole log before anything is cut, so a log too large to clean whole (over 64 MB) is left out and listed with that reason.
-
-The zip is uploaded only to Brevilabs. The upload reuses the random device identifier already used for this vault to group reports and limit uploads. It does not create a separate identifier for bug reports or use your Copilot account identity. If Copilot cannot read a valid saved device identifier, it refuses the upload; you can still save the zip and open the issue to attach it manually. The upload carries no license key or account identity. The public GitHub issue carries the report ID and nothing else — there is no download link on it, and nothing on that page can fetch the bundle.
-
-### What the report ID is for
-
-It is the reference a maintainer looks your report up by. It is not a link, not a password, and there is nothing behind it that anyone reading the issue can open. Because it is just a reference, you can also paste it into Discord when you ask for help there, and it points at the same report.
-
-### How long a report is kept
-
-An uploaded report is stored privately and deleted automatically after 60 days. The report ID is in the issue you filed; copy it somewhere else if you may need it after that.
-
-That deletion covers the uploaded copy only. The zip on your own computer is yours; Copilot leaves it alone after an upload or after you choose **Open issue anyway**, so delete it yourself when you are done with it.
-
-### If the upload fails
-
-- **Retry first.** **Retry upload** re-sends the very same file, and it cannot leave you with two copies stored: if the first attempt quietly did land, the retry returns that same report rather than storing another. The error text starts with **Upload failed (HTTP …)** when the server refused the file and says the outcome is unconfirmed when no answer came back; either way a retry is safe.
-- **The manual path is always open.** The zip is still on your computer. Use **Show zip** to find it and **Open issue anyway** to file the report by hand — that issue carries no report ID, so attach the zip to it yourself. After choosing **Open issue anyway**, you can close the Copilot dialog without losing the zip, even if your browser did not open.
-- **Closing the dialog does not stop an upload.** It finishes in the background; when it lands, a notice shows the report ID and a link to the issue page, and the zip stays where it was.
-- **If uploads are turned away because too many were sent recently,** wait a while and try again, or file it by hand. On a shared or office network it may not have been your own uploads that used up the limit.
-
-### Collecting logs by hand
-
-Run **Copilot: Create log file** from the command palette to save the Copilot log into your vault as a note and open it. The Agent Chat log can be opened or cleared under **Advanced → Debugging & support → Agent Mode activity log**.
-
-Logs and screenshots can contain prompts, note contents, paths, and tool inputs. Review them before attaching anything to a public issue.
-
-## What works on mobile?
-
-Agent Chat, including opencode, Claude, Codex, Projects, and Skill execution, is desktop-only. On mobile, use Quick Chat. Agent settings display **Agent settings are available on desktop.** Miyo on mobile requires a remote Miyo connection and manual vault registration in Miyo.
-
-## Related
-
-- [Getting Started](getting-started.md)
-- [Agent Chat](agent-mode-and-tools.md)
-- [Context and Mentions](context-and-mentions.md)
-- [Copilot Settings](settings.md)
-- [Copilot Plans, Privacy, and Self-Hosting](copilot-plus-and-self-host.md)
+如果失败提示指出某项操作的结果尚不能确认，先核对结果。不要为了确认是否成功而重复创建、移动或回收文件；核对完成后再按恢复提示继续。

@@ -1,150 +1,39 @@
-# Miyo: Local-First Search and AI Ownership
+# 资料库搜索
 
-Copilot V4 uses ordinary file tools for exact text and file lookup. For meaning-based search across a large vault, connect [Miyo](https://miyo.md).
+Vault Agent 使用插件自带的笔记工具搜索资料库，不需要安装 Agent 命令行程序，也不要求连接独立的索引服务。
 
-Miyo is a local-first knowledge service built for more than one plugin. It can search notes by meaning, process supported documents, search selected chat histories, and make the same knowledge available to the AI tools you choose. Your knowledge stays in a system you control instead of being locked inside one chat feature.
+## 直接提问
 
-## What moved from Copilot V3
+可以直接提出任务，例如“查找提到项目预算的笔记并列出结论”。Agent 可以按文件名、路径、关键词和笔记内容查找资料，再读取回答所需的部分。搜索和读取都会出现在操作记录中。
 
-Semantic search from Copilot V3 has moved to Miyo. Connect Miyo and enable its semantic-search Skill for a more powerful local-first path. Copilot no longer exposes controls for its old in-plugin index.
+涉及链接、反向链接、标签、属性或当前编辑内容时，Agent 使用插件提供的 Obsidian 工具。打开笔记、读取选区等动作遵守当前文件范围和权限。
 
-When you upgrade, Copilot removes its retired index settings and recognized index files. It deletes only files that match Copilot's exact legacy index naming scheme. Other files in your vault and Obsidian configuration folder are left alone. If cleanup fails, Copilot names the folder so you can remove the old index files manually.
+搜索结果是线索，不会自动变成可靠结论。对重要事实，应让 Agent 打开对应原文并在回答中引用笔记。
 
-## How Agent Chat searches
+## 项目和指定上下文
 
-Agent Chat can combine three kinds of search:
+在[项目](projects.md)中保存常用笔记、文件夹或链接，或在聊天中加入本次需要的内容，可以缩小任务范围。项目忽略规则控制列出的上下文，不是授权设置；实际文件访问仍由权限决定。
 
-- **File search** finds exact words, phrases, filenames, and paths with the active agent's normal tools. It needs no index.
-- **Obsidian-aware search** uses the Obsidian CLI skill when a question depends on Obsidian's index, such as links, backlinks, properties, tags, tasks, Bases, or the currently open note.
-- **Miyo semantic search** finds related ideas even when the notes use different words. It is useful for fuzzy recall, research across many notes, and large collections.
+资料库外的文件夹需要在 **高级设置 → 其他文件夹** 中单独允许。目录授权不会取消写入批准要求。
 
-You can ask naturally, such as “Find everything I have written about memory consolidation,” or say “Use Miyo” when you want semantic search explicitly. Search results become context for the model you selected, so the model still receives the excerpts Agent Chat uses in its answer.
+## 语义搜索与外部服务
 
-With **Semantic search for agents** on, agents search your notes with Miyo and file search for any question your notes might answer before turning to the web.
+当前插件不提供旧版 Miyo 连接、付费托管搜索或独立的内置向量索引配置。旧指南中的这些入口不再适用。
 
-Each Miyo search appears in the chat as a card with the query and, when available, how many notes it found.
+如确需额外搜索能力，可以在独立的 **MCP** 标签页显式添加你选择的搜索工具服务。服务是否支持语义搜索、如何保存资料及是否收费，由该服务决定；插件不会自动安装或配置它。
 
-Links in the answer to notes Miyo found get a small Miyo logo. Codex answers don't show it.
+## 隐私
 
-## Connect Miyo
+本地搜索本身读取资料库文件。回答需要的检索结果会交给当前选择的模型：云端模型会收到相关内容，本地模型则由你配置的本地服务处理。外部搜索工具还可能把查询发送到对应服务。
 
-Open **Settings → Copilot → Miyo** and choose one connection:
+选择本地模型不等于所有工具自动离线。任务中出现外部服务或网页请求时，应核对它们的目标和允许范围。
 
-- **Local** discovers Miyo on this device. Download and open Miyo, select **Connect**, and register the current vault if prompted. On mobile this option is disabled, because Copilot cannot discover a Miyo server on a phone or tablet.
-- **Remote server** connects using a server address such as `http://miyo-home:8742`. Enter the same Tailscale URL on your computers and select **Connect**. You do not need Miyo installed on the computer running Copilot.
+## 找不到内容时
 
-Selecting a connection option or editing the address leaves the current connection running. Select **Connect** to apply the chosen connection. The saved remote address and feature preferences are retained. An incomplete address is not saved as an active endpoint. Existing remote configurations remain selected after an upgrade.
+- 确认笔记仍在资料库中，或外部文件夹授权尚未过期。
+- 使用原文中的词语或直接指定笔记名称。
+- 查看项目上下文是否包含目标资料。
+- 如模型只根据搜索摘要回答，请要求它先打开原文。
+- 服务或权限不可用时，应修复所显示的问题，不要通过重置资料库来尝试恢复。
 
-The badge beside the saved connection option shows **Connected**, **Checking…**, or **Offline**. It stays beside that option while you browse another. When the saved connection is selected, **Check connection** checks it again and **Disconnect** turns it off. Selecting another option or changing the remote address shows **Connect** instead.
-
-A remote server can be connected without the current vault being registered there. Manage folders on the Miyo host to make this vault available for search. Copilot does not send this computer's filesystem path to register it remotely.
-
-**Semantic search for agents** under **Powered by Miyo** installs the agent Skill while Miyo is connected. The switch appears on desktop only, since Agent Chat does not run on mobile; a connected mobile device still uses Miyo for Copilot Plus chat search and Relevant Notes. For remote connections, manage chat sources and Relay on the Miyo host. The **External apps** Connector is separate from Copilot's connection and does not set its server address.
-
-Indexing and search requests go to your selected Miyo server. **Disconnect** disables Copilot's Miyo backend and removes the `miyo-search` agent Skill.
-
-## What Miyo availability means
-
-Copilot checks Miyo when a feature needs it and when you open the Miyo settings tab. It does not poll in the background or show an availability notice at startup. If a check is running, Settings shows **Checking…** instead of reusing an older **Connected** result.
-
-This table is the shared availability contract for the Miyo-only migration across Copilot. Free Chat never searches the vault automatically. "Quick Chat" below refers to Copilot Plus retrieval and its Miyo document processing.
-
-| Runtime state                               | Settings → Miyo                                                                                                 | Relevant Notes                                                                                          | Quick Chat retrieval                                                              | Agent Chat `miyo-search`                                                                  | PDF and EPUB processing                                                                                      | Miyo refresh command                               | Startup notice | Recovery                                                          |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | -------------- | ----------------------------------------------------------------- |
-| Miyo was never enabled                      | Shows **Connect**; Miyo-only rows are unavailable.                                                              | Shows Miyo setup guidance.                                                                              | Copilot Plus uses keyword search. Free Chat uses no automatic vault retrieval.    | The Miyo Skill is not installed through Copilot; the agent's exact file tools still work. | Turn off Miyo document processing.                                                                           | Not shown.                                         | None.          | Connect Miyo if you want semantic search.                         |
-| Miyo is healthy                             | Shows **Connected** beside the active connection option.                                                        | Shows Miyo results, then links and backlinks.                                                           | Copilot Plus uses Miyo for local search.                                          | Returns semantic results when the Skill is enabled.                                       | Agent Chat uses the local Miyo CLI. Quick Chat uses the connected Miyo service.                              | Starts a Miyo folder scan.                         | None.          | No action needed.                                                 |
-| Miyo quit after a successful check          | Shows **Checking…**, then **Offline**, with **Check connection** and **Disconnect**.                            | Shows that Miyo is unavailable; no graph-only fallback appears.                                         | Reports that Miyo is unavailable instead of silently switching to keyword search. | Reports that Miyo is unavailable; the agent can continue with exact file tools.           | Agent Chat can still use the installed local parser. Quick Chat Miyo processing is unavailable.              | Reports that Miyo is unavailable.                  | None.          | Open Miyo, then retry the action.                                 |
-| Obsidian opened before Miyo started         | Shows **Checking…**, then **Offline**, with **Check connection** and **Disconnect**.                            | Shows that Miyo is unavailable.                                                                         | Reports that Miyo is unavailable.                                                 | Reports that Miyo is not running.                                                         | Agent Chat can use the installed local parser. Quick Chat Miyo processing is unavailable.                    | Reports that Miyo is unavailable.                  | None.          | Start Miyo, then select **Check connection**.                     |
-| The vault was removed from Miyo             | The service can remain **Connected**, but vault features report that registration is missing.                   | Names the unregistered vault and offers folder setup instead of showing links or backlinks.             | Reports that the vault is not registered.                                         | Reports that the vault is unavailable to Miyo.                                            | Agent Chat local processing still works. Quick Chat Miyo processing requires access to the registered vault. | Reports that the vault is not registered.          | None.          | Register the vault in Miyo, then retry.                           |
-| The vault or active note is not indexed yet | Remains **Connected**. Indexing progress stays in Miyo.                                                         | Distinguishes an empty, pending, failed, excluded, or older-Miyo unknown state when Miyo can report it. | May return no Miyo context; an empty search cannot identify the cause.            | May return no semantic results; an empty search cannot identify the cause.                | Processing does not depend on the semantic index.                                                            | Starts a folder scan.                              | None.          | Check indexing in Miyo, then refresh the feature.                 |
-| A configured remote URL is unreachable      | Shows **Checking…**, then **Offline**, with **Check connection** and **Disconnect**.                            | Shows that the remote Miyo is unavailable.                                                              | Reports that Miyo is unavailable without a keyword fallback.                      | Reports that the configured Miyo service is unavailable.                                  | Agent Chat still uses the local parser. Quick Chat Miyo processing is unavailable.                           | Reports that Miyo is unavailable.                  | None.          | Fix or start the remote server, then select **Check connection**. |
-| Mobile has no remote URL                    | Shows **Offline** because local discovery is desktop-only.                                                      | Opens Miyo connection setup.                                                                            | Reports that Miyo is unavailable.                                                 | Agent Chat and its Skills are unavailable on mobile.                                      | Turn off Miyo document processing, or configure a remote Miyo for Quick Chat.                                | Reports that a remote Miyo connection is required. | None.          | Enter a reachable remote Miyo URL.                                |
-| Miyo returns after an unreachable state     | **Check connection** changes the existing status to **Connected** without disconnecting or enabling Miyo again. | **Refresh** resumes Miyo results.                                                                       | Retrying the message resumes Miyo retrieval.                                      | Running the Skill again resumes semantic search.                                          | Retry the failed document action.                                                                            | Run the command again.                             | None.          | Retry the feature you were using.                                 |
-
-## Choose what Miyo can search
-
-Use **Search scope** in the Miyo settings tab:
-
-- **Current vault** keeps Copilot's integrated Miyo searches within this vault. This is the safer default when Miyo manages several folders.
-- **Unrestricted** allows searches across everything registered with that Miyo instance.
-
-With **Current vault** selected, the settings tab also lists the other folders registered in Miyo, such as a research folder or a second vault. Tick any of them to search them together with this vault. Synced ChatGPT and Claude chat folders are in the list too, tagged **Chat**. Quick Chat's vault search and the agents' Miyo search then cover this vault and the ticked folders, and no other folder.
-
-Searching several folders at once needs a Miyo version that supports it. An older Miyo searches only this vault until you update it. If this computer's Miyo doesn't have a ticked folder, for example after your settings sync from another computer, Quick Chat skips that folder and searches the rest. Agents search only this vault until you untick it. The list marks it **Not in Miyo** so you can find it.
-
-In chat sources, a result from another folder shows that folder's name, and a result from a chat folder shows **Chat**. These results aren't notes in this vault, so you can't open them from the sources list.
-
-The scope is a retrieval preference, not a security boundary. Keep Miyo's registered folders intentional, especially when you use an unrestricted scope or connect to a shared remote server.
-
-### Relevant Notes
-
-Hover over a relevant note to read its Markdown preview, with formatted headings, lists, code, and links. The preview hides note properties and scrolls for longer notes.
-
-In Agent Chat, select the **Relevant Notes** tab, then **Open in separate pane** at the bottom to keep the notes alongside your conversation. This button stays available below the results, including while notes are loading or the list is empty. Closing the separate pane brings the Relevant Notes tab back to chat.
-
-Miyo is the source of Relevant Notes results and similarity percentages; Copilot's legacy local embedding index no longer scores this pane. Copilot keeps Miyo's result order. Direct links and backlinks annotate notes returned by Miyo but never add their own rows. Relevant Notes does not apply Copilot's inclusion or exclusion patterns; the registered folder's Miyo scope determines which notes can appear.
-
-If Miyo is disabled, unavailable, or its vault registration cannot be confirmed, the pane does not fall back to link and backlink rows. Instead, it offers Miyo download or setup actions. **Open Miyo settings** returns directly to the existing connection flow under **Settings → Copilot → Miyo**, including when you use a remote endpoint or mobile device.
-
-A successful search with zero results shows **No semantic matches yet** without treating the empty result as a setup failure. If the active note has no indexed chunks, Copilot asks Miyo for that file's current state:
-
-- **This vault isn't registered in Miyo** names the missing vault while confirming that Miyo is connected. On a local desktop connection, **Open folder settings in Miyo** opens Sources so you can add the vault. Remote and mobile connections offer **Review Miyo connection** and ask you to add the vault on the host machine.
-- **Miyo found no text in this note** means Miyo processed the file but found no searchable text.
-- **Miyo is still indexing this note** covers files that are pending, not scanned yet, or not yet visible to Miyo. Select **Refresh** to check again.
-- **Miyo couldn't index this note** includes Miyo's error message. On a local desktop connection, **Open Miyo** opens this vault's folder under Sources.
-- **This note is excluded in Miyo** names the matching filter when Miyo provides it. On a local desktop connection, **Open folder settings in Miyo** opens this vault's folder under Sources.
-
-For a remote Miyo or mobile device, error and exclusion cards tell you to review the folder on the host machine. Copilot cannot open or change that machine's Miyo settings. Older Miyo builds show **This note isn't indexed in Miyo** and **Update Miyo to the latest version to see why** because they cannot report the more specific reason. Their local desktop action still opens the vault's folder under Sources; remote and mobile connections offer **Review Miyo connection** in Copilot.
-
-Links and backlinks do not create rows in any of these empty states. Copilot's own inclusion and exclusion patterns do not filter Relevant Notes; Miyo's folder filters are the only scope there.
-
-#### Live update
-
-The **Live** switch makes Relevant Notes follow the last editor or Agent Chat you focused. The source label shows the note name or **Agent chat context**. Clicking inside Relevant Notes preserves that source. The switch is on by default and your choice is remembered.
-
-For chat, suggestions use the conversation, your unsent draft, selected text, and notes attached to the chat or project. They update after a 500 ms typing pause, attachment changes, and completed agent responses. Previous results stay visible while a refresh runs. An empty composer still uses conversation history; a completely empty chat uses the active note.
-
-**Add** includes a suggested note in the chat context and refreshes suggestions. Full attached notes are excluded from results. Selecting an excerpt alone leaves its source note eligible. Miyo looks up existing indexed attachments; this feature does not upload or index their contents. Skipped attachments produce a notice. If none of the chat context is usable, the pane explains that instead of switching to an unrelated note.
-
-Chat-context retrieval needs a compatible Miyo service. With an older Miyo, Relevant Notes returns to the editor-note flow and shows the note name as its source. Open a Markdown note if no source is available. Update Miyo to get conversation-based recommendations. Connection errors and valid empty chat results do not switch sources. Development previews can show a **Mock preview** notice; those example notes do not demonstrate relevance or retrieval speed.
-
-With Live off, only the active note supplies context, and the list stays fixed until you open another note or reconnect Miyo. Editor updates follow Miyo's index, so they arrive a few seconds behind typing. If your system is set to reduce motion, the list still updates without animation.
-
-## Search conversations and process documents
-
-Miyo can also index supported ChatGPT and Claude chat histories. Configure those sources in Miyo, then use the **Search chat** row in Copilot to see their status and open Miyo's management screen. Chat-history search is separate from vault search.
-
-The **Miyo document processing** switch is on by default and affects more than one chat surface, so check the route you use:
-
-- In **Agent Chat**, it installs the `miyo-parse` Skill, which runs the local Miyo CLI for PDF and EPUB files. This stays on the current computer even when semantic search uses a remote Miyo server. If the local CLI is unavailable or cannot parse a file, the agent reports the error and reads the file with any other tool it has.
-- In **Quick Chat**, it asks the connected Miyo service to parse PDF and EPUB files. A local connection stays local; a configured remote connection processes them on that server and requires the server to have access to the registered vault files.
-- With the switch off, Agent Chat does not install the Skill and the agent reads documents with its own tools. Quick Chat cannot read PDFs and tells you to turn the switch on and connect Miyo, or to use Agent Chat, where your agent can read them directly. The same message appears when the switch is on but Miyo is not connected. Copilot never sends a PDF to a hosted parser in Quick Chat.
-
-Outside the Miyo route, EPUB and ordinary non-PDF formats such as DOCX are not processed by this switch in regular chat context. Projects give the agent the path of each binary file to read itself. See [Copilot Paid Plans and Data Routes](copilot-plus-and-self-host.md) before using sensitive documents.
-
-## Let other AI tools use your knowledge
-
-Miyo's Connector can let supported ChatGPT and Claude clients work with files you registered in Miyo. Set it up from the **Connector** row in Copilot's Miyo settings or from Miyo itself. Local desktop and command-line use is free. Remote Connector access requires Miyo Relay or Lifetime access after its trial; Supporter and eligible legacy Copilot licenses can include that access.
-
-Connector access is separate from Agent Chat search. Review the folders, remote access, and write permissions in Miyo before enabling it. This is the ownership advantage of Miyo: one local-first knowledge layer can serve several AI tools without turning Copilot's private plugin data into the permanent home of your knowledge.
-
-Copilot uses Miyo’s recommendation API for related notes. Older Miyo installations continue to support recommendations from the editor note. Update Miyo to use conversation context for recommendations.
-
-## Troubleshooting
-
-- **Unavailable:** open Miyo, return to **Settings → Copilot → Miyo**, and retry. Check the remote server address if you configured one.
-- **Register this vault:** register the folder in Miyo, then connect again.
-- **Semantic search is missing:** confirm the connection is healthy and **Semantic search for agents** is on. Copilot installs the shared Miyo skill for opencode, Claude, and Codex.
-- **New notes are missing:** run **Refresh Miyo index** from the command palette. Indexing progress is shown in Miyo.
-- **Relevant Notes has no semantic results:** Read the card for the active note's Miyo state. **No semantic matches yet** means Miyo found no related notes. The other cards distinguish an empty note, indexing work, an indexing error, and a Miyo folder filter. Older Miyo builds use the less specific **This note isn't indexed in Miyo** card. None of these states shows link-only or backlink-only rows.
-- **Agent Chat Miyo document processing fails:** the agent reports the error and reads the file with its own tools. To use the Skill, install Miyo on this computer so its local CLI is available; to stop using it, turn off **Miyo document processing**. A remote Miyo search connection does not provide the local CLI Agent Chat needs.
-- **Quick Chat Miyo document processing fails:** confirm that the connected Miyo service can access the registered vault and document. When a remote server is configured, troubleshoot the document on that server.
-- **Miyo indexes folders you wanted skipped:** When Copilot first registers a vault, it supplies the current working-folder history and Obsidian ignored paths as initial Miyo exclusions. It does not overwrite an existing registration or later folder edits. Copilot still filters its integrated search results locally; edit the registered folder's server-side include and exclude rules in Miyo.
-- **Mobile:** a remote Miyo server can be configured on mobile, but Agent Chat and its Skills are desktop features. Use Quick Chat on mobile.
-
-## Related
-
-- [Settings: Miyo](settings.md#miyo)
-- [Agent Chat](agent-mode-and-tools.md)
-- [Context and Mentions](context-and-mentions.md)
-- [Copilot Paid Plans and Data Routes](copilot-plus-and-self-host.md)
+更多设置见[设置指南](settings.md)，操作审批见[Agent Chat](agent-mode-and-tools.md)。

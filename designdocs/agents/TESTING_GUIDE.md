@@ -1,7 +1,19 @@
 # Testing Guide
 
-How to test the Copilot plugin with unit and end-to-end tests. Most changes only
+How to test the Vault Agent plugin with unit and end-to-end tests. Most changes only
 need unit tests; use end-to-end tests when unit tests can't answer the question.
+
+## 当前本机测试目标
+
+用户于 2026-10-22 指定唯一测试库为现有 **houde**：`/Users/study_superior/Desktop/Project/houde`。后续测试不得创建 PiSmoke 或其他测试库，也不得使用独立 Obsidian profile；使用日常 Obsidian 配置，保留原有仓库列表。
+
+```bash
+export COPILOT_TEST_VAULT_PATH="/Users/study_superior/Desktop/Project/houde"
+```
+
+每次部署、重载或 CLI/UI 写操作前，核对实际返回的库名为 `houde`、解析后的路径与上述路径一致。不要依赖当前窗口或未指定目标的 CLI。测试授权不等于清空库或重置所有设置：保留已有笔记、聊天和配置，仅修改当前任务所需内容。旧 PiSmoke 与独立 profile 的验收记录只用于追溯，不能作为未来测试目标；迁移状态见根目录 `TODO.md`。
+
+2026-10-22 迁移已完成：日常 Obsidian 的原三个仓库列表已恢复，PiSmoke 的测试笔记、图片、聊天、私有会话与相关配置已迁入 houde；旧库及独立 profile 已移入废纸篓。已核对文件内容、保留原笔记、实际打开测试聊天，并验证正常冷重开后配置和受保护密钥可读。本次只验证迁移与启动，没有重新执行全部模型功能测试。迁移前备份与逐文件核对报告保存在本机 `~/Library/Application Support/VaultAgent/migrations/pismoke-to-houde-20261022T124046Z/`，不是新增测试目标。
 
 ## Test pyramid
 
@@ -73,7 +85,7 @@ and express intent clearly before making them pass. See
 E2E via the CLI is the slowest and most fragile layer — reach for it only when
 unit tests can't answer the question.
 
-A field guide for coding agents driving the Copilot plugin through the Obsidian
+A field guide for coding agents driving the Vault Agent plugin through the Obsidian
 desktop CLI. Everything here was validated against Obsidian `1.12.7` with the
 plugin loaded into a real vault. The CLI lives at
 `/Applications/Obsidian.app/Contents/MacOS/obsidian` — use the full path; the
@@ -87,9 +99,9 @@ npm run test:vault
 
 macOS only. Installs deps, builds, and copies `main.js` / `manifest.json` /
 `styles.css` from the current worktree into
-`$COPILOT_TEST_VAULT_PATH/.obsidian/plugins/copilot/`, then reloads the plugin
+`$COPILOT_TEST_VAULT_PATH/.obsidian/plugins/vault-agent/`, then reloads the plugin
 via the Obsidian CLI. Requires `$COPILOT_TEST_VAULT_PATH` (user-level env var)
-pointing at a vault that has been opened in Obsidian at least once.
+pointing at the existing houde vault specified above.
 
 This is the canonical "get my changes running" step — don't hand-roll `npm run
 build && cp main.js …`. If the user has multiple Conductor worktrees, whichever
@@ -101,13 +113,15 @@ and reload the new build.
 
 ## Reset the test vault's settings
 
+The commands below overwrite saved settings. Do not run them against houde as routine setup: use them only when the current task explicitly authorizes that reset, preserve the previous settings first, and restore them after the test. Do not create another vault to bypass this restriction.
+
 ```bash
 npm run test:reset-data                 # bundled clean-onboarding fixture
 npm run test:reset-data -- <path>       # any data.json you point at
 ```
 
 Companion to `test:vault`. Overwrites
-`$COPILOT_TEST_VAULT_PATH/.obsidian/plugins/copilot/data.json` with a fixture,
+`$COPILOT_TEST_VAULT_PATH/.obsidian/plugins/vault-agent/data.json` with a fixture,
 then reloads the plugin (same Obsidian CLI reload as `test:vault`) so the reset
 takes effect immediately — the reload matters because a running plugin holds
 settings in memory and would otherwise overwrite the file on its next save.
@@ -126,23 +140,23 @@ pre-versioned legacy install (no `settingsVersion`; legacy `activeModels` +
 top-level provider keys; empty new slices apart from one pre-seeded BYOK
 Anthropic provider that proves dedup). On the next plugin load,
 `runSettingsMigrations` converts the legacy BYOK providers/models into the new
-`providers` / `configuredModels` / `backends` shape so they work in OpenCode, and
+`providers` / `configuredModels` / `backends` shape for the current model manager, and
 stamps `settingsVersion`. It runs in disk mode with obvious fake `sk-test-…`
 keys. After reset, read back and verify the migrated shape:
 
 ```bash
-$OBS vault=$VAULT eval code='app.plugins.plugins.copilot.loadData().then(d=>JSON.stringify({
+$OBS vault=$VAULT eval code='app.plugins.plugins["vault-agent"].loadData().then(d=>JSON.stringify({
   settingsVersion: d.settingsVersion,
   providers: Object.values(d.providers).map(p=>({type:p.providerType, origin:p.origin.kind, catalog:p.origin.catalogProviderId, hasKey: p.apiKeyKeychainId!=null})),
   configuredModels: d.configuredModels.map(m=>m.info.id),
   chat: d.backends.chat?.enabledModels?.length,
-  opencode: d.backends.opencode?.enabledModels?.length,
+  pi: d.backends.pi?.enabledModels?.length,
   legacyUntouched: { anthropicApiKey: d.anthropicApiKey, activeModels: d.activeModels.length }
 }))'
 ```
 
 Expect: `settingsVersion` stamped; routable providers carry a `catalogProviderId`
-and a key; `backends.opencode.enabledModels` is non-empty and excludes the
+and a key; `backends.pi.enabledModels` is non-empty and excludes the
 embedding (`BAAI/bge-m3`) and Bedrock rows; exactly one Anthropic BYOK provider
 (the pre-seeded one — its descriptor deduped, not re-created); legacy
 `anthropicApiKey` and `activeModels` untouched. A second reload must not change
@@ -174,19 +188,19 @@ Run this preflight and abort if anything looks off:
 $OBS vault=$VAULT eval code='JSON.stringify({
   vault: app.vault.getName(),
   path:  app.vault.adapter.basePath,
-  copilotLoaded: !!app.plugins.plugins.copilot,
-  copilotVersion: app.plugins.manifests.copilot?.version,
-  buildTag: app.plugins.manifests.copilot?.description?.match(/dev build: ([^ |]+)/)?.[1],
-  buildBranch: app.plugins.manifests.copilot?.description?.match(/branch: ([^ |]+)/)?.[1]
+  vaultAgentLoaded: !!app.plugins.plugins["vault-agent"],
+  vaultAgentVersion: app.plugins.manifests["vault-agent"]?.version,
+  buildTag: app.plugins.manifests["vault-agent"]?.description?.match(/dev build: ([^ |]+)/)?.[1],
+  buildBranch: app.plugins.manifests["vault-agent"]?.description?.match(/branch: ([^ |]+)/)?.[1]
 })'
 ```
 
 Check that:
 
 - `vault` matches the intended target
-- `copilotLoaded` is `true` (`vault=<name>` will _open_ a known-but-closed
+- `vaultAgentLoaded` is `true` (`vault=<name>` will _open_ a known-but-closed
   vault as a fresh renderer — silently. The plugin may not be ready yet; if
-  `copilotLoaded` is `false`, call `app.plugins.loadPlugin("copilot")` via
+  `vaultAgentLoaded` is `false`, call `app.plugins.loadPlugin("vault-agent")` via
   `eval` and re-probe.)
 - `buildTag` starts with the current worktree's short commit, reports the
   expected clean/dirty state, and stays unchanged until the next deployment
@@ -207,7 +221,7 @@ Check that:
 
 ```bash
 $OBS dev:debug on        # attach Chrome DevTools Protocol (required for dev:console, dev:errors, dev:cdp)
-$OBS vault=$VAULT eval code='app.plugins.loadPlugin("copilot")'  # if not auto-loaded
+$OBS vault=$VAULT eval code='app.plugins.loadPlugin("vault-agent")'  # if not auto-loaded
 ```
 
 `dev:debug on` is sticky for the life of the Obsidian process. Re-running it is
@@ -238,11 +252,11 @@ fastest, deterministic path for tests is to bypass the UI:
 
 ```bash
 # Read
-$OBS vault=$VAULT eval code='app.plugins.plugins.copilot.loadData().then(d=>JSON.stringify({temperature:d.temperature,defaultChainType:d.defaultChainType}))'
+$OBS vault=$VAULT eval code='app.plugins.plugins["vault-agent"].loadData().then(d=>JSON.stringify({temperature:d.temperature,defaultChainType:d.defaultChainType}))'
 
 # Mutate and persist
 $OBS vault=$VAULT eval code='(async()=>{
-  const p=app.plugins.plugins.copilot;
+  const p=app.plugins.plugins["vault-agent"];
   const d=await p.loadData();
   d.temperature=0.42;
   await p.saveData(d);
@@ -474,7 +488,7 @@ Before live verification, run the focused unit tests for the changed component a
 npm run gallery:build
 ```
 
-Deploy to the non-production test vault configured by `COPILOT_TEST_VAULT_PATH` with `npm run gallery:vault`. Before any CLI or UI mutation, verify that the resolved vault name and path match that configuration; never rely on the implicitly focused renderer.
+Deploy to the existing houde test vault configured above by `COPILOT_TEST_VAULT_PATH` with `npm run gallery:vault`. Before any CLI or UI mutation, verify that the resolved vault name and path match that configuration; never rely on the implicitly focused renderer.
 
 ### The gallery shares a stylesheet with the plugin
 
@@ -536,8 +550,8 @@ VAULT="$(basename "$COPILOT_TEST_VAULT_PATH")"
 # 1. Preflight — verify target + build
 $OBS vault=$VAULT eval code='JSON.stringify({
   v: app.vault.getName(),
-  loaded: !!app.plugins.plugins.copilot,
-  ver: app.plugins.manifests.copilot?.version
+  loaded: !!app.plugins.plugins["vault-agent"],
+  ver: app.plugins.manifests["vault-agent"]?.version
 })' || exit 1
 
 # 2. Attach debugger, clear error buffer
@@ -566,22 +580,22 @@ $OBS vault=$VAULT dev:errors > /tmp/uncaught.txt
 
 ## 7. Quick reference
 
-| Need                               | Command                                                                                                                             |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| List open vaults                   | `vaults verbose`                                                                                                                    |
-| Target a vault                     | prefix every command with `vault=<name>`                                                                                            |
-| Verify the right vault is targeted | `vault=<name> eval code='app.vault.getName()'`                                                                                      |
-| Visual confirmation                | `vault=<name> dev:screenshot path=/tmp/x.png` (sleep ≥1s before reading)                                                            |
-| Load plugin if not loaded          | `vault=<name> eval code='app.plugins.loadPlugin("copilot")'`                                                                        |
-| List plugin commands               | `vault=<name> eval code='JSON.stringify(Object.keys(app.commands.commands).filter(c=>c.startsWith("copilot")))'`                    |
-| Run a plugin command               | `vault=<name> command id=copilot:<id>`                                                                                              |
-| Read settings (disk)               | `vault=<name> eval code='app.plugins.plugins.copilot.loadData().then(JSON.stringify)'`                                              |
-| Mutate settings (disk)             | `vault=<name> eval code='(async()=>{const p=app.plugins.plugins.copilot;const d=await p.loadData();d.X=Y;await p.saveData(d);})()'` |
-| Click via JS                       | `vault=<name> eval code='document.querySelector("...").click()'`                                                                    |
-| Click via CDP                      | `dev:cdp method=Input.dispatchMouseEvent params='{"type":"mousePressed",...}'`                                                      |
-| Type via CDP                       | `dev:cdp method=Input.insertText params='{"text":"..."}'`                                                                           |
-| Uncaught errors                    | `dev:errors` (clear + run + read)                                                                                                   |
-| Console messages                   | `dev:console level=error limit=20`                                                                                                  |
-| DOM scale                          | `dev:cdp method=Memory.getDOMCounters`                                                                                              |
-| Heap                               | `eval code='JSON.stringify(performance.memory)'`                                                                                    |
-| Full perf metrics                  | `dev:cdp method=Performance.getMetrics` (after `Performance.enable`)                                                                |
+| Need                               | Command                                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| List open vaults                   | `vaults verbose`                                                                                                                           |
+| Target a vault                     | prefix every command with `vault=<name>`                                                                                                   |
+| Verify the right vault is targeted | `vault=<name> eval code='app.vault.getName()'`                                                                                             |
+| Visual confirmation                | `vault=<name> dev:screenshot path=/tmp/x.png` (sleep ≥1s before reading)                                                                   |
+| Load plugin if not loaded          | `vault=<name> eval code='app.plugins.loadPlugin("vault-agent")'`                                                                           |
+| List plugin commands               | `vault=<name> eval code='JSON.stringify(Object.keys(app.commands.commands).filter(c=>c.startsWith("copilot")))'`                           |
+| Run a plugin command               | `vault=<name> command id=copilot:<id>`                                                                                                     |
+| Read settings (disk)               | `vault=<name> eval code='app.plugins.plugins["vault-agent"].loadData().then(JSON.stringify)'`                                              |
+| Mutate settings (disk)             | `vault=<name> eval code='(async()=>{const p=app.plugins.plugins["vault-agent"];const d=await p.loadData();d.X=Y;await p.saveData(d);})()'` |
+| Click via JS                       | `vault=<name> eval code='document.querySelector("...").click()'`                                                                           |
+| Click via CDP                      | `dev:cdp method=Input.dispatchMouseEvent params='{"type":"mousePressed",...}'`                                                             |
+| Type via CDP                       | `dev:cdp method=Input.insertText params='{"text":"..."}'`                                                                                  |
+| Uncaught errors                    | `dev:errors` (clear + run + read)                                                                                                          |
+| Console messages                   | `dev:console level=error limit=20`                                                                                                         |
+| DOM scale                          | `dev:cdp method=Memory.getDOMCounters`                                                                                                     |
+| Heap                               | `eval code='JSON.stringify(performance.memory)'`                                                                                           |
+| Full perf metrics                  | `dev:cdp method=Performance.getMetrics` (after `Performance.enable`)                                                                       |

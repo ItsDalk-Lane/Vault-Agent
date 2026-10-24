@@ -2,7 +2,7 @@
 
 Projects are focused workspaces inside Agent Chat. Each Project keeps its own instructions, reusable context, and chat history, so ongoing work for a client, codebase, course, or research topic stays together.
 
-A Project works with opencode, Claude, or Codex. It uses the agent, model, effort, and permission setting selected for the current chat. It does not lock you to a separate model.
+Projects use the plugin’s built-in agent and the model, reasoning level, and permission mode selected for the current chat. Model services are configured in BYOK.
 
 On the Agent Chat home screen, open **Projects** to browse your most recently used Projects. Scroll the list to see more, or use **Search projects** to find a Project by name or description. Search includes every Project, even those you have not scrolled to yet.
 
@@ -12,15 +12,15 @@ On the Agent Chat home screen, open **Projects** to browse your most recently us
 2. From the Agent Chat home screen, open **Projects** and select **New project**.
 3. Enter a name and select **Create**.
 
-Copilot opens the new Project immediately. Creation asks only for a name. Use **Edit project** to add a description, instructions, and saved context.
+Vault Agent opens the new Project immediately. Creation asks only for a name. Use **Edit project** to add a description, instructions, and saved context.
 
-Each Project has a folder under `<Copilot folder>/projects/`. The default root is `copilot/projects/`. Its `project.md` file stores Project details and the context list. Its `AGENTS.md` file contains the instructions you own and edit.
+Each Project has a folder under `<plugin folder>/projects/`. The default root is `vault-agent/projects/`. Its `project.md` file stores Project details and the context list. Its `AGENTS.md` file contains the instructions you own and edit.
 
 ## Add Project instructions
 
 Open the Project info menu beside the name and select **AGENTS.md**. You can also choose **Edit project** from the Projects list and edit **Project instructions**. Both open the same Project file.
 
-Vault-wide instructions still apply. Project instructions are more specific, so they take precedence when the two files conflict. The same Project `AGENTS.md` works with opencode, Claude, and Codex.
+Vault-wide instructions still apply. Project instructions are more specific, so they take precedence when the two files conflict. The built-in agent reads the Project `AGENTS.md` directly.
 
 Useful Project instructions include:
 
@@ -30,7 +30,7 @@ Useful Project instructions include:
 - naming, style, or citation rules; and
 - actions that should always require confirmation.
 
-Keep stable rules in `AGENTS.md` and put one-off requests in chat. Start a new Project chat after changing the file so every backend reads the latest instructions. See [Instructions for Agent Chat and Quick Chat](system-prompts.md).
+Keep stable rules in `AGENTS.md` and put one-off requests in chat. Start a new Project chat after changing the file to use the latest instructions. See [Instructions for Agent Chat](system-prompts.md).
 
 ## Add reusable context
 
@@ -44,17 +44,17 @@ You can:
 
 Tags match tags stored in note properties. Properties can target notes by a frontmatter field, such as `Topics: Physics`.
 
-When a new Project chat starts, Copilot gives the agent a list of the saved context: folders, notes, and files by their location, and web pages and YouTube videos as links. Nothing is downloaded or converted in advance. The agent reads each source when a question needs it.
+When a new Project chat starts, Vault Agent gives the agent a list of the saved context: folders, notes, and files by their location, and web pages and YouTube videos as links. Nothing is downloaded or converted in advance. The agent reads each source when a question needs it.
 
 An existing Project chat keeps the instructions and context captured when that chat started. Start a new chat after changing either one when you need the updated version.
 
 ### File and link support
 
-Markdown, text, and source files can be read directly by the active agent. Binary files such as PDFs, Office documents, EPUBs, spreadsheets, and common images are not converted. Copilot gives the agent the absolute path of each original file, and the agent opens it with its own tools. With **Miyo document processing** on, agents use the `miyo-parse` Skill for PDF and EPUB files. How well an agent reads a given format depends on that agent.
+Markdown, text, and source files can be read using the plugin’s vault tools within the allowed scope. Model input currently supports text and eligible images; listing a PDF, video, or other binary file does not convert it or guarantee that the model can read it.
 
-The agent opens a saved web page with its own web tool or Copilot's web fetch Skill, and reads a YouTube video through Copilot's YouTube transcript Skill, which requires an eligible Copilot plan. An agent without its own web tool or the matching Skill cannot read a saved link.
+Saved links are references. The agent must use an available web tool or an explicitly configured MCP service to fetch the material; the plugin does not automatically download or convert it when a Project starts.
 
-> **Private Projects:** When a chat starts, Copilot does not upload a Project's files or fetch its links. The list of file paths and links goes to the selected model as part of the first message. A link's address goes to Brevilabs only when the agent fetches it through a Copilot-hosted Skill. If a Project must not send task content to Brevilabs, use Markdown and document files with local tools or local [Miyo](vault-search-and-indexing.md), use a local model if prompts must also stay on the device, and disable cloud-backed Copilot Skills for every agent you use.
+> **Project privacy:** The context names, paths, links, and excerpts needed for a request can reach the model service you select. A local model does not make remote tools local. Review configured services and approvals before using private material.
 
 **Ignore Files** controls which files are listed in the Project's context. It is not a file permission setting. An agent can still find an ignored file through its own tools when the file is inside a location that agent can access.
 
@@ -68,15 +68,14 @@ Inside a Project:
 
 From the Projects list, hover over a Project to **Reveal in vault**, **Edit project**, or **Delete** it. The global **Recent Chats** list on the Agent Chat home screen includes conversations from across Projects.
 
-Deleting a Project removes its Copilot Project configuration. It does not delete your ordinary vault notes or conversation notes already saved in the vault.
+Deleting a Project removes its Vault Agent Project configuration. It does not delete your ordinary vault notes or conversation notes already saved in the vault.
 
 ## When to use a Project
 
-Use a Project when a task has a stable scope or will continue across several chats. Use a one-turn [context attachment](context-and-mentions.md) when the material matters only for the next message. Use the vault-root `AGENTS.md` when an instruction should apply everywhere.
+Use a Project when a task has a stable scope or will continue across several chats. Use a one-turn context attachment when the material matters only for the next message. Use the vault-root `AGENTS.md` when an instruction should apply everywhere.
 
 ## Related
 
 - [Agent Chat](agent-mode-and-tools.md)
-- [Context and Mentions](context-and-mentions.md)
 - [`AGENTS.md` Examples](agents-md-examples.md)
-- [Copilot Plans, Privacy, and Self-Hosting](copilot-plus-and-self-host.md)
+- [Settings and network boundaries](settings.md)

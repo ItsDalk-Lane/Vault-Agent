@@ -4,7 +4,9 @@ This file provides guidance to any coding agent when working with code in this r
 
 ## Overview
 
-Vault Agent is a desktop-only Obsidian plugin that runs AI coding agents (claude code, codex, opencode) against the user's vault. It provides the Agent Mode feature set only: an agent chat view with plan preview and turn diffs, projects, skills, multi-agent fan-out, and a BYOK model picker. There is no hosted service, no account system, and no telemetry — see `README.md`.
+Vault Agent is a desktop-only Obsidian plugin with one bundled, in-process Pi SDK runtime. Models and credentials come from user-configured BYOK providers; no external Claude Code, Codex, OpenCode, or Pi CLI is installed or launched as the agent engine. There is no hosted service, account system, paid plan, or telemetry — see `README.md`.
+
+The product retains agent chat, plans, diffs and revert, projects, skills with one enablement state, model-based fan-out, and read-only legacy history. Models are managed in BYOK, external tool services in the standalone MCP tab, and local-program/subtask/folder permissions in Advanced. Legacy engine identities are display metadata, never runnable descriptors.
 
 The Agent Mode module lives in `src/agentMode/` and talks to the host through a single barrel (`src/agentMode/index.ts`). Read [`src/agentMode/AGENTS.md`](./src/agentMode/AGENTS.md) before changing it: its layer rules are enforced by `eslint-plugin-boundaries`.
 
@@ -17,6 +19,14 @@ The Agent Mode module lives in `src/agentMode/` and talks to the host through a 
 - **Before PR: always run `npm run format && npm run lint`.**
 - `npm run test` — unit tests. Single test: `npm test -- -t "test name"`.
 - `npm run test:vault` — macOS-only build-and-deploy into `$COPILOT_TEST_VAULT_PATH`; see [`TESTING_GUIDE.md`](./designdocs/agents/TESTING_GUIDE.md).
+
+## 本机唯一测试库（2026-10-22 用户指定）
+
+- 后续真实 Obsidian 测试只使用现有库 **houde**，绝对路径为 `/Users/study_superior/Desktop/Project/houde`。`COPILOT_TEST_VAULT_PATH` 必须指向此路径；不得再创建 PiSmoke 或其他测试库。
+- 使用日常 Obsidian 配置，保留原有仓库列表；不得为测试另起 `--user-data-dir` 或切换到独立测试 profile。
+- 每次部署、重载、CLI/UI 写操作前，同时核对实际库名 `houde` 与解析后的绝对路径，不能仅依赖当前窗口或默认 CLI 连接。
+- houde 是用户指定的测试库，但已有笔记、聊天、设置仍须保留。授权仅覆盖当前任务所需测试，不代表可清空库、覆盖无关内容或重置全部设置；临时修改只清理本次明确创建的内容。
+- `designdocs/pi-rebuild/` 中的 PiSmoke 路径和独立 profile 只描述历史证据，不能作为新操作指令；不得为重现旧记录重建旧测试库。迁移进度见 `TODO.md`。
 
 ## Core principles (apply to every change)
 
@@ -52,10 +62,10 @@ Read the matching guide when your task touches that area — they aren't loaded 
 
 ## Important notes
 
-- The plugin declares `isDesktopOnly: true`: Agent Mode drives external processes, so the bundle is never loaded on mobile.
+- The plugin declares `isDesktopOnly: true`: the bundled runtime uses desktop APIs and private durable storage. Optional, explicitly approved local tools can launch processes; the core agent runs inside the plugin. The bundle is never loaded on mobile.
 - Multiple BYOK providers with custom endpoints are supported; keys live in the OS keychain, not in `data.json`.
-- Agent sessions persist to `agent-chat-index.json` per vault, plus optional vault notes with `mode: agent` frontmatter.
-- Skills are discovered from a vault folder; built-in skills ship with the plugin and are reconciled on start.
+- Agent sessions use private durable JSONL records plus a per-vault `agent-chat-index.json`; optional vault notes use `mode: agent` frontmatter. Opening history restores visible state without automatically resuming unfinished work.
+- Skills are discovered from the canonical vault folder with one enablement state; built-in skills ship with the plugin. No per-CLI symlinks or agent-directory distribution is performed.
 - Tech debt and known issues → [`designdocs/todo/TECHDEBT.md`](./designdocs/todo/TECHDEBT.md). Current session plan → [`TODO.md`](./TODO.md).
 - Available Tailwind tokens/classes → [`tailwind.config.js`](./tailwind.config.js).
 
