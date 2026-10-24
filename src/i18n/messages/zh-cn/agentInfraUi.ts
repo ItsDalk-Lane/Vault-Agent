@@ -4,8 +4,6 @@ export const agentInfraUi: Record<keyof typeof enAgentInfraUi, string> = {
   "agentInfra.skills.row.enabled": "在 Vault Agent 中启用 {name}",
   "agentInfra.skills.empty.body":
     "在下方技能文件夹中添加包含 SKILL.md 的子文件夹，即可在这里管理并启用技能。",
-  "agentInfra.skills.manager.legacyReadOnly":
-    "旧位置中的技能仅供查看。请将副本放入技能文件夹后再启用或编辑。",
   "agentInfra.skills.title": "技能",
   "agentInfra.skills.intro":
     "技能是 Vault Agent 可以重复使用的指令，例如整理笔记或撰写摘要。将技能放入技能文件夹后，可在这里管理启用状态。",
@@ -37,8 +35,6 @@ export const agentInfraUi: Record<keyof typeof enAgentInfraUi, string> = {
   "agentInfra.skills.notice.enableFailed": "无法为 {agent} 启用：{error}",
   "agentInfra.skills.notice.disableFailed": "无法为 {agent} 禁用：{error}",
   "agentInfra.skills.delete.title": "删除 {name}？",
-  "agentInfra.skills.delete.projectWarningFolder":
-    "这会从项目中删除该技能文件夹。仓库同步 / git 是唯一的回滚途径。",
   "agentInfra.skills.delete.canonicalWarning":
     "这会删除技能文件夹中的技能及其辅助文件。需要恢复时，请使用仓库备份或文件历史。",
   "agentInfra.skills.delete.willRemove": "将删除：",
@@ -91,7 +87,6 @@ export const agentInfraUi: Record<keyof typeof enAgentInfraUi, string> = {
   "agentInfra.skills.manager.eperm": "创建技能链接时权限被拒绝。",
   "agentInfra.skills.manager.unknownBuiltin": "未知的内置技能。",
   "agentInfra.skills.manager.builtinUpdateFailed": "无法更新内置技能文件。",
-  "agentInfra.skills.builtin.removeRetiredFailed": "无法移除已停用的内置技能 {name}。",
   "agentInfra.skills.builtin.occupies": "{name} 已被用户自己的技能占用。",
   "agentInfra.skills.builtin.installFailed": "无法安装内置技能 {name}。",
   "agentInfra.skills.builtin.removeDisabledFailed": "无法移除已禁用的内置技能 {name}。",

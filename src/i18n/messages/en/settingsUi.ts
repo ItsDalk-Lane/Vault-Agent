@@ -16,7 +16,7 @@ export const settingsUi = {
   "settings.advanced.removing": "Removing...",
   "settings.advanced.forgetSecretsTitle": "\u26A0\uFE0F Forget All Secrets",
   "settings.advanced.forgetSecretsBody":
-    "This will remove all API keys for this vault from the Obsidian Keychain, data.json, and memory. You will need to re-enter them. Any credential backup files written during the v4 upgrade are left in place — delete those yourself once you no longer need them.",
+    "This will remove all API keys for this vault from the Obsidian Keychain, data.json, and memory. You will need to re-enter them.",
   "settings.advanced.remove": "Remove",
   "settings.advanced.frameLogDesktopOnlyPath": "(Agent Mode frame logs are desktop-only)",
   "settings.advanced.frameLogsDesktopOnly": "Agent Mode frame logs are available on desktop only.",
@@ -89,22 +89,9 @@ export const settingsUi = {
   "settings.debug.open": "Open",
   "settings.debug.clear": "Clear",
 
-  "settings.selfHost.intro":
-    "Bring your own infrastructure — self-hosted search, web-search providers, and models.",
-  "settings.selfHost.enable": "Enable Self-Host Mode",
-  "settings.selfHost.enableDesc":
-    "Prioritize local / self-hosted models and configure your preferred web-search provider.",
-  "settings.selfHost.enableDescTooltip":
-    "Use your own infrastructure for full control and offline use.",
-  "settings.selfHost.privacyTitle": "Privacy-first.",
-  "settings.selfHost.privacyBody":
-    "While Self-Host is on, configured cloud models are flagged with a warning and sorted below your local / self-hosted models. They stay selectable — you decide whether to use them.",
   "settings.selfHost.webSearchProviders": "Web search providers",
-  "settings.selfHost.selfHostedModels": "Self-hosted models",
-  "settings.selfHost.modelsTitle": "Chat models",
-  "settings.selfHost.modelsDesc":
-    "Add local / self-hosted models as an OpenAI-compatible endpoint in BYOK.",
-  "settings.selfHost.openByok": "Open BYOK",
+  "settings.webSearch.intro":
+    "The agent chat web-search tool uses the service selected here. Search becomes available once the selected provider's key is filled in; every query still shows an approval card first.",
   "settings.selfHost.searchProvider": "Web Search Provider",
   "settings.selfHost.searchProviderDesc": "Your key turns this into an agent skill parameter.",
   "settings.selfHost.signUp": "Sign up",
@@ -126,12 +113,6 @@ export const settingsUi = {
   "settings.instructions.vaultDescription":
     "Your custom instructions for the agent to follow for every vault interaction. Saved to AGENTS.md in your vault root, which you can also edit as a note.",
   "settings.instructions.openAgentsFile": "Open AGENTS.md",
-
-  "settings.legacyPrompts.prefix": "Agent Mode now reads your instructions from",
-  "settings.legacyPrompts.singleSuffix": ". Your saved system prompt is still in",
-  "settings.legacyPrompts.manySuffix": ". Your {count} saved system prompts are still in",
-  "settings.legacyPrompts.tail":
-    "— open one there and paste anything you want the agent to keep following.",
 
   "settings.folderChange.heading": "Change Vault Agent folder",
   "settings.folderChange.prefix": "Vault Agent will keep new chats and data under",

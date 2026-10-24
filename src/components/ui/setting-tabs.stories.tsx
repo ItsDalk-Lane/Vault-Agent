@@ -9,7 +9,7 @@ const TABS = [
   { id: "skills", label: "Skills", icon: <Sparkle className="tw-size-5" /> },
   { id: "mcp", label: "MCP Servers", icon: <Plug className="tw-size-5" /> },
   { id: "command", label: "Commands", icon: <Command className="tw-size-5" /> },
-  { id: "selfhost", label: "Self-Host", icon: <ShieldCheck className="tw-size-5" /> },
+  { id: "search", label: "Web Search", icon: <ShieldCheck className="tw-size-5" /> },
   { id: "advanced", label: "Advanced", icon: <Wrench className="tw-size-5" /> },
 ];
 

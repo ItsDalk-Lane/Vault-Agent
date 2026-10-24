@@ -15,6 +15,13 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+/* 聊天视图底部留白按主题默认值缩小三分之一（32px → ~21px），输入框更贴近界面底边；
+   移动端键盘/安全区规则特异性更高，不受影响。
+   https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 */
+.workspace-leaf-content[data-type="vault-agent-chat-view"] .view-content {
+  padding-bottom: calc(var(--size-4-8, 32px) * 2 / 3);
+}
+
 /* Obsidian owns this host element and already resizes mobile workspace tabs
    for the keyboard. Its safe-area bottom padding would reserve that space
    again and clip Quick Chat's input. Obsidian's view spacing also clears its

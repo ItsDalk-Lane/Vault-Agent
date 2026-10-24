@@ -2,13 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { ModelSelector } from "./ModelSelector";
 import type { ModelSelectorEntry } from "./ModelSelector";
-const cloudWarningProps: Array<{ stopPropagation?: boolean }> = [];
-jest.mock("@/components/ui/SelfHostCloudWarningIcon", () => ({
-  SelfHostCloudWarningIcon: (props: { stopPropagation?: boolean }) => {
-    cloudWarningProps.push(props);
-    return <span data-testid="cloud-warning" />;
-  },
-}));
 
 const model = (over: Partial<ModelSelectorEntry>): ModelSelectorEntry => ({
   name: "gpt-5",
@@ -20,7 +13,6 @@ const model = (over: Partial<ModelSelectorEntry>): ModelSelectorEntry => ({
 describe("ModelSelector", () => {
   describe("ModelSelector()", () => {
     beforeEach(() => {
-      cloudWarningProps.length = 0;
       jest.spyOn(window, "open").mockImplementation(() => null);
     });
     afterEach(() => jest.restoreAllMocks());
@@ -32,21 +24,6 @@ describe("ModelSelector", () => {
       fireEvent.click(await screen.findByRole("menuitem", { name: /gpt-5/ }));
       expect(onChange).toHaveBeenCalledWith("gpt-5|openai");
       expect(window.open).not.toHaveBeenCalled();
-    });
-
-    it("shows the cloud-egress warning on the collapsed trigger when the current model needs it", () => {
-      const cloud = model({ _needsSelfHostWarning: true });
-      render(<ModelSelector value="gpt-5|openai" onChange={jest.fn()} models={[cloud]} />);
-
-      expect(screen.getByTestId("cloud-warning")).toBeTruthy();
-      expect(cloudWarningProps.some((p) => p.stopPropagation === false)).toBe(true);
-    });
-
-    it("hides the warning when the current model is self-hostable", () => {
-      const local = model({ _needsSelfHostWarning: false });
-      render(<ModelSelector value="gpt-5|openai" onChange={jest.fn()} models={[local]} />);
-
-      expect(screen.queryByTestId("cloud-warning")).toBeNull();
     });
 
     it("renders a row's subtitle under its name and keeps it off the collapsed trigger", async () => {

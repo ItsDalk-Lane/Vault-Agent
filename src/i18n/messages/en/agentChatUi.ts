@@ -3,9 +3,6 @@ export const agentChatUi = {
   "agentChat.background.stop": "Stop all background tasks",
   "agentChat.background.stopping": "Stopping background tasks…",
   "agentChat.background.stopFailed": "Could not stop background tasks. Please retry.",
-  "agentChat.steer.submit": "Supplement current work",
-  "agentChat.steer.pending": "Adding after this tool round…",
-  "agentChat.steer.textOnly": "Text only. Ordinary Send still queues the next message.",
 
   "agentChat.rename": "Rename",
   "agentChat.close": "Close",
@@ -23,6 +20,7 @@ export const agentChatUi = {
   "agentChat.renameChat.chatTitle": "Chat title",
 
   "agentChat.messageActions.insertAtCursor": "Insert / Replace at cursor",
+  "agentChat.messageActions.branch": "Branch from this turn",
   "agentChat.chatMessages.pendingActions": "Pending agent actions",
 
   "agentChat.contextMeter.usage": "Usage",
@@ -59,6 +57,7 @@ export const agentChatUi = {
   "agentChat.trail.reasoning": "Reasoning",
 
   "agentChat.turnDuration.workedFor": "Worked for",
+  "agentChat.turnSummary.toolCalls": "{n} tool uses",
   "agentChat.turnDuration.agentWorking": "Agent is working",
   "agentChat.turnDuration.hoursMinutesSeconds": "{hours}h {minutes}m {seconds}s",
   "agentChat.turnDuration.minutesSeconds": "{minutes}m {seconds}s",
@@ -81,7 +80,6 @@ export const agentChatUi = {
 
   "agentChat.history.restoreUnavailable":
     "The original chat could not be restored. Its records and unsent input are preserved. After fixing the problem, close this read-only tab and reopen the chat from history.",
-  "agentChat.history.importedTextOnly": "Imported historical chat (text only)",
   "agentChat.history.failed": "Failed to {action}.",
   "agentChat.history.action.loadChatHistory": "load chat history",
   "agentChat.history.action.loadChat": "load chat",
@@ -89,7 +87,6 @@ export const agentChatUi = {
   "agentChat.history.action.deleteChat": "delete chat",
   "agentChat.history.action.pinChat": "pin chat",
   "agentChat.history.action.unpinChat": "unpin chat",
-  "agentChat.history.action.openChatSource": "open chat source",
   "agentChat.history.action.readBookmarks": "read bookmarks",
   "agentChat.history.action.bookmarkChat": "bookmark chat",
   "agentChat.history.action.removeBookmark": "remove bookmark",
@@ -148,7 +145,6 @@ export const agentChatUi = {
   "agentChat.recentChats.moreActions": "More actions",
   "agentChat.recentChats.pinChat": "Pin chat",
   "agentChat.recentChats.unpinChat": "Unpin chat",
-  "agentChat.recentChats.openSourceNote": "Open source note",
   "agentChat.recentChats.deleteChat": "Delete chat",
   "agentChat.recentChats.responding": "Responding",
   "agentChat.recentChats.searchChats": "Search chats...",
@@ -213,6 +209,29 @@ export const agentChatUi = {
   "agentChat.permission.runSuffix": ".",
   "agentChat.permission.kind": "Kind: ",
   "agentChat.permission.showInputs": "Show inputs",
+  "agentChat.blockSections.input": "Input",
+  "agentChat.blockSections.command": "Command",
+  "agentChat.blockSections.output": "Output",
+  "agentChat.blockSections.outputN": "Output {n}",
+
+  "agentChat.usage.turnPopupTitle": "This turn",
+  "agentChat.usage.tokenPopupTitle": "Token usage",
+  "agentChat.usage.sessionPopupTitle": "Session statistics",
+  "agentChat.usage.turnCapsuleLabel": "This turn's token usage",
+  "agentChat.usage.model": "Model",
+  "agentChat.usage.cacheHit": "Cache hit",
+  "agentChat.usage.uncachedInput": "Uncached input",
+  "agentChat.usage.cacheRead": "Cache read",
+  "agentChat.usage.output": "Output",
+  "agentChat.usage.modelTime": "Model time",
+  "agentChat.usage.toolTime": "Tool time",
+  "agentChat.usage.ttftAvg": "Avg. first token",
+  "agentChat.usage.outputSpeed": "Output speed",
+  "agentChat.usage.rounds": "{n} rounds",
+  "agentChat.usage.steps": "{n} steps",
+  "agentChat.usage.tokPerSec": "{n} tok/s",
+  "agentChat.usage.cacheHitShort": "Cache hit {pct}%",
+  "agentChat.usage.tokensUnit": "{n} tok",
   "agentChat.permission.unknownAlwaysScope":
     "The agent decides what this covers, and it may keep it for later chats. Undo it in the agent's own settings.",
 
@@ -228,6 +247,10 @@ export const agentChatUi = {
   "agentChat.queuedMessage.imageAttachment": "Image attachment",
   "agentChat.queuedMessage.emptyMessage": "Empty message",
   "agentChat.queuedMessage.remove": "Remove queued message",
+  "agentChat.queuedMessage.edit": "Edit queued message",
+  "agentChat.queuedMessage.insert": "Insert into the running turn",
+  "agentChat.queuedMessage.insertUnavailable": "This message will send after the current turn",
+  "agentChat.queuedMessage.insertFailed": "Could not insert the message. Please retry.",
 
   "agentChat.turnDiff.openNote": "Open note",
   "agentChat.turnDiff.previousChange": "Previous change",

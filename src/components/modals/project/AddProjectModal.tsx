@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProjectContextSourceEditor } from "@/components/project/ProjectContextSourceEditor";
 import { t } from "@/i18n";
 import {
-  agentsFileIsUninitialized,
   captureInstructionFiles,
   readAgentsFile,
   restoreInstructionFiles,
@@ -53,20 +52,12 @@ export function AddProjectModalContent({
     [record]
   );
   const [instructions, setInstructions] = useState<string | null>(null);
-  const [draftOwnsLegacyPrompt, setDraftOwnsLegacyPrompt] = useState(false);
-  const legacyPrompt = initialProject.systemPrompt ?? "";
   useEffect(() => {
     if (instructionsFolder === null) return;
     let cancelled = false;
-    void Promise.all([
-      readAgentsFile(app, instructionsFolder),
-      agentsFileIsUninitialized(app, instructionsFolder),
-    ])
-      .then(([content, uninitialized]) => {
-        if (cancelled) return;
-        const seedFromLegacy = uninitialized && legacyPrompt.trim().length > 0;
-        setInstructions(seedFromLegacy ? legacyPrompt : content);
-        setDraftOwnsLegacyPrompt(seedFromLegacy);
+    void readAgentsFile(app, instructionsFolder)
+      .then((content) => {
+        if (!cancelled) setInstructions(content);
       })
       .catch((error) => {
         logError("Failed to read project instructions.", error);
@@ -74,7 +65,7 @@ export function AddProjectModalContent({
     return () => {
       cancelled = true;
     };
-  }, [app, instructionsFolder, legacyPrompt]);
+  }, [app, instructionsFolder]);
 
   const handleEditProjectContext = (projectDraft: ProjectConfig) => {
     const modal = new ContextManageModal(
@@ -141,7 +132,6 @@ export function AddProjectModalContent({
     const saveData = {
       ...formData,
       name: trimmedName,
-      ...(draftOwnsLegacyPrompt ? { systemPrompt: "" } : {}),
     };
 
     if (!saveData.name) {

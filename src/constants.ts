@@ -6,7 +6,6 @@ import { PromptSortStrategy } from "./types";
 
 export const CHAT_VIEWTYPE = "vault-agent-chat-view";
 export const CHAT_AGENT_VIEWTYPE = "vault-agent-chat-view";
-export const AGENT_CHAT_MODE = "agent";
 export const RELEVANT_NOTES_VIEWTYPE = "vault-agent-relevant-notes-view";
 export const PLAN_PREVIEW_VIEW_TYPE = "vault-agent-plan-preview-view";
 export const TURN_DIFF_VIEW_TYPE = "vault-agent-turn-diff-view";
@@ -38,7 +37,6 @@ export const AI_SENDER = "ai";
 export const VAULT_AGENT_FOLDER_ROOT = "vault-agent";
 export const DEFAULT_VAULT_AGENT_FOLDER = VAULT_AGENT_FOLDER_ROOT;
 export const DEFAULT_SKILLS_FOLDER = `${VAULT_AGENT_FOLDER_ROOT}/skills`;
-export const VAULT_AGENT_CONVERSATION_TAG = "vault-agent-conversation";
 export const DEFAULT_QA_EXCLUSIONS_SETTING = VAULT_AGENT_FOLDER_ROOT;
 export const DEFAULT_SYSTEM_PROMPT = `You are Vault Agent, a helpful assistant that integrates AI to Obsidian note-taking.
   1. Never mention that you do not have access to something. Always rely on the user provided context.
@@ -599,7 +597,6 @@ export const DEFAULT_SETTINGS: VaultAgentSettings = {
   stream: true,
   vaultAgentFolder: DEFAULT_VAULT_AGENT_FOLDER,
   vaultAgentRootHistory: [],
-  autosaveChat: true,
   defaultOpenArea: DEFAULT_OPEN_AREA.VIEW,
   defaultSendShortcut: SEND_SHORTCUT.ENTER,
   language: "auto",
@@ -611,17 +608,13 @@ export const DEFAULT_SETTINGS: VaultAgentSettings = {
   activeModels: BUILTIN_CHAT_MODELS,
   promptSortStrategy: PromptSortStrategy.TIMESTAMP,
   chatHistorySortStrategy: "recent",
-  defaultConversationNoteName: "{$topic}@{$date}_{$time}",
-  projectList: [],
   enableCustomPromptTemplating: true,
-  enableSelfHostMode: false,
   selfHostSearchProvider: "firecrawl",
   firecrawlApiKey: "",
   perplexityApiKey: "",
   parallelApiKey: "",
   exaApiKey: "",
   reasoningEffort: DEFAULT_MODEL_SETTING.REASONING_EFFORT,
-  defaultSystemPromptTitle: "",
   agentMode: {
     byok: {},
     activeBackend: "pi",

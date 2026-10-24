@@ -1,3 +1,5 @@
+import { localData } from "./en/localData";
+import { localData as zhLocalData } from "./zh-cn/localData";
 import { agentChatUi } from "./en/agentChatUi";
 import { agentInfraUi } from "./en/agentInfraUi";
 import { settingsUi } from "./en/settingsUi";
@@ -11,6 +13,7 @@ import { zhCn as zhShell } from "./zh-cn/shell";
 
 export const en = {
   ...shell,
+  ...localData,
   ...settingsUi,
   ...agentChatUi,
   ...sharedUi,
@@ -21,6 +24,7 @@ export type MessageKey = keyof typeof en;
 
 export const zhCn: Record<MessageKey, string> = {
   ...zhShell,
+  ...zhLocalData,
   ...zhSettingsUi,
   ...zhAgentChatUi,
   ...zhSharedUi,

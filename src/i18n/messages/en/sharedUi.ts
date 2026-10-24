@@ -10,23 +10,15 @@ export const sharedUi = {
   "controls.recoveryAbort": "End the unfinished work",
   "controls.recoveryReadOnly":
     "You can view and export this chat. Resolve the issue described above before continuing.",
-  "controls.legacyReadOnly":
-    "This old chat is read-only. Import it as a new chat to continue; the original stays unchanged.",
   "controls.piReadOnlyHistory":
     "This chat is preserved as read-only history. You can view or export it; continue your work in a new chat.",
-  "controls.importLegacy": "Import as a new chat",
-  "controls.exportArchive": "Export full chat backup",
+  "controls.exportArchive": "Export chat (JSON)",
   "controls.rolloverSession": "Summarize and start a new chat",
   "controls.rolloverDescription":
     "Create a summary with the current model and open a new chat from it? The original chat will remain available as read-only history. Context compression does not reduce the original chat file. Finish all tasks and pending decisions first.",
   "controls.rolloverCompleted":
     "The new chat is ready. The original is preserved as read-only history.",
   "controls.rolloverFailed": "The summarized chat could not be opened.",
-  "controls.importArchive": "Import chat backup",
-  "controls.importArchiveFailed":
-    "The chat backup could not be imported. The file must be a valid, complete backup of at most 8 MiB.",
-  "controls.importLegacyFailed":
-    "The old chat could not be imported. Its original record is unchanged.",
   "ui.common.advanced": "Advanced",
   "ui.common.close": "Close",
   "ui.common.remove": "Remove",
@@ -67,9 +59,6 @@ export const sharedUi = {
   "ui.model.effort.title": "Model · effort",
   "ui.model.effort.label": "Effort",
   "ui.model.effort.na": "n/a",
-  "ui.model.selfHostWarning":
-    "Bypasses Self-Host Mode — sends prompts to the cloud. Pick a self-hosted option to keep everything on your machine.",
-
   "ui.model.recommended": "Recommended",
   "ui.model.selfHost": "Self Host",
   "ui.model.moreProviders": "More providers",
@@ -77,7 +66,7 @@ export const sharedUi = {
   "ui.model.addProvider": "Add a provider",
   "ui.model.addProviderAria": "Add {name} provider",
   "ui.model.addCustomProvider": "Add a custom provider",
-  "ui.model.pickProvider": "Pick a provider to configure.",
+  "ui.model.pickProvider": "Choose a provider from the built-in catalog, or add a custom service.",
   "ui.model.searchProviders": "Search providers…",
   "ui.model.customEndpoint": "custom endpoint",
   "ui.model.family.claude": "Claude family",
@@ -90,8 +79,6 @@ export const sharedUi = {
 
   "ui.model.displayName": "Display name",
   "ui.model.apiKey": "API key",
-  "ui.model.verified": "Verified",
-  "ui.model.verificationFailed": "Verification failed",
   "ui.model.apiKeyRequiredForProvider": "An API key is required for this provider.",
   "ui.model.pasteApiKey": "Paste your API key",
   "ui.model.clear": "Clear",
@@ -102,17 +89,8 @@ export const sharedUi = {
   "ui.model.removeProviderFailed": "Failed to remove provider.",
   "ui.model.removeProviderConfirm":
     "Remove {provider}? This also removes all of its models from every model picker.",
-  "ui.model.checking": "Checking…",
-  "ui.model.noKey": "No key",
-  "ui.model.invalidKey": "Invalid key",
-  "ui.model.checkFailed": "Check failed",
-  "ui.model.verifyingProviders": "Verifying providers…",
-  "ui.model.couldNotVerify": "Could not verify this provider. Reopen this tab to retry.",
   "ui.model.byokTitle": "Bring Your Own Key",
   "ui.model.byokSubtitle": "Set up your own providers and models to use in Vault Agent.",
-  "ui.model.selfHostOnTitle": "Self-Host Mode is on.",
-  "ui.model.selfHostOnBody":
-    "Cloud providers stay available but are flagged and listed below your local and self-hosted endpoints — their prompts leave your machine. You decide whether to use them.",
   "ui.model.noProviders": "No providers yet — click + Add a provider to start.",
   "ui.model.failedRemoveModel": "Failed to remove model.",
   "ui.model.removeModelConfirm": "Remove {model} from {provider}?",
@@ -125,28 +103,7 @@ export const sharedUi = {
   "ui.model.removeModelAria": "Remove {model}",
   "ui.model.editKey": "Edit key",
   "ui.model.modelId": "Model ID",
-  "ui.model.loadingModels": "Loading models…",
 
-  "ui.model.err.authentication": "Authentication failed — check your API key.",
-  "ui.model.err.rateLimited": "Rate limited — try again in a moment.",
-  "ui.model.err.unreadable": "Endpoint returned an unreadable response.",
-  "ui.model.err.noModelList": "Endpoint did not return a model list.",
-  "ui.model.err.baseUrlRequired": "Enter a base URL before fetching models.",
-  "ui.model.err.timeout": "Timed out after {ms}ms",
-  "ui.model.err.http": "HTTP {status}",
-  "ui.model.err.httpWithSnippet": "HTTP {status}: {snippet}",
-  "ui.model.err.addV1Hint":
-    "{message} If your endpoint serves the OpenAI API under /v1, add it to the base URL.",
-  "ui.model.err.httpAtUrl": "HTTP {status} from {url}",
-  "ui.model.err.staleCatalogEndpoint":
-    "HTTP {status} from {url}. This catalog address may be outdated — the runtime records {endpoint} for this provider; try it as the base URL.",
-  "ui.model.err.modelListUnavailable":
-    "{url} returned HTTP {status}. This provider does not expose a model list; save it and add the model IDs manually.",
-  "ui.model.err.anthropicKeyRequired": "An API key is required to verify this Anthropic provider.",
-  "ui.model.err.googleKeyRequired": "An API key is required to verify this Google provider.",
-  "ui.model.err.openaiBaseUrlRequired":
-    "A base URL is required to verify this OpenAI-compatible provider.",
-  "ui.model.err.missingApiKey": "API key is missing. Configure this provider to enter it again.",
   "ui.model.dest.local": "A server on this computer",
   "ui.model.dest.network": "A server on your local network",
 
@@ -178,11 +135,7 @@ export const sharedUi = {
   "ui.chat.history.none": "No chat history",
   "ui.chat.history.showing": "Showing {shown} of {total} — scroll for more",
   "ui.chat.history.responding": "Responding",
-  "ui.chat.history.confirmDelete": "Confirm Delete",
-  "ui.chat.history.cancelDelete": "Cancel deletion",
   "ui.chat.history.closeSession": "Close session",
-  "ui.chat.history.openSource": "Open the source file",
-  "ui.chat.history.deleteFile": "delete file",
   "ui.chat.sessionRunning": "Session is running",
   "ui.chat.sessionLive": "Session live",
   "ui.chat.toolCall.readingWithName": "Reading {name}",
@@ -328,17 +281,6 @@ export const sharedUi = {
   "ui.project.err.folderNotFound": "Project folder not found: {path}",
   "ui.project.err.notFound": "Project not found: {id}",
 
-  "ui.migration.title": "Projects",
-  "ui.migration.detailsMigrated": "Migrated projects are in {folder}.",
-  "ui.migration.allOne": "All {count} project was migrated to note files.",
-  "ui.migration.allMany": "All {count} projects were migrated to note files.",
-  "ui.migration.partialOne": "{count} project was migrated; {failed} could not be migrated.",
-  "ui.migration.partialMany": "{count} projects were migrated; {failed} could not be migrated.",
-  "ui.migration.failed": "No projects could be migrated, but recovery copies were created.",
-  "ui.migration.detailsStored": "Stored in {folder}.",
-  "ui.migration.detailsRecover": "Recover the remaining projects from {folder}.",
-  "ui.migration.detailsRecoverAll": "Recover the projects from {folder}.",
-
   "ui.command.name": "Name",
   "ui.command.enterName": "Enter command name",
   "ui.command.prompt": "Prompt",
@@ -371,9 +313,13 @@ export const sharedUi = {
   "ui.byok.formatAnthropic": "Anthropic Messages",
   "ui.byok.formatGoogle": "Google Generative AI",
   "ui.byok.formatChanged": "API format changed to {format}",
-  "ui.byok.fetchModels": "Get model list",
+  "ui.byok.chooseBuiltinModels": "Choose built-in models",
+  "ui.byok.noBuiltinModels":
+    "No built-in models for this provider. Close this list and add a model ID manually.",
+  "ui.model.keyReadFailed": "Could not read the saved key. Retry before editing this provider.",
+  "ui.model.catalogSource": "Catalog source: bundled with the plugin",
   "ui.byok.addModel": "Add model",
-  "ui.byok.empty": "No models yet. Click “Add model” or “Get model list”.",
+  "ui.byok.empty": "No models yet. Choose from the built-in catalog or add a model ID manually.",
   "ui.byok.providerEnabled": "Enable this provider",
   "ui.byok.providerEnabledHelp":
     "When disabled, its models are hidden from model pickers. Your configuration is kept.",
@@ -437,7 +383,7 @@ export const sharedUi = {
   "ui.byok.testNoReply": "The provider did not return a model reply.",
   "ui.byok.testUnknown": "Unable to verify this model: {reason}",
   "ui.byok.selectTitle": "Choose models to add",
-  "ui.byok.selectSubtitle": "These models are available from the provider. Select the ones to add.",
+  "ui.byok.selectSubtitle": "Catalog bundled with this plugin. Updated only with plugin releases.",
   "ui.byok.searchModels": "Search models",
   "ui.byok.selectAll": "Select all",
   "ui.byok.deselectAll": "Deselect all",

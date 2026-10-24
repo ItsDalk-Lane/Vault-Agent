@@ -1,4 +1,8 @@
 export const en = {
+  "notice.keychainUnavailable":
+    "The system keychain is unavailable. API keys cannot be loaded or saved.",
+  "notice.keychainReadFailed":
+    "Some API keys could not be loaded from the system keychain. Restart Obsidian and try again.",
   "common.cancel": "Cancel",
   "common.apply": "Apply",
   "common.tryAgain": "Try again.",
@@ -11,7 +15,7 @@ export const en = {
   "settings.tab.skills": "Skills",
   "settings.tab.mcp": "MCP Servers",
   "settings.tab.command": "Command",
-  "settings.tab.selfhost": "Self-Host",
+  "settings.tab.search": "Web Search",
   "settings.tab.advanced": "Advanced",
 
   "settings.basic.general": "General",
@@ -31,28 +35,11 @@ export const en = {
     "If your selected shortcut doesn't work, check Obsidian → Hotkeys to see if another command is using the same key combination.",
   "settings.basic.folderTitle": "Vault Agent folder location",
   "settings.basic.folderDesc":
-    "Where Vault Agent keeps conversations, prompts, memory and more. All sub-folders derive from this.",
+    "Where Vault Agent keeps projects, skills, custom commands and instructions. Chats are stored outside the vault.",
   "settings.basic.folderAria": "Vault Agent folder",
   "settings.basic.applyFolderAria": "Apply Vault Agent folder",
   "settings.basic.openFolder": "Open Vault Agent folder",
   "settings.basic.customInstructions": "Custom instructions",
-  "settings.basic.savingConversations": "Saving conversations",
-  "settings.basic.autosave": "Autosave Chat as Markdown",
-  "settings.basic.autosaveDesc":
-    "Writes each chat to a Markdown note in your vault after every user message and AI response. With this off, agent chats still appear in Recent Chats from session history; only the Markdown note is skipped.",
-  "settings.basic.filenameTemplate": "Conversation Filename Template",
-  "settings.basic.filenameDesc": "Customize the format of saved conversation note names.",
-  "settings.basic.filenameRequired":
-    "Note: All the following variables must be included in the template.",
-  "settings.basic.availableVariables": "Available variables:",
-  "settings.basic.varDate": "Date in YYYYMMDD format",
-  "settings.basic.varTime": "Time in HHMMSS format",
-  "settings.basic.varTopic": "Chat conversation topic",
-  "settings.basic.filenameExample": "Example: {example}",
-  "settings.basic.noteFormatMissing": "Error: Missing required variables: {variables}",
-  "settings.basic.noteFormatIllegal": 'Error: Format contains illegal characters (\\/:*?"<>|)',
-  "settings.basic.noteFormatApplied": "Format applied successfully! Example: {example}",
-  "settings.basic.noteFormatError": "Error applying format: {error}",
   "settings.basic.folderInvalid": "Invalid Vault Agent folder: {reason}",
   "settings.basic.folderSame": "That's already the Vault Agent folder.",
   "settings.basic.folderConflict":
@@ -96,15 +83,10 @@ export const en = {
   "controls.newChat": "New Chat",
   "controls.history": "Chat History",
   "controls.moreActions": "More Actions",
-  "controls.sendFirst": "Send a message to the chat first.",
   "controls.copyChatLink": "Copy chat link",
   "controls.addBookmark": "Add to bookmarks",
-  "controls.saveAsNote": "Save chat as note",
   "controls.reportError": "Report error",
-
-  "notice.savedAsNote": "Chat saved as note.",
-  "notice.nothingToSave": "Nothing to save yet.",
-  "notice.saveFailed": "Failed to save chat as note. Check console for details.",
+  "notice.saveFailed": "Could not export this chat. Check logs and try again.",
   "notice.newChatFailed": "Failed to start a new chat. Please try again.",
   "notice.closeFailed": "Could not close session: {error}",
   "notice.leaveProjectFailed": "Failed to leave project. Please try again.",
@@ -118,13 +100,10 @@ export const en = {
   "notice.linkCopyFailed": "Could not copy chat link.",
   "notice.linkNotFound": "Chat link not found.",
   "notice.openLinkFailed": "Could not open chat link.",
-  "notice.notAgentChat": "This note is not an Agent chat.",
   "notice.startFailed": "Vault Agent failed to start. Check the console for details.",
   "notice.saveSettingsFailed": "Vault Agent failed to save settings. Check logs and try again.",
   "notice.addNoteFailed": "Could not add the note to Agent Chat. Check Vault Agent logs.",
   "notice.createSessionFailed": "Failed to create agent session. Check Vault Agent logs.",
-  "notice.noSavedNote":
-    "This chat has no saved note. Turn on Autosave Chat as Markdown to save chats as notes in your vault.",
   "notice.logCreateFailed": "Failed to create Vault Agent log file.",
   "notice.logCleared": "Vault Agent log cleared.",
   "notice.logClearFailed": "Failed to clear Vault Agent log file.",
@@ -134,7 +113,6 @@ export const en = {
   "notice.unsupportedFileType":
     "Unsupported file type: {extension}. Supported types: md, pdf, canvas, and images.",
   "notice.noActiveLeaf": "No active leaf found.",
-  "notice.openMarkdownFailed": "Failed to open a markdown view.",
   "notice.messageInserted": "Message inserted into the active note.",
   "notice.noActiveNote": "No active note found.",
   "notice.logWriteFailed": "Could not write the Vault Agent log file: {error}",
@@ -153,11 +131,6 @@ export const en = {
     'System prompt "{oldName}" was renamed to "{newName}". Updated current chat selection.',
   "notice.systemPromptMovedOut":
     'System prompt "{name}" was moved out of the prompts folder. Cleared current chat selection.',
-  "chatDelete.confirm": "Delete this chat from Vault Agent?",
-  "chatDelete.confirmWithAgent":
-    "Delete this chat from Vault Agent? {agent} may keep its own copy of this conversation on this computer.",
-  "chatDelete.notice": "Chat deleted from Vault Agent.",
-  "chatDelete.noticeWithAgent": "Chat deleted from Vault Agent. {agent} may keep its own copy.",
   "sound.piano": "Piano key",
   "sound.marimba": "Marimba",
   "sound.bell": "Bell",

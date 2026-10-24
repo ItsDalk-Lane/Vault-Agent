@@ -17,7 +17,7 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
   "settings.advanced.removing": "正在删除……",
   "settings.advanced.forgetSecretsTitle": "⚠️ 忘记所有密钥",
   "settings.advanced.forgetSecretsBody":
-    "这将从此库的 Obsidian Keychain、data.json 和内存中移除所有 API 密钥。你需要重新输入。v4 升级期间写入的凭据备份文件会保留在原处——不再需要时请自行删除。",
+    "这将从此库的 Obsidian Keychain、data.json 和内存中移除所有 API 密钥。你需要重新输入。",
   "settings.advanced.remove": "移除",
   "settings.advanced.frameLogDesktopOnlyPath": "（Agent Mode 帧日志仅在桌面端可用）",
   "settings.advanced.frameLogsDesktopOnly": "Agent Mode 帧日志仅在桌面端可用。",
@@ -86,18 +86,9 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
   "settings.debug.open": "打开",
   "settings.debug.clear": "清空",
 
-  "settings.selfHost.intro": "使用你自己的基础设施——自托管搜索、网络搜索提供商和模型。",
-  "settings.selfHost.enable": "启用自托管模式",
-  "settings.selfHost.enableDesc": "优先使用本地 / 自托管模型，并配置你选用的网络搜索服务。",
-  "settings.selfHost.enableDescTooltip": "使用你自己的基础设施，获得完全控制与离线使用能力。",
-  "settings.selfHost.privacyTitle": "隐私优先。",
-  "settings.selfHost.privacyBody":
-    "自托管开启期间，已配置的云端模型会带有警告标记，并排在本地 / 自托管模型之后。它们仍可选择，是否使用由你决定。",
   "settings.selfHost.webSearchProviders": "网络搜索提供商",
-  "settings.selfHost.selfHostedModels": "自托管模型",
-  "settings.selfHost.modelsTitle": "对话模型",
-  "settings.selfHost.modelsDesc": "在 BYOK 中将本地 / 自托管模型添加为 OpenAI 兼容端点。",
-  "settings.selfHost.openByok": "打开 BYOK",
+  "settings.webSearch.intro":
+    "聊天中的网页搜索工具使用这里选定的服务。填好所选供应商的密钥后搜索即可用；每次查询仍会先显示批准卡。",
   "settings.selfHost.searchProvider": "网络搜索提供商",
   "settings.selfHost.searchProviderDesc": "你的密钥会将其转换为 Agent 技能参数。",
   "settings.selfHost.signUp": "注册",
@@ -118,11 +109,6 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
   "settings.instructions.vaultDescription":
     "你为 Agent 自定义的指令，在每次库交互中生效。保存到库根目录的 AGENTS.md，你也可以将其作为笔记编辑。",
   "settings.instructions.openAgentsFile": "打开 AGENTS.md",
-
-  "settings.legacyPrompts.prefix": "Agent Mode 现在从",
-  "settings.legacyPrompts.singleSuffix": " 读取指令。你保存的系统提示词仍位于",
-  "settings.legacyPrompts.manySuffix": " 读取指令。你保存的 {count} 个系统提示词仍位于",
-  "settings.legacyPrompts.tail": "——打开其中一个，粘贴任何你希望 Agent 继续遵循的内容。",
 
   "settings.folderChange.heading": "更改 Vault Agent 文件夹",
   "settings.folderChange.prefix": "Vault Agent 会将新对话和数据保存在",

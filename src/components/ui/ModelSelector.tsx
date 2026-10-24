@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModelDisplay } from "@/components/ui/model-display";
-import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { checkModelApiKey, err2String } from "@/lib/model-display-utils";
 import type { ModelApiKeySettings } from "@/lib/model-display-utils";
 import { getModelKeyFromModel } from "@/lib/model-key";
@@ -22,7 +21,6 @@ export type ModelSelectorEntry = CustomModel & {
   _group?: string;
   _backendId?: string;
   _subtitle?: string;
-  _needsSelfHostWarning?: boolean;
 };
 
 interface ModelSelectorProps {
@@ -73,9 +71,6 @@ export function ModelSelector({
               <span className="tw-truncate">{t("ui.model.selectModel")}</span>
             )}
           </div>
-          {currentModel?._needsSelfHostWarning && (
-            <SelfHostCloudWarningIcon className="tw-mt-0.5" stopPropagation={false} />
-          )}
           {!disabled && <ChevronDown className="tw-mt-0.5 tw-size-5 tw-shrink-0" />}
         </Button>
       </DropdownMenuTrigger>
@@ -132,7 +127,6 @@ export function ModelSelector({
                 <div className="tw-min-w-0">
                   <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
                     <ModelDisplay model={model} iconSize={12} />
-                    {model._needsSelfHostWarning && <SelfHostCloudWarningIcon />}
                   </div>
                   {model._subtitle && (
                     <div className="tw-truncate tw-text-xs tw-text-muted">{model._subtitle}</div>

@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown } from "lucide-react";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Button } from "@/components/ui/button";
-import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelDisplay } from "@/components/ui/model-display";
 import type { ModelSelectorEntry } from "@/components/ui/ModelSelector";
@@ -185,9 +184,6 @@ export function ModelEffortPicker({ override, className }: ModelEffortPickerProp
                 <span className="tw-text-xs tw-text-muted">{currentEffortLabel}</span>
               </>
             )}
-            {currentModel?._needsSelfHostWarning && (
-              <SelfHostCloudWarningIcon stopPropagation={false} />
-            )}
           </div>
           {!disabled && <ChevronDown className="tw-mt-0.5 tw-size-4 tw-shrink-0" />}
         </Button>
@@ -250,7 +246,6 @@ export function ModelEffortPicker({ override, className }: ModelEffortPickerProp
                     <div className="tw-min-w-0">
                       <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
                         <ModelDisplay model={entry} iconSize={12} />
-                        {entry._needsSelfHostWarning && <SelfHostCloudWarningIcon />}
                       </div>
                       {entry._subtitle && (
                         <div className="tw-truncate tw-text-xs tw-text-muted">

@@ -7,7 +7,6 @@ jest.mock("@/projects/state", () => ({
 }));
 
 const readAgentsFile = jest.fn(async (): Promise<string> => "");
-const agentsFileIsUninitialized = jest.fn(async (): Promise<boolean> => true);
 const captureInstructionFiles = jest.fn(
   async (_app: unknown, _folder: string): Promise<InstructionFilesSnapshot> => ({
     agents: null,
@@ -21,7 +20,6 @@ const writeAgentsFile = jest.fn(
 );
 jest.mock("@/instructions/agentsFile", () => ({
   readAgentsFile: () => readAgentsFile(),
-  agentsFileIsUninitialized: () => agentsFileIsUninitialized(),
   captureInstructionFiles: (app: unknown, folder: string) => captureInstructionFiles(app, folder),
   restoreInstructionFiles: (app: unknown, folder: string, snapshot: InstructionFilesSnapshot) =>
     restoreInstructionFiles(app, folder, snapshot),
@@ -77,7 +75,6 @@ describe("AddProjectModal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     readAgentsFile.mockResolvedValue("");
-    agentsFileIsUninitialized.mockResolvedValue(true);
     captureInstructionFiles.mockResolvedValue({ agents: null });
     writeAgentsFile.mockResolvedValue(undefined);
     getCachedProjectRecordById.mockReturnValue({
@@ -88,10 +85,10 @@ describe("AddProjectModal", () => {
   });
 
   describe("AddProjectModalContent", () => {
-    it("shows legacy project.md instructions, so an upgraded project is not edited blank", async () => {
+    it("shows no instructions when the project has no AGENTS.md https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       renderModal();
 
-      expect((await findInstructionsBox()).value).toBe("Cite only #verified notes.");
+      expect((await findInstructionsBox()).value).toBe("");
     });
 
     it("writes nothing while the dialog is merely open, so Cancel leaves the project untouched", async () => {
@@ -101,7 +98,7 @@ describe("AddProjectModal", () => {
       expect(writeAgentsFile).not.toHaveBeenCalled();
     });
 
-    it("clears the legacy copy on save, completing the move the editor previewed", async () => {
+    it("saves only the explicitly edited instructions and keeps project metadata unchanged https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { onSave } = renderModal();
       fireEvent.change(await findInstructionsBox(), { target: { value: "New rules" } });
 
@@ -110,12 +107,13 @@ describe("AddProjectModal", () => {
       await waitFor(() =>
         expect(writeAgentsFile).toHaveBeenCalledWith(expect.anything(), PROJECT_FOLDER, "New rules")
       );
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ systemPrompt: "" }));
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ systemPrompt: "Cite only #verified notes." })
+      );
     });
 
-    it("respects an AGENTS.md the user deliberately emptied, rather than resurrecting the legacy text", async () => {
+    it("preserves an intentionally empty instructions file", async () => {
       readAgentsFile.mockResolvedValue("");
-      agentsFileIsUninitialized.mockResolvedValue(false);
       const { onSave } = renderModal();
 
       expect((await findInstructionsBox()).value).toBe("");
@@ -128,9 +126,8 @@ describe("AddProjectModal", () => {
       );
     });
 
-    it("keeps the legacy copy when AGENTS.md already had its own body", async () => {
+    it("uses the instructions file without rewriting project metadata", async () => {
       readAgentsFile.mockResolvedValue("Rules the user wrote directly.");
-      agentsFileIsUninitialized.mockResolvedValue(false);
       const { onSave } = renderModal();
       await findInstructionsBox();
 
@@ -144,7 +141,6 @@ describe("AddProjectModal", () => {
 
     it("restores the folder's instruction files when the project update is rejected", async () => {
       readAgentsFile.mockResolvedValue("Old rules");
-      agentsFileIsUninitialized.mockResolvedValue(false);
       const snapshot = { agents: "Old rules" };
       captureInstructionFiles.mockResolvedValue(snapshot);
       const onSave = jest.fn().mockRejectedValue(new Error("A project with that name exists"));

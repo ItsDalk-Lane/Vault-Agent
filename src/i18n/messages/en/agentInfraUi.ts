@@ -2,8 +2,6 @@ export const agentInfraUi = {
   "agentInfra.skills.row.enabled": "Enable {name} in Vault Agent",
   "agentInfra.skills.empty.body":
     "Add a subfolder containing SKILL.md to the skills folder below, then enable and manage it here.",
-  "agentInfra.skills.manager.legacyReadOnly":
-    "Skills in legacy locations are read-only. Copy one into the skills folder to enable or edit it.",
   "agentInfra.skills.title": "Skills",
   "agentInfra.skills.intro":
     "Skills are reusable instructions for Vault Agent, such as reviewing a note or preparing a summary. Add them to your skills folder and manage their enabled state here.",
@@ -37,8 +35,6 @@ export const agentInfraUi = {
   "agentInfra.skills.notice.enableFailed": "Could not enable {agent}: {error}",
   "agentInfra.skills.notice.disableFailed": "Could not disable {agent}: {error}",
   "agentInfra.skills.delete.title": "Delete {name}?",
-  "agentInfra.skills.delete.projectWarningFolder":
-    "This removes the skill folder from your project. Vault sync / git is the only rollback path.",
   "agentInfra.skills.delete.canonicalWarning":
     "This removes the skill and its supporting files from your skills folder. Use your vault backup or version history to recover it.",
   "agentInfra.skills.delete.willRemove": "Will remove:",
@@ -97,8 +93,6 @@ export const agentInfraUi = {
   "agentInfra.skills.manager.eperm": "Permission denied while creating a skill link.",
   "agentInfra.skills.manager.unknownBuiltin": "Unknown built-in skill.",
   "agentInfra.skills.manager.builtinUpdateFailed": "Could not update built-in skill files.",
-  "agentInfra.skills.builtin.removeRetiredFailed":
-    "Could not remove retired built-in skill {name}.",
   "agentInfra.skills.builtin.occupies": "A user-owned skill occupies {name}.",
   "agentInfra.skills.builtin.installFailed": "Could not install built-in skill {name}.",
   "agentInfra.skills.builtin.removeDisabledFailed":
