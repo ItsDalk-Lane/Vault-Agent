@@ -10,7 +10,7 @@ const noop = async () => {};
 const noopSync = () => {};
 
 const items: GlobalRecentChatsSectionProps["items"] = Array.from({ length: 60 }, (_, index) => ({
-  id: `recent-chat-${index + 1}`,
+  id: `root-recent-${index + 1}`,
   title:
     index === 3
       ? "Plan the fall product launch and collect the open questions"
@@ -24,7 +24,6 @@ const defaultArgs: GlobalRecentChatsSectionProps = {
   onLoadChat: noop,
   onUpdateTitle: noop,
   onDeleteChat: noop,
-  onOpenSourceFile: noop,
   onCopyChatLink: noop,
   onSetChatPinned: noop,
   getChatBookmarkState: async () => "not-bookmarked",
@@ -140,14 +139,14 @@ export const BookmarkedChatMenu: StoryObj<GlobalRecentChatsSectionProps> = {
   render: OpenMenuFirstRowShelf,
 };
 
-export const UnsavedChatMenu: StoryObj<GlobalRecentChatsSectionProps> = {
+export const LocalChatMenu: StoryObj<GlobalRecentChatsSectionProps> = {
   args: {
     items: [
       {
         ...items[0],
-        id: "copilot-agent-session://pi/session-1",
+        id: "root-local",
         backendId: "pi",
-        title: "Chat with no note",
+        title: "Local chat",
       },
       ...items.slice(1, 3),
     ],

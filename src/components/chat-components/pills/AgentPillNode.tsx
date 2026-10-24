@@ -8,9 +8,6 @@ import {
 } from "lexical";
 import { Bot } from "lucide-react";
 import React from "react";
-import { useSettingsValue } from "@/settings/model";
-import { useCloudAgentIds } from "@/components/chat-components/context/CloudAgentContext";
-import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { BasePillNode, SerializedBasePillNode } from "./BasePillNode";
 import { PillBadge } from "./PillBadge";
 
@@ -92,14 +89,10 @@ export class AgentPillNode extends BasePillNode {
 }
 
 export function AgentPillContent({ backendId, label }: { backendId: string; label: string }) {
-  const { enableSelfHostMode } = useSettingsValue();
-  const cloudAgentIds = useCloudAgentIds();
-  const showWarning = enableSelfHostMode && cloudAgentIds.has(backendId);
   return (
     <PillBadge>
       <Bot className="tw-size-3" />
       {label}
-      {showWarning && <SelfHostCloudWarningIcon />}
     </PillBadge>
   );
 }

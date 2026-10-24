@@ -7,16 +7,18 @@ interface MessageActionButtonProps {
   label: string;
   icon: LucideIcon;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 export const MessageActionButton: React.FC<MessageActionButtonProps> = ({
   label,
   icon: Icon,
   onClick,
+  disabled,
 }) => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <Button onClick={onClick} variant="ghost2" size="fit" title={label}>
+      <Button onClick={onClick} variant="ghost2" size="fit" title={label} disabled={disabled}>
         <Icon className="tw-size-4" />
       </Button>
     </TooltipTrigger>

@@ -4,9 +4,8 @@ import { ProjectConfig } from "@/aiParams";
 import { AddProjectModal } from "@/components/modals/project/AddProjectModal";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { isClaudeImportOnly, openAgentsFile } from "@/instructions/agentsFile";
+import { openAgentsFile } from "@/instructions/agentsFile";
 import { t } from "@/i18n";
-import { moveProjectPromptToAgentsFile } from "@/projects/moveProjectPrompt";
 import { cn } from "@/lib/utils";
 import { logError } from "@/logger";
 import { getProjectAnchorFromConfigPath } from "@/projects/projectPaths";
@@ -220,17 +219,8 @@ function ProjectFilesSection({ app, project, onClose }: ProjectFilesSectionProps
         (child): child is TFile =>
           child instanceof TFile &&
           !child.name.startsWith(".") &&
-          !HIDDEN_BASENAMES.has(child.name.toLowerCase()) &&
-          child.name.toLowerCase() !== "claude.md"
+          !HIDDEN_BASENAMES.has(child.name.toLowerCase())
       );
-      const claude = folder.children.find(
-        (child): child is TFile =>
-          child instanceof TFile && child.name.toLowerCase() === "claude.md"
-      );
-      if (claude) {
-        const content = await app.vault.read(claude).catch(() => "");
-        if (!isClaudeImportOnly(content)) list.push(claude);
-      }
       if (!cancelled) setFiles(list.sort((a, b) => a.name.localeCompare(b.name)));
     })();
     return () => {
@@ -252,14 +242,13 @@ function ProjectFilesSection({ app, project, onClose }: ProjectFilesSectionProps
     const record = getCachedProjectRecordById(project.id);
     if (!record) return;
     onClose();
-    void moveProjectPromptToAgentsFile(app, record)
-      .then(() =>
-        openAgentsFile(app, getProjectAnchorFromConfigPath(record.filePath).projectFolderPath)
-      )
-      .catch((error) => {
-        logError("[ProjectInfoPopover] Failed to open project AGENTS.md", error);
-        new Notice(t("agentChat.projectInfo.openAgentsFailed"));
-      });
+    void openAgentsFile(
+      app,
+      getProjectAnchorFromConfigPath(record.filePath).projectFolderPath
+    ).catch((error) => {
+      logError("[ProjectInfoPopover] Failed to open project AGENTS.md", error);
+      new Notice(t("agentChat.projectInfo.openAgentsFailed"));
+    });
   };
 
   return (

@@ -45,7 +45,6 @@ const ReasoningResponseDurationDemo: React.FC = () => {
         <AgentMessageActions
           text="The completed duration now shares a centered footer with the response controls."
           app={app}
-          durationMs={138_000}
         />
       </div>
     </TooltipProvider>

@@ -13,7 +13,7 @@ type AgentChatControlsProps = React.ComponentProps<typeof AgentChatControls>;
 const TIMESTAMP = new Date("2026-10-12T09:30:00-07:00");
 const CHAT_HISTORY: ChatHistoryItem[] = [
   {
-    id: "chats/agent__Plan the Q4 roadmap.md",
+    id: "root-roadmap",
     title: "Plan the Q4 roadmap",
     createdAt: TIMESTAMP,
     lastAccessedAt: TIMESTAMP,
@@ -52,10 +52,9 @@ const meta = {
   component: ControlsStory,
   args: {
     onNewChat: () => undefined,
-    onSaveAsNote: () => undefined,
+    onForkChat: () => undefined,
     onExportArchive: () => undefined,
     onRolloverSession: () => undefined,
-    onImportArchive: async () => undefined,
     chatHistoryItems: CHAT_HISTORY,
     onLoadChat: async () => {},
     onUpdateChatTitle: async () => {},
@@ -91,7 +90,7 @@ export const MoreActionsBookmarksOff: Story = {
   args: { openMoreActions: true, ...withBookmarkState("off") },
 };
 
-export const MoreActionsEmptyChat: Story = {
+export const MoreActionsStartingChat: Story = {
   args: { openMoreActions: true, getChatBookmarkState: undefined, onCopyChatLink: undefined },
 };
 
@@ -115,3 +114,5 @@ export const RolloverConfirmation: Story = {
 export const PauseWhileRunning: Story = {
   args: { openMoreActions: true, rolloverDisabled: true, onPause: async () => undefined },
 };
+
+export const ForkUnavailable: Story = { args: { openMoreActions: true, forkDisabled: true } };

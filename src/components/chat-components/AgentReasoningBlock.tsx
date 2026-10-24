@@ -9,12 +9,15 @@ interface AgentReasoningBlockProps {
   status: ReasoningStatus;
   elapsedSeconds: number;
   steps: string[];
+  /** text 渲染为连续紧凑文本面板（deepseek-harness 风格），steps 保持分步列表。https://github.com/ItsDalk-Lane/Vault-Agent/issues/10 */
+  layout?: "steps" | "text";
 }
 
 export const AgentReasoningBlock: React.FC<AgentReasoningBlockProps> = ({
   status,
   elapsedSeconds,
   steps,
+  layout = "steps",
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [prevStatus, setPrevStatus] = useState(status);
@@ -59,14 +62,20 @@ export const AgentReasoningBlock: React.FC<AgentReasoningBlockProps> = ({
       open={isExpanded}
       onToggle={() => setIsExpanded((expanded) => !expanded)}
     >
-      <ul className="tw-list-outside tw-list-disc tw-space-y-1.5 tw-pl-4 max-md:tw-space-y-1">
-        {steps.map((step, i) => (
-          // eslint-disable-next-line @eslint-react/no-array-index-key -- steps are append-only with no stable id; text may repeat
-          <li key={i} className="tw-text-xs tw-leading-[1.4] tw-text-muted">
-            {step}
-          </li>
-        ))}
-      </ul>
+      {layout === "text" ? (
+        <pre className="tw-max-h-96 tw-overflow-auto tw-whitespace-pre-wrap tw-rounded tw-bg-secondary-alt tw-p-2 tw-text-xs tw-leading-normal tw-text-muted">
+          {steps.join("\n\n")}
+        </pre>
+      ) : (
+        <ul className="tw-list-outside tw-list-disc tw-space-y-1.5 tw-pl-4 max-md:tw-space-y-1">
+          {steps.map((step, i) => (
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- steps are append-only with no stable id; text may repeat
+            <li key={i} className="tw-text-xs tw-leading-[1.4] tw-text-muted">
+              {step}
+            </li>
+          ))}
+        </ul>
+      )}
     </AgentActivityCard>
   );
 };

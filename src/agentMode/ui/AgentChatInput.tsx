@@ -41,7 +41,6 @@ import { modelSupportsVision } from "@/utils";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/utils/base64";
 import { mergeWebTabContexts } from "@/utils/urlNormalization";
 import { AgentBackgroundTaskAction } from "@/agentMode/ui/AgentBackgroundTaskAction";
-import { AgentSteerAction } from "@/agentMode/ui/AgentSteerAction";
 import { QueuedMessageList } from "@/agentMode/ui/QueuedMessageList";
 import { App, Notice, TFile } from "obsidian";
 import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -199,6 +198,7 @@ export const AgentChatInput = memo(function AgentChatInput({
     setIncludeActiveWebTab,
     setLoading,
     setQueue: setQueuedMessages,
+    setCommandContext,
     resetCompose,
   } = draft;
   const activeModelEntry = modelPickerOverride?.models.find(
@@ -495,44 +495,84 @@ export const AgentChatInput = memo(function AgentChatInput({
     }
   };
 
-  const [steering, setSteering] = useState(false);
-  const steerPending = useRef(false);
-  const latestInput = useRef(inputMessage);
-  latestInput.current = inputMessage;
-  const pureSteerText =
-    Boolean(inputMessage.trim()) &&
-    !/^\s*\//.test(inputMessage) &&
-    selectedImages.length === 0 &&
-    contextNotes.length === 0 &&
-    !includeActiveNote &&
-    !includeActiveWebTab &&
-    selectedTextContexts.length === 0 &&
-    !draft.commandContext &&
-    mentionedAgentIdsRef.current.length === 0;
-  const submitSteer = async () => {
-    if (
-      !pureSteerText ||
-      steerPending.current ||
-      disabled ||
-      hasPendingPlanPermission ||
-      !backend.canSteer?.() ||
-      !backend.steerMessage
-    )
-      return;
-    const text = inputMessage;
-    steerPending.current = true;
-    setSteering(true);
-    try {
-      await backend.steerMessage(text);
-      updateUserMessageHistory(text);
-      if (latestInput.current === text) resetCompose();
-    } catch (error) {
-      new Notice(error instanceof Error ? error.message : "未补充，请重新发送。");
-    } finally {
-      steerPending.current = false;
-      setSteering(false);
-    }
-  };
+  // 排队消息在输入框上方以卡片呈现：编辑回填、删除、插入当前轮，未操作时本轮结束自动发送。
+  // https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+  const [insertingId, setInsertingId] = useState<string | null>(null);
+  const canInsertQueued = useCallback(
+    (m: QueuedAgentMessage) =>
+      // 斜杠命令、指定模型的命令和 @提及轮只能整轮执行；图片仍受当前模型视觉能力限制。
+      // https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+      Boolean(m.text.trim()) &&
+      !/^\s*\//.test(m.text) &&
+      !m.commandModelId &&
+      !(m.mentionedAgents && m.mentionedAgents.length > 0) &&
+      !unsupportedImageModelLabelFor(m.commandModelId) &&
+      !disabled &&
+      !hasPendingPlanPermission &&
+      backend.canSteer?.() === true &&
+      backend.steerMessage !== undefined,
+    [backend, disabled, hasPendingPlanPermission, unsupportedImageModelLabelFor]
+  );
+  const handleInsertQueued = useCallback(
+    async (id: string) => {
+      const item = queuedMessages.find((m) => m.id === id);
+      if (!item || !backend.steerMessage || !canInsertQueued(item)) return;
+      setInsertingId(id);
+      try {
+        await backend.steerMessage(item.text, item.context, item.promptContent);
+        setQueuedMessages((q) => q.filter((m) => m.id !== id));
+        updateUserMessageHistory(item.rawInput);
+      } catch (error) {
+        new Notice(
+          error instanceof Error ? error.message : t("agentChat.queuedMessage.insertFailed")
+        );
+      } finally {
+        setInsertingId((current) => (current === id ? null : current));
+      }
+    },
+    [backend, canInsertQueued, queuedMessages, setQueuedMessages, updateUserMessageHistory]
+  );
+  const handleEditQueued = useCallback(
+    (id: string) => {
+      const item = queuedMessages.find((m) => m.id === id);
+      if (!item) return;
+      // 编辑要回填用户原输入而非展开后的文本，重新发送才能再次展开命令；当前笔记/网页
+      // 的固定副本会重复徽标，改回动态徽标。
+      // https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+      const activeUrl = activeWebTabForMentions?.url;
+      const webTabs = item.context?.webTabs ?? [];
+      if (webTabs.some((tab) => tab.url === activeUrl)) setIncludeActiveWebTab(true);
+      chatInputRef.current?.prependContent(
+        item.rawInput,
+        item.mentionedAgents ?? [],
+        webTabs.filter((tab) => tab.url !== activeUrl)
+      );
+      const activePath = app.workspace.getActiveFile()?.path;
+      const notes = item.context?.notes ?? [];
+      if (notes.some((note) => note.path === activePath)) setIncludeActiveNote(true);
+      const fixedNotes = notes.filter((note) => note.path !== activePath);
+      if (fixedNotes.length > 0) {
+        setContextNotes((previous) => dedupeBy([...fixedNotes, ...previous], (note) => note.path));
+      }
+      const images = (item.promptContent ?? [])
+        .map(imageBlockToFile)
+        .filter((file): file is File => file !== null);
+      if (images.length > 0) setSelectedImages((previous) => [...images, ...previous]);
+      setCommandContext(item.commandContext);
+      setQueuedMessages((q) => q.filter((m) => m.id !== id));
+    },
+    [
+      activeWebTabForMentions,
+      app,
+      queuedMessages,
+      setCommandContext,
+      setContextNotes,
+      setIncludeActiveNote,
+      setIncludeActiveWebTab,
+      setSelectedImages,
+      setQueuedMessages,
+    ]
+  );
 
   const handleRemoveQueuedMessage = useCallback(
     (id: string) => {
@@ -554,20 +594,20 @@ export const AgentChatInput = memo(function AgentChatInput({
   return (
     <>
       {queuedMessages.length > 0 && (
-        <QueuedMessageList messages={queuedMessages} onRemove={handleRemoveQueuedMessage} />
+        <QueuedMessageList
+          messages={queuedMessages}
+          onRemove={handleRemoveQueuedMessage}
+          onEdit={handleEditQueued}
+          onInsert={safeAsyncHandler(handleInsertQueued)}
+          canInsert={canInsertQueued}
+          pendingInsertId={insertingId}
+        />
       )}
       {!loading && backgroundTaskCount > 0 && (
         <AgentBackgroundTaskAction
           count={backgroundTaskCount}
           pending={stoppingBackground}
           onStop={safeAsyncHandler(stopBackgroundTasks)}
-        />
-      )}
-      {loading && backend.canSteer?.() && (
-        <AgentSteerAction
-          disabled={!pureSteerText || disabled || hasPendingPlanPermission}
-          pending={steering}
-          onSubmit={safeAsyncHandler(submitSteer)}
         />
       )}
       <div

@@ -19,9 +19,9 @@ const SOURCES: ReportSourceOption[] = [
 ];
 
 const REPORT: PreparedReport = {
-  zipDir: "/tmp/copilot-report-a1b2c3",
-  zipPath: "/tmp/copilot-report-a1b2c3/copilot-report-a1b2c3.zip",
-  zipName: "copilot-report-a1b2c3.zip",
+  zipDir: "/private/sessions/root-chat/diagnostics/report-a1b2c3",
+  zipPath: "/private/sessions/root-chat/diagnostics/report-a1b2c3/vault-agent-report-a1b2c3.zip",
+  zipName: "vault-agent-report-a1b2c3.zip",
   bytes: 4_404_019,
   issueDraft: { title: "Agent stops mid-turn", body: "It stops after the first tool call." },
   manualIssueUrl: "https://github.com/logancyang/obsidian-copilot/issues/new",
@@ -30,7 +30,7 @@ const REPORT: PreparedReport = {
     { id: "screenshot", name: "screenshot.png", bytes: 284_115, included: true },
     {
       id: "activityLog",
-      name: "acp-frames.ndjson.txt",
+      name: "runtime.ndjson.txt",
       bytes: 2_097_152,
       included: true,
       note: "truncated to the newest entries of 40 MB",
@@ -100,6 +100,19 @@ export const Preparing: StoryObj<ReportIssueFlowProps> = {
 
 export const Review: StoryObj<ReportIssueFlowProps> = {
   render: () => <AtStep steps={[PREPARE]} />,
+};
+
+export const SessionDeleted: StoryObj<ReportIssueFlowProps> = {
+  render: () => (
+    <AtStep
+      steps={[PREPARE]}
+      props={{
+        prepare: async () => {
+          throw new Error("The chat does not exist.");
+        },
+      }}
+    />
+  ),
 };
 
 export const DraftedNote: StoryObj<ReportIssueFlowProps> = {

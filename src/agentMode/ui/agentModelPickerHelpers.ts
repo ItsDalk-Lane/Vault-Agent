@@ -81,7 +81,7 @@ export function buildAgentModelPicker(args: {
   const { manager, descriptor, settings } = args;
   if (!manager) return null;
   const session = manager.getActiveSession();
-  // 旧聊天只读查看或显式导入，模型选择不能把历史记录替换成可执行会话。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  // 只读查看时切换模型不能替换原会话或启动执行。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
   if (session && (session.backendId !== descriptor.id || session.isHistoricalOnly?.())) return null;
   const ui = manager.getActiveChatUIState();
   const enabled = descriptor.getEnabledModelEntries?.(settings) ?? EMPTY_CONFIGURED_MODELS;
@@ -102,7 +102,6 @@ export function buildAgentModelPicker(args: {
         if (model.credentialState === "missing_key")
           entry._disabledReason = t("agentChat.defaultModel.missingKey");
         else if (reported && !offered) entry._disabledReason = t("agentChat.picker.notOffered");
-        if (model.needsSelfHostWarning) entry._needsSelfHostWarning = true;
         return entry;
       })
     : [];

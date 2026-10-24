@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/i18n", () => ({ t: (key: string) => key }));
 jest.mock("@/settings/model", () => ({
-  useSettingsValue: jest.fn(() => ({ autosaveChat: true })),
+  useSettingsValue: jest.fn(() => ({ chatHistorySortStrategy: "recent" })),
 }));
 jest.mock("@/agentMode/backends/registry", () => ({
   describeBackendForHistory: (id: string) => ({ id, label: id, displayName: id }),
@@ -55,7 +55,7 @@ describe("AgentChatControls", () => {
       expect(onRolloverSession).toHaveBeenCalledTimes(1);
     });
 
-    it("lets the user explicitly export a full backup from the chat actions https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+    it("lets the user explicitly export a standalone chat copy https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const onExportArchive = jest.fn();
       render(
         <TooltipProvider>
@@ -69,21 +69,33 @@ describe("AgentChatControls", () => {
       expect(onExportArchive).toHaveBeenCalledTimes(1);
     });
 
-    it("imports only the local backup file the user selects https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-      const onImportArchive = jest.fn(async () => undefined);
+    it("forks a settled chat when the action is enabled https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const onForkChat = jest.fn();
       render(
         <TooltipProvider>
-          <AgentChatControls onNewChat={() => undefined} onImportArchive={onImportArchive} />
+          <AgentChatControls onNewChat={() => undefined} onForkChat={onForkChat} />
         </TooltipProvider>
       );
-      const file = new File(['{"backup":true}'], "chat.json", { type: "application/json" });
-      Object.defineProperty(file, "text", { value: async () => '{"backup":true}' });
-
-      fireEvent.change(screen.getByLabelText("controls.importArchive"), {
-        target: { files: [file] },
+      fireEvent.keyDown(screen.getByRole("button", { name: "controls.moreActions" }), {
+        key: "Enter",
       });
-
-      await waitFor(() => expect(onImportArchive).toHaveBeenCalledWith(file));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "localData.fork" }));
+      expect(onForkChat).toHaveBeenCalledTimes(1);
+    });
+    it("prevents forking while work or pending decisions make the action unavailable https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const onForkChat = jest.fn();
+      render(
+        <TooltipProvider>
+          <AgentChatControls onNewChat={() => undefined} onForkChat={onForkChat} forkDisabled />
+        </TooltipProvider>
+      );
+      fireEvent.keyDown(screen.getByRole("button", { name: "controls.moreActions" }), {
+        key: "Enter",
+      });
+      const item = await screen.findByRole("menuitem", { name: "localData.fork" });
+      expect(item.getAttribute("data-disabled")).not.toBeNull();
+      fireEvent.click(item);
+      expect(onForkChat).not.toHaveBeenCalled();
     });
   });
 });

@@ -105,7 +105,7 @@ const QueuedActionsDemo: React.FC<AgentChatMessagesProps> = (props) => {
   );
 };
 
-const actionRailArgs: AgentChatMessagesProps = {
+const pendingActionArgs: AgentChatMessagesProps = {
   messages: [message],
   plugin: {
     app: {} as AgentChatMessagesProps["plugin"]["app"],
@@ -117,18 +117,21 @@ const actionRailArgs: AgentChatMessagesProps = {
   chatBackend: {} as AgentChatBackend,
   isLoading: true,
   feedbackOffer: null,
+  createReportSaver: () => async () => {
+    throw new Error("Local storage is unavailable.");
+  },
 };
 
 const meta = {
   title: "Agent Mode/Agent Chat Messages",
   component: AgentChatMessages,
-  args: actionRailArgs,
+  args: pendingActionArgs,
   parameters: { gallery: { host: "leaf", layout: "padded" } },
 } satisfies Meta<AgentChatMessagesProps>;
 export default meta;
 
 export const QueuedActions: StoryObj<AgentChatMessagesProps> = {
-  render: () => <QueuedActionsDemo {...actionRailArgs} />,
+  render: () => <QueuedActionsDemo {...pendingActionArgs} />,
 };
 
 export const PausedDraft: StoryObj<AgentChatMessagesProps> = {
@@ -152,12 +155,12 @@ export const PausedDraft: StoryObj<AgentChatMessagesProps> = {
     pendingAskUserQuestions: [],
     isLoading: false,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const UnavailableHistory: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     messages: [
       {
         ...message,
@@ -172,31 +175,12 @@ export const UnavailableHistory: StoryObj<AgentChatMessagesProps> = {
     pendingAskUserQuestions: [],
     isLoading: false,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
-};
-
-export const ImportedTextHistory: StoryObj<AgentChatMessagesProps> = {
-  args: {
-    ...actionRailArgs,
-    messages: [
-      {
-        ...message,
-        id: "imported-text-history",
-        sender: "user",
-        message:
-          "已导入的历史聊天（仅文字）\n\n**旧问题**\n**user**: 苹果有几颗？\n**assistant**: 三颗。",
-      },
-    ],
-    pendingToolPermissions: [],
-    pendingAskUserQuestions: [],
-    isLoading: false,
-  },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const LocalCommandCompleted: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     messages: [
       { ...message, id: "local-command", sender: "user", message: "/skill canonical:review" },
     ],
@@ -204,12 +188,12 @@ export const LocalCommandCompleted: StoryObj<AgentChatMessagesProps> = {
     pendingAskUserQuestions: [],
     isLoading: false,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const LongResponse: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     currentPlan: null,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
@@ -226,12 +210,12 @@ export const LongResponse: StoryObj<AgentChatMessagesProps> = {
     ],
     isLoading: true,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const ThousandMessageHistory: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
     isLoading: false,
@@ -242,13 +226,13 @@ export const ThousandMessageHistory: StoryObj<AgentChatMessagesProps> = {
       message: index === 999 ? "历史中的完整长回答。\n\n".repeat(3_000) : `历史消息 ${index + 1}`,
     })),
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const TallQuestion: StoryObj<AgentChatMessagesProps> = {
   render: () => (
     <QueuedActionsDemo
-      {...actionRailArgs}
+      {...pendingActionArgs}
       pendingToolPermissions={[]}
       pendingAskUserQuestions={[tallQuestion]}
     />
@@ -257,7 +241,7 @@ export const TallQuestion: StoryObj<AgentChatMessagesProps> = {
 
 export const RunningAfterStop: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
     messages: [
@@ -274,12 +258,12 @@ export const RunningAfterStop: StoryObj<AgentChatMessagesProps> = {
     ],
     isLoading: true,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const ApprovedPlanRunning: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     currentPlan: null,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
@@ -293,12 +277,12 @@ export const ApprovedPlanRunning: StoryObj<AgentChatMessagesProps> = {
     ],
     isLoading: true,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const PlanResponses: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     currentPlan: null,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
@@ -330,12 +314,12 @@ export const PlanResponses: StoryObj<AgentChatMessagesProps> = {
     ],
     isLoading: false,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };
 
 export const FeedbackAfterFileChanges: StoryObj<AgentChatMessagesProps> = {
   args: {
-    ...actionRailArgs,
+    ...pendingActionArgs,
     pendingToolPermissions: [],
     pendingAskUserQuestions: [],
     messages: [
@@ -421,5 +405,5 @@ export const FeedbackAfterFileChanges: StoryObj<AgentChatMessagesProps> = {
     },
     isLoading: false,
   },
-  render: (props) => <QueuedActionsDemo {...actionRailArgs} {...props} />,
+  render: (props) => <QueuedActionsDemo {...pendingActionArgs} {...props} />,
 };

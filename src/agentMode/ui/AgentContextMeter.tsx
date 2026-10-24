@@ -26,7 +26,8 @@ function formatTokens(count: number): string {
   return count.toLocaleString();
 }
 
-function ContextRing({ fraction }: { fraction: number }) {
+// 上下文环也复用在 Token 用量弹窗。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11
+export function ContextRing({ fraction }: { fraction: number }) {
   const dashOffset = RING_CIRCUMFERENCE * (1 - fraction);
   return (
     <svg

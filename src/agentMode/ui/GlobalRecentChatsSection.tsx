@@ -21,11 +21,9 @@ import { ChatIconWithAttention } from "@/components/chat-components/ChatIconWith
 import { useApp } from "@/context";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { isNativeChatId } from "@/utils/nativeChatId";
 import { formatCompactRelativeTime } from "@/utils/formatRelativeTime";
 import { sortByStrategy, type SortStrategy } from "@/utils/recentUsageManager";
 import {
-  ArrowUpRight,
   Link,
   LoaderCircle,
   MessageCircle,
@@ -49,7 +47,6 @@ interface GlobalRecentChatsSectionProps {
   onLoadChat: (id: string) => Promise<void>;
   onUpdateTitle: (id: string, newTitle: string) => Promise<void>;
   onDeleteChat: (id: string) => Promise<void>;
-  onOpenSourceFile: (id: string) => Promise<void>;
   onCopyChatLink: (id: string) => Promise<void>;
   onSetChatPinned: (id: string, pinned: boolean) => Promise<void>;
   getChatBookmarkState: (id: string) => Promise<ChatBookmarkState>;
@@ -70,10 +67,7 @@ function resolveChatIcon(
   return item.backendId ? describeBackendForHistory(item.backendId).Icon : undefined;
 }
 
-// Upstream `getChatHistoryItems()` returns vault-scan order. Apply the saved
-// history ordering here so removing the duplicate history surface does not
-// silently discard a user's preference.
-// https://github.com/logancyang/obsidian-copilot/issues/3040
+// 磁盘列表仍需应用用户选择的排序方式。https://github.com/logancyang/obsidian-copilot/issues/3040
 function sortChats(items: ChatHistoryItem[], strategy: SortStrategy): ChatHistoryItem[] {
   return sortByStrategy(items, strategy, {
     getName: (item) => item.title,
@@ -127,7 +121,6 @@ interface RecentChatActions {
   getChatBookmarkState: (id: string) => Promise<ChatBookmarkState>;
   onSetChatBookmarked: (id: string, title: string, bookmarked: boolean) => Promise<void>;
   onDeleteChat: (id: string) => Promise<void>;
-  onOpenSourceFile: (id: string) => void;
   onCloseSession?: (id: string) => Promise<void>;
   onSetChatPinned: (id: string, pinned: boolean) => Promise<void>;
 }
@@ -158,7 +151,6 @@ const RowActionButton = forwardRef<HTMLButtonElement, RowActionButtonProps>(
 
 interface RecentChatMenuProps {
   item: ChatHistoryItem;
-  isNoteBacked: boolean;
   isSessionOpen: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -167,7 +159,6 @@ interface RecentChatMenuProps {
 
 function RecentChatMenu({
   item,
-  isNoteBacked,
   isSessionOpen,
   open,
   onOpenChange,
@@ -177,7 +168,6 @@ function RecentChatMenu({
     getChatBookmarkState,
     onSetChatBookmarked,
     onDeleteChat,
-    onOpenSourceFile,
     onCloseSession,
     onSetChatPinned,
   },
@@ -211,12 +201,6 @@ function RecentChatMenu({
           {pinned ? <PinOff /> : <Pin />}
           {pinned ? t("agentChat.recentChats.unpinChat") : t("agentChat.recentChats.pinChat")}
         </DropdownMenuItem>
-        {isNoteBacked && (
-          <DropdownMenuItem onSelect={() => onOpenSourceFile(item.id)}>
-            <ArrowUpRight />
-            {t("agentChat.recentChats.openSourceNote")}
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem
           onSelect={() =>
             new RenameChatModal(app, item.title, (title) => onUpdateTitle(item.id, title)).open()
@@ -248,19 +232,17 @@ function RecentChatMenu({
             new ConfirmModal(
               app,
               () => onDeleteChat(item.id),
-              describeChatDelete(
-                item.backendId && describeBackendForHistory(item.backendId).agentProductName
-                  ? describeBackendForHistory(item.backendId)
-                  : undefined
-              ),
+              describeChatDelete(),
               t("agentChat.recentChats.deleteChat"),
-              t("agentChat.delete"),
-              t("common.cancel")
+              t("localData.delete"),
+              t("common.cancel"),
+              undefined,
+              true
             ).open()
           }
         >
           <Trash2 />
-          {t("agentChat.delete")}
+          {t("localData.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -272,7 +254,6 @@ interface RecentChatRowProps {
   projectName?: string;
   onOpen: (id: string) => void;
   actions: RecentChatActions;
-  isNoteBacked: boolean;
   isRunning: boolean;
   isSessionOpen: boolean;
   hasAttention: boolean;
@@ -283,12 +264,11 @@ const RecentChatRow = memo(function RecentChatRow({
   projectName,
   onOpen,
   actions,
-  isNoteBacked,
   isRunning,
   isSessionOpen,
   hasAttention,
 }: RecentChatRowProps): React.ReactElement {
-  const { onOpenSourceFile, onCloseSession, onSetChatPinned } = actions;
+  const { onCloseSession, onSetChatPinned } = actions;
   const Icon = resolveChatIcon(item) ?? MessageCircle;
   const [menuOpen, setMenuOpen] = useState(false);
   const pinned = isPinned(item);
@@ -364,17 +344,8 @@ const RecentChatRow = memo(function RecentChatRow({
               <Power className="tw-size-3" />
             </RowActionButton>
           )}
-          {isNoteBacked && (
-            <RowActionButton
-              label={t("agentChat.recentChats.openSourceNote")}
-              onClick={() => onOpenSourceFile(item.id)}
-            >
-              <ArrowUpRight className="tw-size-4" />
-            </RowActionButton>
-          )}
           <RecentChatMenu
             item={item}
-            isNoteBacked={isNoteBacked}
             isSessionOpen={isSessionOpen}
             open={menuOpen}
             onOpenChange={setMenuOpen}
@@ -393,7 +364,6 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
   onLoadChat,
   onUpdateTitle,
   onDeleteChat,
-  onOpenSourceFile,
   onCopyChatLink,
   onSetChatPinned,
   getChatBookmarkState,
@@ -426,13 +396,6 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
   );
   const visiblePinnedCount = useMemo(() => visibleItems.filter(isPinned).length, [visibleItems]);
 
-  const handleOpenSourceFile = useCallback(
-    (id: string) => {
-      void onOpenSourceFile(id);
-    },
-    [onOpenSourceFile]
-  );
-
   const handleOpen = safeAsyncHandler(onLoadChat);
 
   const actions = useMemo(
@@ -442,13 +405,11 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
       getChatBookmarkState,
       onSetChatBookmarked,
       onDeleteChat,
-      onOpenSourceFile: handleOpenSourceFile,
       onCloseSession,
       onSetChatPinned,
     }),
     [
       getChatBookmarkState,
-      handleOpenSourceFile,
       onCloseSession,
       onCopyChatLink,
       onDeleteChat,
@@ -469,7 +430,6 @@ export const GlobalRecentChatsSection = memo(function GlobalRecentChatsSection({
       projectName={getProjectName(item)}
       onOpen={handleOpen}
       actions={actions}
-      isNoteBacked={!isNativeChatId(item.id)}
       isRunning={runningChatIds?.has(item.id) ?? false}
       isSessionOpen={openChatIds?.has(item.id) ?? false}
       hasAttention={!!item.needsAttention || (attentionChatIds?.has(item.id) ?? false)}

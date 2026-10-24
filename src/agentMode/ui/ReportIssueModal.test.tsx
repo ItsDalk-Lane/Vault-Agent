@@ -1,5 +1,6 @@
 import {
   createReportDir,
+  createSessionReportSaver,
   discardReport,
   openIssuePageWith,
   openReportIssueModal,
@@ -46,13 +47,14 @@ jest.mock("@/logger", () => ({
 
 const getValidatedPath = jest.fn<Promise<string | null>, []>();
 const exportLogText = jest.fn<string, []>();
+let reportTempRoot: string;
 
 jest.mock("@/agentMode/session/debugSink", () => ({
   frameSink: { getValidatedPath: () => getValidatedPath() },
 }));
 
 jest.mock("@/logFileManager", () => ({
-  logFileManager: { exportLogText: () => exportLogText() },
+  logFileManager: { exportLogText: () => exportLogText(), getTempRoot: async () => reportTempRoot },
 }));
 
 const buildReportBundle = jest.fn<
@@ -97,7 +99,8 @@ const prepared: PreparedReport = {
 };
 const issueUrl = "https://github.com/logancyang/obsidian-copilot/issues/new?title=linked";
 
-beforeEach(() => {
+beforeEach(async () => {
+  reportTempRoot = await realFs.mkdtemp(nodePath.join(nodeOs.tmpdir(), "va-report-test-"));
   noticeMock.mockClear();
   (logWarn as jest.Mock).mockClear();
   rm.mockReset();
@@ -118,7 +121,67 @@ beforeEach(() => {
   exportLogText.mockReturnValue("");
 });
 
+afterEach(async () => {
+  await realFs.rm(reportTempRoot, { recursive: true, force: true });
+});
+
 describe("ReportIssueModal", () => {
+  describe("createSessionReportSaver()", () => {
+    it("keeps the clicked chat identifier when another chat becomes active before saving https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const writeSessionDiagnostic = jest.fn().mockResolvedValue({
+        zipDir: "/private/sessions/root-clicked/diagnostics/report-one",
+        zipPath: "/private/sessions/root-clicked/diagnostics/report-one/report.zip",
+      });
+      const getBackend = jest.fn(async () => ({ writeSessionDiagnostic }));
+      let activeId = "root-clicked";
+      const saveReport = createSessionReportSaver(activeId, getBackend);
+      activeId = "root-later";
+      const content = new Uint8Array([1, 2, 3]);
+
+      const result = await saveReport("report.zip", content);
+
+      expect(activeId).toBe("root-later");
+      expect(writeSessionDiagnostic).toHaveBeenCalledWith({
+        sessionId: "root-clicked",
+        name: "report.zip",
+        content,
+      });
+      expect(result.zipPath).toBe(
+        "/private/sessions/root-clicked/diagnostics/report-one/report.zip"
+      );
+    });
+
+    it.each([undefined, null, ""])(
+      "rejects the missing chat identifier %s before loading storage https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      async (sessionId) => {
+        const getBackend = jest.fn(async () => ({}));
+
+        await expect(
+          createSessionReportSaver(sessionId, getBackend)("report.zip", new Uint8Array())
+        ).rejects.toThrow("The chat does not exist.");
+
+        expect(getBackend).not.toHaveBeenCalled();
+      }
+    );
+
+    it("reports unavailable local storage instead of writing a global report https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const saveReport = createSessionReportSaver("root-clicked", async () => ({}));
+
+      await expect(saveReport("report.zip", new Uint8Array())).rejects.toThrow(
+        "Local storage is unavailable."
+      );
+    });
+
+    it("preserves deletion and disk errors from the session store https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const failure = new Error("SESSION_NOT_FOUND");
+      const saveReport = createSessionReportSaver("root-deleted", async () => ({
+        writeSessionDiagnostic: jest.fn().mockRejectedValue(failure),
+      }));
+
+      await expect(saveReport("report.zip", new Uint8Array())).rejects.toBe(failure);
+    });
+  });
+
   describe("createReportDir()", () => {
     const created: string[] = [];
 
@@ -142,6 +205,11 @@ describe("ReportIssueModal", () => {
         expect((await realFs.stat(dir)).mode & 0o777).toBe(0o700);
       }
     );
+
+    it("creates reports inside the configured private temporary folder https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const dir = await create();
+      expect(nodePath.dirname(dir)).toBe(reportTempRoot);
+    });
 
     it("never hands back the same directory twice", async () => {
       const [first, second] = [await create(), await create()];
@@ -204,21 +272,28 @@ describe("ReportIssueModal", () => {
     it("opens the dialog with the plugin's version and the card's prefill", () => {
       const plugin = { app: {} as App, manifest: { version: "4.1.0" } as PluginManifest };
       const onReported = jest.fn();
+      const saveReport = jest.fn();
 
       const modal = openReportIssueModal(plugin, {
-        activeBackend: "codex",
+        activeBackend: "pi",
         initialNote: "Replied in Swedish",
         onReported,
+        saveReport,
       }) as unknown as { open: jest.Mock; params: Record<string, unknown> };
 
       expect(modal.open).toHaveBeenCalledTimes(1);
       expect(modal.params).toMatchObject({
-        activeBackend: "codex",
+        activeBackend: "pi",
         pluginVersion: "4.1.0",
         initialNote: "Replied in Swedish",
         onReported,
+        saveReport,
       });
     });
+  });
+
+  afterEach(async () => {
+    await realFs.rm(reportTempRoot, { recursive: true, force: true });
   });
 
   describe("ReportIssueModal", () => {
@@ -265,13 +340,13 @@ describe("ReportIssueModal", () => {
     describe("buildSources()", () => {
       const ids = (params: Record<string, unknown>) =>
         modalWith({
-          params: { activeBackend: "claude", ...params },
+          params: { activeBackend: "pi", ...params },
         })
           .buildSources()
           .map((source) => source.id);
 
       it("offers a checked screenshot of the Obsidian window", () => {
-        const screenshot = modalWith({ params: { activeBackend: "claude" } })
+        const screenshot = modalWith({ params: { activeBackend: "pi" } })
           .buildSources()
           .find((source) => source.id === "screenshot");
 
@@ -282,18 +357,14 @@ describe("ReportIssueModal", () => {
         });
       });
 
-      it("only offers current plugin sources even when a report describes a legacy chat https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-        expect(ids({ activeBackend: "opencode" })).toEqual([
-          "screenshot",
-          "activityLog",
-          "chatLog",
-        ]);
+      it("only offers the current plugin sources https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+        expect(ids({ activeBackend: "pi" })).toEqual(["screenshot", "activityLog", "chatLog"]);
       });
 
       it("offers the Vault Agent log checked even with debug mode off https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
         setSettings({ debug: false });
         const copilotLog = modalWith({
-          params: { activeBackend: "opencode" },
+          params: { activeBackend: "pi" },
         })
           .buildSources()
           .find((source) => source.id === "chatLog");
@@ -318,7 +389,7 @@ describe("ReportIssueModal", () => {
           app: { workspace: { getActiveViewOfType: () => activeView } },
           params: {
             pluginVersion: "9.9.9",
-            activeBackend: "claude",
+            activeBackend: "pi",
           },
         })
           .prepare("it broke\n\nwhile typing", selected)
@@ -332,10 +403,57 @@ describe("ReportIssueModal", () => {
       it("writes the zip, and nothing else, into a fresh private directory", async () => {
         const report = await prepare(new Set());
 
+        expect(nodePath.dirname(report.zipDir)).toBe(reportTempRoot);
         expect(nodePath.basename(report.zipDir)).toMatch(/^vault-agent-report-/);
         expect(await realFs.readdir(report.zipDir)).toEqual([report.zipName]);
         expect(report.zipPath).toBe(nodePath.join(report.zipDir, report.zipName));
         expect((await realFs.stat(report.zipPath)).size).toBe(report.bytes);
+      });
+
+      it("saves a chat screenshot and summary through its session callback without creating a temporary report https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const sessionDir = await realFs.mkdtemp(nodePath.join(nodeOs.tmpdir(), "va-chat-report-"));
+        created.push(sessionDir);
+        const zipDir = nodePath.join(sessionDir, "diagnostics", "report-one");
+        const screenshot = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+        captureWindowBehindDialogs.mockResolvedValue(screenshot);
+        const saveReport = jest.fn(async (name: string, content: Uint8Array) => {
+          await realFs.mkdir(zipDir, { recursive: true });
+          const zipPath = nodePath.join(zipDir, name);
+          await realFs.writeFile(zipPath, content);
+          return { zipDir, zipPath };
+        });
+        const modal = modalWith({
+          app: { workspace: { getActiveViewOfType: () => activeView } },
+          params: { pluginVersion: "9.9.9", activeBackend: "pi", saveReport },
+        });
+
+        const report = await modal.prepare("This chat stopped responding", new Set(["screenshot"]));
+
+        expect(saveReport).toHaveBeenCalledTimes(1);
+        expect(saveReport).toHaveBeenCalledWith(report.zipName, expect.any(Uint8Array));
+        expect(report.zipDir).toBe(zipDir);
+        const entries = unzipSync(new Uint8Array(await realFs.readFile(report.zipPath)));
+        expect(new TextDecoder().decode(entries["report.md"])).toContain(
+          "This chat stopped responding"
+        );
+        expect(entries["screenshot.png"]).toEqual(screenshot);
+        expect(await realFs.readdir(reportTempRoot)).toEqual([]);
+        expect(writeFile).not.toHaveBeenCalled();
+      });
+
+      it("preserves a session save failure without falling back to a temporary report https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const failure = new Error("SESSION_NOT_FOUND");
+        const saveReport = jest.fn().mockRejectedValue(failure);
+        const modal = modalWith({
+          params: { pluginVersion: "9.9.9", activeBackend: "pi", saveReport },
+        });
+
+        await expect(modal.prepare("This chat was removed", new Set())).rejects.toBe(failure);
+
+        expect(modal.prepared).toBeNull();
+        expect(await realFs.readdir(reportTempRoot)).toEqual([]);
+        expect(writeFile).not.toHaveBeenCalled();
+        expect(rm).not.toHaveBeenCalled();
       });
 
       it("hands back the manual issue URL and the manifest alongside the local zip", async () => {
@@ -383,7 +501,7 @@ describe("ReportIssueModal", () => {
         const modal = modalWith({
           app: { workspace: { getActiveViewOfType: () => activeView } },
           containerEl: { win: settingsWindow },
-          params: { pluginVersion: "9.9.9", activeBackend: "claude" },
+          params: { pluginVersion: "9.9.9", activeBackend: "pi" },
         });
 
         created.push((await modal.prepare("", new Set(["screenshot"]))).zipDir);
@@ -407,9 +525,9 @@ describe("ReportIssueModal", () => {
       });
 
       it("packs the activity log and the Vault Agent log it was asked for into the zip (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
-        const frameDir = await realFs.mkdtemp(nodePath.join(nodeOs.tmpdir(), "acp-frames-"));
+        const frameDir = await realFs.mkdtemp(nodePath.join(nodeOs.tmpdir(), "runtime-logs-"));
         created.push(frameDir);
-        const framePath = nodePath.join(frameDir, "acp-frames.ndjson");
+        const framePath = nodePath.join(frameDir, "runtime.ndjson");
         const frames = '{"dir":"out","method":"session/prompt"}\n';
         const chatLog = "2026-06-15 10:15:00 INFO chain ran\n";
         await realFs.writeFile(framePath, frames);
@@ -420,7 +538,7 @@ describe("ReportIssueModal", () => {
 
         const entries = unzipSync(new Uint8Array(await realFs.readFile(report.zipPath)));
         const entryText = (name: string) => new TextDecoder().decode(entries[name]);
-        expect(entryText("acp-frames.ndjson.txt")).toBe(frames);
+        expect(entryText("runtime.ndjson.txt")).toBe(frames);
         expect(entryText("vault-agent-log.md")).toBe(chatLog);
       });
 
@@ -447,7 +565,62 @@ describe("ReportIssueModal", () => {
       });
     });
 
+    describe("discard()", () => {
+      it("cancels only its session report directory and preserves the transcript and other reports https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const sessionDir = nodePath.join(reportTempRoot, "sessions", "root-owned");
+        const zipDir = nodePath.join(sessionDir, "diagnostics", "report-one");
+        const otherReportDir = nodePath.join(sessionDir, "diagnostics", "report-two");
+        await realFs.mkdir(zipDir, { recursive: true });
+        await realFs.mkdir(otherReportDir, { recursive: true });
+        const transcriptPath = nodePath.join(sessionDir, "transcript.jsonl");
+        const otherReportPath = nodePath.join(otherReportDir, "other.zip");
+        await realFs.writeFile(transcriptPath, "stored conversation");
+        await realFs.writeFile(otherReportPath, "another report");
+        const saveReport = async (name: string, content: Uint8Array) => {
+          const zipPath = nodePath.join(zipDir, name);
+          await realFs.writeFile(zipPath, content);
+          return { zipDir, zipPath };
+        };
+        const modal = modalWith({ params: { activeBackend: "pi", saveReport } });
+        const report = await modal.prepare("A failed turn", new Set());
+
+        await modal.discard(report);
+        modal.onClose();
+
+        await expect(realFs.stat(zipDir)).rejects.toMatchObject({ code: "ENOENT" });
+        expect(await realFs.readFile(transcriptPath, "utf8")).toBe("stored conversation");
+        expect(await realFs.readFile(otherReportPath, "utf8")).toBe("another report");
+        expect(rm).toHaveBeenCalledTimes(1);
+        expect(rm).toHaveBeenCalledWith(zipDir, { recursive: true, force: true });
+      });
+    });
+
     describe("openIssuePage()", () => {
+      it("keeps the session report available after the user opens the manual issue page https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const zipDir = nodePath.join(
+          reportTempRoot,
+          "sessions",
+          "root-owned",
+          "diagnostics",
+          "report-one"
+        );
+        await realFs.mkdir(zipDir, { recursive: true });
+        const saveReport = async (name: string, content: Uint8Array) => {
+          const zipPath = nodePath.join(zipDir, name);
+          await realFs.writeFile(zipPath, content);
+          return { zipDir, zipPath };
+        };
+        const modal = modalWith({ params: { activeBackend: "pi", saveReport } });
+        const report = await modal.prepare("A failed turn", new Set());
+
+        await modal.openIssuePage(report.manualIssueUrl);
+        await modal.discard(report);
+        modal.onClose();
+
+        expect((await realFs.stat(report.zipPath)).size).toBe(report.bytes);
+        expect(rm).not.toHaveBeenCalled();
+      });
+
       it.each(["resolved", "rejected", "pending"])(
         "preserves the manually handed-off zip through Cancel and close with a %s browser call (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)",
         async (browserState) => {
@@ -504,11 +677,11 @@ describe("ReportIssueModal", () => {
         expect(rm).not.toHaveBeenCalled();
       });
 
-      it("discards a prepared report when its dialog closes before a manual handoff (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", async () => {
+      it("discards a prepared report when its dialog closes before a manual handoff (https://github.com/Brevilabs/obsidian-copilot-private/issues/202)", () => {
+        rm.mockResolvedValue(undefined);
         const modal = modalWith({ prepared });
 
         modal.onClose();
-        await Promise.resolve();
 
         expect(rm).toHaveBeenCalledWith(prepared.zipDir, { recursive: true, force: true });
       });
@@ -518,7 +691,6 @@ describe("ReportIssueModal", () => {
 
         await modal.discard(prepared);
         modal.onClose();
-        await Promise.resolve();
 
         expect(rm).toHaveBeenCalledTimes(1);
       });

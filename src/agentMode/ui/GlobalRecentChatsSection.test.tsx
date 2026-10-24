@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { App, type Modal } from "obsidian";
 import { GlobalRecentChatsSection } from "@/agentMode/ui/GlobalRecentChatsSection";
 import { AppContext } from "@/context";
-import { buildNativeChatId } from "@/utils/nativeChatId";
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 
 const mockOpenedModals: Modal[] = [];
@@ -57,7 +56,6 @@ function renderSection(
         onLoadChat={props.onLoadChat ?? noop}
         onUpdateTitle={props.onUpdateTitle ?? noop}
         onDeleteChat={props.onDeleteChat ?? noop}
-        onOpenSourceFile={props.onOpenSourceFile ?? noop}
         onCopyChatLink={props.onCopyChatLink ?? noop}
         onSetChatPinned={props.onSetChatPinned ?? noop}
         getChatBookmarkState={props.getChatBookmarkState ?? unsettledBookmarkState}
@@ -375,20 +373,20 @@ describe("GlobalRecentChatsSection", () => {
       expect(screen.getAllByText(/^Chat search-page-/)).toHaveLength(50);
     });
 
-    it("shows only Pin chat, Open source note, and More actions when hovering a saved chat whose session is closed", () => {
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })] });
+    it("shows only Pin chat and More actions when hovering a closed chat", () => {
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })] });
 
       const actions = within(rowFor("Saved chat"))
         .getAllByRole("button")
         .map((button) => button.getAttribute("aria-label"));
 
-      expect(actions).toEqual(["Pin chat", "Open source note", "More actions"]);
+      expect(actions).toEqual(["Pin chat", "More actions"]);
     });
 
     it("leads the hover actions with Close session when the chat's session is open", () => {
       renderSection({
-        items: [makeItem("chats/open.md", { title: "Open chat" })],
-        openChatIds: new Set(["chats/open.md"]),
+        items: [makeItem("root-open", { title: "Open chat" })],
+        openChatIds: new Set(["root-open"]),
         onCloseSession: noop,
       });
 
@@ -396,14 +394,14 @@ describe("GlobalRecentChatsSection", () => {
         .getAllByRole("button")
         .map((button) => button.getAttribute("aria-label"));
 
-      expect(actions).toEqual(["Pin chat", "Close session", "Open source note", "More actions"]);
+      expect(actions).toEqual(["Pin chat", "Close session", "More actions"]);
     });
 
     it("pins an unpinned chat from its Pin chat action without opening it", async () => {
       const onSetChatPinned = jest.fn(noop);
       const onLoadChat = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         onSetChatPinned,
         onLoadChat,
       });
@@ -412,14 +410,14 @@ describe("GlobalRecentChatsSection", () => {
         fireEvent.click(within(rowFor("Saved chat")).getByRole("button", { name: "Pin chat" }));
       });
 
-      expect(onSetChatPinned).toHaveBeenCalledWith("chats/saved.md", true);
+      expect(onSetChatPinned).toHaveBeenCalledWith("root-saved", true);
       expect(onLoadChat).not.toHaveBeenCalled();
     });
 
     it("leads the hover actions with Unpin chat for a pinned chat and unpins it", async () => {
       const onSetChatPinned = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/pinned.md", { title: "Pinned chat", pinnedAt: 5_000 })],
+        items: [makeItem("root-pinned", { title: "Pinned chat", pinnedAt: 5_000 })],
         onSetChatPinned,
       });
       const row = rowFor("Pinned chat");
@@ -429,7 +427,7 @@ describe("GlobalRecentChatsSection", () => {
         fireEvent.click(within(row).getByRole("button", { name: "Unpin chat" }));
       });
 
-      expect(onSetChatPinned).toHaveBeenCalledWith("chats/pinned.md", false);
+      expect(onSetChatPinned).toHaveBeenCalledWith("root-pinned", false);
     });
 
     it.each([
@@ -440,14 +438,14 @@ describe("GlobalRecentChatsSection", () => {
       async (menuItem, _state, pinnedAt, pinned) => {
         const onSetChatPinned = jest.fn(noop);
         renderSection({
-          items: [makeItem("chats/saved.md", { title: "Saved chat", pinnedAt })],
+          items: [makeItem("root-saved", { title: "Saved chat", pinnedAt })],
           onSetChatPinned,
         });
 
         const menu = openMenuFromButton("Saved chat");
         await act(async () => chooseMenuItem(menu, menuItem));
 
-        expect(onSetChatPinned).toHaveBeenCalledWith("chats/saved.md", pinned);
+        expect(onSetChatPinned).toHaveBeenCalledWith("root-saved", pinned);
       }
     );
 
@@ -535,44 +533,42 @@ describe("GlobalRecentChatsSection", () => {
     });
 
     it("lists every action, including the hover-strip ones, with a warning-styled Delete in the More actions menu", () => {
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })] });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })] });
 
       const menu = openMenuFromButton("Saved chat");
 
       expect(menuEntries(menu)).toEqual([
         "Pin chat",
-        "Open source note",
         "Rename",
         "Copy chat link",
         "---",
-        "Delete",
+        "Permanently delete",
       ]);
-      expect(within(menu).getByRole("menuitem", { name: "Delete" }).className).toContain(
-        "tw-text-error"
-      );
+      expect(
+        within(menu).getByRole("menuitem", { name: "Permanently delete" }).className
+      ).toContain("tw-text-error");
     });
 
     it("adds Close session above Delete in the menu when the chat's session is open", () => {
       renderSection({
-        items: [makeItem("chats/open.md", { title: "Open chat" })],
-        openChatIds: new Set(["chats/open.md"]),
+        items: [makeItem("root-open", { title: "Open chat" })],
+        openChatIds: new Set(["root-open"]),
         onCloseSession: noop,
       });
 
       expect(menuEntries(openMenuFromButton("Open chat"))).toEqual([
         "Pin chat",
-        "Open source note",
         "Rename",
         "Copy chat link",
         "---",
         "Close session",
-        "Delete",
+        "Permanently delete",
       ]);
     });
 
     it("adds Add to bookmarks above the separator once a saved chat's bookmark state loads", async () => {
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         getChatBookmarkState: async () => "not-bookmarked",
       });
 
@@ -581,48 +577,32 @@ describe("GlobalRecentChatsSection", () => {
 
       expect(menuEntries(menu)).toEqual([
         "Pin chat",
-        "Open source note",
         "Rename",
         "Copy chat link",
         "Add to bookmarks",
         "---",
-        "Delete",
+        "Permanently delete",
       ]);
-    });
-
-    it("opens the chosen chat's source note when Open source note is selected from the menu", () => {
-      const onOpenSourceFile = jest.fn(noop);
-      const onLoadChat = jest.fn(noop);
-      renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
-        onOpenSourceFile,
-        onLoadChat,
-      });
-
-      chooseMenuItem(openMenuFromButton("Saved chat"), "Open source note");
-
-      expect(onOpenSourceFile).toHaveBeenCalledWith("chats/saved.md");
-      expect(onLoadChat).not.toHaveBeenCalled();
     });
 
     it("closes the chosen chat's session when Close session is selected from the menu", async () => {
       const onCloseSession = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/open.md", { title: "Open chat" })],
-        openChatIds: new Set(["chats/open.md"]),
+        items: [makeItem("root-open", { title: "Open chat" })],
+        openChatIds: new Set(["root-open"]),
         onCloseSession,
       });
 
       const menu = openMenuFromButton("Open chat");
       await act(async () => chooseMenuItem(menu, "Close session"));
 
-      expect(onCloseSession).toHaveBeenCalledWith("chats/open.md");
+      expect(onCloseSession).toHaveBeenCalledWith("root-open");
     });
 
     it("bookmarks the chosen chat under its title when Add to bookmarks is selected", async () => {
       const onSetChatBookmarked = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         getChatBookmarkState: async () => "not-bookmarked",
         onSetChatBookmarked,
       });
@@ -630,14 +610,14 @@ describe("GlobalRecentChatsSection", () => {
       const menu = openMenuFromButton("Saved chat");
       fireEvent.click(await within(menu).findByRole("menuitem", { name: "Add to bookmarks" }));
 
-      expect(onSetChatBookmarked).toHaveBeenCalledWith("chats/saved.md", "Saved chat", true);
+      expect(onSetChatBookmarked).toHaveBeenCalledWith("root-saved", "Saved chat", true);
     });
 
     it("offers Remove from bookmarks for a bookmarked chat and removes its bookmark when selected", async () => {
       const onSetChatBookmarked = jest.fn(noop);
       const getChatBookmarkState = jest.fn(async () => "bookmarked" as const);
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         getChatBookmarkState,
         onSetChatBookmarked,
       });
@@ -645,14 +625,14 @@ describe("GlobalRecentChatsSection", () => {
       const menu = openMenuFromButton("Saved chat");
       fireEvent.click(await within(menu).findByRole("menuitem", { name: "Remove from bookmarks" }));
 
-      expect(getChatBookmarkState).toHaveBeenCalledWith("chats/saved.md");
+      expect(getChatBookmarkState).toHaveBeenCalledWith("root-saved");
       expect(menuEntries(menu)).not.toContain("Add to bookmarks");
-      expect(onSetChatBookmarked).toHaveBeenCalledWith("chats/saved.md", "Saved chat", false);
+      expect(onSetChatBookmarked).toHaveBeenCalledWith("root-saved", "Saved chat", false);
     });
 
     it("opens the menu from the More actions button without opening the chat", () => {
       const onLoadChat = jest.fn(noop);
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })], onLoadChat });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })], onLoadChat });
 
       openMenuFromButton("Saved chat");
 
@@ -661,7 +641,7 @@ describe("GlobalRecentChatsSection", () => {
     });
 
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/693 opens the menu in the row's own window when another window is active", () => {
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })] });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })] });
       const otherWindowDocument = document.implementation.createHTMLDocument();
       const globals = window as unknown as { activeDocument: Document };
       globals.activeDocument = otherWindowDocument;
@@ -676,7 +656,7 @@ describe("GlobalRecentChatsSection", () => {
 
     it("opens the same menu instead of the browser menu when the row is right-clicked", () => {
       const onLoadChat = jest.fn(noop);
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })], onLoadChat });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })], onLoadChat });
 
       const notPrevented = fireEvent.contextMenu(rowFor("Saved chat"));
 
@@ -686,7 +666,7 @@ describe("GlobalRecentChatsSection", () => {
     });
 
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/693 keeps the hover actions shown in place of the time while the menu is open", () => {
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })] });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })] });
 
       openMenuFromButton("Saved chat");
 
@@ -698,51 +678,29 @@ describe("GlobalRecentChatsSection", () => {
 
     it("https://github.com/Brevilabs/obsidian-copilot-private/issues/693 does not open the chat when a menu item is chosen", () => {
       const onLoadChat = jest.fn(noop);
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })], onLoadChat });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })], onLoadChat });
 
       chooseMenuItem(openMenuFromButton("Saved chat"), "Copy chat link");
 
       expect(onLoadChat).not.toHaveBeenCalled();
     });
 
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/693 leaves Open source note out for a chat with no saved note", () => {
-      const nativeId = buildNativeChatId("opencode", "session-1");
-      renderSection({ items: [makeItem(nativeId, { title: "Native chat" })] });
-
-      const menu = openMenuFromButton("Native chat");
-
-      expect(menuEntries(menu)).not.toContain("Open source note");
-      expect(
-        within(rowFor("Native chat")).queryByRole("button", { name: "Open source note" })
-      ).toBeNull();
-    });
-
-    it("https://github.com/Brevilabs/obsidian-copilot-private/issues/699 offers Copy chat link for a chat with no saved note and copies it by that chat's id", () => {
-      const nativeId = buildNativeChatId("opencode", "session-1");
-      const onCopyChatLink = jest.fn(noop);
-      renderSection({ items: [makeItem(nativeId, { title: "Native chat" })], onCopyChatLink });
-
-      chooseMenuItem(openMenuFromButton("Native chat"), "Copy chat link");
-
-      expect(onCopyChatLink).toHaveBeenCalledWith(nativeId);
-    });
-
     it("copies the link of the chosen chat when Copy chat link is selected", () => {
       const onCopyChatLink = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         onCopyChatLink,
       });
 
       chooseMenuItem(openMenuFromButton("Saved chat"), "Copy chat link");
 
-      expect(onCopyChatLink).toHaveBeenCalledWith("chats/saved.md");
+      expect(onCopyChatLink).toHaveBeenCalledWith("root-saved");
     });
 
     it("renames the chat from a Rename chat dialog prefilled with its current title", async () => {
       const onUpdateTitle = jest.fn(noop);
       renderSection({
-        items: [makeItem("chats/saved.md", { title: "Saved chat" })],
+        items: [makeItem("root-saved", { title: "Saved chat" })],
         onUpdateTitle,
       });
 
@@ -757,32 +715,42 @@ describe("GlobalRecentChatsSection", () => {
         fireEvent.click(within(dialog.contentEl).getByRole("button", { name: "Save" }));
       });
 
-      expect(onUpdateTitle).toHaveBeenCalledWith("chats/saved.md", "Launch checklist");
+      expect(onUpdateTitle).toHaveBeenCalledWith("root-saved", "Launch checklist");
       expect(dialog.close).toHaveBeenCalled();
     });
 
-    it("deletes the chat after the user confirms in the Delete chat dialog", async () => {
+    it("stops and permanently deletes the chat only after confirmation with Cancel focused https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const onDeleteChat = jest.fn(noop);
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })], onDeleteChat });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })], onDeleteChat });
 
       const menu = openMenuFromButton("Saved chat");
-      act(() => chooseMenuItem(menu, "Delete"));
+      act(() => chooseMenuItem(menu, "Permanently delete"));
       const dialog = lastModal();
       expect(dialog.titleEl.textContent).toBe("Delete chat");
-      expect(within(dialog.contentEl).getByText("Delete this chat from Vault Agent?")).toBeTruthy();
+      expect(document.activeElement).toBe(
+        within(dialog.contentEl).getByRole("button", { name: "Cancel" })
+      );
+      expect(onDeleteChat).not.toHaveBeenCalled();
+      expect(
+        within(dialog.contentEl).getByText(
+          "Stop this chat and permanently delete all its local records, attachments and revert backups? This cannot be undone."
+        )
+      ).toBeTruthy();
       await act(async () => {
-        fireEvent.click(within(dialog.contentEl).getByRole("button", { name: "Delete" }));
+        fireEvent.click(
+          within(dialog.contentEl).getByRole("button", { name: "Permanently delete" })
+        );
       });
 
-      expect(onDeleteChat).toHaveBeenCalledWith("chats/saved.md");
+      expect(onDeleteChat).toHaveBeenCalledWith("root-saved");
     });
 
     it("keeps the chat when the Delete chat dialog is cancelled", () => {
       const onDeleteChat = jest.fn(noop);
-      renderSection({ items: [makeItem("chats/saved.md", { title: "Saved chat" })], onDeleteChat });
+      renderSection({ items: [makeItem("root-saved", { title: "Saved chat" })], onDeleteChat });
 
       const menu = openMenuFromButton("Saved chat");
-      act(() => chooseMenuItem(menu, "Delete"));
+      act(() => chooseMenuItem(menu, "Permanently delete"));
       act(() => {
         fireEvent.click(within(lastModal().contentEl).getByRole("button", { name: "Cancel" }));
       });
@@ -790,24 +758,6 @@ describe("GlobalRecentChatsSection", () => {
       expect(onDeleteChat).not.toHaveBeenCalled();
       expect(screen.getByText("Saved chat")).toBeTruthy();
     });
-
-    it.each([["claude", "Claude Code"]])(
-      "https://github.com/logancyang/obsidian-copilot/issues/2888 says in the Delete chat dialog that the %s agent may keep its own copy",
-      async (backendId, agent) => {
-        renderSection({
-          items: [makeItem("chats/agent__a.md", { title: "Agent chat", backendId })],
-        });
-
-        const menu = openMenuFromButton("Agent chat");
-        act(() => chooseMenuItem(menu, "Delete"));
-
-        expect(
-          within(lastModal().contentEl).getByText(
-            `Delete this chat from Vault Agent? ${agent} may keep its own copy of this conversation on this computer.`
-          )
-        ).toBeTruthy();
-      }
-    );
 
     it("refreshes once when the parent re-renders with the items that refresh produced", () => {
       const loadHistory = jest.fn(async () => {});
@@ -819,7 +769,6 @@ describe("GlobalRecentChatsSection", () => {
             onLoadChat={noop}
             onUpdateTitle={noop}
             onDeleteChat={noop}
-            onOpenSourceFile={noop}
             onCopyChatLink={noop}
             onSetChatPinned={noop}
             getChatBookmarkState={async () => "unavailable"}

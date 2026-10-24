@@ -16,7 +16,6 @@ import {
   EMPTY_AGENT_MENTION_BRANDS,
 } from "./useAtMentionCategories";
 import { getEffectiveCustomPromptsFolder } from "@/settings/vaultAgentFolder";
-import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 
 const MAX_SEARCH_RESULTS = 30;
 
@@ -103,9 +102,6 @@ export function useAtMentionSearch(
         data: brand.id,
         content: undefined,
         icon: React.createElement(brand.Icon, { className: "tw-size-4" }),
-        trailingContent: brand.needsSelfHostWarning
-          ? React.createElement(SelfHostCloudWarningIcon)
-          : undefined,
         searchKeyword: `${brand.displayName} ${brand.id}`,
       })),
     [agentBrands]

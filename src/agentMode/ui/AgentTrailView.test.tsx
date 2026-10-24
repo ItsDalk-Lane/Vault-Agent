@@ -72,6 +72,11 @@ function renderTrail(props: TrailProps = {}) {
   };
 }
 
+// 完成轮的过程块默认折叠，先点开折叠块再断言内部过程卡。https://github.com/ItsDalk-Lane/Vault-Agent/issues/14
+function openTurnFold() {
+  fireEvent.click(screen.getByRole("button", { name: /tool uses/ }));
+}
+
 type ToolCallPart = Extract<AgentMessagePart, { kind: "tool_call" }>;
 
 function toolCall(id: string, overrides: Partial<ToolCallPart> = {}): ToolCallPart {
@@ -115,6 +120,42 @@ describe("AgentTrail", () => {
 
     fireEvent.click(screen.getByTitle("Insert / Replace at cursor"));
     expect(insertAtCursor).toHaveBeenCalledWith(app, "The final answer.");
+  });
+
+  it("renders the per-turn branch button only when a fork action is provided and invokes it (https://github.com/ItsDalk-Lane/Vault-Agent/issues/12)", () => {
+    const onForkTurn = jest.fn();
+    const first = renderTrail();
+    expect(screen.queryByTitle("Branch from this turn")).toBeNull();
+    first.unmount();
+
+    renderTrail({ onForkTurn });
+    const branch = screen.getByTitle("Branch from this turn");
+    fireEvent.click(branch);
+    expect(onForkTurn).toHaveBeenCalledTimes(1);
+    expect(screen.getByTitle("Copy")).toBeTruthy();
+  });
+
+  it("disables the branch button while the session is busy forking (https://github.com/ItsDalk-Lane/Vault-Agent/issues/12)", () => {
+    renderTrail({ onForkTurn: jest.fn(), forkDisabled: true });
+
+    expect(screen.getByTitle("Branch from this turn").getAttribute("disabled")).not.toBeNull();
+  });
+
+  it("renders the turn usage capsule beside the timestamp in the footer when usage is present (https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
+    renderTrail({
+      timestamp: "2026/08/07 20:31:10",
+      turnUsage: {
+        inputTokens: 900,
+        outputTokens: 100,
+        cacheReadTokens: 1_000,
+        cacheWriteTokens: 0,
+        modelRequests: 2,
+      },
+    });
+
+    const capsule = screen.getByText("2.0K tok").closest("[data-response-footer-after-timestamp]");
+    expect(capsule).toBeTruthy();
+    expect(capsule?.previousElementSibling?.textContent).toBe("2026/08/07 20:31:10");
   });
 
   const EDITED_NOTE: TurnFileChange = {
@@ -178,12 +219,12 @@ describe("AgentTrail", () => {
     expect(screen.queryByTitle("Insert / Replace at cursor")).toBeNull();
   });
 
-  it("keeps read-only saved history free of editor write actions while preserving duration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+  it("keeps read-only saved history free of editor write actions and of a footer duration (https://github.com/ItsDalk-Lane/Vault-Agent/issues/1 https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
     renderTrail({ showMessageActions: false, turnDurationMs: 12_000 });
     expect(screen.getByText("The final answer.")).toBeTruthy();
     expect(screen.queryByTitle("Copy")).toBeNull();
     expect(screen.queryByTitle("Insert / Replace at cursor")).toBeNull();
-    expect(screen.getByText("12s")).toBeTruthy();
+    expect(screen.queryByText("Worked for")).toBeNull();
   });
 
   it("shows the running duration instead of the timestamp while streaming", () => {
@@ -219,7 +260,7 @@ describe("AgentTrail", () => {
     expect(screen.queryByText("Worked for")).toBeNull();
   });
 
-  it("keeps research inline while showing a non-collapsible completed duration beside the timestamp https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
+  it("folds a completed turn's process behind a duration-and-tool-count header while keeping the reply visible (https://github.com/ItsDalk-Lane/Vault-Agent/issues/6 https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
     renderTrail({
       parts: [
         { kind: "tool_call", id: "t1", title: "Search vault", status: "completed" },
@@ -230,16 +271,65 @@ describe("AgentTrail", () => {
       timestamp: "2026/08/07 20:31:10",
     });
 
-    expect(screen.getByText("Worked for")).toBeTruthy();
-    expect(screen.getByText("2m 18s")).toBeTruthy();
-    expect(screen.getByText("2026/08/07 20:31:10")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Worked for/i })).toBeNull();
-    const footer = screen.getByText("Worked for").closest(".tw-justify-between");
-    expect(footer?.classList.contains("tw-items-center")).toBe(true);
-    expect(footer?.contains(screen.getByTitle("Copy"))).toBe(true);
-    expect(footer?.contains(screen.getByTitle("Insert / Replace at cursor"))).toBe(true);
+    const fold = screen.getByRole("button", { name: /Worked for 2m 18s · 1 tool uses/ });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Search vault")).toBeNull();
     expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.getByText("2026/08/07 20:31:10")).toBeTruthy();
+
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Search vault")).toBeTruthy();
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+  });
+
+  it("folds interleaved prose between process blocks in chronological order while keeping leading and trailing replies visible (https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
+    const { container } = renderTrail({
+      parts: [text("先看看目录。"), READ_A, text("找到了，再看下一个。"), LINT, text("最终结论。")],
+      turnDurationMs: 30_000,
+    });
+
+    expect(screen.getByText("先看看目录。")).toBeTruthy();
+    expect(screen.getByText("最终结论。")).toBeTruthy();
+    expect(screen.queryByText("找到了，再看下一个。")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /2 tool uses/ }));
+
+    expect(screen.getByText("找到了，再看下一个。")).toBeTruthy();
+    const sequence = [
+      "先看看目录。",
+      "notes/a.md",
+      "找到了，再看下一个。",
+      "Ran `npm run lint`",
+      "最终结论。",
+    ];
+    const rendered = container.textContent ?? "";
+    let cursor = -1;
+    for (const marker of sequence) {
+      const at = rendered.indexOf(marker);
+      expect(at).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+  });
+
+  it("counts only visible tool calls in the fold title and skips a ToolSearch-only turn (https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
+    renderTrail({
+      parts: [
+        toolCall("ts1", { vendorToolName: "ToolSearch", status: "completed" }),
+        READ_A,
+        text("done"),
+      ],
+    });
+
+    expect(screen.getByRole("button", { name: /1 tool uses/ })).toBeTruthy();
+  });
+
+  it("omits the fold and the duration for a completed pure-text turn (https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
+    renderTrail({ turnDurationMs: 45_000 });
+
+    expect(screen.queryByRole("button", { name: /tool uses/ })).toBeNull();
+    expect(screen.queryByText("Worked for")).toBeNull();
+    expect(screen.getByText("The final answer.")).toBeTruthy();
   });
 
   const compaction = (
@@ -263,13 +353,13 @@ describe("AgentTrail", () => {
     ]);
   });
 
-  it("keeps the Worked for line and copy actions on a reply that also holds an answer", () => {
+  it("keeps copy actions on a compaction reply that has no process blocks to fold (https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
     renderTrail({
       parts: [compaction({ trigger: "auto" }), text("The final answer.")],
       turnDurationMs: 138_000,
     });
 
-    expect(screen.getByText("Worked for")).toBeTruthy();
+    expect(screen.queryByText("Worked for")).toBeNull();
     expect(screen.getByTitle("Copy")).toBeTruthy();
   });
 
@@ -305,7 +395,7 @@ describe("AgentTrail", () => {
     }
   );
 
-  it("https://github.com/Brevilabs/obsidian-copilot-private/issues/633 restores Worked for and the copy action once an answer streams into the same parts list after a compaction", () => {
+  it("https://github.com/Brevilabs/obsidian-copilot-private/issues/633 restores the copy action once an answer streams into the same parts list after a compaction (https://github.com/ItsDalk-Lane/Vault-Agent/issues/14)", () => {
     const parts: AgentMessagePart[] = [compaction({ trigger: "auto" })];
     const { rerenderTrail } = renderTrail({ parts, turnDurationMs: 138_000 });
     expect(screen.queryByTitle("Copy")).toBeNull();
@@ -313,7 +403,6 @@ describe("AgentTrail", () => {
     parts.push(text("The final answer."));
     rerenderTrail({ parts, turnDurationMs: 138_000 });
 
-    expect(screen.getByText("Worked for")).toBeTruthy();
     expect(screen.getByTitle("Copy")).toBeTruthy();
   });
 
@@ -352,7 +441,7 @@ describe("AgentTrail", () => {
     ]);
   });
 
-  it("renders a run's thoughts, tool calls and prose as independent blocks https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
+  it("renders a run's thoughts, tool calls and prose as independent blocks while streaming https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
     const { container } = renderTrail({
       parts: [
         { kind: "thought", text: "Inspect the trail first." },
@@ -362,6 +451,8 @@ describe("AgentTrail", () => {
         LINT,
         text("Grouped tools complete."),
       ],
+      isStreaming: true,
+      turnStopReason: undefined,
     });
 
     const headers = [...container.querySelectorAll("[data-agent-activity-card-header]")];
@@ -526,6 +617,7 @@ describe("AgentTrail", () => {
       ],
     });
 
+    openTurnFold();
     fireEvent.click(screen.getByText('Explore · "Look around"'));
 
     expect(screen.getByText("2 tools")).toBeTruthy();
@@ -552,6 +644,7 @@ describe("AgentTrail", () => {
       ],
     });
 
+    openTurnFold();
     fireEvent.click(screen.getByRole("button", { name: /Read notes\/a.md/ }));
     fireEvent.click(screen.getByText('Explore · "Look around"'));
 

@@ -39,7 +39,6 @@ const AlignedWithResponseDemo: React.FC = () => {
         <AgentMessageActions
           text="I excluded generated Vault Agent conversation logs and notes where AI was only mentioned incidentally."
           app={app}
-          durationMs={24_000}
         />
       </div>
     </TooltipProvider>

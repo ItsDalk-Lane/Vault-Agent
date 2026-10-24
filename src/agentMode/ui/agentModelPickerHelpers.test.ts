@@ -183,14 +183,12 @@ describe("agentModelPickerHelpers", () => {
           ...configured,
           label: "My local model",
           description: "Private",
-          needsSelfHostWarning: true,
         },
       ]);
       const picker = buildAgentModelPicker(args)!;
       expect(picker.models[0]).toMatchObject({
         displayName: "My local model",
         _subtitle: "Private",
-        _needsSelfHostWarning: true,
       });
     });
 

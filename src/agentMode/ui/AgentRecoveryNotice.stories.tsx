@@ -97,23 +97,6 @@ export const UnknownExternalEffect: StoryObj<AgentRecoveryNoticeProps> = {
   },
 };
 
-export const StorageLimit: StoryObj<AgentRecoveryNoticeProps> = {
-  args: {
-    onRollover: () => undefined,
-    recovery: {
-      ...meta.args.recovery,
-      interruptedRun: {
-        runId: "run-1",
-        requestId: "request-1",
-        status: "paused_storage",
-        startedAtMs: 1,
-        cancelEpoch: 0,
-      },
-      message: "这段记录接近容量上限，进度已保存。请选择总结并新建聊天继续。",
-    },
-  },
-};
-
 export const RemainingWorkAfterTurn: StoryObj<AgentRecoveryNoticeProps> = {
   args: {
     children: (

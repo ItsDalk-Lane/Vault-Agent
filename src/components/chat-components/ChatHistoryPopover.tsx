@@ -1,16 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
-import {
-  ArrowUpRight,
-  Check,
-  Edit2,
-  LoaderCircle,
-  MessageCircle,
-  Power,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, Edit2, LoaderCircle, MessageCircle, Power, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { useApp } from "@/context";
+import { describeChatDelete } from "@/lib/chatDeleteText";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/SearchBar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -51,10 +45,8 @@ interface ChatHistoryPopoverProps {
   onUpdateTitle: (id: string, newTitle: string) => Promise<void>;
   onDeleteChat: (id: string) => Promise<void>;
   onLoadChat?: (id: string) => Promise<void>;
-  onOpenSourceFile?: (id: string) => Promise<void>;
   getIcon?: ChatHistoryIconResolver;
   getBadge?: ChatHistoryBadgeResolver;
-  getDeleteSummary?: (item: ChatHistoryItem) => string | undefined;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
 }
@@ -68,21 +60,18 @@ export function ChatHistoryPopover({
   onUpdateTitle,
   onDeleteChat,
   onLoadChat,
-  onOpenSourceFile,
   getIcon,
   getBadge,
-  getDeleteSummary,
   side = "top",
   align = "end",
 }: ChatHistoryPopoverProps) {
+  const app = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [open, setOpen] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const deleteTimeoutRef = useRef<number | null>(null);
   const isMobile = Platform.isMobile;
   const settings = useSettingsValue();
 
@@ -229,37 +218,17 @@ export function ChatHistoryPopover({
     setEditingTitle("");
   };
 
-  useEffect(() => {
-    return () => {
-      if (deleteTimeoutRef.current) {
-        window.clearTimeout(deleteTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleDelete = async (id: string) => {
-    if (confirmDeleteId === id) {
-      try {
-        await onDeleteChat(id);
-        setConfirmDeleteId(null);
-      } catch (error) {
-        logError("Error deleting chat:", error);
-        setConfirmDeleteId(null);
-      }
-    } else {
-      if (deleteTimeoutRef.current) {
-        window.clearTimeout(deleteTimeoutRef.current);
-      }
-      setConfirmDeleteId(id);
-      deleteTimeoutRef.current = window.setTimeout(() => {
-        setConfirmDeleteId(null);
-        deleteTimeoutRef.current = null;
-      }, 3000);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setConfirmDeleteId(null);
+  const handleDelete = (id: string) => {
+    new ConfirmModal(
+      app,
+      () => onDeleteChat(id),
+      describeChatDelete(),
+      t("agentChat.recentChats.deleteChat"),
+      t("localData.delete"),
+      t("common.cancel"),
+      undefined,
+      true
+    ).open();
   };
 
   const handleLoadChat = async (id: string) => {
@@ -314,17 +283,11 @@ export function ChatHistoryPopover({
                             onStartEdit={handleStartEdit}
                             onSaveEdit={safeAsyncHandler(handleSaveEdit)}
                             onCancelEdit={handleCancelEdit}
-                            onDelete={safeAsyncHandler(handleDelete)}
-                            onCancelDelete={handleCancelDelete}
+                            onDelete={handleDelete}
                             onLoadChat={safeAsyncHandler(handleLoadChat)}
-                            onOpenSourceFile={
-                              onOpenSourceFile ? safeAsyncHandler(onOpenSourceFile) : undefined
-                            }
                             isMobile={isMobile}
-                            confirmDeleteId={confirmDeleteId}
                             getIcon={getIcon}
                             getBadge={getBadge}
-                            getDeleteSummary={getDeleteSummary}
                           />
                         ))}
                       </div>
@@ -363,14 +326,10 @@ interface ChatHistoryItemProps {
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: (id: string) => void;
-  onCancelDelete: () => void;
   onLoadChat: (id: string) => void;
-  onOpenSourceFile?: (id: string) => void;
   isMobile: boolean;
-  confirmDeleteId: string | null;
   getIcon?: ChatHistoryIconResolver;
   getBadge?: ChatHistoryBadgeResolver;
-  getDeleteSummary?: (item: ChatHistoryItem) => string | undefined;
 }
 
 function ChatHistoryItem({
@@ -385,14 +344,10 @@ function ChatHistoryItem({
   onSaveEdit,
   onCancelEdit,
   onDelete,
-  onCancelDelete,
   onLoadChat,
-  onOpenSourceFile,
   isMobile,
-  confirmDeleteId,
   getIcon,
   getBadge,
-  getDeleteSummary,
 }: ChatHistoryItemProps) {
   const RowIcon = getIcon?.(chat) ?? MessageCircle;
   if (isEditing) {
@@ -425,8 +380,6 @@ function ChatHistoryItem({
       </div>
     );
   }
-
-  const deleteSummary = confirmDeleteId === chat.id ? getDeleteSummary?.(chat) : undefined;
 
   return (
     <div className="tw-group">
@@ -477,95 +430,46 @@ function ChatHistoryItem({
             isMobile ? "tw-flex" : "tw-hidden group-focus-within:tw-flex group-hover:tw-flex"
           )}
         >
-          {confirmDeleteId === chat.id ? (
-            <>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(chat.id);
-                }}
-                className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
-                title={t("ui.chat.history.confirmDelete")}
-              >
-                <Check className="tw-size-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancelDelete();
-                }}
-                className="tw-size-5 tw-p-0"
-                title={t("ui.chat.history.cancelDelete")}
-              >
-                <X className="tw-size-3" />
-              </Button>
-            </>
-          ) : (
-            <>
-              {isSessionOpen && onCloseSession && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="tw-size-5 tw-p-0"
-                  aria-label={t("ui.chat.history.closeSession")}
-                  title={t("ui.chat.history.closeSession")}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    safeAsyncHandler(onCloseSession)(chat.id);
-                  }}
-                >
-                  <Power className="tw-size-3" />
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenSourceFile) {
-                    onOpenSourceFile(chat.id);
-                  }
-                }}
-                className="tw-size-5 tw-p-0"
-                title={t("ui.chat.history.openSource")}
-              >
-                <ArrowUpRight className="tw-size-4" />
-              </Button>
-
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStartEdit(chat.id, chat.title);
-                }}
-                className="tw-size-5 tw-p-0"
-              >
-                <Edit2 className="tw-size-3" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(chat.id);
-                }}
-                className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
-                title={t("ui.chat.history.deleteFile")}
-              >
-                <Trash2 className="tw-size-3" />
-              </Button>
-            </>
+          {isSessionOpen && onCloseSession && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="tw-size-5 tw-p-0"
+              aria-label={t("ui.chat.history.closeSession")}
+              title={t("ui.chat.history.closeSession")}
+              onClick={(event) => {
+                event.stopPropagation();
+                safeAsyncHandler(onCloseSession)(chat.id);
+              }}
+            >
+              <Power className="tw-size-3" />
+            </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartEdit(chat.id, chat.title);
+            }}
+            className="tw-size-5 tw-p-0"
+          >
+            <Edit2 className="tw-size-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(chat.id);
+            }}
+            className="tw-size-5 tw-p-0 tw-text-error hover:tw-text-error"
+            title={t("localData.delete")}
+          >
+            <Trash2 className="tw-size-3" />
+          </Button>
         </div>
       </div>
-      {deleteSummary && (
-        <div className="tw-px-1 tw-pb-1 tw-text-xs tw-text-muted">{deleteSummary}</div>
-      )}
     </div>
   );
 }

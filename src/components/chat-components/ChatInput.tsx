@@ -47,7 +47,6 @@ import LexicalEditor from "./LexicalEditor";
 import { cn } from "@/lib/utils";
 import { useObjectUrl } from "@/hooks/useObjectUrl";
 import { type AgentMentionBrand, EMPTY_AGENT_MENTION_BRANDS } from "./hooks/useAtMentionCategories";
-import { EMPTY_CLOUD_AGENT_IDS } from "./context/CloudAgentContext";
 import { $createAgentPillNode } from "./pills/AgentPillNode";
 
 const ACCENT_CIRCLE_BUTTON_CLASS =
@@ -130,8 +129,6 @@ export interface ChatInputProps {
 
   agentBrands?: ReadonlyArray<AgentMentionBrand>;
 
-  cloudAgentIds?: ReadonlySet<string>;
-
   onMentionedAgentsChange?: (backendIds: string[]) => void;
 }
 
@@ -188,7 +185,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
     initialContext,
     isAgentMode = false,
     agentBrands = EMPTY_AGENT_MENTION_BRANDS,
-    cloudAgentIds = EMPTY_CLOUD_AGENT_IDS,
     onMentionedAgentsChange,
   },
   ref
@@ -656,7 +652,6 @@ const ChatInput = React.forwardRef<ChatInputHandle, ChatInputProps>(function Cha
               onActiveWebTabAdded={handleActiveWebTabAdded}
               onActiveWebTabRemoved={handleActiveWebTabRemoved}
               agentBrands={agentBrands}
-              cloudAgentIds={cloudAgentIds}
               onAgentsChange={handleAgentsChange}
               onEditorReady={onEditorReady}
               onImagePaste={onAddImage}

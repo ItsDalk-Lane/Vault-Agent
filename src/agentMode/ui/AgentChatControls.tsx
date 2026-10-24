@@ -1,7 +1,6 @@
 import { describeBackendForHistory } from "@/agentMode/backends/registry";
 import { ChatBookmarkMenuItem } from "@/agentMode/ui/ChatBookmarkMenuItem";
 import type { ChatBookmarkState } from "@/agentMode/ui/hooks/useAgentHistoryControls";
-import { describeChatDelete } from "@/lib/chatDeleteText";
 import {
   ChatHistoryItem,
   ChatHistoryPopover,
@@ -15,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { t } from "@/i18n";
-import { useSettingsValue } from "@/settings/model";
+
 import { safeAsyncHandler } from "@/utils/safeAsyncHandler";
 import {
   Bookmark,
@@ -26,22 +25,13 @@ import {
   MessageCirclePlus,
   MoreHorizontal,
   Pause,
-  Upload,
 } from "lucide-react";
-import React, { useCallback, useRef, useState } from "react";
-
-const resolveDeleteSummary = (item: ChatHistoryItem) =>
-  describeChatDelete(
-    item.backendId && describeBackendForHistory(item.backendId).agentProductName
-      ? describeBackendForHistory(item.backendId)
-      : undefined
-  );
+import React, { useCallback, useState } from "react";
 
 const resolveHistoryIcon = (item: ChatHistoryItem) =>
   item.backendId ? describeBackendForHistory(item.backendId).Icon : undefined;
 
-// An empty chat has no note to link or bookmark, so its items stay visible but explain why they are off.
-// https://github.com/Brevilabs/obsidian-copilot-private/issues/702
+// 尚未取得会话标识时仍显示链接和书签入口，并说明它们暂不可用。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 const NeedsMessageMenuItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Tooltip>
     <TooltipTrigger asChild>
@@ -49,18 +39,19 @@ const NeedsMessageMenuItem: React.FC<{ children: React.ReactNode }> = ({ childre
         <DropdownMenuItem disabled>{children}</DropdownMenuItem>
       </div>
     </TooltipTrigger>
-    <TooltipContent side="left">{t("controls.sendFirst")}</TooltipContent>
+    <TooltipContent side="left">{t("localData.sessionStarting")}</TooltipContent>
   </Tooltip>
 );
 
 interface AgentChatControlsProps {
   onNewChat?: () => void;
-  onSaveAsNote?: () => void | Promise<void>;
+  onForkChat?: () => void | Promise<void>;
+  forkDisabled?: boolean;
+  onExportMarkdown?: () => void | Promise<void>;
   onExportArchive?: () => void | Promise<void>;
   onRolloverSession?: () => void;
   onPause?: () => Promise<void>;
   rolloverDisabled?: boolean;
-  onImportArchive?: (file: File) => Promise<void>;
   chatHistoryItems?: ChatHistoryItem[];
   onLoadHistory?: () => void | Promise<void>;
   onLoadChat?: (id: string) => Promise<void>;
@@ -69,7 +60,6 @@ interface AgentChatControlsProps {
   onCloseSession?: (id: string) => Promise<void>;
   openChatIds?: ReadonlySet<string>;
   runningChatIds?: ReadonlySet<string>;
-  onOpenSourceFile?: (id: string) => Promise<void>;
   onCopyChatLink?: () => void | Promise<void>;
   getChatBookmarkState?: () => Promise<ChatBookmarkState>;
   onSetChatBookmarked?: (bookmarked: boolean) => Promise<void>;
@@ -80,12 +70,13 @@ interface AgentChatControlsProps {
 
 export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
   onNewChat,
-  onSaveAsNote,
   onExportArchive,
+  onExportMarkdown,
+  onForkChat,
+  forkDisabled,
   onRolloverSession,
   onPause,
   rolloverDisabled = false,
-  onImportArchive,
   chatHistoryItems,
   onLoadHistory,
   onLoadChat,
@@ -94,20 +85,12 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
   onCloseSession,
   openChatIds,
   runningChatIds,
-  onOpenSourceFile,
   onCopyChatLink,
   getChatBookmarkState,
   onSetChatBookmarked,
   onReportError,
   usageMeter,
 }) => {
-  const settings = useSettingsValue();
-  const archiveInput = useRef<HTMLInputElement>(null);
-  const handleArchiveFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (file && onImportArchive) await onImportArchive(file);
-  };
   const historyAvailable = Boolean(
     chatHistoryItems && onLoadChat && onUpdateChatTitle && onDeleteChat
   );
@@ -119,16 +102,6 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
 
   return (
     <div className="tw-flex tw-w-full tw-items-center tw-justify-between tw-p-1">
-      {onImportArchive && (
-        <input
-          ref={archiveInput}
-          type="file"
-          accept=".json,application/json"
-          className="tw-hidden"
-          aria-label={t("controls.importArchive")}
-          onChange={safeAsyncHandler(handleArchiveFile)}
-        />
-      )}
       <div className="tw-ml-1 tw-flex tw-min-w-0 tw-flex-1 tw-items-center tw-gap-1"></div>
       <div className="tw-flex tw-items-center tw-gap-1">
         {usageMeter}
@@ -157,9 +130,7 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
               openChatIds={openChatIds}
               runningChatIds={runningChatIds}
               onLoadChat={onLoadChat}
-              onOpenSourceFile={onOpenSourceFile}
               getIcon={resolveHistoryIcon}
-              getDeleteSummary={resolveDeleteSummary}
             >
               <TooltipTrigger asChild>
                 <Button
@@ -213,12 +184,6 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                     {t("controls.addBookmark")}
                   </NeedsMessageMenuItem>
                 ))}
-              {!settings.autosaveChat && onSaveAsNote && (
-                <DropdownMenuItem onSelect={() => void onSaveAsNote()}>
-                  <Download />
-                  {t("controls.saveAsNote")}
-                </DropdownMenuItem>
-              )}
               {onPause && (
                 <DropdownMenuItem onSelect={safeAsyncHandler(onPause)}>
                   <Pause />
@@ -231,16 +196,22 @@ export const AgentChatControls: React.FC<AgentChatControlsProps> = ({
                   {t("controls.rolloverSession")}
                 </DropdownMenuItem>
               )}
+              {onForkChat && (
+                <DropdownMenuItem disabled={forkDisabled} onSelect={() => void onForkChat()}>
+                  <MessageCirclePlus />
+                  {t("localData.fork")}
+                </DropdownMenuItem>
+              )}
+              {onExportMarkdown && (
+                <DropdownMenuItem onSelect={() => void onExportMarkdown()}>
+                  <Download />
+                  {t("localData.export")} (Markdown)
+                </DropdownMenuItem>
+              )}
               {onExportArchive && (
                 <DropdownMenuItem onSelect={() => void onExportArchive()}>
                   <Download />
                   {t("controls.exportArchive")}
-                </DropdownMenuItem>
-              )}
-              {onImportArchive && (
-                <DropdownMenuItem onSelect={() => archiveInput.current?.click()}>
-                  <Upload />
-                  {t("controls.importArchive")}
                 </DropdownMenuItem>
               )}
               {/* A report from here names the chat's agent, model and session, so only a host with a chat offers it.

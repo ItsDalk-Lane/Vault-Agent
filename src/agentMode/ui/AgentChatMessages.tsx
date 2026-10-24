@@ -5,7 +5,7 @@ import { SubagentHistoryOpenerContext } from "@/agentMode/ui/SubAgentCard";
 import { SubagentHistoryModal } from "@/agentMode/ui/SubagentHistoryModal";
 import { PlanProposalCard } from "@/agentMode/ui/PlanProposalCard";
 import { FeedbackCard, findFeedbackCardIndex } from "@/agentMode/ui/FeedbackCard";
-import { openReportIssueModal } from "@/agentMode/ui/ReportIssueModal";
+import { openReportIssueModal, type OpenReportIssueOptions } from "@/agentMode/ui/ReportIssueModal";
 import { formatFeedbackNote, type FeedbackOffer } from "@/agentMode/session/feedback/feedbackOffer";
 import { setSettings } from "@/settings/model";
 import { ToolPermissionCard } from "@/agentMode/ui/ToolPermissionCard";
@@ -51,6 +51,10 @@ interface AgentChatMessagesProps {
   chatBackend: AgentChatBackend;
   isLoading: boolean;
   feedbackOffer: FeedbackOffer | null;
+  createReportSaver: () => NonNullable<OpenReportIssueOptions["saveReport"]>;
+  /** 每轮分支回调：从该轮终态复制出前缀新会话。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12 */
+  onForkFromMessage?: (messageId: string) => void;
+  forkFromMessageDisabled?: boolean;
 }
 
 function toChatMessageView(m: AgentChatMessage): ChatMessage {
@@ -95,6 +99,8 @@ interface AgentMessageRowProps {
   onResumeFanout?: (messageId: string) => void;
   isBusy?: boolean;
   onRevertFileChange?: (change: TurnFileChange) => Promise<FileChangeRevertResult>;
+  onForkTurn?: () => void;
+  forkDisabled?: boolean;
 }
 
 // Completed messages retain their object identity across streaming updates, so
@@ -112,6 +118,8 @@ const AgentMessageRow = memo(function AgentMessageRow({
   onResumeFanout,
   isBusy,
   onRevertFileChange,
+  onForkTurn,
+  forkDisabled,
 }: AgentMessageRowProps) {
   const adaptedMessage = toChatMessageView(message);
   const isAssistant = message.sender !== USER_SENDER;
@@ -166,6 +174,9 @@ const AgentMessageRow = memo(function AgentMessageRow({
             fileChanges={message.fileChanges}
             onRevertFileChange={onRevertFileChange}
             isBusy={isBusy}
+            turnUsage={message.turnUsage}
+            onForkTurn={onForkTurn}
+            forkDisabled={forkDisabled}
             onOpenFileChange={(change) =>
               void openTurnDiff(app, change, message.id).catch((error: unknown) =>
                 logError("[AgentChatMessages] failed to open the turn diff", error)
@@ -201,6 +212,9 @@ const AgentChatMessages = memo(
     chatBackend,
     isLoading,
     feedbackOffer,
+    createReportSaver,
+    onForkFromMessage,
+    forkFromMessageDisabled,
   }: AgentChatMessagesProps) => {
     const { app } = plugin;
     const handleOpenSubagentHistory = useCallback(
@@ -272,6 +286,29 @@ const AgentChatMessages = memo(
       : pendingPermission
         ? `permission:${pendingPermission.toolCall.toolCallId}`
         : null;
+    // 待处理卡挂在流内生边缘(run 在此暂停)，不脱离消息流。https://github.com/ItsDalk-Lane/Vault-Agent/issues/7
+    const pendingLiveCard = pendingActionId ? (
+      <div
+        role="region"
+        aria-label={t("agentChat.chatMessages.pendingActions")}
+        className="tw-w-full"
+      >
+        <div key={pendingActionId} data-action-id={pendingActionId}>
+          {pendingQuestion ? (
+            <AskUserQuestionCard
+              request={pendingQuestion}
+              onResolve={chatBackend.resolveAskUserQuestion.bind(chatBackend)}
+            />
+          ) : pendingPermission ? (
+            <ToolPermissionCard
+              request={pendingPermission}
+              toolName={pendingToolName}
+              onResolve={chatBackend.resolveToolPermission.bind(chatBackend)}
+            />
+          ) : null}
+        </div>
+      </div>
+    ) : null;
 
     const feedbackCardIndex = useMemo(
       () => findFeedbackCardIndex(visible, feedbackOffer),
@@ -286,6 +323,7 @@ const AgentChatMessages = memo(
               openReportIssueModal(plugin, {
                 activeBackend: feedbackOffer.evidence.backendId,
                 initialNote: formatFeedbackNote(feedbackOffer),
+                saveReport: createReportSaver(),
                 onReported: (report) => chatBackend.markFeedbackReported(report),
               })
             }
@@ -298,7 +336,7 @@ const AgentChatMessages = memo(
             }}
           />
         ) : null,
-      [feedbackOffer, plugin, chatBackend]
+      [feedbackOffer, plugin, chatBackend, createReportSaver]
     );
 
     const latestAssistant = useMemo(() => lastAssistant(visible), [visible]);
@@ -335,6 +373,9 @@ const AgentChatMessages = memo(
               const shouldApplyMinHeight =
                 index === displayed.length - 1 && message.sender !== USER_SENDER && !showPlanCard;
               const messageKey = getMessageKey(adapted[index], index);
+              const isLiveEdgeRow =
+                message.id === latestAssistant?.id ||
+                (latestAssistant === undefined && index === displayed.length - 1);
 
               return (
                 <AgentMessageRow
@@ -349,7 +390,12 @@ const AgentChatMessages = memo(
                   isStreaming={message.id === streamingMessageId}
                   minHeight={shouldApplyMinHeight ? containerMinHeight : undefined}
                   trailingCard={
-                    index + firstVisibleIndex === feedbackCardIndex ? feedbackCard : undefined
+                    // 待处理交互卡优先挂在生边缘行；空闲时的反馈卡沿用原挂载点。https://github.com/ItsDalk-Lane/Vault-Agent/issues/7
+                    isLiveEdgeRow && pendingLiveCard
+                      ? pendingLiveCard
+                      : index + firstVisibleIndex === feedbackCardIndex
+                        ? feedbackCard
+                        : undefined
                   }
                   onResumeFanout={
                     // 只读快照仅供核对，不能用比较卡重新排入执行名额。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
@@ -358,6 +404,13 @@ const AgentChatMessages = memo(
                       : undefined
                   }
                   isBusy={isLoading}
+                  onForkTurn={
+                    // 只有带 runId 的已完成轮次才能逐轮分支。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12
+                    onForkFromMessage && message.turnEndEntryId && message.id !== streamingMessageId
+                      ? () => onForkFromMessage(message.id)
+                      : undefined
+                  }
+                  forkDisabled={forkFromMessageDisabled}
                   onRevertFileChange={
                     chatBackend.revertFileChange && !chatBackend.getBackendState()?.readOnly
                       ? handleRevertFileChange
@@ -367,33 +420,8 @@ const AgentChatMessages = memo(
               );
             })}
             {inlinePlanCard}
+            {displayed.length === 0 && pendingLiveCard}
           </ChatTranscriptViewport>
-          {pendingActionId ? (
-            <div
-              role="region"
-              aria-label={t("agentChat.chatMessages.pendingActions")}
-              data-testid="agent-action-rail"
-              // A verbose question can exceed a short chat pane. Bound and scroll
-              // the rail so its resolution controls remain reachable.
-              // https://github.com/logancyang/obsidian-copilot/issues/2948
-              className="tw-max-h-full tw-w-full tw-overflow-y-auto tw-bg-primary"
-            >
-              <div key={pendingActionId} data-action-id={pendingActionId}>
-                {pendingQuestion ? (
-                  <AskUserQuestionCard
-                    request={pendingQuestion}
-                    onResolve={chatBackend.resolveAskUserQuestion.bind(chatBackend)}
-                  />
-                ) : pendingPermission ? (
-                  <ToolPermissionCard
-                    request={pendingPermission}
-                    toolName={pendingToolName}
-                    onResolve={chatBackend.resolveToolPermission.bind(chatBackend)}
-                  />
-                ) : null}
-              </div>
-            </div>
-          ) : null}
         </div>
       </SubagentHistoryOpenerContext.Provider>
     );

@@ -16,10 +16,12 @@ export interface AgentInputDraftControls extends AgentInputDraft {
   setContextNotes: React.Dispatch<React.SetStateAction<TFile[]>>;
   setSelectedImages: React.Dispatch<React.SetStateAction<File[]>>;
   addImages: (files: File[]) => void;
-  setIncludeActiveNote: (include: boolean) => void;
-  setIncludeActiveWebTab: (include: boolean) => void;
+  setIncludeActiveNote: (includeActiveNote: boolean) => void;
+  setIncludeActiveWebTab: (includeActiveWebTab: boolean) => void;
   setLoading: (loading: boolean) => void;
   setQueue: React.Dispatch<React.SetStateAction<QueuedAgentMessage[]>>;
+  // 编辑排队消息要把它的命令上下文一并回填，重新发送才能还原选区。https://github.com/ItsDalk-Lane/Vault-Agent/issues/16
+  setCommandContext: (context: AgentInputDraft["commandContext"]) => void;
   resetCompose: () => void;
 }
 
@@ -85,6 +87,12 @@ export function useAgentInputDrafts({
     [updateActive]
   );
 
+  const setCommandContext = useCallback(
+    (commandContext: AgentInputDraft["commandContext"]) =>
+      updateActive((draft) => ({ ...draft, commandContext })),
+    [updateActive]
+  );
+
   const resetCompose = useCallback(
     () =>
       updateActive((draft) => ({
@@ -122,6 +130,7 @@ export function useAgentInputDrafts({
       setIncludeActiveWebTab,
       setLoading,
       setQueue,
+      setCommandContext,
       resetCompose,
     }),
     [
@@ -134,6 +143,7 @@ export function useAgentInputDrafts({
       setIncludeActiveWebTab,
       setLoading,
       setQueue,
+      setCommandContext,
       resetCompose,
     ]
   );

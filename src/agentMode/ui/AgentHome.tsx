@@ -1,13 +1,13 @@
 import AgentChatMessages from "@/agentMode/ui/AgentChatMessages";
 import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
 import { AgentChatInput } from "@/agentMode/ui/AgentChatInput";
-import { LegacyHistoryNotice } from "@/agentMode/ui/LegacyHistoryNotice";
 import { AgentRecoveryNotice } from "@/agentMode/ui/AgentRecoveryNotice";
 import { confirmSessionRollover } from "@/agentMode/ui/confirmSessionRollover";
 import { RECOMMENDED_BACKEND_ID } from "@/agentMode/backends/registry";
-import { openReportIssueModal } from "@/agentMode/ui/ReportIssueModal";
+import { createSessionReportSaver, openReportIssueModal } from "@/agentMode/ui/ReportIssueModal";
 import { formatChatReportNote } from "@/agentMode/session/feedback/feedbackOffer";
 import AgentContextMeter from "@/agentMode/ui/AgentContextMeter";
+import { AgentSessionStatsDock } from "@/agentMode/ui/AgentSessionStatsDock";
 import AgentContextSection, { buildContextSummary } from "@/agentMode/ui/AgentContextSection";
 import { AgentLandingStack } from "@/agentMode/ui/AgentLandingStack";
 import { CreateProjectPanel } from "@/agentMode/ui/CreateProjectPanel";
@@ -64,7 +64,6 @@ interface AgentHomeProps {
   chatInputId: string;
   manager: AgentSessionManager;
   plugin: VaultAgentPlugin;
-  onSaveChat: (saveAsNote: () => Promise<void>) => void;
   updateUserMessageHistory: (newMessage: string) => void;
 }
 
@@ -76,7 +75,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
   chatInputId,
   manager,
   plugin,
-  onSaveChat,
   updateUserMessageHistory,
 }) => {
   const appContext = useContext(AppContext);
@@ -95,43 +93,33 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       }
     });
   }, [app, manager, sessionId]);
-  const handleImportLegacy = useCallback(() => {
-    setHistoryBusy(true);
-    void manager
-      .importActiveLegacySession()
-      .catch((error: unknown) => {
-        logError("[AgentMode] legacy import failed", error);
-        new Notice(t("controls.importLegacyFailed"));
-      })
-      .finally(() => setHistoryBusy(false));
-  }, [manager]);
-  const handleExportArchive = useCallback(async () => {
-    setHistoryBusy(true);
-    try {
-      await manager.exportActiveSession("json");
-      new Notice(t("notice.savedAsNote"));
-    } catch (error) {
-      logError("[AgentMode] chat export failed", error);
-      new Notice(t("notice.saveFailed"));
-    } finally {
-      setHistoryBusy(false);
-    }
-  }, [manager]);
-  const handleImportArchive = useCallback(
-    async (file: File) => {
+  const handleExportArchive = useCallback(
+    async (format: "json" | "markdown" = "json") => {
       setHistoryBusy(true);
       try {
-        if (file.size > 8 * 1024 * 1024) throw new Error("The chat backup exceeds 8 MiB.");
-        await manager.importSessionBackup(await file.text());
+        const result = await manager.exportActiveSession(format);
+        if (result) new Notice(t("localData.exported"));
       } catch (error) {
-        logError("[AgentMode] chat backup import failed", error);
-        new Notice(t("controls.importArchiveFailed"));
+        logError("[AgentMode] chat export failed", error);
+        new Notice(t("notice.saveFailed"));
       } finally {
         setHistoryBusy(false);
       }
     },
     [manager]
   );
+  const handleForkChat = useCallback(async () => {
+    const id = manager.getSession(sessionId)?.getBackendSessionId();
+    if (!id) return;
+    setHistoryBusy(true);
+    try {
+      await manager.forkChat(id);
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : t("localData.forkBusy"));
+    } finally {
+      setHistoryBusy(false);
+    }
+  }, [manager, sessionId]);
 
   useChatInputAutoFocus();
 
@@ -147,30 +135,37 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     feedbackOffer,
     recovery,
   } = useAgentChatRuntimeState(backend);
-  const isLoading = draft.loading || isTurnInFlight;
+  const isLoading = draft.loading || isTurnInFlight || manager.isDeletingSession(sessionId);
+
+  // 每轮分支与整聊分叉共用同一组“会话须完全空闲”的门槛。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12
+  const handleForkFromMessage = useCallback(
+    async (messageId: string) => {
+      const id = manager.getSession(sessionId)?.getBackendSessionId();
+      const entryId = messages.find((message) => message.id === messageId)?.turnEndEntryId;
+      if (!id || !entryId) return;
+      setHistoryBusy(true);
+      try {
+        await manager.forkChat(id, entryId);
+      } catch (error) {
+        new Notice(error instanceof Error ? error.message : t("localData.forkBusy"));
+      } finally {
+        setHistoryBusy(false);
+      }
+    },
+    [manager, sessionId, messages]
+  );
+  const forkActionDisabled =
+    historyBusy ||
+    isStarting ||
+    isTurnInFlight ||
+    (backend.getActiveBackgroundTaskCount?.() ?? 0) > 0 ||
+    (recovery !== null && recovery.status !== "none") ||
+    hasPendingPlanPermission ||
+    pendingToolPermissions.length > 0 ||
+    pendingAskUserQuestions.length > 0;
 
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    onSaveChat(async () => {
-      await manager.saveActiveSession();
-    });
-  }, [onSaveChat, manager]);
-
-  const handleSaveAsNote = useCallback(async () => {
-    try {
-      const result = await manager.saveActiveSession();
-      if (result) {
-        new Notice(t("notice.savedAsNote"));
-      } else {
-        new Notice(t("notice.nothingToSave"));
-      }
-    } catch (error) {
-      logError("[AgentMode] manual save failed", error);
-      new Notice(t("notice.saveFailed"));
-    }
-  }, [manager]);
 
   const handleNewChat = useCallback(() => {
     if (manager.getIsStarting()) return;
@@ -227,7 +222,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
     updateChatTitle: handleUpdateChatTitle,
     deleteChat: handleDeleteChat,
     setChatPinned: handleSetChatPinned,
-    openSourceFile: handleOpenSourceFile,
     copyChatLink: handleCopyHistoryChatLink,
     getChatBookmarkState,
     setChatBookmarked: handleSetChatBookmarked,
@@ -426,7 +420,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
             onDeleteChat={handleDeleteChat}
             onCloseSession={handleCloseSession}
             openChatIds={openChatIds}
-            onOpenSourceFile={handleOpenSourceFile}
             onCopyChatLink={handleCopyHistoryChatLink}
             onSetChatPinned={handleSetChatPinned}
             getChatBookmarkState={getChatBookmarkState}
@@ -469,7 +462,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       handleUpdateChatTitle,
       handleDeleteChat,
       handleSetChatPinned,
-      handleOpenSourceFile,
       handleCopyHistoryChatLink,
       getChatBookmarkState,
       handleSetChatBookmarked,
@@ -499,7 +491,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
             onDeleteChat={handleDeleteChat}
             onCloseSession={handleCloseSession}
             openChatIds={openChatIds}
-            onOpenSourceFile={handleOpenSourceFile}
             onCopyChatLink={handleCopyHistoryChatLink}
             onSetChatPinned={handleSetChatPinned}
             getChatBookmarkState={getChatBookmarkState}
@@ -531,7 +522,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       handleUpdateChatTitle,
       handleDeleteChat,
       handleSetChatPinned,
-      handleOpenSourceFile,
       handleCopyHistoryChatLink,
       getChatBookmarkState,
       handleSetChatBookmarked,
@@ -575,13 +565,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
       >
         {chatInput}
       </AgentRecoveryNotice>
-    ) : historicalOnly ? (
-      <LegacyHistoryNotice
-        busy={historyBusy}
-        canImport={manager.getSession(sessionId)?.backendId !== "pi"}
-        onImport={handleImportLegacy}
-        onExport={safeAsyncHandler(handleExportArchive)}
-      />
     ) : (
       chatInput
     );
@@ -602,20 +585,25 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
 
   const activeSession = manager.getSession(sessionId);
   const getActiveChatBookmarkState = useCallback(
-    () => getChatBookmarkState(manager.getSessionSourcePath(sessionId)),
+    () => getChatBookmarkState(manager.getSession(sessionId)?.getBackendSessionId() ?? ""),
     [getChatBookmarkState, manager, sessionId]
   );
   const handleCopyChatLink = () =>
-    plugin.copyChatLink(async () => {
-      // A native session link only opens on this device: https://github.com/Brevilabs/obsidian-copilot-private/issues/601
-      return (await manager.saveActiveSession())?.path ?? "";
-    });
+    plugin.copyChatLink(async () => manager.getSession(sessionId)?.getBackendSessionId() ?? "");
 
+  const createReportSaver = useCallback(
+    () =>
+      createSessionReportSaver(manager.getSession(sessionId)?.getBackendSessionId(), () =>
+        manager.getLocalDataBackend()
+      ),
+    [manager, sessionId]
+  );
   const handleReportError = () => {
-    const evidence = activeSession?.getReportEvidence();
+    const evidence = manager.getSession(sessionId)?.getReportEvidence();
     openReportIssueModal(plugin, {
       activeBackend: evidence?.backendId ?? settings.agentMode.activeBackend,
       initialNote: evidence ? formatChatReportNote(evidence) : undefined,
+      saveReport: createReportSaver(),
     });
   };
 
@@ -718,7 +706,7 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                 ) : (
                   <>
                     <AgentChatMessages
-                      sourcePath={manager.getSessionSourcePath(sessionId)}
+                      sourcePath=""
                       key={sessionId}
                       messages={messages}
                       plugin={plugin}
@@ -728,21 +716,26 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                       chatBackend={backend}
                       isLoading={isLoading}
                       feedbackOffer={feedbackOffer}
+                      createReportSaver={createReportSaver}
+                      onForkFromMessage={(messageId) => void handleForkFromMessage(messageId)}
+                      forkFromMessageDisabled={forkActionDisabled}
                     />
                     <AgentChatControls
                       onCopyChatLink={
-                        activeSession?.hasUserVisibleMessages() ? handleCopyChatLink : undefined
+                        activeSession?.getBackendSessionId() ? handleCopyChatLink : undefined
                       }
                       getChatBookmarkState={
-                        activeSession?.hasUserVisibleMessages()
+                        activeSession?.getBackendSessionId()
                           ? getActiveChatBookmarkState
                           : undefined
                       }
                       onSetChatBookmarked={handleSetActiveChatBookmarked}
                       onReportError={handleReportError}
                       onNewChat={handleNewChat}
-                      onSaveAsNote={handleSaveAsNote}
                       onExportArchive={handleExportArchive}
+                      onExportMarkdown={() => handleExportArchive("markdown")}
+                      onForkChat={handleForkChat}
+                      forkDisabled={forkActionDisabled}
                       onPause={
                         isTurnInFlight && !historicalOnly && backend.pause
                           ? () => backend.pause!()
@@ -761,7 +754,6 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                         pendingToolPermissions.length > 0 ||
                         pendingAskUserQuestions.length > 0
                       }
-                      onImportArchive={handleImportArchive}
                       chatHistoryItems={chatHistoryItems}
                       onLoadHistory={handleLoadChatHistory}
                       onLoadChat={handleLoadChat}
@@ -770,9 +762,10 @@ const AgentHomeInternal: React.FC<AgentHomeProps> = ({
                       onCloseSession={handleCloseSession}
                       openChatIds={openChatIds}
                       runningChatIds={runningChatIds}
-                      onOpenSourceFile={handleOpenSourceFile}
                       usageMeter={<AgentContextMeter backend={backend} />}
                     />
+                    {/* 会话统计与 Token 用量双胶囊,居中悬于输入框上方。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 */}
+                    <AgentSessionStatsDock backend={backend} messages={messages} />
                     {composerNode}
                   </>
                 )}

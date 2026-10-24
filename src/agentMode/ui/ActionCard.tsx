@@ -3,7 +3,10 @@ import { Loader2, Check, X } from "lucide-react";
 import type { ToolCallPart } from "@/agentMode/ui/agentTrail";
 import type { AgentToolStatus } from "@/agentMode/session/types";
 import { displayTargetFromPath, lookupToolSummary } from "@/agentMode/ui/toolSummaries";
-import { renderDiff } from "@/agentMode/ui/diffRender";
+import { formatAgentInput } from "@/agentMode/ui/diffRender";
+import { DiffLines } from "@/agentMode/ui/DiffLines";
+import { ExpandedBlockSection, prettyIfJson } from "@/agentMode/ui/ExpandedBlockSection";
+import { t } from "@/i18n";
 import { getVaultBase } from "@/utils/vaultPath";
 import { openVaultPath } from "@/utils/openVaultPath";
 import { useApp } from "@/context";
@@ -24,7 +27,8 @@ export const ActionCard: React.FC<ActionCardProps> = ({ part, open, onToggle }) 
   const outcome = summary.outcome(part);
   const outputs = part.output ?? [];
   const details = summary.expandedDetails?.(part) ?? null;
-  const expandable = outputs.length > 0 || details !== null;
+  const inputText = details !== null ? null : formatAgentInput(part.input);
+  const expandable = outputs.length > 0 || details !== null || inputText !== null;
   const targetPath =
     part.status === "completed" ? (summary.targetPath?.(part, summaryCtx) ?? null) : null;
   const link = targetPath
@@ -61,29 +65,35 @@ export const ActionCard: React.FC<ActionCardProps> = ({ part, open, onToggle }) 
       open={open}
       onToggle={onToggle}
     >
-      {details ? (
-        <pre className="tw-max-h-40 tw-overflow-auto tw-whitespace-pre-wrap tw-rounded tw-bg-secondary-alt tw-p-1 tw-text-xs">
-          {details}
-        </pre>
-      ) : null}
       {outcome ? <div className="tw-text-xs tw-text-muted">{outcome}</div> : null}
+      {/* 展开体统一为分段面板：命令/输入 + 输出 + 差异，均带标签与复制。https://github.com/ItsDalk-Lane/Vault-Agent/issues/10 */}
+      {details !== null ? (
+        <ExpandedBlockSection label={t("agentChat.blockSections.command")} text={details} />
+      ) : inputText !== null ? (
+        <ExpandedBlockSection label={t("agentChat.blockSections.input")} text={inputText} />
+      ) : null}
       {outputs.map((o, i) =>
         o.type === "text" ? (
-          <pre
+          <ExpandedBlockSection
             // eslint-disable-next-line @eslint-react/no-array-index-key -- tool outputs are append-only; index is stable
             key={`text-${i}`}
-            className="tw-max-h-40 tw-overflow-auto tw-whitespace-pre-wrap tw-rounded tw-bg-secondary-alt tw-p-1 tw-text-xs"
-          >
-            {o.text}
-          </pre>
+            label={
+              outputs.length > 1
+                ? t("agentChat.blockSections.outputN", { n: i + 1 })
+                : t("agentChat.blockSections.output")
+            }
+            text={prettyIfJson(o.text)}
+            copyText={o.text}
+          />
         ) : (
-          // eslint-disable-next-line @eslint-react/no-array-index-key -- tool outputs are append-only; index is stable
-          <div key={`diff-${i}-${o.path}`} className="tw-rounded tw-bg-secondary-alt tw-p-1">
-            <p className="tw-font-mono tw-text-xs tw-text-muted">{o.path}</p>
-            <pre className="tw-max-h-40 tw-overflow-auto tw-whitespace-pre-wrap tw-text-xs">
-              {renderDiff(o.oldText, o.newText)}
-            </pre>
-          </div>
+          <ExpandedBlockSection
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- tool outputs are append-only; index is stable
+            key={`diff-${i}-${o.path}`}
+            label={o.path}
+            copyText={o.newText}
+          >
+            <DiffLines oldText={o.oldText} newText={o.newText} />
+          </ExpandedBlockSection>
         )
       )}
     </AgentActivityCard>

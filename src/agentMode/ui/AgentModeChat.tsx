@@ -1,5 +1,8 @@
-import { AgentChatControls } from "@/agentMode/ui/AgentChatControls";
+import { Button } from "@/components/ui/button";
 import { AgentHome } from "@/agentMode/ui/AgentHome";
+import { GlobalRecentChatsSection } from "@/agentMode/ui/GlobalRecentChatsSection";
+import { useAgentHistoryControls } from "@/agentMode/ui/hooks/useAgentHistoryControls";
+import type { AgentSessionManager } from "@/agentMode/session/AgentSessionManager";
 import { AgentModeStatus } from "@/agentMode/ui/AgentModeStatus";
 import { creatableBackendDescriptors } from "@/agentMode/backends/registry";
 import { t } from "@/i18n";
@@ -10,19 +13,55 @@ import React from "react";
 
 interface Props {
   plugin: VaultAgentPlugin;
-  onSaveChat: (saveAsNote: () => Promise<void>) => void;
   updateUserMessageHistory: (newMessage: string) => void;
 }
 
-export const AgentModeChat: React.FC<Props> = ({
-  plugin,
-  onSaveChat,
-  updateUserMessageHistory,
-}) => {
+interface AgentChatLandingProps {
+  manager: AgentSessionManager;
+  plugin: VaultAgentPlugin;
+}
+
+function AgentChatLanding({ manager, plugin }: AgentChatLandingProps) {
+  const history = useAgentHistoryControls(manager, plugin, manager.getActiveProjectId());
+  const { loadChatHistory } = history;
+  const loadHistory = React.useCallback(() => void loadChatHistory(), [loadChatHistory]);
+  return (
+    <div className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
+      <div className="tw-flex tw-min-h-0 tw-flex-1 tw-flex-col tw-gap-4 tw-overflow-y-auto tw-p-4">
+        <p className="tw-text-muted">{t("localData.emptyChat")}</p>
+        <Button
+          disabled={manager.getIsStarting()}
+          onClick={() => {
+            // 恢复空标签或删完最后一段聊天时不能隐式创建记录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+            manager
+              .getOrCreateActiveSession()
+              .catch((error) => logError("[AgentMode] start failed", error));
+          }}
+        >
+          {t("controls.newChat")}
+        </Button>
+        <GlobalRecentChatsSection
+          items={history.chatHistoryItems}
+          onLoadHistory={loadHistory}
+          onLoadChat={history.loadChat}
+          onUpdateTitle={history.updateChatTitle}
+          onDeleteChat={history.deleteChat}
+          onCopyChatLink={history.copyChatLink}
+          onSetChatPinned={history.setChatPinned}
+          getChatBookmarkState={history.getChatBookmarkState}
+          onSetChatBookmarked={history.setChatBookmarked}
+        />
+      </div>
+      <AgentModeStatus manager={manager} plugin={plugin} />
+    </div>
+  );
+}
+
+export const AgentModeChat: React.FC<Props> = ({ plugin, updateUserMessageHistory }) => {
   useLanguage();
   const manager = plugin.agentSessionManager;
   const descriptor = creatableBackendDescriptors()[0];
-  const [tick, setTick] = React.useState(0);
+  const [, setTick] = React.useState(0);
 
   React.useEffect(() => {
     if (!manager) return;
@@ -30,17 +69,6 @@ export const AgentModeChat: React.FC<Props> = ({
   }, [manager]);
 
   const preloadReady = manager?.isPreloadReady(descriptor.id) ?? true;
-
-  React.useEffect(() => {
-    if (!manager) return;
-    if (!preloadReady) return;
-    if (manager.getSessionsForScope(manager.getActiveProjectId()).length > 0) return;
-    if (manager.getIsStarting()) return;
-    if (manager.getLastError()) return;
-    manager.getOrCreateActiveSession().catch((e) => {
-      logError("[AgentMode] auto-start failed", e);
-    });
-  }, [manager, preloadReady, tick]);
 
   if (!manager) return null;
 
@@ -54,7 +82,6 @@ export const AgentModeChat: React.FC<Props> = ({
         chatInputId={activeSession.chatInputId}
         manager={manager}
         plugin={plugin}
-        onSaveChat={onSaveChat}
         updateUserMessageHistory={updateUserMessageHistory}
       />
     );
@@ -69,11 +96,5 @@ export const AgentModeChat: React.FC<Props> = ({
     );
   }
 
-  return (
-    <div className="tw-flex tw-size-full tw-flex-col tw-overflow-hidden">
-      <div className="tw-flex-1" />
-      <AgentModeStatus manager={manager} plugin={plugin} />
-      <AgentChatControls />
-    </div>
-  );
+  return <AgentChatLanding manager={manager} plugin={plugin} />;
 };

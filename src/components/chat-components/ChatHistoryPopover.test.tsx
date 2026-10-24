@@ -1,14 +1,23 @@
 import { ChatHistoryPopover } from "@/components/chat-components/ChatHistoryPopover";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
+
+jest.mock("@/context", () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- 保持被替换 hook 的公开名称
+  useApp: () => ({}),
+}));
+jest.mock("@/components/modals/ConfirmModal", () => ({
+  ConfirmModal: jest.fn(() => ({ open: jest.fn() })),
+}));
 
 jest.mock("@/settings/model", () => ({
   useSettingsValue: jest.fn(() => ({ chatHistorySortStrategy: "recent" })),
 }));
 
 const issue = "https://github.com/Brevilabs/obsidian-copilot-private/issues/429";
-const history = ["Open research", "Saved research"].map((title) => ({
-  id: title,
+const history = ["Open research", "Saved research"].map((title, index) => ({
+  id: `root-${index + 1}`,
   title,
   createdAt: new Date(),
   lastAccessedAt: new Date(),
@@ -16,29 +25,42 @@ const history = ["Open research", "Saved research"].map((title) => ({
 
 describe("ChatHistoryPopover", () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     window.IntersectionObserver = jest.fn(() => ({
       observe: jest.fn(),
       disconnect: jest.fn(),
     })) as unknown as typeof IntersectionObserver;
   });
   describe("ChatHistoryPopover()", () => {
-    it("https://github.com/logancyang/obsidian-copilot/issues/2888 shows the delete summary of the chat being confirmed", () => {
+    it("opens a permanent deletion dialog before stopping a running chat https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const onDeleteChat = jest.fn(async () => {});
       render(
         <ChatHistoryPopover
           chatHistory={history}
           onUpdateTitle={jest.fn()}
-          onDeleteChat={async () => {}}
-          getDeleteSummary={(chat) => `Summary for ${chat.title}`}
+          onDeleteChat={onDeleteChat}
+          runningChatIds={new Set([history[0].id])}
         >
           <button type="button">History</button>
         </ChatHistoryPopover>
       );
       fireEvent.click(screen.getByText("History"));
-      expect(screen.queryByText(/^Summary for/)).toBeNull();
-
-      fireEvent.click(screen.getAllByTitle("delete file")[0]);
-
-      expect(screen.getAllByText(/^Summary for/)).toHaveLength(1);
+      fireEvent.click(screen.getAllByTitle("Permanently delete")[0]);
+      expect(onDeleteChat).not.toHaveBeenCalled();
+      expect(ConfirmModal).toHaveBeenCalledWith(
+        {},
+        expect.any(Function),
+        "Stop this chat and permanently delete all its local records, attachments and revert backups? This cannot be undone.",
+        "Delete chat",
+        "Permanently delete",
+        "Cancel",
+        undefined,
+        true
+      );
+      await act(async () => {
+        await jest.mocked(ConfirmModal).mock.calls[0][1]();
+      });
+      expect(onDeleteChat).toHaveBeenCalledWith(history[0].id);
     });
     it(`${issue} closes an open session while preserving its saved history and leaving the popover open`, async () => {
       const onCloseSession = jest.fn(async () => {});

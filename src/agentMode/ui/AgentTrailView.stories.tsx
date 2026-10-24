@@ -197,7 +197,15 @@ const TrailDemo: React.FC<{
   showCompletedDuration?: boolean;
   fileChanges?: TurnFileChange[];
   linkNotes?: Record<string, string>;
-}> = ({ parts, isStreaming = false, showCompletedDuration = true, fileChanges, linkNotes }) => {
+  foldOpen?: boolean;
+}> = ({
+  parts,
+  isStreaming = false,
+  showCompletedDuration = true,
+  fileChanges,
+  linkNotes,
+  foldOpen = true,
+}) => {
   const contextApp = useApp();
   const app = linkNotes
     ? Object.create(contextApp, {
@@ -223,6 +231,7 @@ const TrailDemo: React.FC<{
         app={app}
         turnStopReason={isStreaming ? undefined : "end_turn"}
         fileChanges={fileChanges}
+        defaultFoldOpen={foldOpen}
       />
     </TooltipProvider>
   );
@@ -298,6 +307,11 @@ export const VaultSearchRunning: StoryObj<AgentTrailProps> = {
 
 export const CompletedWithoutDuration: StoryObj<AgentTrailProps> = {
   render: () => <TrailDemo parts={UNIFIED_CARDS} showCompletedDuration={false} />,
+};
+
+export const CompletedTurnFolded: StoryObj<AgentTrailProps> = {
+  // 完成轮默认形态：过程块折叠，标题显示本轮用时与工具调用次数。https://github.com/ItsDalk-Lane/Vault-Agent/issues/14
+  render: () => <TrailDemo parts={TURN} foldOpen={false} />,
 };
 
 const EDITED_FILES: TurnFileChange[] = [

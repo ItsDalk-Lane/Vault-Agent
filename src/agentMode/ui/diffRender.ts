@@ -1,10 +1,16 @@
-export function renderDiff(oldText: string | null, newText: string): string {
-  const lines: string[] = [];
+export interface DiffLine {
+  change: "deleted" | "inserted";
+  text: string;
+}
+
+/** 逐行差异：旧文本带 `- ` 前缀，新文本带 `+ ` 前缀。https://github.com/ItsDalk-Lane/Vault-Agent/issues/10 */
+export function diffLines(oldText: string | null, newText: string): DiffLine[] {
+  const lines: DiffLine[] = [];
   if (oldText !== null) {
-    for (const l of oldText.split("\n")) lines.push(`- ${l}`);
+    for (const line of oldText.split("\n")) lines.push({ change: "deleted", text: `- ${line}` });
   }
-  for (const l of newText.split("\n")) lines.push(`+ ${l}`);
-  return lines.join("\n");
+  for (const line of newText.split("\n")) lines.push({ change: "inserted", text: `+ ${line}` });
+  return lines;
 }
 
 export function formatAgentInput(v: unknown): string | null {

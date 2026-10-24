@@ -6,30 +6,34 @@ import React from "react";
 import { Root } from "react-dom/client";
 import { t } from "@/i18n";
 
+interface ConfirmModalContentProps {
+  content: React.ReactNode;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmButtonText: string;
+  cancelButtonText: string;
+  destructive: boolean;
+}
+
 function ConfirmModalContent({
   content,
   onConfirm,
   onCancel,
   confirmButtonText,
   cancelButtonText,
-}: {
-  content: React.ReactNode;
-  onConfirm: () => void;
-  onCancel: () => void;
-  confirmButtonText: string;
-  cancelButtonText: string;
-}) {
+  destructive,
+}: ConfirmModalContentProps) {
   return (
     <div className="tw-flex tw-flex-col tw-gap-5">
       <div className="tw-whitespace-pre-wrap">{content}</div>
       <div className="tw-flex tw-justify-end tw-gap-2">
         {cancelButtonText && (
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel} autoFocus={destructive}>
             {cancelButtonText}
           </Button>
         )}
         {confirmButtonText && (
-          <Button variant="default" onClick={onConfirm}>
+          <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm}>
             {confirmButtonText}
           </Button>
         )}
@@ -49,7 +53,9 @@ export class ConfirmModal extends Modal {
     title: string,
     private confirmButtonText: string = t("ui.confirm.continue"),
     private cancelButtonText: string = t("common.cancel"),
-    private onCancel?: () => void | Promise<void>
+    private onCancel?: () => void | Promise<void>,
+    // 永久删除必须先落在取消按钮，普通确认仍保持原有默认行为。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    private destructive = false
   ) {
     super(app);
     // @ts-ignore
@@ -80,6 +86,7 @@ export class ConfirmModal extends Modal {
         onCancel={handleCancel}
         confirmButtonText={this.confirmButtonText}
         cancelButtonText={this.cancelButtonText}
+        destructive={this.destructive}
       />
     );
   }

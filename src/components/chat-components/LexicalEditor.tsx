@@ -36,7 +36,6 @@ import { TextInsertionPlugin } from "./plugins/TextInsertionPlugin";
 import { useChatInput } from "@/context/ChatInputContext";
 import { logError } from "@/logger";
 import { ActiveFileProvider } from "./context/ActiveFileContext";
-import { CloudAgentProvider, EMPTY_CLOUD_AGENT_IDS } from "./context/CloudAgentContext";
 import { useSettingsValue } from "@/settings/model";
 import { type AgentMentionBrand, EMPTY_AGENT_MENTION_BRANDS } from "./hooks/useAtMentionCategories";
 import { t } from "@/i18n";
@@ -60,7 +59,6 @@ interface LexicalEditorProps {
   onActiveWebTabRemoved?: () => void;
   onAgentsChange?: (backendIds: string[]) => void;
   agentBrands?: ReadonlyArray<AgentMentionBrand>;
-  cloudAgentIds?: ReadonlySet<string>;
   onEditorReady?: (editor: LexicalEditorType) => void;
   onImagePaste?: (files: File[]) => void;
   onTagSelected?: () => void;
@@ -89,7 +87,6 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   onActiveWebTabRemoved,
   onAgentsChange,
   agentBrands = EMPTY_AGENT_MENTION_BRANDS,
-  cloudAgentIds = EMPTY_CLOUD_AGENT_IDS,
   onEditorReady,
   onImagePaste,
   onTagSelected,
@@ -167,68 +164,63 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <ActiveFileProvider currentActiveFile={currentActiveFile}>
-        <CloudAgentProvider cloudAgentIds={cloudAgentIds}>
-          <div className="tw-relative">
-            <span id={editorLabelId} className="tw-sr-only">
-              Chat input
-            </span>
-            <PlainTextPlugin
-              contentEditable={
-                <ContentEditable
-                  className="tw-max-h-60 tw-min-h-[60px] tw-w-full tw-resize-none tw-overflow-y-auto tw-rounded-md tw-border-none tw-bg-transparent tw-px-2 tw-text-sm tw-text-normal tw-outline-none focus-visible:tw-ring-0"
-                  aria-labelledby={editorLabelId}
-                />
-              }
-              placeholder={
-                <div className="tw-pointer-events-none tw-absolute tw-left-2 tw-top-0 tw-select-none tw-text-sm tw-text-muted/60">
-                  {placeholder ?? t("ui.chat.typeMessage")}
-                </div>
-              }
-              ErrorBoundary={LexicalErrorBoundary}
-            />
-            {/* Selection-only changes must not push stale text over an external clear.
+        <div className="tw-relative">
+          <span id={editorLabelId} className="tw-sr-only">
+            Chat input
+          </span>
+          <PlainTextPlugin
+            contentEditable={
+              <ContentEditable
+                className="tw-max-h-60 tw-min-h-[60px] tw-w-full tw-resize-none tw-overflow-y-auto tw-rounded-md tw-border-none tw-bg-transparent tw-px-2 tw-text-sm tw-text-normal tw-outline-none focus-visible:tw-ring-0"
+                aria-labelledby={editorLabelId}
+              />
+            }
+            placeholder={
+              <div className="tw-pointer-events-none tw-absolute tw-left-2 tw-top-0 tw-select-none tw-text-sm tw-text-muted/60">
+                {placeholder ?? t("ui.chat.typeMessage")}
+              </div>
+            }
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+          {/* Selection-only changes must not push stale text over an external clear.
                 https://github.com/logancyang/obsidian-copilot-preview/issues/211 */}
-            <OnChangePlugin onChange={handleEditorChange} ignoreSelectionChange />
-            <HistoryPlugin />
-            <KeyboardPlugin
-              onSubmit={onSubmit}
-              sendShortcut={settings.defaultSendShortcut}
-              onEscape={onEscape}
-              onShiftTab={onShiftTab}
-            />
-            <ValueSyncPlugin value={value} />
-            <FocusPlugin onFocus={handleFocusRegistration} onEditorReady={handleEditorReady} />
-            <NotePillSyncPlugin onNotesChange={onNotesChange} onNotesRemoved={onNotesRemoved} />
-            {onURLsChange && (
-              <URLPillSyncPlugin onURLsChange={onURLsChange} onURLsRemoved={onURLsRemoved} />
-            )}
-            <ToolPillSyncPlugin onToolsChange={onToolsChange} />
-            <FolderPillSyncPlugin
-              onFoldersChange={onFoldersChange}
-              onFoldersRemoved={onFoldersRemoved}
-            />
-            <ActiveNotePillSyncPlugin
-              onActiveNoteAdded={onActiveNoteAdded}
-              onActiveNoteRemoved={onActiveNoteRemoved}
-            />
-            <WebTabPillSyncPlugin
-              onWebTabsChange={onWebTabsChange}
-              onActiveWebTabAdded={onActiveWebTabAdded}
-              onActiveWebTabRemoved={onActiveWebTabRemoved}
-            />
-            <AgentPillSyncPlugin onAgentsChange={onAgentsChange} />
-            <PillDeletionPlugin />
-            <PastePlugin enableURLPills={!!onURLsChange} onImagePaste={onImagePaste} />
-            <SlashCommandPlugin isAgentMode={isAgentMode} />
-            <NoteCommandPlugin currentActiveFile={currentActiveFile} />
-            <TagCommandPlugin onTagSelected={onTagSelected} />
-            <AtMentionCommandPlugin
-              currentActiveFile={currentActiveFile}
-              agentBrands={agentBrands}
-            />
-            <TextInsertionPlugin />
-          </div>
-        </CloudAgentProvider>
+          <OnChangePlugin onChange={handleEditorChange} ignoreSelectionChange />
+          <HistoryPlugin />
+          <KeyboardPlugin
+            onSubmit={onSubmit}
+            sendShortcut={settings.defaultSendShortcut}
+            onEscape={onEscape}
+            onShiftTab={onShiftTab}
+          />
+          <ValueSyncPlugin value={value} />
+          <FocusPlugin onFocus={handleFocusRegistration} onEditorReady={handleEditorReady} />
+          <NotePillSyncPlugin onNotesChange={onNotesChange} onNotesRemoved={onNotesRemoved} />
+          {onURLsChange && (
+            <URLPillSyncPlugin onURLsChange={onURLsChange} onURLsRemoved={onURLsRemoved} />
+          )}
+          <ToolPillSyncPlugin onToolsChange={onToolsChange} />
+          <FolderPillSyncPlugin
+            onFoldersChange={onFoldersChange}
+            onFoldersRemoved={onFoldersRemoved}
+          />
+          <ActiveNotePillSyncPlugin
+            onActiveNoteAdded={onActiveNoteAdded}
+            onActiveNoteRemoved={onActiveNoteRemoved}
+          />
+          <WebTabPillSyncPlugin
+            onWebTabsChange={onWebTabsChange}
+            onActiveWebTabAdded={onActiveWebTabAdded}
+            onActiveWebTabRemoved={onActiveWebTabRemoved}
+          />
+          <AgentPillSyncPlugin onAgentsChange={onAgentsChange} />
+          <PillDeletionPlugin />
+          <PastePlugin enableURLPills={!!onURLsChange} onImagePaste={onImagePaste} />
+          <SlashCommandPlugin isAgentMode={isAgentMode} />
+          <NoteCommandPlugin currentActiveFile={currentActiveFile} />
+          <TagCommandPlugin onTagSelected={onTagSelected} />
+          <AtMentionCommandPlugin currentActiveFile={currentActiveFile} agentBrands={agentBrands} />
+          <TextInsertionPlugin />
+        </div>
       </ActiveFileProvider>
     </LexicalComposer>
   );

@@ -25,7 +25,6 @@ export interface AgentMentionBrand {
   readonly id: string;
   readonly displayName: string;
   readonly Icon: React.ComponentType<{ className?: string }>;
-  readonly needsSelfHostWarning?: boolean;
 }
 
 export const EMPTY_AGENT_MENTION_BRANDS: ReadonlyArray<AgentMentionBrand> = Object.freeze([]);

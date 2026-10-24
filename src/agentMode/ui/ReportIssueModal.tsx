@@ -1,4 +1,5 @@
 import { frameSink } from "@/agentMode/session/debugSink";
+import type { BackendProcess } from "@/agentMode/session/types";
 import { logError, logInfo, logWarn } from "@/logger";
 import { logFileManager } from "@/logFileManager";
 import { t } from "@/i18n";
@@ -23,7 +24,7 @@ import {
   type ReportSourceOption,
 } from "./ReportIssueFlow";
 
-const FRAME_LOG_NAME = "acp-frames.ndjson.txt";
+const FRAME_LOG_NAME = "runtime.ndjson.txt";
 const CHAT_LOG_NAME = "vault-agent-log.md";
 
 export interface ReportIssueModalParams {
@@ -31,13 +32,30 @@ export interface ReportIssueModalParams {
   activeBackend: string;
   pluginVersion: string;
   initialNote?: string;
+  saveReport?: (
+    name: string,
+    content: Uint8Array
+  ) => Promise<Pick<PreparedReport, "zipDir" | "zipPath">>;
   onReported?: (report: { reportId: string; issueUrl: string }) => void;
 }
 
 export type OpenReportIssueOptions = Pick<
   ReportIssueModalParams,
-  "activeBackend" | "initialNote" | "onReported"
+  "activeBackend" | "initialNote" | "onReported" | "saveReport"
 >;
+
+export function createSessionReportSaver(
+  sessionId: string | null | undefined,
+  getBackend: () => Promise<Pick<BackendProcess, "writeSessionDiagnostic">>
+): NonNullable<ReportIssueModalParams["saveReport"]> {
+  // 点击后切换聊天不能改变报告归属；未创建或已删除的会话也不能落入公共临时目录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  return async (name, content) => {
+    if (!sessionId) throw new Error(t("localData.sessionMissing"));
+    const backend = await getBackend();
+    if (!backend.writeSessionDiagnostic) throw new Error(t("localData.storageUnavailable"));
+    return backend.writeSessionDiagnostic({ sessionId, name, content });
+  };
+}
 
 export function openReportIssueModal(
   plugin: Pick<Plugin, "app" | "manifest">,
@@ -71,9 +89,11 @@ function getElectronShell(): ElectronShell | null {
 
 export async function createReportDir(): Promise<string> {
   const fs = requireNodeModule<typeof import("node:fs/promises")>("fs/promises");
-  const os = requireNodeModule<typeof import("node:os")>("os");
   const path = requireNodeModule<typeof import("node:path")>("path");
-  return fs.mkdtemp(path.join(os.tmpdir(), "vault-agent-report-"));
+  const tempRoot = await logFileManager.getTempRoot();
+  // 报告也属于本版本管理的数据，必须与状态页列出的临时目录一致。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  await fs.mkdir(tempRoot, { recursive: true, mode: 0o700 });
+  return fs.mkdtemp(path.join(tempRoot, "vault-agent-report-"));
 }
 
 export async function discardReport(report: Pick<PreparedReport, "zipDir">): Promise<void> {
@@ -141,9 +161,7 @@ export class ReportIssueModal extends Modal {
     this.root?.unmount();
     this.root = null;
     this.contentEl.empty();
-    // A zip nobody will send is plaintext prompts and note contents in the OS
-    // temp folder, so ESC on the review page must take it with it.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/202
+    // 未交给用户的明文报告随窗口取消清理，无论它属于会话还是普通临时目录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     if (this.prepared) void this.discard(this.prepared);
   }
 
@@ -220,18 +238,23 @@ export class ReportIssueModal extends Modal {
       getNodeReportRuntime()
     );
 
-    const zipDir = await createReportDir();
-    const fs = requireNodeModule<typeof import("node:fs/promises")>("fs/promises");
-    const path = requireNodeModule<typeof import("node:path")>("path");
-    const zipPath = path.join(zipDir, bundle.zipName);
-    try {
-      await fs.writeFile(zipPath, bundle.zip);
-    } catch (err) {
-      // A partly written zip is plaintext prompts and note contents in a folder
-      // nothing will name again: the error goes back to the form and the
-      // directory goes with it (https://github.com/Brevilabs/obsidian-copilot-private/issues/202).
-      await discardReport({ zipDir });
-      throw err;
+    let zipDir: string;
+    let zipPath: string;
+    // 聊天报告必须随所属会话删除；保存失败时不能改存到公共临时目录。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (this.params.saveReport) {
+      ({ zipDir, zipPath } = await this.params.saveReport(bundle.zipName, bundle.zip));
+    } else {
+      zipDir = await createReportDir();
+      const fs = requireNodeModule<typeof import("node:fs/promises")>("fs/promises");
+      const path = requireNodeModule<typeof import("node:path")>("path");
+      zipPath = path.join(zipDir, bundle.zipName);
+      try {
+        await fs.writeFile(zipPath, bundle.zip);
+      } catch (err) {
+        // 写到一半的明文报告不会再被使用，失败时清理目录并保留原始错误。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+        await discardReport({ zipDir });
+        throw err;
+      }
     }
 
     logInfo(`[ReportIssue] bundle ready at ${zipPath} (${formatBytes(bundle.zip.byteLength)})`);

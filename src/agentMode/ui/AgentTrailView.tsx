@@ -4,6 +4,7 @@ import type {
   AgentMessagePart,
   StopReason,
   TurnFileChange,
+  TurnUsageSummary,
   FileChangeRevertResult,
 } from "@/agentMode/session/types";
 import { ActionCard } from "@/agentMode/ui/ActionCard";
@@ -12,6 +13,7 @@ import { CompactionRow } from "@/agentMode/ui/CompactionRow";
 import { AgentMessageActions } from "@/agentMode/ui/AgentMessageActions";
 import { SubAgentCard } from "@/agentMode/ui/SubAgentCard";
 import { ReasoningBlock } from "@/agentMode/ui/ReasoningBlock";
+import { TurnActivityFold } from "@/agentMode/ui/TurnActivityFold";
 import { AgentMarkdownText } from "@/agentMode/ui/AgentMarkdownText";
 import { planEntryClass, planEntryIcon } from "@/agentMode/ui/planEntryStyles";
 import { type ToolSummaryContext } from "@/agentMode/ui/toolSummaries";
@@ -36,6 +38,13 @@ interface AgentTrailProps {
   onRevertFileChange?: (change: TurnFileChange) => Promise<FileChangeRevertResult>;
   isBusy?: boolean;
   showMessageActions?: boolean;
+  /** 本轮用量，驱动页脚的用量胶囊。https://github.com/ItsDalk-Lane/Vault-Agent/issues/11 */
+  turnUsage?: TurnUsageSummary;
+  /** 逐轮分支动作，仅在带 runId 的完成轮提供。https://github.com/ItsDalk-Lane/Vault-Agent/issues/12 */
+  onForkTurn?: () => void;
+  forkDisabled?: boolean;
+  /** 组件库展示用默认展开过程折叠块；产品内默认折叠。https://github.com/ItsDalk-Lane/Vault-Agent/issues/14 */
+  defaultFoldOpen?: boolean;
 }
 
 const noopOpenFileChange = () => {};
@@ -54,6 +63,10 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
   onRevertFileChange,
   isBusy,
   showMessageActions = true,
+  turnUsage,
+  onForkTurn,
+  forkDisabled,
+  defaultFoldOpen,
 }) => {
   const answer = agentResponseText(parts);
   const hasRunningDuration = isStreaming && turnStartedAtMs !== undefined;
@@ -63,19 +76,16 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
   const compactionOnly =
     trailNodes.length > 0 && trailNodes.every((node) => node.type === "compaction");
   // 子任务历史只供查看，不能在历史窗口中提供写入编辑器的动作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  // 完成态用时移入过程折叠块标题，页脚不再显示时长。https://github.com/ItsDalk-Lane/Vault-Agent/issues/14
   const footer =
     showMessageActions && !isStreaming && turnStopReason !== "cancelled" && answer.length > 0 ? (
       <AgentMessageActions
         text={answer}
         app={app}
-        durationMs={turnDurationMs}
         timestamp={timestamp}
-      />
-    ) : turnDurationMs !== undefined ? (
-      <AssistantResponseFooter
-        leading={
-          <AgentTurnDurationIndicator status="complete" durationMs={turnDurationMs} inline />
-        }
+        turnUsage={turnUsage}
+        onForkTurn={onForkTurn}
+        forkDisabled={forkDisabled}
       />
     ) : !hasRunningDuration && timestamp ? (
       <AssistantResponseFooter timestamp={timestamp} />
@@ -83,7 +93,17 @@ export const AgentTrail: React.FC<AgentTrailProps> = ({
 
   return (
     <div className="tw-group tw-flex tw-flex-col tw-gap-1">
-      <LinearTrail parts={parts} isStreaming={isStreaming} app={app} />
+      {isStreaming ? (
+        <LinearTrail nodes={trailNodes} parts={parts} isStreaming app={app} />
+      ) : (
+        <FoldedTrail
+          nodes={trailNodes}
+          parts={parts}
+          app={app}
+          durationMs={turnDurationMs}
+          defaultFoldOpen={defaultFoldOpen}
+        />
+      )}
       {errorText && answer.length === 0 ? (
         // A failed turn's error is stored as message text, which a reply with parts never shows.
         // https://github.com/Brevilabs/obsidian-copilot-private/issues/633
@@ -114,15 +134,15 @@ interface TrailContext {
   summaryCtx: ToolSummaryContext;
 }
 
-// 一个 run 的思考、工具与文本逐块独立渲染，不再折叠成活动组。https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
+// 流式期间过程块逐块独立渲染，保持可见。https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
 const LinearTrail: React.FC<{
+  nodes: RenderNode[];
   parts: AgentMessagePart[];
   isStreaming: boolean;
   app: App;
-}> = ({ parts, isStreaming, app }) => {
+}> = ({ nodes, parts, isStreaming, app }) => {
   const expansion = useTrailExpansion();
   const summaryCtx = useMemo(() => ({ vaultBase: getVaultBase(app) }), [app]);
-  const nodes = buildAgentTrail(parts);
   const ctx: TrailContext = {
     app,
     lastPart: parts.length > 0 ? parts[parts.length - 1] : undefined,
@@ -134,6 +154,51 @@ const LinearTrail: React.FC<{
       {nodes.map((node, i) =>
         renderNode(node, i, ctx, isStreaming && i === nodes.length - 1, "root")
       )}
+    </div>
+  );
+};
+
+function isActivityNode(node: RenderNode): boolean {
+  return node.type === "reasoning" || node.type === "action" || node.type === "subagent";
+}
+
+// 完成轮把过程块（思考/工具/子代理）收进一个折叠块置于正文之前；首个过程块到最后一个过程块之间的
+// 中间正文与计划/压缩行一并按时间序折叠，不能抽出去破坏顺序；范围外的开头前言与最终回复保持可见。
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/14
+const FoldedTrail: React.FC<{
+  nodes: RenderNode[];
+  parts: AgentMessagePart[];
+  app: App;
+  durationMs?: number;
+  defaultFoldOpen?: boolean;
+}> = ({ nodes, parts, app, durationMs, defaultFoldOpen }) => {
+  const expansion = useTrailExpansion();
+  const summaryCtx = useMemo(() => ({ vaultBase: getVaultBase(app) }), [app]);
+  const first = nodes.findIndex(isActivityNode);
+  const last = nodes.findLastIndex(isActivityNode);
+  const ctx: TrailContext = {
+    app,
+    lastPart: parts.length > 0 ? parts[parts.length - 1] : undefined,
+    expansion,
+    summaryCtx,
+  };
+  const toolCount = parts.filter(
+    (part) => part.kind === "tool_call" && part.vendorToolName !== "ToolSearch"
+  ).length;
+  if (first === -1) {
+    return (
+      <div className="tw-flex tw-flex-col tw-gap-1">
+        {nodes.map((node, i) => renderNode(node, i, ctx, false, "root"))}
+      </div>
+    );
+  }
+  return (
+    <div className="tw-flex tw-flex-col tw-gap-1">
+      {nodes.slice(0, first).map((node, i) => renderNode(node, i, ctx, false, "root"))}
+      <TurnActivityFold durationMs={durationMs} toolCount={toolCount} defaultOpen={defaultFoldOpen}>
+        {nodes.slice(first, last + 1).map((node, i) => renderNode(node, i, ctx, false, "root"))}
+      </TurnActivityFold>
+      {nodes.slice(last + 1).map((node, i) => renderNode(node, i, ctx, false, "root"))}
     </div>
   );
 };

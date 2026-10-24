@@ -117,7 +117,7 @@ const image = {
   type: "image/png",
   arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
 } as File;
-const imageBlock = { type: "image", mimeType: "image/png", data: "AQID" };
+const imageBlock = { type: "image", mimeType: "image/png", data: "AQID" } as const;
 
 const makeDraft = (overrides: Partial<AgentInputDraftControls> = {}): AgentInputDraftControls => ({
   input: "hello",
@@ -135,6 +135,7 @@ const makeDraft = (overrides: Partial<AgentInputDraftControls> = {}): AgentInput
   setIncludeActiveWebTab: jest.fn(),
   setLoading: jest.fn(),
   setQueue: jest.fn(),
+  setCommandContext: jest.fn(),
   resetCompose: jest.fn(),
   ...overrides,
 });
@@ -253,56 +254,136 @@ describe("AgentChatInput", () => {
       );
     });
 
-    it("adds a pure text requirement to active work without creating or queueing another turn and keeps the draft on a last-boundary rejection https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+    it("inserts a queued message into the running turn instead of sending another one and keeps it queued on rejection https://github.com/ItsDalk-Lane/Vault-Agent/issues/1 https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", async () => {
       const backend = {
         canSteer: () => true,
         steerMessage: jest.fn(async () => undefined),
         sendMessage: jest.fn(),
       } as unknown as AgentChatBackend;
-      const draft = makeDraft({ input: "保留原文", loading: true });
-      const view = renderInput(backend, draft);
-      fireEvent.click(screen.getByRole("button", { name: /Supplement current work|补充当前工作/ }));
-      await waitFor(() => expect(draft.resetCompose).toHaveBeenCalledTimes(1));
-      expect(backend.steerMessage).toHaveBeenCalledWith("保留原文");
+      const queued = { id: "q1", text: "必须保留这条新要求", rawInput: "必须保留这条新要求" };
+      const updateUserMessageHistory = jest.fn();
+      const draft = makeDraft({ input: "", loading: true, queue: [queued] });
+      renderInput(backend, draft, { updateUserMessageHistory });
+      fireEvent.click(screen.getByRole("button", { name: "Insert into the running turn" }));
+      await waitFor(() => expect(backend.steerMessage).toHaveBeenCalledTimes(1));
+      expect(backend.steerMessage).toHaveBeenCalledWith("必须保留这条新要求", undefined, undefined);
       expect(backend.sendMessage).not.toHaveBeenCalled();
-      expect(draft.setQueue).not.toHaveBeenCalled();
-      expect(draft.setLoading).not.toHaveBeenCalled();
+      expect(updateUserMessageHistory).toHaveBeenCalledWith("必须保留这条新要求");
+      const queueUpdater = (draft.setQueue as jest.Mock).mock.calls[0][0] as (
+        q: { id: string }[]
+      ) => { id: string }[];
+      expect(queueUpdater([queued])).toEqual([]);
       jest.mocked(backend.steerMessage!).mockRejectedValueOnce(new Error("未补充，请重新发送"));
-      view.rerender(inputNode(backend, draft));
-      fireEvent.click(screen.getByRole("button", { name: /Supplement current work|补充当前工作/ }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Insert into the running turn" })).toHaveProperty(
+          "disabled",
+          false
+        )
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Insert into the running turn" }));
       await waitFor(() => expect(Notice).toHaveBeenCalledWith("未补充，请重新发送"));
-      expect(draft.resetCompose).toHaveBeenCalledTimes(1);
+      expect((draft.setQueue as jest.Mock).mock.calls).toHaveLength(1);
+      expect(backend.sendMessage).not.toHaveBeenCalled();
     });
 
-    it("keeps attachments, commands and new context on the ordinary queue path rather than steering them https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+    it("inserts a queued message with its note context and image into the running turn https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", async () => {
+      const backend = {
+        canSteer: () => true,
+        steerMessage: jest.fn(async () => undefined),
+      } as unknown as AgentChatBackend;
+      const note = makeFile("Research.md");
+      const draft = makeDraft({
+        loading: true,
+        queue: [
+          {
+            id: "rich",
+            text: "看这张图",
+            rawInput: "看这张图",
+            context: { notes: [note], urls: [] },
+            promptContent: [imageBlock],
+          },
+        ],
+      });
+      renderInput(backend, draft);
+      fireEvent.click(screen.getByRole("button", { name: "Insert into the running turn" }));
+      await waitFor(() => expect(backend.steerMessage).toHaveBeenCalledTimes(1));
+      expect(backend.steerMessage).toHaveBeenCalledWith("看这张图", { notes: [note], urls: [] }, [
+        imageBlock,
+      ]);
+    });
+
+    it("keeps commands, model-pinned commands, mentions and vision-unsupported images queued for the next turn rather than inserting https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", () => {
       const backend = {
         canSteer: () => true,
         steerMessage: jest.fn(),
       } as unknown as AgentChatBackend;
-      const view = renderInput(backend, makeDraft({ input: "/compact", loading: true }));
-      const disabled = () =>
-        expect(
-          screen.getByRole("button", { name: /Supplement current work|补充当前工作/ })
-        ).toHaveProperty("disabled", true);
-      disabled();
-      for (const extra of [
-        { images: [image] },
-        { includeActiveNote: true },
-        { includeActiveWebTab: true },
-        { commandContext: { title: "command" } },
-      ]) {
-        view.rerender(
-          inputNode(
-            backend,
-            makeDraft({
-              input: "新要求",
-              loading: true,
-              ...extra,
-            } as Partial<AgentInputDraftControls>)
-          )
-        );
-        disabled();
+      const draft = makeDraft({
+        loading: true,
+        queue: [
+          { id: "compact", text: "/compact", rawInput: "/compact" },
+          { id: "model", text: "expanded", rawInput: "/cmd", commandModelId: "pinned" },
+          { id: "mention", text: "hi", rawInput: "hi", mentionedAgents: ["cm-a"] },
+          {
+            id: "image",
+            text: "describe this",
+            rawInput: "describe this",
+            promptContent: [{ type: "image", mimeType: "image/png", data: "AA==" }],
+          },
+        ],
+      });
+      renderInput(backend, draft, {
+        modelPickerOverride: {
+          models: [{ name: "text-only", provider: "agent", enabled: true, capabilities: [] }],
+          value: "text-only|agent",
+          onChange: jest.fn(),
+        },
+      });
+      for (const insert of screen.getAllByRole("button", {
+        name: "Insert into the running turn",
+      })) {
+        expect(insert).toHaveProperty("disabled", true);
       }
+      expect(backend.steerMessage).not.toHaveBeenCalled();
+    });
+
+    it("returns a queued message to the composer with everything it was sent with https://github.com/ItsDalk-Lane/Vault-Agent/issues/16", () => {
+      const backend = {
+        canSteer: () => true,
+        steerMessage: jest.fn(),
+      } as unknown as AgentChatBackend;
+      const note = makeFile("Notes.md");
+      const other: WebTabContext = { url: "https://example.com/other", title: "Other" };
+      const commandContext = { selectedText: "excerpt", activeFile: makeFile("Original.md") };
+      const draft = makeDraft({
+        loading: true,
+        queue: [
+          {
+            id: "edit-me",
+            rawInput: "/summarize",
+            text: "expanded summary prompt",
+            context: { notes: [note], urls: [], webTabs: [other] },
+            promptContent: [{ type: "image", mimeType: "image/png", data: "AQID" }],
+            mentionedAgents: ["claude"],
+            commandContext,
+          },
+        ],
+      });
+      renderInput(backend, draft);
+      fireEvent.click(screen.getByRole("button", { name: "Edit queued message" }));
+      expect(mockPrependContent).toHaveBeenCalledWith("/summarize", ["claude"], [other]);
+      const notesUpdater = (draft.setContextNotes as jest.Mock).mock.calls[0][0] as (
+        previous: unknown[]
+      ) => unknown[];
+      expect(notesUpdater([])).toEqual([note]);
+      const imagesUpdater = (draft.setSelectedImages as jest.Mock).mock.calls[0][0] as (
+        previous: unknown[]
+      ) => { name: string }[];
+      expect(imagesUpdater([])[0]).toMatchObject({ name: "queued-image-1.png" });
+      expect(draft.setCommandContext).toHaveBeenCalledWith(commandContext);
+      const queueUpdater = (draft.setQueue as jest.Mock).mock.calls[0][0] as (
+        q: { id: string }[]
+      ) => { id: string }[];
+      expect(queueUpdater([{ id: "edit-me" }, { id: "keep" }])).toEqual([{ id: "keep" }]);
       expect(backend.steerMessage).not.toHaveBeenCalled();
     });
 

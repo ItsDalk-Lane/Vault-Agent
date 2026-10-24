@@ -15,18 +15,15 @@ export interface AgentRecoveryNoticeProps {
 export const AgentRecoveryNotice: React.FC<AgentRecoveryNoticeProps> = ({
   recovery,
   onRecover,
-  onRollover,
   children,
 }) => {
   const [operation, setOperation] = useState<"continue" | "abort" | "reconcile" | null>(null);
   const [error, setError] = useState<string | null>(null);
   if (recovery.status === "none") return null;
-  const storageLimited = recovery.interruptedRun?.status === "paused_storage";
   const canRecover =
-    !storageLimited &&
-    (recovery.status === "available" ||
-      recovery.status === "interrupted" ||
-      (recovery.status === "read_only" && recovery.crashLoopTripped));
+    recovery.status === "available" ||
+    recovery.status === "interrupted" ||
+    (recovery.status === "read_only" && recovery.crashLoopTripped);
   const canReconcile =
     recovery.status !== "storage_failed" && recovery.pendingMutationIds.length > 0;
   const canReload = recovery.status === "read_only" && recovery.reloadAvailable === true;
@@ -59,11 +56,6 @@ export const AgentRecoveryNotice: React.FC<AgentRecoveryNoticeProps> = ({
           {t("controls.recoveryReload")}
         </Button>
       )}
-      {storageLimited && onRollover && (
-        <Button variant="secondary" size="sm" disabled={operation !== null} onClick={onRollover}>
-          {t("controls.rolloverSession")}
-        </Button>
-      )}
       {canReconcile && (
         <Button
           variant="secondary"
@@ -74,7 +66,7 @@ export const AgentRecoveryNotice: React.FC<AgentRecoveryNoticeProps> = ({
           {t("controls.recoveryReconcile")}
         </Button>
       )}
-      {(canRecover || canReconcile || storageLimited) && (
+      {(canRecover || canReconcile) && (
         <div className="tw-flex tw-flex-wrap tw-gap-2">
           {canRecover && !canReconcile && (
             <Button

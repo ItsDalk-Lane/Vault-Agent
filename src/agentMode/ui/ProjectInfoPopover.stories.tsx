@@ -30,10 +30,10 @@ export const ContextFiles: StoryObj<ProjectFilesListProps> = {
   },
 };
 
-export const UserAuthoredClaudeFile: StoryObj<ProjectFilesListProps> = {
+export const OrdinaryMarkdownFile: StoryObj<ProjectFilesListProps> = {
   args: {
     files: [
-      { path: "projects/Research/CLAUDE.md", name: "CLAUDE.md", extension: "md" },
+      { path: "projects/Research/Writing rules.md", name: "Writing rules.md", extension: "md" },
       { path: "projects/Research/Q3 findings.pdf", name: "Q3 findings.pdf", extension: "pdf" },
     ],
   },

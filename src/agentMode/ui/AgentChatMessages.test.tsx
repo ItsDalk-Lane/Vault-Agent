@@ -74,18 +74,25 @@ jest.mock("@/agentMode/ui/AgentTrailView", () => ({
     errorText,
     fileChanges,
     onOpenFileChange,
+    onForkTurn,
   }: {
     timestamp?: string;
     parts: unknown[];
     errorText?: string;
     fileChanges?: TurnFileChange[];
     onOpenFileChange?: (change: TurnFileChange) => void;
+    onForkTurn?: () => void;
   }) => {
     mockTrailRender(parts);
     return (
       <div data-testid="agent-trail-timestamp">
         {timestamp}
         {errorText ? <span data-testid="agent-trail-error">{errorText}</span> : null}
+        {onForkTurn ? (
+          <button type="button" onClick={onForkTurn}>
+            Branch from this turn
+          </button>
+        ) : null}
         {fileChanges?.map((change) => (
           <button key={change.path} type="button" onClick={() => onOpenFileChange?.(change)}>
             {change.path}
@@ -169,7 +176,7 @@ const FEEDBACK_OFFER: FeedbackOffer = {
     userSaid: "Why do you switch languages?",
     repro: "1. Ask in English.",
   },
-  evidence: { backendId: "codex", model: "gpt-6.1-sol", sessionId: "s-1", raisedAt: "t" },
+  evidence: { backendId: "pi", model: "gpt-6.1-sol", sessionId: "root-feedback", raisedAt: "t" },
   afterUserMessageId: "user-1",
   status: "open",
 };
@@ -222,6 +229,10 @@ function renderMessages(
     chatBackend,
     isLoading,
     feedbackOffer: null,
+    createReportSaver: () => async (name) => ({
+      zipDir: "/private/sessions/root-current/diagnostics/report-one",
+      zipPath: `/private/sessions/root-current/diagnostics/report-one/${name}`,
+    }),
     ...overrides,
   };
   return { ...render(<AgentChatMessages {...props} />), props };
@@ -265,6 +276,24 @@ describe("AgentChatMessages", () => {
       renderMessages([message], false, { chatBackend: backend });
       expect(screen.queryByRole("button", { name: "Continue comparison" })).toBeNull();
       expect(resumeFanout).not.toHaveBeenCalled();
+    });
+
+    it("offers the per-turn branch action only on turns that carry a turn-end entry id (https://github.com/ItsDalk-Lane/Vault-Agent/issues/12)", () => {
+      const onForkFromMessage = jest.fn();
+      const messages = [
+        assistantMessage("answer-anchored", 1, {
+          parts: [{ kind: "text", text: "First answer" }],
+          turnEndEntryId: "12",
+        }),
+        assistantMessage("answer-plain", 2, {
+          parts: [{ kind: "text", text: "Second answer" }],
+        }),
+      ];
+      renderMessages(messages, false, { onForkFromMessage });
+
+      const branch = screen.getByRole("button", { name: "Branch from this turn" });
+      fireEvent.click(branch);
+      expect(onForkFromMessage).toHaveBeenCalledWith("answer-anchored");
     });
 
     it("opens a thousand-message archive in pages while retaining every original message and long response https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
@@ -373,17 +402,25 @@ describe("AgentChatMessages", () => {
       expect(screen.queryByTestId("agent-feedback-card")).toBeNull();
     });
 
-    it("opens the report dialog prefilled from the card with every source checked, and records the sent report", () => {
+    it("opens a prefilled report with the clicked chat saver and records the sent report https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       mockOpenReportIssueModal.mockClear();
-      renderMessages(FEEDBACK_TRANSCRIPT, false, { feedbackOffer: FEEDBACK_OFFER });
+      const saveReport = jest.fn();
+      const createReportSaver = jest.fn(() => saveReport);
+      renderMessages(FEEDBACK_TRANSCRIPT, false, {
+        feedbackOffer: FEEDBACK_OFFER,
+        createReportSaver,
+      });
+      expect(createReportSaver).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole("button", { name: "Review & report" }));
 
+      expect(createReportSaver).toHaveBeenCalledTimes(1);
       expect(mockOpenReportIssueModal).toHaveBeenCalledWith(
         expect.objectContaining({ manifest: { version: "4.1.0" } }),
         {
-          activeBackend: "codex",
+          activeBackend: "pi",
           initialNote: expect.stringMatching(/^Replied in Swedish to an English request\n/),
           onReported: expect.any(Function),
+          saveReport,
         }
       );
       const { onReported } = mockOpenReportIssueModal.mock.calls[0][1] as {
@@ -609,18 +646,19 @@ describe("AgentChatMessages", () => {
       );
     });
 
-    it("shows questions before permissions and reveals a permission after questions clear for https://github.com/logancyang/obsidian-copilot/issues/2948", () => {
+    it("renders questions before permissions inline at the live edge and reveals a permission after questions clear for https://github.com/logancyang/obsidian-copilot/issues/2948 https://github.com/ItsDalk-Lane/Vault-Agent/issues/7", () => {
       const { rerender, props } = renderMessages([assistantMessage("answer-1", 62_000)], false, {
         pendingToolPermissions: [permission("permission-first"), permission("permission-second")],
         pendingAskUserQuestions: [question("question-first")],
       });
 
-      const rail = screen.getByRole("region", { name: "Pending agent actions" });
-      const firstAction = rail.querySelector("[data-action-id]");
-      expect(Array.from(rail.querySelectorAll("[data-action-id]"), (el) => el.textContent)).toEqual(
-        ["Question question-first"]
-      );
-      expect(screen.getByTestId("chat-messages").textContent).not.toContain("question-first");
+      const region = screen.getByRole("region", { name: "Pending agent actions" });
+      const firstAction = region.querySelector("[data-action-id]");
+      expect(firstAction?.textContent).toBe("Question question-first");
+      expect(screen.getByTestId("chat-messages").textContent).toContain("question-first");
+      // 待处理卡在消息流内：挂载于最后一条助手消息行之后，而不是流外的固定栏。https://github.com/ItsDalk-Lane/Vault-Agent/issues/7
+      const liveEdgeRow = document.querySelector("[data-message-key]");
+      expect(liveEdgeRow?.contains(region)).toBe(true);
 
       rerender(
         <AgentChatMessages
@@ -630,10 +668,14 @@ describe("AgentChatMessages", () => {
         />
       );
 
-      expect(Array.from(rail.querySelectorAll("[data-action-id]"), (el) => el.textContent)).toEqual(
-        ["Permission permission-first"]
+      expect(screen.getByRole("region", { name: "Pending agent actions" }).textContent).toBe(
+        "Permission permission-first"
       );
-      expect(rail.querySelector("[data-action-id]")).not.toBe(firstAction);
+      expect(
+        screen
+          .getByRole("region", { name: "Pending agent actions" })
+          .querySelector("[data-action-id]")
+      ).not.toBe(firstAction);
     });
 
     it("passes the pending permission the tool name its chat tool call shows for https://github.com/Brevilabs/obsidian-copilot-private/issues/599", () => {
@@ -652,25 +694,22 @@ describe("AgentChatMessages", () => {
       );
     });
 
-    it("bounds and scrolls a tall action rail so controls remain reachable for https://github.com/logancyang/obsidian-copilot/issues/2948", () => {
+    it("keeps a pending question inside the scrolling transcript when the chat has no messages https://github.com/ItsDalk-Lane/Vault-Agent/issues/7", () => {
       renderMessages([], false, {
         pendingAskUserQuestions: [question("empty-chat-question")],
       });
 
-      const rail = screen.getByTestId("agent-action-rail");
-      expect(rail.textContent).toContain("empty-chat-question");
-      expect(rail.className).toContain("tw-w-full");
-      expect(rail.className).toContain("tw-max-h-full");
-      expect(rail.className).toContain("tw-overflow-y-auto");
-      expect(rail.className).not.toContain("tw-shrink-0");
-      expect(rail.className).not.toContain("tw-border");
+      const transcript = screen.getByTestId("chat-messages");
+      const region = screen.getByRole("region", { name: "Pending agent actions" });
+      expect(region.textContent).toContain("empty-chat-question");
+      expect(transcript.contains(region)).toBe(true);
     });
 
-    it("keeps a plan-only state in the transcript without creating an action rail", () => {
+    it("keeps a plan-only state in the transcript without creating a pending action region", () => {
       renderMessages([], false, { currentPlan: plan("plan-1") });
 
       expect(screen.getByTestId("chat-messages").textContent).toContain("Plan plan-1");
-      expect(screen.queryByTestId("agent-action-rail")).toBeNull();
+      expect(screen.queryByRole("region", { name: "Pending agent actions" })).toBeNull();
     });
   });
 });

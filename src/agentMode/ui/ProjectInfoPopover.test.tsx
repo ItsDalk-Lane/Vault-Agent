@@ -31,13 +31,7 @@ jest.mock("@/agentMode/ui/AgentProjectRowActions", () => ({
 const openAgentsFile = jest.fn().mockResolvedValue(undefined);
 jest.mock("@/instructions/agentsFile", () => ({
   openAgentsFile: (...args: unknown[]) => openAgentsFile(...args),
-  isClaudeImportOnly: jest.requireActual("@/instructions/agentsFile").isClaudeImportOnly,
 }));
-const moveProjectPromptToAgentsFile = jest.fn().mockResolvedValue(undefined);
-jest.mock("@/projects/moveProjectPrompt", () => ({
-  moveProjectPromptToAgentsFile: (...args: unknown[]) => moveProjectPromptToAgentsFile(...args),
-}));
-
 import { TFile, TFolder } from "obsidian";
 import { ProjectInfoPopover } from "@/agentMode/ui/ProjectInfoPopover";
 import type { AgentTodoListEntry } from "@/agentMode/session/types";
@@ -111,10 +105,10 @@ describe("ProjectInfoPopover", () => {
     expect(screen.getByText("step C")).toBeTruthy();
   });
 
-  it("hides a CLAUDE.md that is only Vault Agent's @AGENTS.md wiring", async () => {
+  it("lists project files without reading old instruction markers https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
     renderPopover(null, ["CLAUDE.md", "draft.md"], { "CLAUDE.md": "@AGENTS.md\n" });
     expect(await screen.findByText("draft.md")).toBeTruthy();
-    expect(screen.queryByText("CLAUDE.md")).toBeNull();
+    expect(screen.getByText("CLAUDE.md")).toBeTruthy();
   });
 
   it("lists a CLAUDE.md that carries the user's own rules", async () => {
@@ -132,15 +126,11 @@ describe("ProjectInfoPopover", () => {
     expect(screen.getAllByText("AGENTS.md")).toHaveLength(1);
   });
 
-  it("moves any legacy project.md text in before opening the file", async () => {
+  it("opens the current instructions file directly", async () => {
     renderPopover(null);
     fireEvent.click(await screen.findByText("AGENTS.md"));
 
     await waitFor(() => expect(openAgentsFile).toHaveBeenCalled());
-    expect(moveProjectPromptToAgentsFile).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ folderName: "proj-1" })
-    );
     expect(openAgentsFile).toHaveBeenCalledWith(expect.anything(), "vault-agent/projects/proj-1");
   });
 
