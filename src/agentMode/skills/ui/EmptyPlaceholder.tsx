@@ -28,13 +28,7 @@ export const EmptyPlaceholder: React.FC<EmptyPlaceholderProps> = ({ folder }) =>
         {t("agentInfra.skills.empty.title")}
       </div>
       <div className="tw-max-w-[420px] tw-text-center tw-text-ui-smaller tw-text-faint">
-        {t("agentInfra.skills.empty.bodyPrefix")}
-        <code>.claude/skills/</code>
-        {t("agentInfra.skills.empty.middle")}
-        <code>.agents/skills/</code>
-        {t("agentInfra.skills.empty.or")}
-        <code>.opencode/skills/</code>
-        {t("agentInfra.skills.empty.suffix")}
+        {t("agentInfra.skills.empty.body")}
       </div>
       <div className="tw-mt-3.5 tw-font-mono tw-text-smallest tw-text-faint">
         {t("agentInfra.skills.empty.footer")} <code>&lt;vault&gt;/{folder}/</code>

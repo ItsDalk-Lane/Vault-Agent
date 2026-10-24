@@ -1,5 +1,3 @@
-import { availableBuiltinAgents } from "@/agentMode/skills/builtin/reconcileBuiltinSkills";
-import { useBackendInstallStates } from "@/agentMode/session/useBackendInstallStates";
 import { ALL_MANAGED_SKILLS } from "@/builtinSkills/builtinSkills";
 import { parseSkillFile } from "@/agentMode/skills/skillFormat";
 import { BuiltinSkillsTable } from "./BuiltinSkillsTable";
@@ -8,8 +6,6 @@ import {
   buildSkillRepairPrompt,
   type SkillRepairEvidence,
 } from "@/agentMode/skills/skillRepairPrompt";
-import { listBackendDescriptors } from "@/agentMode/backends/registry";
-import type { AgentBrand } from "@/agentMode/session/types";
 import { DeleteConfirmModal } from "./DeleteConfirmDialog";
 import { EmptyPlaceholder } from "./EmptyPlaceholder";
 import {
@@ -23,17 +19,10 @@ import {
   type PropertiesSaveOutcome,
   type PropertiesSaveRequest,
 } from "./PropertiesDialog";
-import {
-  dismissEpermBanner,
-  SkillManager,
-  useEpermSeen,
-  useManagedSkills,
-  useRejectedSkills,
-} from "@/agentMode/skills/SkillManager";
+import { SkillManager, useManagedSkills, useRejectedSkills } from "@/agentMode/skills/SkillManager";
 import { SkillRow } from "./SkillRow";
 import { type Skill } from "@/agentMode/skills/types";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { deriveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { openWithSystemDefault } from "@/utils/openWithSystemDefault";
 import { openVaultPath } from "@/utils/openVaultPath";
@@ -41,23 +30,16 @@ import { revealFolderInExplorer } from "@/utils/revealFolderInExplorer";
 import { getVaultBase, toVaultRelative } from "@/utils/vaultPath";
 import { useSettingsValue } from "@/settings/model";
 import { t } from "@/i18n";
-import { AlertTriangle, Search } from "lucide-react";
-import { App, FileSystemAdapter, Notice, TFolder } from "obsidian";
+import { Search } from "lucide-react";
+import { Notice, TFolder } from "obsidian";
 import { useApp } from "@/context";
 import { usePlugin } from "@/contexts/PluginContext";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-const SYNC_BRANDS: ReadonlyArray<{ substr: string; brand: string }> = [
-  { substr: "onedrive", brand: "OneDrive" },
-  { substr: "icloud", brand: "iCloud" },
-  { substr: "dropbox", brand: "Dropbox" },
-];
 
 const BUILTIN_ROWS = ALL_MANAGED_SKILLS.map((skill) => ({
   name: skill.name,
   description: parseSkillFile(skill.skillMd, skill.name).frontmatter.description,
   content: skill.skillMd,
-  enabledAgents: skill.enabledAgents,
 }));
 
 export const SkillsSettings: React.FC = () => {
@@ -65,31 +47,14 @@ export const SkillsSettings: React.FC = () => {
   const plugin = usePlugin();
   const settings = useSettingsValue();
   const skillsFolder = deriveSkillsFolder(settings);
-  const descriptors = useMemo(() => listBackendDescriptors(), []);
-  const agents = useMemo<ReadonlyArray<AgentBrand>>(
-    () =>
-      descriptors.map(({ id, displayName, Icon }) => ({
-        id,
-        displayName,
-        Icon,
-      })),
-    [descriptors]
-  );
   const skills = useManagedSkills();
   const rejectedSkills = useRejectedSkills();
-  const epermSeen = useEpermSeen();
 
   const [searchValue, setSearchValue] = useState("");
   const [builtinPending, setBuiltinPending] = useState<readonly string[]>([]);
   const [builtinError, setBuiltinError] = useState<string>();
   const [refreshError, setRefreshError] = useState<string>();
   const userSkills = useMemo(() => skills.filter((skill) => !skill.builtin), [skills]);
-  const installStates = useBackendInstallStates(plugin, descriptors);
-  const lastAvailableAgents = useRef<readonly string[]>(
-    skills.filter((skill) => skill.builtin).flatMap((skill) => skill.enabledAgents)
-  );
-  const availableAgents = availableBuiltinAgents(installStates, lastAvailableAgents.current);
-  lastAvailableAgents.current = availableAgents;
   const eligibleBuiltins = ALL_MANAGED_SKILLS;
   const unavailableReasons: Record<string, string> = {};
   for (const skill of eligibleBuiltins) {
@@ -111,47 +76,32 @@ export const SkillsSettings: React.FC = () => {
       `${skill.name} ${skill.description}`.toLowerCase().includes(searchValue.trim().toLowerCase())
   );
 
-  const handleBuiltinChange = useCallback(
-    async (name: string, enabled: boolean, agent?: string) => {
-      setBuiltinPending((names) => [...names, name]);
-      setBuiltinError(undefined);
-      try {
-        const manager = SkillManager.getInstance();
-        const result =
-          agent === undefined
-            ? await manager.setBuiltinSkillEnabled(name, enabled)
-            : await manager.setBuiltinAgentEnabled(name, agent, enabled);
-        if (!result.ok) setBuiltinError(result.message);
-        else setRefreshError(undefined);
-      } catch (error) {
-        setBuiltinError(
-          t("agentInfra.skills.updateFailed", {
-            name,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        );
-      } finally {
-        setBuiltinPending((names) => names.filter((pendingName) => pendingName !== name));
-      }
-    },
-    []
-  );
+  const handleBuiltinChange = useCallback(async (name: string, enabled: boolean) => {
+    setBuiltinPending((names) => [...names, name]);
+    setBuiltinError(undefined);
+    try {
+      const manager = SkillManager.getInstance();
+      const result = await manager.setBuiltinSkillEnabled(name, enabled);
+      if (!result.ok) setBuiltinError(result.message);
+      else setRefreshError(undefined);
+    } catch (error) {
+      setBuiltinError(
+        t("agentInfra.skills.updateFailed", {
+          name,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    } finally {
+      setBuiltinPending((names) => names.filter((pendingName) => pendingName !== name));
+    }
+  }, []);
   const handleToggleBuiltinSkill = useCallback(
     (name: string, enabled: boolean) => {
       void handleBuiltinChange(name, enabled);
     },
     [handleBuiltinChange]
   );
-  const handleToggleBuiltinAgent = useCallback(
-    (name: string, agent: string, enabled: boolean) => {
-      void handleBuiltinChange(name, enabled, agent);
-    },
-    [handleBuiltinChange]
-  );
-
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
 
   // Refresh on focus: fixing a hidden agent file in an external editor bypasses Obsidian's
   // watcher. https://github.com/Brevilabs/obsidian-copilot-private/issues/166
@@ -273,28 +223,20 @@ export const SkillsSettings: React.FC = () => {
   const handleAskDelete = useCallback(
     (skill: Skill) => {
       const manager = SkillManager.getInstance();
-      new DeleteConfirmModal(
-        app,
-        skill,
-        displayFolder,
-        manager.getAgentDirsProjectRel(),
-        async () => {
-          const result = await manager.deleteSkill(skill);
-          if (!result.ok) {
-            new Notice(
-              t("agentInfra.skills.deleteFailed", {
-                name: skill.name,
-                error: result.message,
-              })
-            );
-          }
+      new DeleteConfirmModal(app, skill, displayFolder, async () => {
+        const result = await manager.deleteSkill(skill);
+        if (!result.ok) {
+          new Notice(
+            t("agentInfra.skills.deleteFailed", {
+              name: skill.name,
+              error: result.message,
+            })
+          );
         }
-      ).open();
+      }).open();
     },
     [app, displayFolder]
   );
-
-  const syncBrand = useMemo(() => detectSyncBrand(app), [app]);
 
   return (
     <div ref={containerRef} className="tw-space-y-4">
@@ -307,15 +249,6 @@ export const SkillsSettings: React.FC = () => {
         {refreshError && (
           <div role="alert" className="tw-text-ui-smaller tw-text-error">
             {refreshError}
-          </div>
-        )}
-
-        {(epermSeen || (syncBrand !== null && !syncBannerDismissed)) && (
-          <div className="tw-mt-3 tw-flex tw-flex-col tw-gap-2">
-            {epermSeen && <EpermBanner onDismiss={dismissEpermBanner} />}
-            {syncBrand !== null && !syncBannerDismissed && (
-              <SyncFolderBanner brand={syncBrand} onDismiss={() => setSyncBannerDismissed(true)} />
-            )}
           </div>
         )}
 
@@ -377,8 +310,6 @@ export const SkillsSettings: React.FC = () => {
                   <SkillRow
                     key={skill.dirPath}
                     skill={skill}
-                    agents={agents}
-                    agentDirsProjectRel={SkillManager.getInstance().getAgentDirsProjectRel()}
                     onEditSkillMd={() => handleEditSkillMd(skill)}
                     onEditProperties={() => handleEditProperties(skill)}
                     onRevealInVault={() => handleRevealSkillFolder(skill.dirPath)}
@@ -395,73 +326,10 @@ export const SkillsSettings: React.FC = () => {
         skills={builtinRows}
         preferences={settings.agentMode.skills.builtinPreferences}
         unavailableReasons={unavailableReasons}
-        agents={agents}
-        availableAgents={availableAgents}
         pendingSkills={builtinPending}
         error={builtinError}
         onToggleSkill={handleToggleBuiltinSkill}
-        onToggleAgent={handleToggleBuiltinAgent}
       />
-    </div>
-  );
-};
-
-const EpermBanner: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => {
-  return (
-    <div
-      className={cn(
-        "tw-flex tw-items-start tw-gap-2.5 tw-rounded-md tw-border tw-border-solid tw-border-warning/100",
-        "tw-bg-callout-warning/20 tw-px-3.5 tw-py-2.5 tw-text-ui-smaller tw-text-warning"
-      )}
-      role="alert"
-    >
-      <AlertTriangle className="tw-mt-0.5 tw-size-4 tw-shrink-0" aria-hidden="true" />
-      <div className="tw-flex-1">
-        <span className="tw-block tw-font-semibold">{t("agentInfra.skills.eperm.title")}</span>
-        <span className="tw-mt-0.5 tw-block tw-text-normal">
-          {t("agentInfra.skills.eperm.body")}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onDismiss}
-        style={{ appearance: "none", border: 0, background: "transparent", padding: 0 }}
-        className="tw-px-1 tw-text-faint hover:tw-text-normal"
-        aria-label={t("agentInfra.skills.dismiss")}
-      >
-        ×
-      </button>
-    </div>
-  );
-};
-
-const SyncFolderBanner: React.FC<{ brand: string; onDismiss: () => void }> = ({
-  brand,
-  onDismiss,
-}) => {
-  return (
-    <div
-      className={cn(
-        "tw-flex tw-items-start tw-gap-2.5 tw-rounded-md tw-border tw-border-solid tw-border-blue/80",
-        "tw-bg-blue-rgb/10 tw-px-3.5 tw-py-2.5 tw-text-ui-smaller tw-text-normal"
-      )}
-      role="status"
-    >
-      <div className="tw-flex-1">
-        <span className="tw-block tw-font-semibold">
-          {t("agentInfra.skills.sync.title", { brand })}
-        </span>
-        <span className="tw-mt-0.5 tw-block tw-text-muted">{t("agentInfra.skills.sync.body")}</span>
-      </div>
-      <button
-        type="button"
-        onClick={onDismiss}
-        style={{ appearance: "none", border: 0, background: "transparent", padding: 0 }}
-        className="tw-px-1 tw-text-faint hover:tw-text-normal"
-        aria-label={t("agentInfra.skills.dismiss")}
-      >
-        ×
-      </button>
     </div>
   );
 };
@@ -474,14 +342,4 @@ function filterSkills(skills: Skill[], query: string): Skill[] {
       formatSkillDisplayName(s).toLowerCase().includes(trimmed) ||
       s.description.toLowerCase().includes(trimmed)
   );
-}
-
-function detectSyncBrand(app: App): string | null {
-  const adapter = app.vault.adapter;
-  if (!(adapter instanceof FileSystemAdapter)) return null;
-  const base = adapter.getBasePath().toLowerCase();
-  for (const { substr, brand } of SYNC_BRANDS) {
-    if (base.includes(substr)) return brand;
-  }
-  return null;
 }

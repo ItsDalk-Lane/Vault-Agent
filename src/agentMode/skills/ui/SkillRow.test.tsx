@@ -1,141 +1,129 @@
-import { AppContext } from "@/context";
 import type { Skill } from "@/agentMode/skills/types";
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { App } from "obsidian";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
+import { Notice } from "obsidian";
 import { SkillRow } from "./SkillRow";
 
-const getEffectiveSkillsFolder = jest.fn(() => "vault-agent/skills");
-jest.mock("@/settings/vaultAgentFolder", () => ({
-  getEffectiveSkillsFolder: () => getEffectiveSkillsFolder(),
-}));
-
-const resolveCanonicalNameForMigration = jest.fn((name: string) => name);
-const getSuppressMigrationConfirm = jest.fn(() => false);
+const mockSetSkillEnabled = jest.fn();
 jest.mock("@/agentMode/skills/SkillManager", () => ({
-  SkillManager: {
-    getInstance: () => ({
-      resolveCanonicalNameForMigration: (name: string) => resolveCanonicalNameForMigration(name),
-      getSuppressMigrationConfirm: () => getSuppressMigrationConfirm(),
-      consolidateMirroredSkill: jest.fn(),
-    }),
-  },
+  SkillManager: { getInstance: () => ({ setSkillEnabled: mockSetSkillEnabled }) },
 }));
-
-let lastMigrateModalOptions: { actionLines: { verb: string; detail: string }[] } | null = null;
-jest.mock("./MigrateSkillConfirmModal", () => ({
-  MigrateSkillConfirmModal: class {
-    constructor(_app: unknown, options: { actionLines: { verb: string; detail: string }[] }) {
-      lastMigrateModalOptions = options;
-    }
-    open = jest.fn();
-  },
-}));
-
-beforeAll(() => {
-  (window as unknown as { activeDocument: Document }).activeDocument = window.document;
-  if (!("PointerEvent" in window)) {
-    (window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = MouseEvent;
-  }
-  Element.prototype.hasPointerCapture = () => false;
-  Element.prototype.releasePointerCapture = () => {};
-  Element.prototype.scrollIntoView = () => {};
-});
-
-const SCROLL_LOCK_ATTR = "data-scroll-locked";
+jest.mock("@/logger", () => ({ logError: jest.fn() }));
 
 const canonicalSkill: Skill = {
   name: "writing-helper",
   description: "Helps with writing.",
-  filePath: "/vault/.vault-agent/skills/writing-helper/SKILL.md",
-  dirPath: "/vault/.vault-agent/skills/writing-helper",
-  body: "",
-  enabledAgents: [],
+  filePath: "/vault/vault-agent/skills/writing-helper/SKILL.md",
+  dirPath: "/vault/vault-agent/skills/writing-helper",
+  body: "User instructions remain unchanged.",
+  enabledAgents: ["claude", "codex"],
   location: { kind: "canonical" },
 };
+
+function renderRow(skill = canonicalSkill, onRevealInVault = jest.fn()) {
+  const containerRef: React.RefObject<HTMLDivElement> = { current: null };
+  return render(
+    <>
+      <div ref={containerRef} />
+      <SkillRow skill={skill} onRevealInVault={onRevealInVault} containerRef={containerRef} />
+    </>
+  );
+}
 
 function openMenu() {
   fireEvent.pointerDown(screen.getByLabelText(/More actions/i), { button: 0, ctrlKey: false });
 }
 
-function renderRow(onRevealInVault: () => void) {
-  const containerRef: React.RefObject<HTMLDivElement> = { current: null };
-  const utils = render(
-    <AppContext.Provider value={{} as App}>
-      <div ref={containerRef} />
-      <SkillRow
-        skill={canonicalSkill}
-        agents={[]}
-        agentDirsProjectRel={{}}
-        onRevealInVault={onRevealInVault}
-        containerRef={containerRef}
-      />
-    </AppContext.Provider>
-  );
-  return { ...utils, containerRef };
-}
-
-const mirroredSkill: Skill = {
-  name: "writing-helper",
-  description: "Helps with writing.",
-  filePath: "/vault/.claude/skills/writing-helper/SKILL.md",
-  dirPath: "/vault/.claude/skills/writing-helper",
-  body: "",
-  enabledAgents: [],
-  location: { kind: "project", agentDirs: ["claude", "codex"] },
-};
-
-function renderMirroredRow() {
-  const containerRef: React.RefObject<HTMLDivElement> = { current: null };
-  return render(
-    <AppContext.Provider value={{} as App}>
-      <div ref={containerRef} />
-      <SkillRow
-        skill={mirroredSkill}
-        agents={[]}
-        agentDirsProjectRel={{ claude: ".claude/skills", codex: ".codex/skills" }}
-        onRevealInVault={() => {}}
-        containerRef={containerRef}
-      />
-    </AppContext.Provider>
-  );
-}
-
 describe("SkillRow", () => {
+  beforeAll(() => {
+    (window as unknown as { activeDocument: Document }).activeDocument = window.document;
+    (window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = MouseEvent;
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.releasePointerCapture = () => {};
+    Element.prototype.scrollIntoView = () => {};
+  });
   describe("SkillRow()", () => {
-    afterEach(() => {
-      activeDocument.body.removeAttribute(SCROLL_LOCK_ATTR);
-      lastMigrateModalOptions = null;
+    beforeEach(() => {
+      mockSetSkillEnabled.mockReset().mockResolvedValue({ ok: true });
+      jest.mocked(Notice).mockClear();
     });
 
-    it("lists Reveal in vault in the overflow menu without engaging a body scroll lock", () => {
-      renderRow(() => {});
-
-      openMenu();
-
-      expect(screen.getByText("Reveal in vault")).not.toBeNull();
-      expect(activeDocument.body.hasAttribute(SCROLL_LOCK_ATTR)).toBe(false);
+    it("offers one Vault Agent switch and enables only its identity while retaining legacy metadata https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      renderRow();
+      expect(screen.getAllByRole("switch")).toHaveLength(1);
+      expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
+      await act(async () => {
+        fireEvent.click(screen.getByRole("switch"));
+      });
+      expect(mockSetSkillEnabled).toHaveBeenCalledWith(canonicalSkill, true);
+      expect(canonicalSkill.enabledAgents).toEqual(["claude", "codex"]);
+      expect(screen.queryByRole("button", { name: /Claude|Codex|OpenCode/i })).toBeNull();
     });
 
-    it("invokes the reveal handler when Reveal in vault is selected", () => {
-      const onRevealInVault = jest.fn();
-      renderRow(onRevealInVault);
+    it("disables an enabled Vault Agent skill through the same saved metadata path https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const skill = { ...canonicalSkill, enabledAgents: ["pi", "claude"] };
+      renderRow(skill);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("switch"));
+      });
+      expect(mockSetSkillEnabled).toHaveBeenCalledWith(skill, false);
+    });
 
+    it.each(["fs-error", "eperm"])(
+      "reports a %s toggle failure instead of silently dropping it https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      async (code) => {
+        mockSetSkillEnabled.mockResolvedValue({ ok: false, code, message: "permission denied" });
+        renderRow();
+        await act(async () => {
+          fireEvent.click(screen.getByRole("switch"));
+        });
+        expect(Notice).toHaveBeenCalledWith(expect.stringContaining("permission denied"));
+      }
+    );
+
+    it("reports a thrown toggle failure without leaving an unhandled rejection", async () => {
+      mockSetSkillEnabled.mockRejectedValue(new Error("write failed"));
+      renderRow();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("switch"));
+      });
+      expect(Notice).toHaveBeenCalledWith(expect.stringContaining("write failed"));
+    });
+
+    it("keeps Reveal in vault functional without engaging a body scroll lock", () => {
+      const reveal = jest.fn();
+      renderRow(canonicalSkill, reveal);
       openMenu();
+      expect(activeDocument.body.hasAttribute("data-scroll-locked")).toBe(false);
       fireEvent.click(screen.getByText("Reveal in vault"));
-
-      expect(onRevealInVault).toHaveBeenCalledTimes(1);
+      expect(reveal).toHaveBeenCalledTimes(1);
     });
 
-    it("confirms migration into the folder derived from the Copilot root, not the retired skills field", () => {
-      getEffectiveSkillsFolder.mockReturnValue("team/vault-agent/skills");
-      renderMirroredRow();
-
+    it("keeps legacy project sources read-only and offers no migration or deletion actions https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      const skill: Skill = {
+        ...canonicalSkill,
+        dirPath: "/vault/.claude/skills/writing-helper",
+        location: { kind: "project", agentDirs: ["claude", "codex"] },
+      };
+      renderRow(skill);
+      expect(screen.getByRole("switch").getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(screen.getByRole("switch"));
+      expect(mockSetSkillEnabled).not.toHaveBeenCalled();
       openMenu();
-      fireEvent.click(screen.getByText("Migrate to shared folder"));
+      expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+      expect(screen.getByRole("menuitem", { name: "Reveal in vault" })).toBeTruthy();
+      expect(screen.queryByText(/Migrate|Properties|Delete|Edit SKILL/)).toBeNull();
+    });
 
-      const moveLine = lastMigrateModalOptions?.actionLines.find((line) => line.verb === "Move");
-      expect(moveLine?.detail).toContain("<vault>/team/vault-agent/skills/writing-helper/");
+    it("shows the effective slash-menu preference without claiming unused Claude behavior https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
+      renderRow({
+        ...canonicalSkill,
+        model: "claude-opus-4-7",
+        disableModelInvocation: true,
+        userInvocable: false,
+      });
+      expect(screen.queryByText(/claude ·|model-invoke off/)).toBeNull();
+      expect(screen.getByText("hidden from /")).toBeTruthy();
     });
   });
 });

@@ -95,7 +95,7 @@ export const SkillLoadIssuesModalContent: React.FC<SkillLoadIssuesModalContentPr
                 </code>
               </ClampedContent>
             )}
-            <div className="tw-mt-2 tw-flex tw-gap-1">
+            <div className="tw-mt-2 tw-flex tw-flex-wrap tw-gap-1">
               <Button variant="secondary" size="sm" onClick={() => runAction(issue.onFixWithAgent)}>
                 {t("agentInfra.skills.issues.fixWithAgent")}
               </Button>

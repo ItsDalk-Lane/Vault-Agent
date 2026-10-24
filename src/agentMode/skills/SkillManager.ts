@@ -2,42 +2,22 @@ import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
 import { ALL_MANAGED_SKILLS, isBuiltinSkillEnabledFor } from "@/builtinSkills/builtinSkills";
 import { t } from "@/i18n";
 import { logError, logInfo, logWarn } from "@/logger";
-import { getSettings, updateSetting } from "@/settings/model";
+import { getSettings } from "@/settings/model";
 import { getEffectiveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { publishSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { atom, createStore, useAtomValue } from "jotai";
 import { FileSystemAdapter, type App, type EventRef, type TAbstractFile } from "obsidian";
-import { normalizeAbsPath, parentDir } from "@/utils/pathUtils";
-import { agentSkillsDirAbs, DEFAULT_SKILLS_FOLDER } from "./agentPaths";
+import { normalizeAbsPath } from "@/utils/pathUtils";
+import { requireNodeModule } from "@/utils/desktopRuntime";
+import { DEFAULT_SKILLS_FOLDER } from "@/constants";
 import { discoverManagedSkills, type SkillsFsAdapter } from "./discoverManagedSkills";
 import { discoverProjectSkills, type ProjectSkillCandidate } from "./discoverProjectSkills";
 import { compareSkills, mergeDiscovery } from "./mergeDiscovery";
-import {
-  duplicateSourceDirsFor,
-  migrateProjectSkill,
-  type MigrateSkillResult,
-} from "./migrateProjectSkill";
-import { suffixOnCollision } from "./suffixOnCollision";
-import {
-  createNodeMigrateSkillFs,
-  createNodeProjectDiscoveryFs,
-  createNodeReconcileFs,
-} from "./nodeFsAdapters";
-import { reconcile, type ReconcileReport } from "./reconcile";
+import { createNodeProjectDiscoveryFs } from "./nodeFsAdapters";
 import type { SkillFrontmatterPatch } from "./skillFormat";
-import { removeAgentLinksPointingTo } from "./symlinks";
 import { runDeleteSkill, runToggleAgent } from "./toggleAgent";
 import type { BackendId, RejectedSkill, Skill } from "./types";
 import { runRenameSkill, runUpdateProperties } from "./updateProperties";
-import {
-  buildDeleteExpectations,
-  buildReconcileExpectations,
-  buildRenameExpectations,
-  buildToggleExpectations,
-  buildUpdatePropertiesExpectations,
-  matchExpectation,
-  type Expectation,
-} from "./vaultEventExpectations";
 
 export interface BuiltinSkillRuntime {
   prepare(folder: string): Promise<void>;
@@ -48,18 +28,15 @@ export interface BuiltinSkillRuntime {
 }
 
 const RECONCILE_DEBOUNCE_MS = 250;
-const EXPECTATION_TIMEOUT_MS = 10_000;
 
 const skillManagerStore = createStore();
 const skillsAtom = atom<Skill[]>([]);
 const EMPTY_REJECTED_SKILLS = Object.freeze([]) as unknown as RejectedSkill[];
 const rejectedSkillsAtom = atom<RejectedSkill[]>(EMPTY_REJECTED_SKILLS);
 const lastScannedFolderAtom = atom<string>(DEFAULT_SKILLS_FOLDER);
-const epermSeenAtom = atom<boolean>(false);
 
 export type SkillOperationFailureCode =
   | "no-vault-path"
-  | "unknown-agent"
   | "invalid"
   | "collision"
   | "eperm"
@@ -69,9 +46,7 @@ export type SkillOperationResult<
   TCode extends SkillOperationFailureCode = SkillOperationFailureCode,
 > = { ok: true } | { ok: false; code: TCode; message: string };
 
-export type ToggleAgentResult = SkillOperationResult<
-  "no-vault-path" | "unknown-agent" | "eperm" | "fs-error"
->;
+export type ToggleAgentResult = SkillOperationResult<"no-vault-path" | "eperm" | "fs-error">;
 
 export type DeleteSkillResult = SkillOperationResult<"no-vault-path" | "fs-error">;
 
@@ -97,36 +72,21 @@ export class SkillManager {
   private queuedRefresh = false;
 
   private vaultEventRefs: EventRef[] = [];
-  private reconcileDebounceTimer: number | null = null;
+  private refreshDebounceTimer: number | null = null;
   private readonly skillSetSignatures = new Map<BackendId, string>();
   private readonly skillSetListeners = new Set<SkillSetChangeListener>();
-  private readonly normalizedAgentDirs: ReadonlyArray<string>;
-  private internalMutationDepth = 0;
-  private pendingExpectations: Expectation[] = [];
-  private safetyTimer: number | null = null;
 
   private constructor(
     private readonly app: App,
-    private readonly agentDirsProjectRel: Readonly<Record<BackendId, string>>,
     private readonly builtinRuntime?: BuiltinSkillRuntime
-  ) {
-    this.normalizedAgentDirs = Object.values(agentDirsProjectRel).map(normalizeRelPath);
-  }
+  ) {}
 
-  static initialize(
-    app: App,
-    agentDirsProjectRel: Readonly<Record<BackendId, string>>,
-    builtinRuntime?: BuiltinSkillRuntime
-  ): SkillManager {
+  static initialize(app: App, builtinRuntime?: BuiltinSkillRuntime): SkillManager {
     if (SkillManager.instance === null) {
-      SkillManager.instance = new SkillManager(app, agentDirsProjectRel, builtinRuntime);
+      SkillManager.instance = new SkillManager(app, builtinRuntime);
       SkillManager.instance.subscribeToVaultEvents();
     }
     return SkillManager.instance;
-  }
-
-  getAgentDirsProjectRel(): Readonly<Record<BackendId, string>> {
-    return this.agentDirsProjectRel;
   }
 
   static getInstance(): SkillManager {
@@ -149,7 +109,6 @@ export class SkillManager {
     skillManagerStore.set(rejectedSkillsAtom, EMPTY_REJECTED_SKILLS);
     publishSkillLoadErrorCount(0);
     skillManagerStore.set(lastScannedFolderAtom, DEFAULT_SKILLS_FOLDER);
-    skillManagerStore.set(epermSeenAtom, false);
   }
 
   dispose(): void {
@@ -157,18 +116,15 @@ export class SkillManager {
       this.app.vault.offref(ref);
     }
     this.vaultEventRefs = [];
-    if (this.reconcileDebounceTimer !== null) {
-      window.clearTimeout(this.reconcileDebounceTimer);
-      this.reconcileDebounceTimer = null;
+    if (this.refreshDebounceTimer !== null) {
+      window.clearTimeout(this.refreshDebounceTimer);
+      this.refreshDebounceTimer = null;
     }
     this.skillSetListeners.clear();
     this.skillSetSignatures.clear();
     this.inFlight = null;
     this.inFlightFolder = null;
     this.queuedRefresh = false;
-    this.internalMutationDepth = 0;
-    this.pendingExpectations = [];
-    this.clearSafetyTimer();
     // The host-side error count outlives this manager across a hot reload. https://github.com/Brevilabs/obsidian-copilot-private/issues/166
     publishSkillLoadErrorCount(0);
     if (SkillManager.instance === this) {
@@ -219,11 +175,9 @@ export class SkillManager {
     const vaultRoot = resolveVaultRootAbs(this.app);
 
     try {
-      // Bundled files must settle before link fanout. https://github.com/logancyang/obsidian-copilot/issues/3022
       let builtinError: string | undefined;
       try {
-        if (this.builtinRuntime)
-          await this.runInternalMutation(() => this.builtinRuntime!.prepare(folder));
+        if (this.builtinRuntime) await this.builtinRuntime.prepare(folder);
       } catch (error) {
         builtinError = error instanceof Error ? error.message : String(error);
       }
@@ -239,7 +193,6 @@ export class SkillManager {
         try {
           const projectDiscovery = await discoverProjectSkills({
             vaultRootAbsPath: vaultRoot,
-            agentDirsProjectRel: this.agentDirsProjectRel,
             fs: createNodeProjectDiscoveryFs(),
           });
           projectCandidates = projectDiscovery.accepted;
@@ -270,29 +223,8 @@ export class SkillManager {
               .concat(rejectedProjectSkills)
               .sort((a, b) => a.dirPath.localeCompare(b.dirPath));
 
-      let reconcileErrorCount = builtinError ? 1 : 0;
-      let reconcileError: string | undefined = builtinError;
-      if (vaultRoot !== null && absRoot !== null) {
-        try {
-          const canonicalForReconcile = skills.filter((s) => s.location.kind === "canonical");
-          const report = await this.runInternalMutation(
-            () =>
-              reconcile({
-                skills: canonicalForReconcile,
-                canonicalAbsRoot: absRoot,
-                agentDirsAbs: this.resolveAgentDirsAbs(vaultRoot),
-                fs: createNodeReconcileFs(),
-              }),
-            (r) => buildReconcileExpectations(r, vaultRoot)
-          );
-          reconcileErrorCount += report.errors.length;
-          recordReconcileReport(report);
-        } catch (err) {
-          reconcileError = err instanceof Error ? err.message : String(err);
-          reconcileErrorCount = 1;
-          logWarn(`[skills] Reconciliation pass failed: ${reconcileError}`);
-        }
-      }
+      const reconcileErrorCount = builtinError ? 1 : 0;
+      const reconcileError: string | undefined = builtinError;
 
       skillManagerStore.set(skillsAtom, skills);
       skillManagerStore.set(rejectedSkillsAtom, rejectedSkills);
@@ -323,17 +255,13 @@ export class SkillManager {
     name: string,
     enabled: boolean
   ): Promise<SkillOperationResult<"fs-error">> {
-    return this.updateBuiltinPreference(name, (pref) => ({ ...pref, disabled: !enabled }));
-  }
-
-  async setBuiltinAgentEnabled(
-    name: string,
-    agent: string,
-    enabled: boolean
-  ): Promise<SkillOperationResult<"fs-error">> {
+    // 单一启用开关恢复当前引擎，保留旧版本的其他代理偏好。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
     return this.updateBuiltinPreference(name, (pref) => ({
       ...pref,
-      disabledAgents: computeNextAgents(pref.disabledAgents ?? [], agent, !enabled),
+      disabled: !enabled,
+      ...(enabled && pref.disabledAgents?.includes("pi")
+        ? { disabledAgents: pref.disabledAgents.filter((agent) => agent !== "pi") }
+        : {}),
     }));
   }
 
@@ -372,8 +300,12 @@ export class SkillManager {
     return operation;
   }
 
-  async toggleAgent(skill: Skill, agent: BackendId, enabled: boolean): Promise<ToggleAgentResult> {
-    if (skill.builtin) return this.setBuiltinAgentEnabled(skill.name, agent, enabled);
+  async setSkillEnabled(skill: Skill, enabled: boolean): Promise<ToggleAgentResult> {
+    // 旧来源只供读取，启用与编辑只写当前技能库。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (skill.location.kind === "project")
+      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
+    if (skill.builtin) return this.setBuiltinSkillEnabled(skill.name, enabled);
+    const agent = "pi";
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
       return noVaultPathFailure();
@@ -383,31 +315,10 @@ export class SkillManager {
       return noVaultPathFailure();
     }
 
-    const fs = createNodeReconcileFs();
-    const agentDir = this.resolveAgentDirAbs(vaultRoot, agent);
-    if (agentDir === null) {
-      return { ok: false, code: "unknown-agent", message: `Unknown agent: ${agent}` };
-    }
-    const result = await this.runInternalMutation(
-      () =>
-        runToggleAgent({
-          skill,
-          agent,
-          enabled,
-          agentDirAbs: agentDir,
-          fs,
-        }),
-      (r) =>
-        r.ok || (!r.ok && r.reason === "eperm")
-          ? buildToggleExpectations(skill, enabled, agentDir, vaultRoot)
-          : []
-    );
+    const fs = createSkillFs();
+    const result = await runToggleAgent({ skill, agent, enabled, fs });
 
-    if (!result.ok && result.reason === "eperm") {
-      skillManagerStore.set(epermSeenAtom, true);
-    }
-
-    if (result.ok || (!result.ok && result.reason === "eperm")) {
+    if (result.ok) {
       this.replaceManagedSkill(skill, {
         ...skill,
         enabledAgents: computeNextAgents(skill.enabledAgents, agent, enabled),
@@ -418,21 +329,15 @@ export class SkillManager {
 
   async deleteSkill(skill: Skill): Promise<DeleteSkillResult> {
     if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
+    // 旧来源保持只读，不能通过列表操作修改或删除原文件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (skill.location.kind === "project")
+      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
       return noVaultPathFailure();
     }
-    const fs = createNodeReconcileFs();
-    const agentDirsAbs = this.resolveAgentDirsAbs(vaultRoot);
-    const result = await this.runInternalMutation(
-      () =>
-        runDeleteSkill({
-          skill,
-          agentDirsAbs,
-          fs,
-        }),
-      (r) => (r.ok ? buildDeleteExpectations(skill, agentDirsAbs, vaultRoot) : [])
-    );
+    const fs = createSkillFs();
+    const result = await runDeleteSkill({ skill, fs });
     if (result.ok) {
       this.removeManagedSkill(skill);
     }
@@ -449,7 +354,10 @@ export class SkillManager {
     }
   ): Promise<SavePropertiesResult> {
     if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
-    const fs = createNodeReconcileFs();
+    // 旧来源保持只读，不能通过列表操作修改或删除原文件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (skill.location.kind === "project")
+      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
+    const fs = createSkillFs();
     const newName =
       req.newName !== undefined && req.newName !== skill.name ? req.newName : undefined;
     const vaultRoot = resolveVaultRootAbs(this.app);
@@ -465,32 +373,14 @@ export class SkillManager {
         return noVaultPathFailure();
       }
 
-      const agentDirsAbs = this.resolveAgentDirsAbs(vaultRoot);
-      const renameResult = await this.runInternalMutation(
-        async () => {
-          const result = await runRenameSkill({
-            skill,
-            newName,
-            canonicalAbsRoot: canonical,
-            agentDirsAbs,
-            fs,
-          });
-          if (result.ok || (!result.ok && result.reason === "eperm")) {
-            await this.cleanupLinksToSkill(fs, vaultRoot, skill.dirPath);
-          }
-          return result;
-        },
-        (r) =>
-          r.ok || (!r.ok && r.reason === "eperm")
-            ? buildRenameExpectations(skill, newName, canonical, agentDirsAbs, vaultRoot)
-            : []
-      );
+      const renameResult = await runRenameSkill({
+        skill,
+        newName,
+        canonicalAbsRoot: canonical,
+        fs,
+      });
 
-      if (!renameResult.ok && renameResult.reason === "eperm") {
-        skillManagerStore.set(epermSeenAtom, true);
-      }
-
-      if (!renameResult.ok && renameResult.reason !== "eperm") {
+      if (!renameResult.ok) {
         if (renameResult.reason === "invalid") {
           return {
             ok: false,
@@ -514,11 +404,7 @@ export class SkillManager {
       activeSkill = buildRenamedSkill(skill, newName, canonical);
     }
 
-    const patchResult = await this.runInternalMutation(
-      () => runUpdateProperties({ skill: activeSkill, patch: req.patch, fs }),
-      (r) =>
-        r.ok && vaultRoot !== null ? buildUpdatePropertiesExpectations(activeSkill, vaultRoot) : []
-    );
+    const patchResult = await runUpdateProperties({ skill: activeSkill, patch: req.patch, fs });
     if (!patchResult.ok) {
       if (newName !== undefined) {
         this.replaceManagedSkill(skill, activeSkill);
@@ -528,225 +414,6 @@ export class SkillManager {
 
     this.replaceManagedSkill(skill, applyPropertiesPatch(activeSkill, req.patch));
     return { ok: true };
-  }
-
-  resolveCanonicalNameForMigration(name: string): string {
-    const taken = new Set(
-      skillManagerStore
-        .get(skillsAtom)
-        .filter((s) => s.location.kind === "canonical")
-        .map((s) => s.name)
-    );
-    return suffixOnCollision(name, taken);
-  }
-
-  getSuppressMigrationConfirm(): boolean {
-    return Boolean(getSettings().agentMode?.skills?.suppressMigrationConfirm);
-  }
-
-  setSuppressMigrationConfirm(value: boolean): void {
-    const agentMode = getSettings().agentMode;
-    const current = Boolean(agentMode?.skills?.suppressMigrationConfirm);
-    if (current === value) return;
-    updateSetting("agentMode", {
-      ...agentMode,
-      skills: {
-        ...agentMode.skills,
-        suppressMigrationConfirm: value,
-      },
-    });
-  }
-
-  async migrateProjectSkillForToggle(
-    skill: Skill,
-    targetAgent: BackendId | null,
-    action: "expandToNewAgent" | "disableLastAgent" | "consolidate"
-  ): Promise<MigrateSkillResult> {
-    if (skill.location.kind !== "project") {
-      return { ok: false, reason: t("agentInfra.skills.manager.notProject") };
-    }
-    const vaultRoot = resolveVaultRootAbs(this.app);
-    if (vaultRoot === null) {
-      return { ok: false, reason: t("agentInfra.skills.manager.noVaultPath") };
-    }
-    const folder = resolveSkillsFolder();
-    const canonical = resolveAbsolutePath(this.app, folder);
-    if (canonical === null) {
-      return { ok: false, reason: t("agentInfra.skills.manager.noVaultPath") };
-    }
-
-    const existingAgents = skill.location.agentDirs;
-    let enabledAgentsAfter: BackendId[];
-    switch (action) {
-      case "expandToNewAgent":
-        if (targetAgent === null) {
-          return { ok: false, reason: "expandToNewAgent requires a targetAgent." };
-        }
-        enabledAgentsAfter = existingAgents.includes(targetAgent)
-          ? [...existingAgents]
-          : [...existingAgents, targetAgent];
-        break;
-      case "disableLastAgent":
-        enabledAgentsAfter = [];
-        break;
-      case "consolidate":
-        enabledAgentsAfter = [...existingAgents];
-        break;
-    }
-
-    const agentDirsAbs = this.resolveAgentDirsAbs(vaultRoot);
-    const duplicates = duplicateSourceDirsFor(skill, agentDirsAbs);
-    const preTaken = skillManagerStore
-      .get(skillsAtom)
-      .filter((s) => s.location.kind === "canonical")
-      .map((s) => s.name);
-
-    const result = await this.runInternalMutation(() =>
-      migrateProjectSkill({
-        sourceName: skill.name,
-        sourceDirAbs: skill.dirPath,
-        duplicateSourceDirsAbs: duplicates,
-        canonicalAbsRoot: canonical,
-        enabledAgentsAfter,
-        targetAgentDirsAbs: agentDirsAbs,
-        preTakenNames: preTaken,
-        fs: createNodeMigrateSkillFs(),
-      })
-    );
-
-    if (!result.ok && result.reason === "eperm") {
-      skillManagerStore.set(epermSeenAtom, true);
-    }
-
-    await this.refresh();
-    return result;
-  }
-
-  async consolidateMirroredSkill(
-    skill: Skill,
-    suppressFuture: boolean
-  ): Promise<MigrateSkillResult> {
-    if (suppressFuture) this.setSuppressMigrationConfirm(true);
-    return this.migrateProjectSkillForToggle(skill, null, "consolidate");
-  }
-
-  async removeProjectAgentDir(
-    skill: Skill,
-    agent: BackendId
-  ): Promise<SkillOperationResult<"no-vault-path" | "unknown-agent" | "fs-error">> {
-    if (skill.location.kind !== "project") {
-      return { ok: false, code: "fs-error", message: t("agentInfra.skills.manager.notProject") };
-    }
-    const vaultRoot = resolveVaultRootAbs(this.app);
-    if (vaultRoot === null) {
-      return noVaultPathFailure();
-    }
-    const agentDirAbs = this.resolveAgentDirAbs(vaultRoot, agent);
-    if (agentDirAbs === null) {
-      return { ok: false, code: "unknown-agent", message: `Unknown agent: ${agent}` };
-    }
-    const fs = createNodeReconcileFs();
-    const targetDir = `${agentDirAbs.replace(/[/\\]+$/, "")}/${skill.name}`;
-    const isLink = await fs.isSymlink(targetDir).catch(() => false);
-    if (isLink) {
-      await this.refresh();
-      return { ok: true };
-    }
-    try {
-      await this.runInternalMutation(() => fs.rmRecursive(targetDir));
-    } catch (err) {
-      return fsFailure(err instanceof Error ? err.message : String(err));
-    }
-    await this.refresh();
-    return { ok: true };
-  }
-
-  private async runInternalMutation<T>(
-    task: () => Promise<T>,
-    buildExpectations?: (result: T) => Expectation[]
-  ): Promise<T> {
-    this.internalMutationDepth += 1;
-    try {
-      const result = await task();
-      if (buildExpectations !== undefined) {
-        this.installExpectations(buildExpectations(result));
-      }
-      return result;
-    } finally {
-      this.internalMutationDepth -= 1;
-    }
-  }
-
-  private clearScheduledReconcile(): void {
-    if (this.reconcileDebounceTimer === null) return;
-    window.clearTimeout(this.reconcileDebounceTimer);
-    this.reconcileDebounceTimer = null;
-  }
-
-  private installExpectations(expectations: Expectation[]): void {
-    if (expectations.length === 0) return;
-    this.pendingExpectations.push(...expectations);
-    this.armSafetyTimer();
-  }
-
-  private armSafetyTimer(): void {
-    this.clearSafetyTimer();
-    this.safetyTimer = window.setTimeout(() => {
-      this.safetyTimer = null;
-      if (this.pendingExpectations.length === 0) return;
-      const paths = this.pendingExpectations.map((e) => e.vaultRelPath).join(", ");
-      logWarn(`[skills] Gave up waiting for vault events on: ${paths}`);
-      this.pendingExpectations = [];
-      this.scheduleReconcile();
-    }, EXPECTATION_TIMEOUT_MS);
-  }
-
-  private clearSafetyTimer(): void {
-    if (this.safetyTimer === null) return;
-    window.clearTimeout(this.safetyTimer);
-    this.safetyTimer = null;
-  }
-
-  private tryMatchAndSuppress(eventPath: string): boolean {
-    const matches = this.pendingExpectations.filter((exp) => matchExpectation(exp, eventPath));
-    if (matches.length === 0) return false;
-    for (const exp of matches) {
-      void this.verifyAndMaybeConsume(exp);
-    }
-    return true;
-  }
-
-  private async verifyAndMaybeConsume(expectation: Expectation): Promise<void> {
-    let satisfied: boolean;
-    try {
-      satisfied = await this.evaluateExpectation(expectation);
-    } catch {
-      satisfied = false;
-    }
-    if (!satisfied) return;
-    this.consumeExpectation(expectation);
-  }
-
-  private async evaluateExpectation(expectation: Expectation): Promise<boolean> {
-    switch (expectation.kind) {
-      case "exists":
-      case "subtree-exists":
-        return this.app.vault.adapter.exists(expectation.vaultRelPath);
-      case "missing":
-      case "subtree-missing":
-        return !(await this.app.vault.adapter.exists(expectation.vaultRelPath));
-      case "modified":
-        return true;
-    }
-  }
-
-  private consumeExpectation(expectation: Expectation): void {
-    const idx = this.pendingExpectations.indexOf(expectation);
-    if (idx === -1) return;
-    this.pendingExpectations.splice(idx, 1);
-    if (this.pendingExpectations.length === 0) {
-      this.clearSafetyTimer();
-    }
   }
 
   private replaceManagedSkill(previous: Skill, next: Skill): void {
@@ -769,21 +436,6 @@ export class SkillManager {
     this.publishSkillSetChanges(skills);
   }
 
-  private async cleanupLinksToSkill(
-    fs: ReturnType<typeof createNodeReconcileFs>,
-    vaultRootAbs: string,
-    skillDirPath: string
-  ): Promise<void> {
-    const report = await removeAgentLinksPointingTo(
-      fs,
-      this.resolveAgentDirsAbs(vaultRootAbs),
-      skillDirPath
-    );
-    for (const error of report.errors) {
-      logWarn(`[skills] Failed to remove stale skill link ${error.path}: ${error.reason}`);
-    }
-  }
-
   private subscribeToVaultEvents(): void {
     const handler = (file: TAbstractFile): void => {
       this.handleVaultEvent(file.path);
@@ -800,58 +452,44 @@ export class SkillManager {
   }
 
   private handleVaultEvent(newPath: string, oldPath?: string): void {
-    if (this.internalMutationDepth > 0) return;
-    const matchedNew = this.tryMatchAndSuppress(newPath);
-    const matchedOld = oldPath !== undefined && this.tryMatchAndSuppress(oldPath);
-    if (matchedNew || matchedOld) return;
     if (this.isWatchedPath(newPath) || (oldPath !== undefined && this.isWatchedPath(oldPath))) {
-      this.scheduleReconcile();
+      this.scheduleRefresh();
     }
   }
 
   private isWatchedPath(relPath: string): boolean {
     const path = normalizeRelPath(relPath);
     const folder = normalizeRelPath(resolveSkillsFolder());
-    if (path === folder || path.startsWith(`${folder}/`)) return true;
-    return this.normalizedAgentDirs.some((root) => path === root || path.startsWith(`${root}/`));
+    return path === folder || path.startsWith(`${folder}/`);
   }
 
-  private resolveAgentDirAbs(vaultRootAbs: string, agent: BackendId): string | null {
-    const rel = this.agentDirsProjectRel[agent];
-    if (rel === undefined) return null;
-    return agentSkillsDirAbs(vaultRootAbs, rel);
+  private clearScheduledRefresh(): void {
+    if (this.refreshDebounceTimer === null) return;
+    window.clearTimeout(this.refreshDebounceTimer);
+    this.refreshDebounceTimer = null;
   }
 
-  private resolveAgentDirsAbs(vaultRootAbs: string): Record<BackendId, string> {
-    const out: Record<BackendId, string> = {};
-    for (const [agent, rel] of Object.entries(this.agentDirsProjectRel)) {
-      out[agent] = agentSkillsDirAbs(vaultRootAbs, rel);
-    }
-    return out;
-  }
-
-  private scheduleReconcile(): void {
-    this.clearScheduledReconcile();
-    this.reconcileDebounceTimer = window.setTimeout(() => {
-      this.reconcileDebounceTimer = null;
+  private scheduleRefresh(): void {
+    this.clearScheduledRefresh();
+    this.refreshDebounceTimer = window.setTimeout(() => {
+      this.refreshDebounceTimer = null;
       void this.refresh();
     }, RECONCILE_DEBOUNCE_MS);
   }
 
   private publishSkillSetChanges(skills: Skill[]): void {
-    for (const backendId of Object.keys(this.agentDirsProjectRel)) {
-      const signature = computeSkillSetSignature(skills, backendId);
-      const prev = this.skillSetSignatures.get(backendId);
-      if (prev === signature) continue;
-      this.skillSetSignatures.set(backendId, signature);
-      if (prev === undefined && signature === EMPTY_SKILL_SET_SIGNATURE) continue;
-      logInfo(`[skills] Skill set changed for ${backendId}; signature=${signature}`);
-      for (const listener of this.skillSetListeners) {
-        try {
-          listener(backendId, signature);
-        } catch (err) {
-          logError(`[skills] Skill-set listener failed for ${backendId}`, err);
-        }
+    const backendId = "pi";
+    const signature = computeSkillSetSignature(skills, backendId);
+    const prev = this.skillSetSignatures.get(backendId);
+    if (prev === signature) return;
+    this.skillSetSignatures.set(backendId, signature);
+    if (prev === undefined && signature === EMPTY_SKILL_SET_SIGNATURE) return;
+    logInfo(`[skills] Skill set changed for ${backendId}; signature=${signature}`);
+    for (const listener of this.skillSetListeners) {
+      try {
+        listener(backendId, signature);
+      } catch (err) {
+        logError(`[skills] Skill-set listener failed for ${backendId}`, err);
       }
     }
   }
@@ -869,14 +507,6 @@ export function useManagedSkills(): Skill[] {
 
 export function useRejectedSkills(): RejectedSkill[] {
   return useAtomValue(rejectedSkillsAtom, { store: skillManagerStore });
-}
-
-export function useEpermSeen(): boolean {
-  return useAtomValue(epermSeenAtom, { store: skillManagerStore });
-}
-
-export function dismissEpermBanner(): void {
-  skillManagerStore.set(epermSeenAtom, false);
 }
 
 export function getManagedSkills(): Skill[] {
@@ -910,10 +540,7 @@ function applyPropertiesPatch(
 }
 
 function buildRenamedSkill(skill: Skill, newName: string, canonicalAbsRoot: string): Skill {
-  const root =
-    skill.location.kind === "project"
-      ? normalizeAbsPath(parentDir(skill.dirPath))
-      : normalizeAbsPath(canonicalAbsRoot);
+  const root = normalizeAbsPath(canonicalAbsRoot);
   const dirPath = `${root}/${newName}`;
   return {
     ...skill,
@@ -994,6 +621,32 @@ function noVaultPathFailure(): { ok: false; code: "no-vault-path"; message: stri
   };
 }
 
+function createSkillFs(): {
+  readFile: (p: string) => Promise<string>;
+  writeFile: (p: string, content: string) => Promise<void>;
+  exists: (p: string) => Promise<boolean>;
+  rmRecursive: (p: string) => Promise<void>;
+} {
+  const fs = requireNodeModule<typeof import("node:fs")>("fs");
+  return {
+    readFile: (p) => fs.promises.readFile(p, "utf-8"),
+    writeFile: async (p, content) => {
+      await fs.promises.writeFile(p, content, "utf-8");
+    },
+    exists: async (p) => {
+      try {
+        await fs.promises.lstat(p);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    rmRecursive: async (p) => {
+      await fs.promises.rm(p, { recursive: true, force: true });
+    },
+  };
+}
+
 function fsFailure(message: string): { ok: false; code: "fs-error"; message: string } {
   return { ok: false, code: "fs-error", message };
 }
@@ -1007,10 +660,4 @@ function failureFromReason(reason: string): {
     return { ok: false, code: "eperm", message: t("agentInfra.skills.manager.eperm") };
   }
   return fsFailure(reason);
-}
-
-function recordReconcileReport(report: ReconcileReport): void {
-  if (report.errors.some((e) => e.reason === "eperm")) {
-    skillManagerStore.set(epermSeenAtom, true);
-  }
 }

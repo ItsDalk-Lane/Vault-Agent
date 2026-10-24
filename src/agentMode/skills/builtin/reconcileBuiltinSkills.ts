@@ -1,4 +1,3 @@
-import type { InstallState } from "@/agentMode/session/types";
 import { t } from "@/i18n";
 import type { VaultAgentSettings } from "@/settings/model";
 import { joinPosix } from "@/utils/pathUtils";
@@ -68,24 +67,4 @@ export async function reconcileBuiltinSkills(options: ReconcileBuiltinOptions): 
       errors.push(t("agentInfra.skills.builtin.removeDisabledFailed", { name: skill.name }));
   }
   if (errors.length > 0) throw new Error(errors.join(" "));
-}
-
-const EMPTY_AVAILABLE_AGENTS = Object.freeze([]) as readonly string[];
-
-export function availableBuiltinAgents(
-  states: Readonly<Record<string, InstallState>>,
-  previous: readonly string[]
-): readonly string[] {
-  // A transient re-check must not delete tools underneath an active turn. https://github.com/logancyang/obsidian-copilot/issues/3022
-  const available = Object.entries(states)
-    .filter(
-      ([id, state]) =>
-        state.kind === "ready" || (state.kind === "checking" && previous.includes(id))
-    )
-    .map(([id]) => id);
-  if (available.length === 0) return EMPTY_AVAILABLE_AGENTS;
-  if (available.length === previous.length && available.every((id, i) => id === previous[i])) {
-    return previous;
-  }
-  return available;
 }

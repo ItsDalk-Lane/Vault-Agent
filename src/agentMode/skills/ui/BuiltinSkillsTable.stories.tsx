@@ -1,26 +1,17 @@
 import type { Meta, StoryObj } from "@/lib/story";
-import { Bot } from "lucide-react";
 import { BuiltinSkillsTable, type BuiltinSkillsTableProps } from "./BuiltinSkillsTable";
 
 const noop = () => {};
 const args: BuiltinSkillsTableProps = {
   skills: [
     {
-      name: "copilot-youtube-transcript",
-      description: "Get a YouTube video transcript.",
-      content: "# YouTube transcript\n\nRetrieve the transcript for a supplied video URL.",
-      enabledAgents: ["claude"],
+      name: "obsidian-markdown",
+      description: "Create and edit Obsidian Markdown notes.",
+      content: "# Obsidian Markdown",
     },
   ],
-  agents: [
-    { id: "claude", displayName: "Claude", Icon: Bot },
-    { id: "codex", displayName: "Codex", Icon: Bot },
-    { id: "opencode", displayName: "OpenCode", Icon: Bot },
-  ],
-  availableAgents: ["claude", "codex"],
   pendingSkills: [],
   onToggleSkill: noop,
-  onToggleAgent: noop,
 };
 const meta = {
   title: "Skills/Built-in Skills",
@@ -28,16 +19,13 @@ const meta = {
   parameters: { gallery: { host: "settings-tab", layout: "padded" } },
 } satisfies Meta<BuiltinSkillsTableProps>;
 export default meta;
-export const AgentPreferences: StoryObj<BuiltinSkillsTableProps> = {
-  name: "Agent preferences with flush-left heading",
+export const EnabledSkill: StoryObj<BuiltinSkillsTableProps> = {
+  name: "Enabled skill with one switch",
   args,
 };
 export const DisabledSkill: StoryObj<BuiltinSkillsTableProps> = {
   name: "Disabled skill with visible badge",
   args: { ...args, preferences: { [args.skills[0].name]: { disabled: true } } },
-};
-export const NoAgents: StoryObj<BuiltinSkillsTableProps> = {
-  args: { ...args, availableAgents: [] },
 };
 export const NameCollision: StoryObj<BuiltinSkillsTableProps> = {
   args: {
@@ -62,7 +50,7 @@ export const UpdatingOneSkill: StoryObj<BuiltinSkillsTableProps> = {
     pendingSkills: [args.skills[0].name],
     skills: [
       ...args.skills,
-      { ...args.skills[0], name: "miyo-parse", description: "Parse a PDF or EPUB with Miyo." },
+      { ...args.skills[0], name: "json-canvas", description: "Create and edit JSON Canvas files." },
     ],
   },
 };

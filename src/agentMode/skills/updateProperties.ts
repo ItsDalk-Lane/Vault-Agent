@@ -1,5 +1,4 @@
-import { logError, logWarn } from "@/logger";
-import { parentDir } from "@/utils/pathUtils";
+import { logError } from "@/logger";
 import { renameWithRetry } from "./renameWithRetry";
 import {
   NAME_MAX,
@@ -9,13 +8,15 @@ import {
   validateName,
   type SkillFrontmatterPatch,
 } from "./skillFormat";
-import { removeAgentLink, replaceAgentLink } from "./symlinks";
 import type { ToggleAgentFs } from "./toggleAgent";
-import type { BackendId, Skill } from "./types";
+import type { Skill } from "./types";
 
+// Editing a skill only touches the canonical store: properties are rewritten in SKILL.md and a rename
+// moves the canonical folder, with no agent-directory symlink to retarget.
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 export type PropertiesFs = ToggleAgentFs;
 
-export type PropertiesFailReason = "invalid" | "collision" | "eperm";
+export type PropertiesFailReason = "invalid" | "collision";
 
 export type PropertiesResult =
   | { ok: true }
@@ -55,7 +56,6 @@ export interface RenameSkillOptions {
   skill: Skill;
   newName: string;
   canonicalAbsRoot: string;
-  agentDirsAbs: Readonly<Record<BackendId, string>>;
   fs: PropertiesFs;
 }
 
@@ -74,7 +74,7 @@ export interface RenameSkillFailure {
 export async function runRenameSkill(
   options: RenameSkillOptions
 ): Promise<RenameSkillSuccess | RenameSkillFailure> {
-  const { skill, newName, canonicalAbsRoot, agentDirsAbs, fs } = options;
+  const { skill, newName, canonicalAbsRoot, fs } = options;
 
   if (newName === skill.name) {
     return { ok: true, newDirPath: skill.dirPath, newFilePath: skill.filePath };
@@ -84,11 +84,7 @@ export async function runRenameSkill(
     return { ok: false, reason: "invalid" };
   }
 
-  const isProjectSkill = skill.location.kind === "project";
-  const destRoot = (isProjectSkill ? parentDir(skill.dirPath) : canonicalAbsRoot).replace(
-    /[/\\]+$/,
-    ""
-  );
+  const destRoot = canonicalAbsRoot.replace(/[/\\]+$/, "");
   const newDirPath = `${destRoot}/${newName}`;
   const newFilePath = `${newDirPath}/SKILL.md`;
 
@@ -104,32 +100,6 @@ export async function runRenameSkill(
     return { ok: false, reason };
   }
 
-  let epermSeen = false;
-  if (!isProjectSkill) {
-    for (const agent of skill.enabledAgents) {
-      const agentDir = agentDirsAbs[agent];
-      if (agentDir === undefined) continue;
-
-      try {
-        await removeAgentLink(fs, agentDir, skill.name);
-      } catch (err) {
-        logWarn(
-          `[skills] renameSkill: could not remove stale ${agent} link for ${skill.name}: ${
-            err instanceof Error ? err.message : String(err)
-          }`
-        );
-      }
-
-      const linkResult = await replaceAgentLink(fs, agentDir, newName, newDirPath);
-      if (!linkResult.ok) {
-        logWarn(
-          `[skills] renameSkill: ${agent} symlink retarget failed (${linkResult.reason}): ${linkResult.message}`
-        );
-        epermSeen = true;
-      }
-    }
-  }
-
   try {
     const raw = await fs.readFile(newFilePath);
     const parsed = parseSkillFile(raw, skill.name);
@@ -142,8 +112,5 @@ export async function runRenameSkill(
     return { ok: false, reason, mutated: true };
   }
 
-  if (epermSeen) {
-    return { ok: false, reason: "eperm", mutated: true };
-  }
   return { ok: true, newDirPath, newFilePath };
 }

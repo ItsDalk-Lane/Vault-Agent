@@ -7,289 +7,137 @@ jest.mock("@/logger", () => ({
   logError: jest.fn(),
 }));
 
-jest.mock("./renameWithRetry", () => ({
-  __esModule: true,
-  renameWithRetry: jest.fn(async () => {
-    throw new Error("renameWithRetry was not expected in toggleAgent tests");
-  }),
-}));
+type Node = { kind: "dir" } | { kind: "file"; content: string };
 
-type Node = { kind: "dir" } | { kind: "file"; content: string } | { kind: "link"; target: string };
-
+// Toggling a skill only rewrites the canonical frontmatter; Pi reads the canonical store directly, so
+// no agent-directory symlink is created or removed any more.
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 function mkFs(initial: Record<string, Node> = {}): DeleteSkillFs & {
   __dump(): Record<string, Node>;
-  __setSymlinkBlocked(blocked: boolean): void;
 } {
-  const map = new Map<string, Node>();
-  let symlinkBlocked = false;
-
-  const ensureAncestors = (p: string) => {
-    const parts = p.split("/");
-    for (let i = 1; i < parts.length; i++) {
-      const a = parts.slice(0, i).join("/");
-      if (a.length === 0) continue;
-      if (!map.has(a)) map.set(a, { kind: "dir" });
-    }
-  };
-
-  for (const [p, n] of Object.entries(initial)) {
-    ensureAncestors(p);
-    map.set(p, n);
-  }
-
+  const map = new Map<string, Node>(Object.entries(initial));
   return {
     async exists(p) {
       return map.has(p);
     },
-    async isDirectory(p) {
-      return map.get(p)?.kind === "dir";
-    },
-    async isSymlink(p) {
-      return map.get(p)?.kind === "link";
-    },
-    async readlinkAbs(p) {
-      const n = map.get(p);
-      return n !== undefined && n.kind === "link" ? n.target : null;
-    },
-    async list(p) {
-      const prefix = p.replace(/\/+$/, "") + "/";
-      const out = new Set<string>();
-      for (const k of map.keys()) {
-        if (!k.startsWith(prefix)) continue;
-        const rest = k.slice(prefix.length);
-        if (rest.length === 0) continue;
-        out.add(rest.split("/")[0]);
-      }
-      return Array.from(out);
-    },
-    async symlink(target, linkPath) {
-      if (symlinkBlocked) {
-        throw Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" });
-      }
-      if (map.has(linkPath)) {
-        throw Object.assign(new Error(`EEXIST: ${linkPath}`), { code: "EEXIST" });
-      }
-      ensureAncestors(linkPath);
-      map.set(linkPath, { kind: "link", target });
-    },
-    async unlink(p) {
-      const n = map.get(p);
-      if (n === undefined) return;
-      if (n.kind !== "link") return;
-      map.delete(p);
-    },
-    async rmRecursive(p) {
-      const prefix = p + "/";
-      for (const k of Array.from(map.keys())) {
-        if (k === p || k.startsWith(prefix)) map.delete(k);
-      }
-    },
     async readFile(p) {
-      const n = map.get(p);
-      if (n === undefined || n.kind !== "file") {
-        throw Object.assign(new Error(`ENOENT: ${p}`), { code: "ENOENT" });
-      }
-      return n.content;
+      const node = map.get(p);
+      if (node === undefined || node.kind !== "file") throw new Error(`missing file: ${p}`);
+      return node.content;
     },
     async writeFile(p, content) {
-      ensureAncestors(p);
       map.set(p, { kind: "file", content });
+    },
+    async rmRecursive(p) {
+      for (const key of [...map.keys()]) {
+        if (key === p || key.startsWith(`${p}/`)) map.delete(key);
+      }
     },
     __dump() {
       return Object.fromEntries(map);
     },
-    __setSymlinkBlocked(blocked) {
-      symlinkBlocked = blocked;
-    },
   };
 }
 
-const VAULT = "/vault";
-const CANON = "/vault/vault-agent/skills";
-const CLAUDE_DIR = `${VAULT}/.claude/skills`;
-const CODEX_DIR = `${VAULT}/.agents/skills`;
-const OPENCODE_DIR = `${VAULT}/.opencode/skills`;
-const AGENT_DIRS_ABS = {
-  claude: CLAUDE_DIR,
-  codex: CODEX_DIR,
-  opencode: OPENCODE_DIR,
-} as const;
-
-const SKILL_MD = (name: string, agents = ""): string =>
-  [
-    "---",
-    `name: ${name}`,
-    "description: A short skill.",
-    "metadata:",
-    `  vault-agent-enabled-agents: "${agents}"`,
-    "---",
-    "body",
-  ].join("\n");
-
-function mkSkill(name: string, enabledAgents: Skill["enabledAgents"] = []): Skill {
+function makeSkill(overrides: Partial<Skill> = {}): Skill {
   return {
-    name,
-    description: "A short skill.",
-    filePath: `${CANON}/${name}/SKILL.md`,
-    dirPath: `${CANON}/${name}`,
-    body: "body",
-    enabledAgents,
+    name: "summarize",
+    description: "Summarize a note",
+    filePath: "/vault/vault-agent/skills/summarize/SKILL.md",
+    dirPath: "/vault/vault-agent/skills/summarize",
+    body: "Summarize the note.",
+    enabledAgents: [],
     location: { kind: "canonical" },
+    ...overrides,
   };
 }
+
+const FRONTMATTER = [
+  "---",
+  "name: summarize",
+  "description: Summarize a note",
+  "---",
+  "",
+  "Body",
+].join("\n");
 
 describe("toggleAgent", () => {
   describe("runToggleAgent()", () => {
-    it("turns Claude on: stamps frontmatter and creates the symlink", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo") },
-      });
+    it("stamps the enabled agent into the canonical frontmatter", async () => {
+      const skill = makeSkill();
+      const fs = mkFs({ [skill.filePath]: { kind: "file", content: FRONTMATTER } });
 
-      const result = await runToggleAgent({
-        skill: mkSkill("foo", []),
-        agent: "claude",
-        enabled: true,
-        agentDirAbs: CLAUDE_DIR,
-        fs,
-      });
+      const result = await runToggleAgent({ skill, agent: "pi", enabled: true, fs });
 
       expect(result).toEqual({ ok: true });
-      const skillMd = fs.__dump()[`${CANON}/foo/SKILL.md`];
-      expect(skillMd.kind).toBe("file");
-      expect((skillMd as { kind: "file"; content: string }).content).toMatch(
-        /vault-agent-enabled-agents:\s*"?claude"?/
+      expect((fs.__dump()[skill.filePath] as { content: string }).content).toContain(
+        "vault-agent-enabled-agents: pi"
       );
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toEqual({
-        kind: "link",
-        target: `${CANON}/foo`,
-      });
     });
 
-    it("turns Claude off: removes the link and updates frontmatter", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo", "claude") },
-        "/vault/.claude/skills/foo": { kind: "link", target: `${CANON}/foo` },
-      });
+    it("removes the agent again when it is toggled off", async () => {
+      const skill = makeSkill({ enabledAgents: ["pi"] });
+      const fs = mkFs({ [skill.filePath]: { kind: "file", content: FRONTMATTER } });
 
-      const result = await runToggleAgent({
-        skill: mkSkill("foo", ["claude"]),
-        agent: "claude",
-        enabled: false,
-        agentDirAbs: CLAUDE_DIR,
-        fs,
-      });
+      const result = await runToggleAgent({ skill, agent: "pi", enabled: false, fs });
 
       expect(result).toEqual({ ok: true });
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toBeUndefined();
-      const skillMd = fs.__dump()[`${CANON}/foo/SKILL.md`];
-      expect((skillMd as { kind: "file"; content: string }).content).not.toMatch(/claude/);
-    });
-
-    it("EPERM on symlink: returns eperm, frontmatter still updated, no link created", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo") },
-      });
-      fs.__setSymlinkBlocked(true);
-
-      const result = await runToggleAgent({
-        skill: mkSkill("foo", []),
-        agent: "claude",
-        enabled: true,
-        agentDirAbs: CLAUDE_DIR,
-        fs,
-      });
-
-      expect(result.ok).toBe(false);
-      if (result.ok === false) expect(result.reason).toBe("eperm");
-      const skillMd = fs.__dump()[`${CANON}/foo/SKILL.md`];
-      expect((skillMd as { kind: "file"; content: string }).content).toMatch(
-        /vault-agent-enabled-agents:\s*"?claude"?/
+      expect((fs.__dump()[skill.filePath] as { content: string }).content).toContain(
+        'vault-agent-enabled-agents: ""'
       );
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toBeUndefined();
     });
 
-    it("re-enabling an already enabled agent is idempotent", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo", "claude") },
-        "/vault/.claude/skills/foo": { kind: "link", target: `${CANON}/foo` },
-      });
+    it("changes only the built-in agent membership while retaining old agents and unrelated skill metadata https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const skill = makeSkill({ enabledAgents: ["claude", "codex"] });
+      const original =
+        "---\nname: summarize\ndescription: Summarize a note\nmodel: claude-opus-4-7\ncustom: preserved\nmetadata:\n  vault-agent-enabled-agents: claude,codex\n---\nOriginal user instructions.\n";
+      const fs = mkFs({ [skill.filePath]: { kind: "file", content: original } });
+      expect(await runToggleAgent({ skill, agent: "pi", enabled: true, fs })).toEqual({ ok: true });
+      const saved = await fs.readFile(skill.filePath);
+      expect(saved).toContain("vault-agent-enabled-agents: claude,codex,pi");
+      expect(saved).toContain("model: claude-opus-4-7");
+      expect(saved).toContain("custom: preserved");
+      expect(saved.split("\n---\n")[1]).toBe("Original user instructions.\n");
+    });
 
-      const result = await runToggleAgent({
-        skill: mkSkill("foo", ["claude"]),
-        agent: "claude",
-        enabled: true,
-        agentDirAbs: CLAUDE_DIR,
-        fs,
-      });
+    it("reports a rewrite failure instead of claiming the toggle worked", async () => {
+      const skill = makeSkill();
+      const fs = mkFs({ [skill.filePath]: { kind: "file", content: FRONTMATTER } });
+      fs.writeFile = async () => {
+        throw new Error("disk full");
+      };
 
-      expect(result).toEqual({ ok: true });
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toEqual({
-        kind: "link",
-        target: `${CANON}/foo`,
-      });
+      const result = await runToggleAgent({ skill, agent: "pi", enabled: true, fs });
+
+      expect(result).toEqual({ ok: false, reason: "disk full" });
     });
   });
 
   describe("runDeleteSkill()", () => {
-    it("removes the canonical dir and every enabled agent's link", async () => {
+    it("removes the canonical skill folder without touching any agent directory", async () => {
+      const skill = makeSkill();
       const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo", "claude,opencode") },
-        "/vault/.claude/skills/foo": { kind: "link", target: `${CANON}/foo` },
-        "/vault/.opencode/skills/foo": { kind: "link", target: `${CANON}/foo` },
+        [skill.dirPath]: { kind: "dir" },
+        [skill.filePath]: { kind: "file", content: FRONTMATTER },
       });
 
-      const result = await runDeleteSkill({
-        skill: mkSkill("foo", ["claude", "opencode"]),
-        agentDirsAbs: AGENT_DIRS_ABS,
-        fs,
-      });
+      const result = await runDeleteSkill({ skill, fs });
 
       expect(result).toEqual({ ok: true });
-      expect(fs.__dump()[`${CANON}/foo`]).toBeUndefined();
-      expect(fs.__dump()[`${CANON}/foo/SKILL.md`]).toBeUndefined();
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toBeUndefined();
-      expect(fs.__dump()["/vault/.opencode/skills/foo"]).toBeUndefined();
+      expect(fs.__dump()[skill.filePath]).toBeUndefined();
+      expect(fs.__dump()[skill.dirPath]).toBeUndefined();
     });
 
-    it("removes only the canonical dir when no agents are enabled", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo") },
-      });
+    it("reports a removal failure with its reason", async () => {
+      const skill = makeSkill();
+      const fs = mkFs({ [skill.dirPath]: { kind: "dir" } });
+      fs.rmRecursive = async () => {
+        throw new Error("locked");
+      };
 
-      const result = await runDeleteSkill({
-        skill: mkSkill("foo", []),
-        agentDirsAbs: AGENT_DIRS_ABS,
-        fs,
-      });
+      const result = await runDeleteSkill({ skill, fs });
 
-      expect(result).toEqual({ ok: true });
-      expect(fs.__dump()[`${CANON}/foo`]).toBeUndefined();
-    });
-
-    it("removes stale symlinks pointing at the deleted skill in disabled agent dirs", async () => {
-      const fs = mkFs({
-        [`${CANON}/foo/SKILL.md`]: { kind: "file", content: SKILL_MD("foo", "claude") },
-        "/vault/.claude/skills/foo": { kind: "link", target: `${CANON}/foo` },
-        "/vault/.agents/skills/foo": { kind: "link", target: `${CANON}/foo` },
-        "/vault/.opencode/skills/unrelated": { kind: "link", target: "/elsewhere/unrelated" },
-        "/vault/.opencode/skills/foo": { kind: "dir" },
-        "/vault/.opencode/skills/foo/SKILL.md": { kind: "file", content: SKILL_MD("foo") },
-      });
-
-      const result = await runDeleteSkill({
-        skill: mkSkill("foo", ["claude"]),
-        agentDirsAbs: AGENT_DIRS_ABS,
-        fs,
-      });
-
-      expect(result).toEqual({ ok: true });
-      expect(fs.__dump()["/vault/.claude/skills/foo"]).toBeUndefined();
-      expect(fs.__dump()["/vault/.agents/skills/foo"]).toBeUndefined();
-      expect(fs.__dump()["/vault/.opencode/skills/unrelated"]).toEqual({
-        kind: "link",
-        target: "/elsewhere/unrelated",
-      });
-      expect(fs.__dump()["/vault/.opencode/skills/foo"]).toEqual({ kind: "dir" });
+      expect(result).toEqual({ ok: false, reason: "locked" });
     });
   });
 });

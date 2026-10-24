@@ -1,4 +1,3 @@
-import { composeDenyList } from "./denyListComposer";
 import { BUILTIN_SKILLS, RETIRED_BUILTIN_SKILLS } from "@/builtinSkills/builtinSkills";
 import { sanitizeBuiltinPreferences } from "@/settings/model";
 import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
@@ -6,7 +5,6 @@ import { act, renderHook } from "@testing-library/react";
 import { FileSystemAdapter, type App, type EventRef } from "obsidian";
 import { useSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
 import { discoverManagedSkills } from "./discoverManagedSkills";
-import { reconcile } from "./reconcile";
 import {
   computeSkillSetSignature,
   getManagedSkills,
@@ -49,14 +47,8 @@ jest.mock("./discoverManagedSkills", () => ({
   discoverManagedSkills: jest.fn(),
 }));
 
-jest.mock("./reconcile", () => ({
-  reconcile: jest.fn(async () => ({ created: [], removedOrphans: [], errors: [] })),
-}));
-
 jest.mock("./nodeFsAdapters", () => ({
-  createNodeMigrateSkillFs: jest.fn(() => ({})),
   createNodeProjectDiscoveryFs: jest.fn(() => ({})),
-  createNodeReconcileFs: jest.fn(() => ({})),
 }));
 
 jest.mock("./discoverProjectSkills", () => ({
@@ -82,14 +74,12 @@ const mockedRunUpdateProperties = runUpdateProperties as jest.MockedFunction<
 >;
 const mockedRunToggleAgent = runToggleAgent as jest.MockedFunction<typeof runToggleAgent>;
 const mockedRunDeleteSkill = runDeleteSkill as jest.MockedFunction<typeof runDeleteSkill>;
-const mockedReconcile = reconcile as jest.MockedFunction<typeof reconcile>;
 
 describe("SkillManager", () => {
   beforeEach(() => {
     skillsFolder = "vault-agent/skills";
     preferences = {};
     mockedDiscoverManagedSkills.mockReset();
-    mockedReconcile.mockClear();
     mockedRunRenameSkill.mockReset();
     mockedRunUpdateProperties.mockReset();
     mockedRunToggleAgent.mockReset();
@@ -112,14 +102,11 @@ describe("SkillManager", () => {
         );
         await f.manager.refresh();
         expect(f.availableAgents).toHaveBeenCalledTimes(1);
-        expect(getManagedSkills().map((row) => row.enabledAgents)).toEqual([
-          ["claude", "opencode"],
-          ["claude", "opencode"],
-        ]);
+        expect(getManagedSkills().map((row) => row.enabledAgents)).toEqual([["pi"], ["pi"]]);
       });
       it("queues one follow-up refresh when the configured folder changes during an in-flight pass", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         let releaseFirst = (): void => {};
 
         mockedDiscoverManagedSkills.mockImplementationOnce(async () => {
@@ -149,7 +136,7 @@ describe("SkillManager", () => {
 
       it("publishes and clears rejected discovery state for https://github.com/Brevilabs/obsidian-copilot-private/issues/166", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const { result: loadErrorCount } = renderHook(() => useSkillLoadErrorCount());
         const rejected: RejectedSkill = {
           name: "broken-skill",
@@ -181,9 +168,9 @@ describe("SkillManager", () => {
         expect(result.current).toBe(initialRejectedSkills);
       });
 
-      it("notifies when a backend-visible skill signature changes", async () => {
+      it("notifies when the current skill set changes", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { opencode: ".opencode/skills" });
+        const manager = SkillManager.initialize(app);
         const listener = jest.fn();
         manager.subscribeToSkillSetChange(listener);
         mockedDiscoverManagedSkills.mockResolvedValueOnce(
@@ -197,7 +184,7 @@ describe("SkillManager", () => {
         await manager.refresh();
 
         expect(listener).toHaveBeenCalledTimes(2);
-        expect(listener.mock.calls.map((call) => call[0])).toEqual(["opencode", "opencode"]);
+        expect(listener.mock.calls.map((call) => call[0])).toEqual(["pi", "pi"]);
       });
 
       it(`uses default agents when no override exists despite stale file metadata ${ISSUE}`, async () => {
@@ -208,15 +195,15 @@ describe("SkillManager", () => {
         });
         f.prepare.mockRejectedValue(new Error("seed failed"));
         await f.manager.refresh();
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude", "opencode"]);
+        expect(getManagedSkills()[0].enabledAgents).toEqual(["pi"]);
       });
       it(`applies durable opt-outs even when cleanup fails ${ISSUE}`, async () => {
         const f = builtinFixture();
-        preferences[builtinSkill.name] = { disabledAgents: ["opencode"] };
+        preferences[builtinSkill.name] = { disabledAgents: ["pi"] };
         f.prepare.mockRejectedValue(new Error("cleanup failed"));
         const result = await f.manager.refresh();
         expect(result.reconcileError).toBe("cleanup failed");
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude"]);
+        expect(getManagedSkills()[0].enabledAgents).toEqual([]);
       });
       it(`keeps retired skills disabled when file cleanup fails ${ISSUE}`, async () => {
         const f = builtinFixture();
@@ -227,10 +214,6 @@ describe("SkillManager", () => {
         const result = await f.manager.refresh();
         expect(result.reconcileError).toBe("retirement failed");
         expect(getManagedSkills()[0].enabledAgents).toEqual([]);
-        expect(composeDenyList(getManagedSkills(), "opencode", ["claude", "codex"])).toEqual([
-          RETIRED_BUILTIN_SKILLS[0].name,
-        ]);
-        expect(mockedReconcile.mock.calls[0][0].skills[0].enabledAgents).toEqual([]);
       });
       it(`seeds before discovery on every refresh entry point ${ISSUE}`, async () => {
         const f = builtinFixture();
@@ -246,7 +229,7 @@ describe("SkillManager", () => {
       it("schedules reconciliation when a rename moves a watched old path elsewhere", () => {
         jest.useFakeTimers();
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const refreshResult: RefreshResult = {
           ok: true,
           folder: "vault-agent/skills",
@@ -262,152 +245,63 @@ describe("SkillManager", () => {
 
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       });
-
-      it("suppresses a vault event that matches a pending expectation", async () => {
-        const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
-        const skill = makeSkill({ enabledAgents: [] });
-        await seedSkills(manager, [skill]);
-        mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
-        const refreshResult: RefreshResult = {
-          ok: true,
-          folder: "vault-agent/skills",
-          skillCount: 0,
-          reconcileErrorCount: 0,
-        };
-        const refreshSpy = jest.spyOn(manager, "refresh").mockResolvedValue(refreshResult);
-
-        await manager.toggleAgent(skill, "claude", true);
-        refreshSpy.mockClear();
-
-        fireVaultEvent(app, "create", { path: ".claude/skills/foo" });
-        await flushMicrotasks();
-        jest.useFakeTimers();
-        jest.advanceTimersByTime(250);
-        expect(refreshSpy).not.toHaveBeenCalled();
-        jest.useRealTimers();
-      });
-
-      it("passes through a vault event that does not match any expectation", async () => {
-        jest.useFakeTimers();
-        const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
-        const skill = makeSkill({ enabledAgents: [] });
-        mockedDiscoverManagedSkills.mockResolvedValueOnce(discoveryResult([skill]));
-        await manager.refresh();
-        mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
-        await manager.toggleAgent(skill, "claude", true);
-
-        const refreshResult: RefreshResult = {
-          ok: true,
-          folder: "vault-agent/skills",
-          skillCount: 1,
-          reconcileErrorCount: 0,
-        };
-        const refreshSpy = jest.spyOn(manager, "refresh").mockResolvedValue(refreshResult);
-
-        fireVaultEvent(app, "create", { path: "vault-agent/skills/unrelated/SKILL.md" });
-        jest.advanceTimersByTime(250);
-        expect(refreshSpy).toHaveBeenCalledTimes(1);
-      });
-
-      it("schedules a reconcile after the safety timeout when expected vault events never arrive", async () => {
-        jest.useFakeTimers();
-        const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
-        const skill = makeSkill({ enabledAgents: [] });
-        mockedDiscoverManagedSkills.mockResolvedValueOnce(discoveryResult([skill]));
-        await manager.refresh();
-        mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
-        await manager.toggleAgent(skill, "claude", true);
-
-        const refreshResult: RefreshResult = {
-          ok: true,
-          folder: "vault-agent/skills",
-          skillCount: 1,
-          reconcileErrorCount: 0,
-        };
-        const refreshSpy = jest.spyOn(manager, "refresh").mockResolvedValue(refreshResult);
-
-        jest.advanceTimersByTime(10_000);
-        jest.advanceTimersByTime(250);
-        expect(refreshSpy).toHaveBeenCalledTimes(1);
-      });
-
-      it("preserves a pre-existing scheduled reconcile across an internal mutation", async () => {
-        jest.useFakeTimers();
-        const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
-        const skill = makeSkill({ enabledAgents: [] });
-        mockedDiscoverManagedSkills.mockResolvedValueOnce(discoveryResult([skill]));
-        await manager.refresh();
-
-        const refreshResult: RefreshResult = {
-          ok: true,
-          folder: "vault-agent/skills",
-          skillCount: 1,
-          reconcileErrorCount: 0,
-        };
-        const refreshSpy = jest.spyOn(manager, "refresh").mockResolvedValue(refreshResult);
-
-        fireVaultEvent(
-          app,
-          "rename",
-          { path: "elsewhere/foo/SKILL.md" },
-          "vault-agent/skills/foo/SKILL.md"
-        );
-
-        mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
-        await manager.toggleAgent(skill, "claude", true);
-
-        jest.advanceTimersByTime(250);
-        expect(refreshSpy).toHaveBeenCalledTimes(1);
-      });
     });
-    describe("toggleAgent()", () => {
-      it("adds the agent to one row without rerunning discovery or reconcile", async () => {
+    describe("setSkillEnabled()", () => {
+      it("adds the agent to one row without rerunning discovery", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill({ enabledAgents: [] });
         await seedSkills(manager, [skill]);
         mockedRunToggleAgent.mockResolvedValueOnce({ ok: true });
         mockedDiscoverManagedSkills.mockClear();
-        mockedReconcile.mockClear();
 
-        const result = await manager.toggleAgent(skill, "claude", true);
+        const result = await manager.setSkillEnabled(skill, true);
 
         expect(result).toEqual({ ok: true });
         expect(mockedDiscoverManagedSkills).not.toHaveBeenCalled();
-        expect(mockedReconcile).not.toHaveBeenCalled();
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude"]);
+        expect(getManagedSkills()[0].enabledAgents).toEqual(["pi"]);
       });
 
+      it("refuses to rewrite legacy skill metadata through the current enable control https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const manager = SkillManager.initialize(makeApp());
+        const skill = makeSkill({ location: { kind: "project", agentDirs: ["claude"] } });
+        expect(await manager.setSkillEnabled(skill, true)).toMatchObject({
+          ok: false,
+          message: expect.stringContaining("read-only"),
+        });
+        expect(runToggleAgent).not.toHaveBeenCalled();
+      });
       it(`routes built-ins through saved settings rather than file metadata ${ISSUE}`, async () => {
         const f = builtinFixture();
-        await f.manager.toggleAgent(builtinSkill, "opencode", false);
-        expect(preferences[builtinSkill.name].disabledAgents).toEqual(["opencode"]);
+        await f.manager.setSkillEnabled(builtinSkill, false);
+        expect(preferences[builtinSkill.name].disabled).toBe(true);
         expect(runToggleAgent).not.toHaveBeenCalled();
       });
     });
     describe("deleteSkill()", () => {
-      it("removes one row without rerunning discovery or reconcile", async () => {
+      it("removes one row without rerunning discovery", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         const other = makeSkill({ name: "bar", dirPath: "/vault/vault-agent/skills/bar" });
         await seedSkills(manager, [skill, other]);
         mockedRunDeleteSkill.mockResolvedValueOnce({ ok: true });
         mockedDiscoverManagedSkills.mockClear();
-        mockedReconcile.mockClear();
 
         const result = await manager.deleteSkill(skill);
 
         expect(result).toEqual({ ok: true });
         expect(mockedDiscoverManagedSkills).not.toHaveBeenCalled();
-        expect(mockedReconcile).not.toHaveBeenCalled();
         expect(getManagedSkills().map((s) => s.name)).toEqual(["bar"]);
       });
 
+      it("keeps legacy source folders read-only without deleting user files https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const manager = SkillManager.initialize(makeApp());
+        const skill = makeSkill({ location: { kind: "project", agentDirs: ["claude"] } });
+        mockedRunDeleteSkill.mockResolvedValue({ ok: true });
+        expect(await manager.deleteSkill(skill)).toMatchObject({ ok: false });
+        expect(runDeleteSkill).not.toHaveBeenCalled();
+      });
       it(`rejects deletion of bundled content ${ISSUE}`, async () => {
         expect(await builtinFixture().manager.deleteSkill(builtinSkill)).toMatchObject({
           ok: false,
@@ -418,7 +312,7 @@ describe("SkillManager", () => {
     describe("saveProperties()", () => {
       it("applies a rename plus patch with a single skill-set notification", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { opencode: ".opencode/skills" });
+        const manager = SkillManager.initialize(app);
         const listener = jest.fn();
         const skill = makeSkill({ enabledAgents: ["opencode"] });
         manager.subscribeToSkillSetChange(listener);
@@ -446,7 +340,7 @@ describe("SkillManager", () => {
 
       it("applies a description-only patch without renaming", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         await seedSkills(manager, [skill]);
         mockedRunUpdateProperties.mockResolvedValueOnce({ ok: true });
@@ -465,7 +359,7 @@ describe("SkillManager", () => {
 
       it("applies a rename with an empty patch", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({
@@ -489,7 +383,7 @@ describe("SkillManager", () => {
 
       it("returns a collision error without patching when the new name is taken", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({ ok: false, reason: "collision" });
@@ -509,7 +403,7 @@ describe("SkillManager", () => {
 
       it("refreshes from disk and returns the failure when the rename fails after mutating the canonical directory", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({
@@ -539,29 +433,9 @@ describe("SkillManager", () => {
         expect(mockedRunUpdateProperties).not.toHaveBeenCalled();
       });
 
-      it("succeeds when the rename reports EPERM after mutating but the patch succeeds", async () => {
-        const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
-        const skill = makeSkill();
-        await seedSkills(manager, [skill]);
-        mockedRunRenameSkill.mockResolvedValueOnce({ ok: false, reason: "eperm", mutated: true });
-        mockedRunUpdateProperties.mockResolvedValueOnce({ ok: true });
-
-        const result = await manager.saveProperties(skill, {
-          newName: "bar",
-          patch: { description: "Updated description." },
-        });
-
-        expect(result).toEqual({ ok: true });
-        expect(getManagedSkills()[0]).toMatchObject({
-          name: "bar",
-          description: "Updated description.",
-        });
-      });
-
       it("keeps the rename in the published row when the follow-up patch fails", async () => {
         const app = makeApp();
-        const manager = SkillManager.initialize(app, { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(app);
         const skill = makeSkill();
         await seedSkills(manager, [skill]);
         mockedRunRenameSkill.mockResolvedValueOnce({
@@ -583,6 +457,18 @@ describe("SkillManager", () => {
         });
       });
 
+      it("refuses to rename or patch legacy source files through properties https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const manager = SkillManager.initialize(makeApp());
+        const skill = makeSkill({ location: { kind: "project", agentDirs: ["codex"] } });
+        expect(
+          await manager.saveProperties(skill, {
+            newName: "updated",
+            patch: { description: "Updated" },
+          })
+        ).toMatchObject({ ok: false, message: expect.stringContaining("read-only") });
+        expect(runRenameSkill).not.toHaveBeenCalled();
+        expect(runUpdateProperties).not.toHaveBeenCalled();
+      });
       it(`rejects combined edits to bundled content ${ISSUE}`, async () => {
         expect(
           await builtinFixture().manager.saveProperties(builtinSkill, {
@@ -596,7 +482,7 @@ describe("SkillManager", () => {
     });
     describe("dispose()", () => {
       it("clears the rejected-skill count on disposal so plugin reloads do not keep a stale warning for https://github.com/Brevilabs/obsidian-copilot-private/issues/166", async () => {
-        const manager = SkillManager.initialize(makeApp(), { claude: ".claude/skills" });
+        const manager = SkillManager.initialize(makeApp());
         const { result: loadErrorCount } = renderHook(() => useSkillLoadErrorCount());
         mockedDiscoverManagedSkills.mockResolvedValueOnce(
           discoveryResult(
@@ -632,14 +518,45 @@ describe("SkillManager", () => {
         expect(f.savePreferences.mock.invocationCallOrder[0]).toBeLessThan(
           f.prepare.mock.invocationCallOrder[0]
         );
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude"]);
+        expect(getManagedSkills()[0].enabledAgents).toEqual(["pi"]);
+      });
+      it("restores only the current engine opt-out while preserving historical preferences https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const f = builtinFixture();
+        preferences[builtinSkill.name] = { disabled: true, disabledAgents: ["pi", "claude"] };
+        expect(await f.manager.setBuiltinSkillEnabled(builtinSkill.name, true)).toEqual({
+          ok: true,
+        });
+        expect(preferences[builtinSkill.name]).toEqual({ disabledAgents: ["claude"] });
       });
       it(`removes the preference when restoring whole-skill defaults ${ISSUE}`, async () => {
         const f = builtinFixture();
         preferences[builtinSkill.name] = { disabled: true };
         await f.manager.setBuiltinSkillEnabled(builtinSkill.name, true);
         expect(preferences).toEqual({});
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude", "opencode"]);
+        expect(getManagedSkills()[0].enabledAgents).toEqual(["pi"]);
+      });
+      it("rejects unknown built-ins without changing settings or files", async () => {
+        const f = builtinFixture();
+        expect(await f.manager.setBuiltinSkillEnabled("user-owned-skill", false)).toMatchObject({
+          ok: false,
+          message: "Unknown built-in skill.",
+        });
+        expect(f.savePreferences).not.toHaveBeenCalled();
+        expect(f.prepare).not.toHaveBeenCalled();
+      });
+      it("serializes rapid enable changes while preserving historical opt-outs https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+        const f = builtinFixture();
+        preferences[builtinSkill.name] = { disabledAgents: ["claude"] };
+        await Promise.all([
+          f.manager.setBuiltinSkillEnabled(builtinSkill.name, false),
+          f.manager.setBuiltinSkillEnabled(builtinSkill.name, true),
+          f.manager.setBuiltinSkillEnabled(builtinSkill.name, false),
+        ]);
+        expect(preferences[builtinSkill.name]).toEqual({
+          disabled: true,
+          disabledAgents: ["claude"],
+        });
+        expect(getManagedSkills()[0].enabledAgents).toEqual([]);
       });
       it(`does not remove files when saving the opt-out fails ${ISSUE}`, async () => {
         const f = builtinFixture();
@@ -649,34 +566,6 @@ describe("SkillManager", () => {
           message: "save failed",
         });
         expect(f.prepare).not.toHaveBeenCalled();
-        expect(reconcile).not.toHaveBeenCalled();
-      });
-    });
-    describe("setBuiltinAgentEnabled()", () => {
-      it(`rejects unknown built-ins without saving preferences or changing files ${ISSUE}`, async () => {
-        const f = builtinFixture();
-        expect(
-          await f.manager.setBuiltinAgentEnabled("user-owned-skill", "claude", false)
-        ).toMatchObject({ ok: false, message: "Unknown built-in skill." });
-        expect(f.savePreferences).not.toHaveBeenCalled();
-        expect(f.prepare).not.toHaveBeenCalled();
-      });
-      it(`removes the preference when re-enabling the last opted-out agent ${ISSUE}`, async () => {
-        const f = builtinFixture();
-        preferences[builtinSkill.name] = { disabledAgents: ["opencode"] };
-        await f.manager.setBuiltinAgentEnabled(builtinSkill.name, "opencode", true);
-        expect(preferences).toEqual({});
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["claude", "opencode"]);
-      });
-      it(`serializes rapid toggles and retains other agent choices ${ISSUE}`, async () => {
-        const f = builtinFixture();
-        await Promise.all([
-          f.manager.setBuiltinAgentEnabled(builtinSkill.name, "opencode", false),
-          f.manager.setBuiltinAgentEnabled(builtinSkill.name, "claude", false),
-          f.manager.setBuiltinAgentEnabled(builtinSkill.name, "opencode", true),
-        ]);
-        expect(preferences[builtinSkill.name].disabledAgents).toEqual(["claude"]);
-        expect(getManagedSkills()[0].enabledAgents).toEqual(["opencode"]);
       });
     });
   });
@@ -740,26 +629,6 @@ function discoveryResult(
   return { accepted, rejected };
 }
 
-function fireVaultEvent(
-  app: ReturnType<typeof makeApp>,
-  event: string,
-  file: { path: string },
-  oldPath?: string
-): void {
-  const call = app.vault.on.mock.calls.find(([e]) => e === event);
-  if (call === undefined) throw new Error(`No handler registered for "${event}"`);
-  if (oldPath !== undefined) {
-    call[1](file, oldPath);
-  } else {
-    call[1](file);
-  }
-}
-
-async function flushMicrotasks(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-}
-
 function makeSkill(overrides: Partial<Skill> = {}): Skill {
   const name = overrides.name ?? "foo";
   const dirPath = overrides.dirPath ?? `/vault/vault-agent/skills/${name}`;
@@ -783,17 +652,13 @@ const builtinSkill: Skill = makeSkill({
 function builtinFixture() {
   mockedDiscoverManagedSkills.mockResolvedValue(discoveryResult([builtinSkill]));
   const prepare = jest.fn(async () => {});
-  const availableAgents = jest.fn(() => ["claude", "opencode"]);
+  const availableAgents = jest.fn(() => ["pi"]);
   const savePreferences = jest.fn(
     async (update: (current: BuiltinPreferences) => BuiltinPreferences) => {
       preferences = sanitizeBuiltinPreferences(update(preferences)) ?? {};
       return preferences;
     }
   );
-  const manager = SkillManager.initialize(
-    makeApp(),
-    { claude: ".claude/skills", opencode: ".opencode/skills" },
-    { prepare, availableAgents, savePreferences }
-  );
+  const manager = SkillManager.initialize(makeApp(), { prepare, availableAgents, savePreferences });
   return { manager, prepare, availableAgents, savePreferences };
 }

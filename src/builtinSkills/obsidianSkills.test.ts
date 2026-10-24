@@ -9,7 +9,7 @@ function skillMd(name: string): string {
 
 describe("obsidianSkills", () => {
   describe("OBSIDIAN_SKILLS", () => {
-    it("ships the four approved skills for every Agent Mode backend", () => {
+    it("ships the four approved skills only for the built-in Vault Agent https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       expect(OBSIDIAN_SKILLS.map((skill) => skill.name)).toEqual([
         "obsidian-markdown",
         "obsidian-bases",
@@ -17,7 +17,7 @@ describe("obsidianSkills", () => {
         "obsidian-cli",
       ]);
       for (const skill of OBSIDIAN_SKILLS) {
-        expect(skill.enabledAgents).toEqual(["claude", "codex", "opencode"]);
+        expect(skill.enabledAgents).toEqual(["pi"]);
         expect(skill.skillMd).toContain(`vault-agent-builtin-version: "${skill.version}"`);
       }
     });
@@ -35,7 +35,7 @@ describe("obsidianSkills", () => {
       for (const skill of OBSIDIAN_SKILLS) {
         const parsed = parseSkillFile(skill.skillMd, skill.name);
         expect(parsed.frontmatter.name).toBe(skill.name);
-        expect(parsed.frontmatter.enabledAgents).toEqual(["claude", "codex", "opencode"]);
+        expect(parsed.frontmatter.enabledAgents).toEqual(["pi"]);
       }
     });
 

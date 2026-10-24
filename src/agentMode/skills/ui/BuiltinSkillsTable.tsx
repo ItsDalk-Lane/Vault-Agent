@@ -1,5 +1,4 @@
 import type { BuiltinPreferences } from "@/settings/builtinSkillPreferences";
-import type { AgentBrand, BackendId } from "@/agentMode/session/types";
 import { t } from "@/i18n";
 import React from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,38 +10,31 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AlertTriangle, CircleOff, Eye, MoreVertical, Power } from "lucide-react";
-import { AgentIconButton } from "./AgentIconButton";
+import { SettingSwitch } from "@/components/ui/setting-switch";
 import { SkillRowLayout } from "./SkillRowLayout";
 
 export interface BuiltinSkillRow {
   name: string;
   description: string;
   content: string;
-  enabledAgents: readonly BackendId[];
 }
 
 export interface BuiltinSkillsTableProps {
   skills: readonly BuiltinSkillRow[];
   preferences?: BuiltinPreferences;
   unavailableReasons?: Readonly<Record<string, string>>;
-  agents: readonly AgentBrand[];
-  availableAgents: readonly BackendId[];
   pendingSkills: readonly string[];
   error?: string;
   onToggleSkill: (name: string, enabled: boolean) => void;
-  onToggleAgent: (name: string, agent: BackendId, enabled: boolean) => void;
 }
 
 export function BuiltinSkillsTable({
   skills,
   preferences,
   unavailableReasons,
-  agents,
-  availableAgents,
   pendingSkills,
   error,
   onToggleSkill,
-  onToggleAgent,
 }: BuiltinSkillsTableProps) {
   return (
     <section aria-label={t("agentInfra.skills.builtin.title")} className="tw-space-y-3">
@@ -61,11 +53,8 @@ export function BuiltinSkillsTable({
             skill={skill}
             preference={preferences?.[skill.name]}
             unavailableReason={unavailableReasons?.[skill.name]}
-            agents={agents}
-            availableAgents={availableAgents}
             pending={pendingSkills.includes(skill.name)}
             onToggleSkill={onToggleSkill}
-            onToggleAgent={onToggleAgent}
           />
         ))}
         {skills.length === 0 && (
@@ -76,10 +65,7 @@ export function BuiltinSkillsTable({
   );
 }
 
-interface BuiltinSkillItemProps extends Pick<
-  BuiltinSkillsTableProps,
-  "agents" | "availableAgents" | "onToggleSkill" | "onToggleAgent"
-> {
+interface BuiltinSkillItemProps extends Pick<BuiltinSkillsTableProps, "onToggleSkill"> {
   skill: BuiltinSkillRow;
   preference?: BuiltinPreferences[string];
   unavailableReason?: string;
@@ -90,13 +76,10 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
   skill,
   preference,
   unavailableReason,
-  agents,
-  availableAgents,
   pending,
   onToggleSkill,
-  onToggleAgent,
 }: BuiltinSkillItemProps) {
-  const skillEnabled = preference?.disabled !== true;
+  const skillEnabled = preference?.disabled !== true && !preference?.disabledAgents?.includes("pi");
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -133,36 +116,12 @@ const BuiltinSkillItem = React.memo(function BuiltinSkillItem({
           </>
         }
         controls={
-          <div className="tw-flex tw-items-center tw-gap-1.5">
-            {agents.map((agent) => {
-              const available = availableAgents.includes(agent.id);
-              const enabled =
-                skillEnabled &&
-                available &&
-                !unavailableReason &&
-                skill.enabledAgents.includes(agent.id) &&
-                !preference?.disabledAgents?.includes(agent.id);
-              return (
-                <AgentIconButton
-                  key={agent.id}
-                  Icon={agent.Icon}
-                  agentId={agent.id}
-                  agentName={agent.displayName}
-                  enabled={!!enabled}
-                  disabled={pending || !skillEnabled || !available || !!unavailableReason}
-                  title={
-                    !available
-                      ? t("agentInfra.skills.builtin.setUpToEnable", { agent: agent.displayName })
-                      : t("agentInfra.skills.builtin.forAgent", {
-                          skill: skill.name,
-                          agent: agent.displayName,
-                        })
-                  }
-                  onClick={() => onToggleAgent(skill.name, agent.id, !enabled)}
-                />
-              );
-            })}
-          </div>
+          <SettingSwitch
+            checked={skillEnabled && !unavailableReason}
+            disabled={pending || !!unavailableReason}
+            aria-label={t("agentInfra.skills.row.enabled", { name: skill.name })}
+            onCheckedChange={(enabled) => onToggleSkill(skill.name, enabled)}
+          />
         }
         actions={
           <DropdownMenu modal={false} open={menuOpen} onOpenChange={(open) => setMenuOpen(open)}>

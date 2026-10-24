@@ -4,6 +4,13 @@ import { computeDirHash, type DirHashFs } from "./dirHash";
 import { parseSkillFile, SkillFormatError, type ParsedSkillFile } from "./skillFormat";
 import type { BackendId, RejectedSkill, SkillDiscoveryResult } from "./types";
 
+// 旧版用户技能保留只读发现，来源不再来自可运行后端配置。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+const LEGACY_SKILL_SOURCES: Readonly<Record<BackendId, string>> = Object.freeze({
+  claude: ".claude/skills",
+  codex: ".agents/skills",
+  opencode: ".opencode/skills",
+});
+
 export interface ProjectDiscoveryFs extends DirHashFs {
   exists(absPath: string): Promise<boolean>;
 }
@@ -21,14 +28,14 @@ type ProjectDiscoveryEntry = ProjectSkillCandidate | RejectedSkill | null;
 
 export interface DiscoverProjectSkillsOptions {
   vaultRootAbsPath: string;
-  agentDirsProjectRel: Readonly<Record<BackendId, string>>;
+  agentDirsProjectRel?: Readonly<Record<BackendId, string>>;
   fs: ProjectDiscoveryFs;
 }
 
 export async function discoverProjectSkills(
   options: DiscoverProjectSkillsOptions
 ): Promise<SkillDiscoveryResult<ProjectSkillCandidate>> {
-  const { vaultRootAbsPath, agentDirsProjectRel, fs } = options;
+  const { vaultRootAbsPath, agentDirsProjectRel = LEGACY_SKILL_SOURCES, fs } = options;
 
   const accepted: ProjectSkillCandidate[] = [];
   const rejected: RejectedSkill[] = [];

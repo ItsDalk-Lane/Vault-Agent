@@ -66,6 +66,30 @@ describe("discoverProjectSkills", () => {
   } as const;
 
   describe("discoverProjectSkills()", () => {
+    it("discovers historical skill folders read-only without depending on a current backend configuration https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const fs = mkFs({
+        "/vault/.claude/skills/legacy-one/SKILL.md": {
+          kind: "file",
+          content: skillMd("legacy-one"),
+        },
+        "/vault/.agents/skills/legacy-two/SKILL.md": {
+          kind: "file",
+          content: skillMd("legacy-two"),
+        },
+        "/vault/.opencode/skills/legacy-three/SKILL.md": {
+          kind: "file",
+          content: skillMd("legacy-three"),
+        },
+      });
+      const result = await discoverProjectSkills({ vaultRootAbsPath: VAULT, fs });
+      expect(result.accepted.map((skill) => skill.agent).sort()).toEqual([
+        "claude",
+        "codex",
+        "opencode",
+      ]);
+      expect(result.rejected).toEqual([]);
+    });
+
     it("returns a single candidate when one valid skill lives under one agent dir", async () => {
       const fs = mkFs({
         "/vault/.claude/skills/foo/SKILL.md": { kind: "file", content: skillMd("foo") },

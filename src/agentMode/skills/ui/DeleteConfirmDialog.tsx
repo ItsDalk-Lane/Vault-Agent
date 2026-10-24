@@ -7,17 +7,17 @@ import { AlertTriangle } from "lucide-react";
 import { App, Modal } from "obsidian";
 import React from "react";
 import { Root } from "react-dom/client";
-import type { BackendId, Skill } from "@/agentMode/skills/types";
+import type { Skill } from "@/agentMode/skills/types";
 
 const DeleteConfirmBody: React.FC<{
   skill: Skill;
   skillsFolderRel: string;
-  agentDirsProjectRel: Readonly<Record<BackendId, string>>;
   onCancel: () => void;
   onConfirm: () => void;
-}> = ({ skill, skillsFolderRel, agentDirsProjectRel, onCancel, onConfirm }) => {
+}> = ({ skill, skillsFolderRel, onCancel, onConfirm }) => {
   const folder = skillsFolderRel.replace(/\/+$/, "");
-  const paths = collectDeletePaths(skill, folder, agentDirsProjectRel);
+  const path =
+    skill.location.kind === "canonical" ? `${folder}/${skill.name}/` : `${skill.dirPath}/`;
   const isProject = skill.location.kind === "project";
 
   return (
@@ -34,11 +34,7 @@ const DeleteConfirmBody: React.FC<{
         />
         <p className="tw-m-0 tw-text-ui-smaller tw-leading-relaxed tw-text-normal">
           {isProject
-            ? t(
-                paths.length > 1
-                  ? "agentInfra.skills.delete.projectWarningFolders"
-                  : "agentInfra.skills.delete.projectWarningFolder"
-              )
+            ? t("agentInfra.skills.delete.projectWarningFolder")
             : t("agentInfra.skills.delete.canonicalWarning")}
         </p>
       </div>
@@ -48,19 +44,10 @@ const DeleteConfirmBody: React.FC<{
           {t("agentInfra.skills.delete.willRemove")}
         </div>
         <ul className="tw-m-0 tw-list-none tw-space-y-1 tw-p-0 tw-font-mono tw-text-ui-smaller tw-text-normal">
-          {paths.map(({ path, note }) => (
-            <li key={path} className="tw-flex tw-items-baseline tw-gap-2">
-              <span className="tw-text-faint">•</span>
-              <span className="tw-flex-1">
-                {path}
-                {note !== null && (
-                  <span className="tw-ml-1.5 tw-font-sans tw-text-smallest tw-text-faint">
-                    {note}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
+          <li className="tw-flex tw-items-baseline tw-gap-2">
+            <span className="tw-text-faint">•</span>
+            <span className="tw-flex-1 tw-break-all">{path}</span>
+          </li>
         </ul>
       </div>
 
@@ -83,7 +70,6 @@ export class DeleteConfirmModal extends Modal {
     app: App,
     private readonly skill: Skill,
     private readonly skillsFolderRel: string,
-    private readonly agentDirsProjectRel: Readonly<Record<BackendId, string>>,
     private readonly onConfirm: () => void | Promise<void>
   ) {
     super(app);
@@ -97,7 +83,6 @@ export class DeleteConfirmModal extends Modal {
       <DeleteConfirmBody
         skill={this.skill}
         skillsFolderRel={this.skillsFolderRel}
-        agentDirsProjectRel={this.agentDirsProjectRel}
         onCancel={() => this.close()}
         onConfirm={() => {
           const result = this.onConfirm();
@@ -114,35 +99,4 @@ export class DeleteConfirmModal extends Modal {
     this.root?.unmount();
     this.root = null;
   }
-}
-
-function collectDeletePaths(
-  skill: Skill,
-  folder: string,
-  agentDirsProjectRel: Readonly<Record<BackendId, string>>
-): Array<{ path: string; note: string | null }> {
-  const out: Array<{ path: string; note: string | null }> = [];
-
-  if (skill.location.kind === "project") {
-    for (const agent of skill.location.agentDirs) {
-      const dir = agentDirsProjectRel[agent];
-      if (dir === undefined) continue;
-      out.push({
-        path: `${dir.replace(/\/+$/, "")}/${skill.name}/`,
-        note: t("agentInfra.skills.delete.noteProject"),
-      });
-    }
-    return out;
-  }
-
-  out.push({
-    path: `${folder}/${skill.name}/`,
-    note: t("agentInfra.skills.delete.noteCanonical"),
-  });
-  for (const agent of skill.enabledAgents) {
-    const dir = agentDirsProjectRel[agent];
-    if (dir === undefined) continue;
-    out.push({ path: `${dir}/${skill.name}`, note: t("agentInfra.skills.delete.noteSymlink") });
-  }
-  return out;
 }

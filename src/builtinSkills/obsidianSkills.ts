@@ -2,7 +2,7 @@ import type { BuiltinSkill } from "./builtinSkills";
 
 export const OBSIDIAN_SKILLS_UPSTREAM_REVISION = "a1dc48e68138490d522c04cbf5822214c6eb1202";
 
-const ENABLED_AGENTS = ["claude", "codex", "opencode"] as const;
+const ENABLED_AGENTS = ["pi"] as const;
 const FORMAT_SKILL_VERSION = 1;
 const OBSIDIAN_CLI_VERSION = 2;
 
@@ -34,7 +34,7 @@ name: obsidian-markdown
 description: Create and edit Obsidian-specific Markdown syntax, including wikilinks, embeds, block references, callouts, properties, tags, and comments. Use for Obsidian notes when these extensions matter; ordinary Markdown is assumed knowledge.
 license: MIT
 metadata:
-  vault-agent-enabled-agents: claude, codex, opencode
+  vault-agent-enabled-agents: pi
   vault-agent-builtin-version: "${FORMAT_SKILL_VERSION}"
   copilot-upstream-revision: "${OBSIDIAN_SKILLS_UPSTREAM_REVISION}"
 ---
@@ -208,7 +208,7 @@ name: obsidian-bases
 description: Create and edit Obsidian Bases (.base files) with valid YAML schemas, filters, formulas, properties, summaries, and views. Use for database-like Obsidian views or when the user mentions Bases, .base files, table/card/list views, filters, formulas, or summaries.
 license: MIT
 metadata:
-  vault-agent-enabled-agents: claude, codex, opencode
+  vault-agent-enabled-agents: pi
   vault-agent-builtin-version: "${FORMAT_SKILL_VERSION}"
   copilot-upstream-revision: "${OBSIDIAN_SKILLS_UPSTREAM_REVISION}"
 ---
@@ -418,7 +418,7 @@ name: json-canvas
 description: Create and edit JSON Canvas (.canvas) files with valid nodes, edges, groups, colors, layout, IDs, and referential integrity. Use for Obsidian Canvas files, visual maps, flowcharts, project boards, or any request involving the JSON Canvas format.
 license: MIT
 metadata:
-  vault-agent-enabled-agents: claude, codex, opencode
+  vault-agent-enabled-agents: pi
   vault-agent-builtin-version: "${FORMAT_SKILL_VERSION}"
   copilot-upstream-revision: "${OBSIDIAN_SKILLS_UPSTREAM_REVISION}"
 ---
@@ -589,7 +589,7 @@ name: obsidian-cli
 description: Use the official Obsidian CLI when a task needs Obsidian's running app, index, configured features, command registry, or developer runtime. Use for currently open notes and tabs, workspace state, daily notes, typed properties, tasks, links/backlinks, Bases queries, template resolution, link-aware moves, plugin commands, and plugin/theme debugging; do not use it for ordinary filesystem operations.
 license: MIT
 metadata:
-  vault-agent-enabled-agents: claude, codex, opencode
+  vault-agent-enabled-agents: pi
   vault-agent-builtin-version: "${OBSIDIAN_CLI_VERSION}"
   copilot-upstream-revision: "${OBSIDIAN_SKILLS_UPSTREAM_REVISION}"
 ---

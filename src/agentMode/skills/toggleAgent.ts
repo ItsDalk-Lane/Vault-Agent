@@ -1,26 +1,18 @@
-import { logError, logWarn } from "@/logger";
+import { logError } from "@/logger";
 import { parseSkillFile, serializeSkillFile } from "./skillFormat";
-import {
-  removeAgentLink,
-  removeAgentLinksPointingTo,
-  replaceAgentLink,
-  type LinkSweepFs,
-  type SymlinkResult,
-} from "./symlinks";
 import type { BackendId, Skill } from "./types";
 
+// Toggling a skill on or off only rewrites the canonical frontmatter; Pi reads the canonical store
+// directly, so no agent-directory symlink is created or removed any more.
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
 export interface ToggleAgentFs {
-  exists(absPath: string): Promise<boolean>;
-  isDirectory(absPath: string): Promise<boolean>;
-  isSymlink(absPath: string): Promise<boolean>;
-  symlink(target: string, linkPath: string): Promise<void>;
-  unlink(absPath: string): Promise<void>;
-  rmRecursive(absPath: string): Promise<void>;
   readFile(absPath: string): Promise<string>;
   writeFile(absPath: string, content: string): Promise<void>;
+  exists(absPath: string): Promise<boolean>;
+  rmRecursive(absPath: string): Promise<void>;
 }
 
-export type DeleteSkillFs = ToggleAgentFs & LinkSweepFs;
+export type DeleteSkillFs = ToggleAgentFs;
 
 export type ToggleAgentResult = { ok: true } | { ok: false; reason: string };
 
@@ -28,12 +20,11 @@ export interface ToggleAgentOptions {
   skill: Skill;
   agent: BackendId;
   enabled: boolean;
-  agentDirAbs: string;
   fs: ToggleAgentFs;
 }
 
 export async function runToggleAgent(options: ToggleAgentOptions): Promise<ToggleAgentResult> {
-  const { skill, agent, enabled, agentDirAbs: agentDir, fs } = options;
+  const { skill, agent, enabled, fs } = options;
 
   const nextAgents = computeNextAgents(skill.enabledAgents, agent, enabled);
 
@@ -48,51 +39,18 @@ export async function runToggleAgent(options: ToggleAgentOptions): Promise<Toggl
     return { ok: false, reason };
   }
 
-  if (enabled) {
-    const result: SymlinkResult = await replaceAgentLink(fs, agentDir, skill.name, skill.dirPath);
-    if (!result.ok) return { ok: false, reason: result.reason };
-    return { ok: true };
-  }
-
-  try {
-    await removeAgentLink(fs, agentDir, skill.name);
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    logWarn(`[skills] toggleAgent: failed to remove link: ${reason}`);
-    return { ok: false, reason };
-  }
   return { ok: true };
 }
 
 export interface DeleteSkillOptions {
   skill: Skill;
-  agentDirsAbs: Readonly<Record<BackendId, string>>;
   fs: DeleteSkillFs;
 }
 
 export async function runDeleteSkill(
   options: DeleteSkillOptions
 ): Promise<{ ok: boolean; reason?: string }> {
-  const { skill, agentDirsAbs, fs } = options;
-
-  await Promise.all(
-    skill.enabledAgents.map(async (agent) => {
-      const agentDir = agentDirsAbs[agent];
-      if (agentDir === undefined) return;
-      try {
-        await removeAgentLink(fs, agentDir, skill.name);
-      } catch (err) {
-        logWarn(
-          `[skills] deleteSkill: failed to remove link for ${agent}: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    })
-  );
-
-  const sweep = await removeAgentLinksPointingTo(fs, agentDirsAbs, skill.dirPath);
-  for (const error of sweep.errors) {
-    logWarn(`[skills] deleteSkill: failed to remove stale link ${error.path}: ${error.reason}`);
-  }
+  const { skill, fs } = options;
 
   try {
     await fs.rmRecursive(skill.dirPath);
