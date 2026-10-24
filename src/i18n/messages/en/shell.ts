@@ -9,6 +9,7 @@ export const en = {
   "settings.tab.basic": "Basic",
   "settings.tab.byok": "BYOK",
   "settings.tab.skills": "Skills",
+  "settings.tab.mcp": "MCP Servers",
   "settings.tab.command": "Command",
   "settings.tab.selfhost": "Self-Host",
   "settings.tab.advanced": "Advanced",
@@ -64,6 +65,7 @@ export const en = {
   "settings.basic.openAgentsFailed": "Failed to open AGENTS.md.",
   "settings.basic.agentsDesktopOnly": "Agent settings are available on desktop.",
   "settings.skillsDesktopOnly": "Skills are available on desktop.",
+  "settings.mcpDesktopOnly": "MCP servers are available on desktop.",
 
   "home.placeholder": "Ask anything • @ to add context • / for commands",
   "home.dropFiles": "Drop files here...",
@@ -186,8 +188,6 @@ export const en = {
   "command.previousDiff": "Go to previous change in file diff",
 
   "app.ribbon.openAgentChat": "Open Agent Chat",
-  "agentChat.updating": "Updating {name}…",
-  "agentChat.checkingSignIn": "Checking agent sign-in…",
   "agentChat.loadingModels": "Loading agent models…",
   "app.view.agentChatTitle": "Vault Agent Chat",
   "app.view.agentChatDisplay": "Vault Agent",
@@ -199,14 +199,6 @@ export const en = {
   "plan.approve": "Approve",
   "plan.notPending": "Plan no longer pending. Switch back to plan mode to start a new review.",
   "plan.defaultTitle": "Plan proposal",
-
-  "select.title": "Select your agent",
-  "select.recommended": "Recommended",
-  "select.status.checking": "Checking…",
-  "select.status.installed": "Installed",
-  "select.status.updateRequired": "Update required",
-  "select.status.signInRequired": "Sign in required",
-  "select.status.error": "Error",
 
   "report.title": "Report an issue",
   "report.whatWrong": "What went wrong?",
@@ -232,16 +224,13 @@ export const en = {
   "report.beforeOpenIssue": "Before you open the issue",
   "report.folderFailed": "Vault Agent could not open the folder. The report is at {path}",
   "report.source.screenshot": "Screenshot of the Obsidian window",
-  "report.source.activityLog": "Agent Mode activity log",
+  "report.source.activityLog": "Agent chat activity log",
   "report.source.activityLogOff": "turned off in Settings → Advanced",
   "report.source.chatLog": "Vault Agent log",
   "report.source.chatLogDesc": "includes Agent Mode backend errors",
-  "report.source.opencodeLog": "OpenCode backend log",
-  "report.source.opencodeLogDesc": "may include unrelated sessions",
-  "report.unavailable.activityOff": "The Agent Mode activity log is turned off.",
-  "report.unavailable.activityPath": "The Agent Mode activity log's location is unavailable.",
+  "report.unavailable.activityOff": "The Agent chat activity log is turned off.",
+  "report.unavailable.activityPath": "The Agent chat activity log's location is unavailable.",
   "report.unavailable.noChatLog": "No chat log entries.",
-  "report.unavailable.noOpencodeLog": "No OpenCode log was found.",
 } as const;
 
 export type MessageKey = keyof typeof en;

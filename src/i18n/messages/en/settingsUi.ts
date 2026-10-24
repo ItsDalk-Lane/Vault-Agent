@@ -28,36 +28,13 @@ export const settingsUi = {
   "settings.resetConfirm.body":
     'Resetting settings will restore the default values. API keys are not cleared by this action — use "Delete All Keys" in Advanced Settings → API Key Storage if you also want to remove them. Are you sure you want to continue?',
 
-  "settings.agents.section": "Agents",
-  "settings.agents.quickChatTab": "Quick Chat",
-  "settings.agents.defaultBackend": "Default backend",
-  "settings.agents.defaultBackendDesc":
-    "Used when you click + to start a new session and for auto-spawn on mount. Selecting a model from the model picker also updates this.",
-  "settings.agents.cloudService": "Cloud service.",
-  "settings.agents.cloudWarning":
-    "Self-Host Mode is on, but {backend} runs in the cloud — your prompts leave your machine for a third party. It stays available; use it only if you're comfortable with that.",
-
+  "settings.agents.notifications": "Notifications",
+  "settings.tools.permissions": "Local programs and subtasks",
   "settings.models.byokTab": "Models (BYOK)",
   "settings.models.emptyPrefix": "No models configured yet. Add a provider on the",
   "settings.models.emptyChatSuffix": "tab to populate Quick Chat.",
-  "settings.models.emptyOpencodeSuffix":
-    "tab, or sign in to an opencode subscription, to curate models here.",
-  "settings.models.emptyBackend":
-    "No models reported yet. Sign in / install the {backend} CLI and reload, or open a chat session with this agent.",
-  "settings.models.searchPlaceholder": "Search {backend} models…",
-  "settings.models.badgeAgentProvided": "Agent Provided",
-  "settings.models.opencodeLocalDestination": "The {provider} server set in opencode",
 
   "settings.chatModels.searchPlaceholder": "Search chat models…",
-
-  "settings.quickChat.modelsTitle": "Quick Chat models",
-  "settings.quickChat.modelsDesc":
-    "Models shown in the chat model picker. Add providers on the Models (BYOK) tab.",
-  "settings.quickChat.defaultModel": "Default model",
-  "settings.quickChat.defaultModelDesc":
-    "The model new chats start with. Pick from your enabled Quick Chat models.",
-  "settings.quickChat.selectModel": "Select Model",
-  "settings.quickChat.modelPlaceholder": "Model",
 
   "settings.command.edit": "Edit",
   "settings.command.duplicate": "Duplicate",
@@ -99,14 +76,14 @@ export const settingsUi = {
 
   "settings.debug.section": "Debugging & support",
   "settings.debug.reportIssueDesc":
-    "Walks you through collecting a screenshot and recent logs, packs them into a single zip you can review, uploads it privately, and opens a prefilled GitHub issue with the report ID already in it.",
+    "Collect selected screenshots and recent logs into a local zip for review. You choose whether to open GitHub and submit the report yourself.",
   "settings.debug.offerFeedback": "Offer feedback reports in Agent Chat",
   "settings.debug.offerFeedbackDesc":
-    "When something goes wrong in Agent Chat, the agent can draft a report for you to review. Nothing is sent unless you press Report.",
+    "When something goes wrong in Agent Chat, the agent can draft a local report for you to review and submit yourself.",
   "settings.debug.debugMode": "Debug Mode",
   "settings.debug.debugModeDesc":
     "Logs agent chat activity to the developer console (View → Toggle Developer Tools), and pre-selects the chat log when you report an issue.",
-  "settings.debug.activityLog": "Agent Mode activity log",
+  "settings.debug.activityLog": "Agent chat activity log",
   "settings.debug.activityLogDesc":
     "Records the behind-the-scenes messages between the plugin and the agent so a report always has recent activity to attach. Stored on this device only, outside your vault ({path}), and can include your prompts and note contents in plain text.",
   "settings.debug.open": "Open",
@@ -116,15 +93,15 @@ export const settingsUi = {
     "Bring your own infrastructure — self-hosted search, web-search providers, and models.",
   "settings.selfHost.enable": "Enable Self-Host Mode",
   "settings.selfHost.enableDesc":
-    "Route LLMs, embeddings and document understanding through your own endpoints.",
+    "Prioritize local / self-hosted models and configure your preferred web-search provider.",
   "settings.selfHost.enableDescTooltip":
     "Use your own infrastructure for full control and offline use.",
   "settings.selfHost.privacyTitle": "Privacy-first.",
   "settings.selfHost.privacyBody":
-    "While Self-Host is on, cloud options (Claude, Codex, and BYOK cloud providers) are flagged with a warning and sorted below your local / self-hosted models. They stay selectable — you decide whether to use them.",
+    "While Self-Host is on, configured cloud models are flagged with a warning and sorted below your local / self-hosted models. They stay selectable — you decide whether to use them.",
   "settings.selfHost.webSearchProviders": "Web search providers",
   "settings.selfHost.selfHostedModels": "Self-hosted models",
-  "settings.selfHost.modelsTitle": "LLM & embedding models",
+  "settings.selfHost.modelsTitle": "Chat models",
   "settings.selfHost.modelsDesc":
     "Add local / self-hosted models as an OpenAI-compatible endpoint in BYOK.",
   "settings.selfHost.openByok": "Open BYOK",

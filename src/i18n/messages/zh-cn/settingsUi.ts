@@ -29,35 +29,13 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
   "settings.resetConfirm.body":
     "重置设置将恢复默认值。此操作不会清除 API 密钥——如果还想删除密钥，请使用高级设置 → API 密钥存储中的“删除所有密钥”。确定要继续吗？",
 
-  "settings.agents.section": "Agent",
-  "settings.agents.quickChatTab": "快速对话",
-  "settings.agents.defaultBackend": "默认后端",
-  "settings.agents.defaultBackendDesc":
-    "用于点击 + 新建会话以及挂载时自动启动。从模型选择器中选择模型也会更新此项。",
-  "settings.agents.cloudService": "云服务。",
-  "settings.agents.cloudWarning":
-    "自托管模式已开启，但 {backend} 运行在云端——你的提示词会离开本机并发送给第三方。它仍然可用；只有你能接受这一点时才使用。",
-
+  "settings.agents.notifications": "通知",
+  "settings.tools.permissions": "本地程序与子任务",
   "settings.models.byokTab": "模型（BYOK）",
   "settings.models.emptyPrefix": "尚未配置任何模型。请在",
   "settings.models.emptyChatSuffix": "标签页添加提供商，以填充快速对话。",
-  "settings.models.emptyOpencodeSuffix":
-    "标签页添加提供商，或登录 opencode 订阅，即可在此管理模型。",
-  "settings.models.emptyBackend":
-    "尚未获取到任何模型。请登录 / 安装 {backend} CLI 后重新加载，或用该 Agent 打开一个对话会话。",
-  "settings.models.searchPlaceholder": "搜索 {backend} 模型……",
-  "settings.models.badgeAgentProvided": "Agent 提供",
-  "settings.models.opencodeLocalDestination": "opencode 中设置的 {provider} 服务器",
 
   "settings.chatModels.searchPlaceholder": "搜索对话模型……",
-
-  "settings.quickChat.modelsTitle": "快速对话模型",
-  "settings.quickChat.modelsDesc":
-    "显示在对话模型选择器中的模型。请在模型（BYOK）标签页添加提供商。",
-  "settings.quickChat.defaultModel": "默认模型",
-  "settings.quickChat.defaultModelDesc": "新对话使用的模型。可从已启用的快速对话模型中选择。",
-  "settings.quickChat.selectModel": "选择模型",
-  "settings.quickChat.modelPlaceholder": "模型",
 
   "settings.command.edit": "编辑",
   "settings.command.duplicate": "复制",
@@ -95,14 +73,14 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
 
   "settings.debug.section": "调试与支持",
   "settings.debug.reportIssueDesc":
-    "引导你收集截图和最近的日志，打包成一个可供检查的 zip 并私密上传，然后打开一个带有报告 ID 的预填 GitHub issue。",
+    "将选中的截图和最近日志打包到本地，供你检查。是否打开 GitHub 并提交报告，由你自行决定。",
   "settings.debug.offerFeedback": "在 Agent 对话中提供反馈报告",
   "settings.debug.offerFeedbackDesc":
-    "当 Agent 对话出现问题时，Agent 可以为你起草一份报告供你审阅。除非你按下“报告”，否则不会发送任何内容。",
+    "当 Agent 对话出现问题时，Agent 可以为你起草一份本地报告，供你检查并自行提交。",
   "settings.debug.debugMode": "调试模式",
   "settings.debug.debugModeDesc":
     "将 Agent 对话活动记录到开发者控制台（查看 → 切换开发者工具），并在你报告问题时预先选中对话日志。",
-  "settings.debug.activityLog": "Agent Mode 活动日志",
+  "settings.debug.activityLog": "Agent 对话活动日志",
   "settings.debug.activityLogDesc":
     "记录插件与 Agent 之间在后台收发的消息，以便报告始终能附上最近的活动。仅存储在此设备上，位于你的库之外（{path}），且可能以纯文本包含你的提示词和笔记内容。",
   "settings.debug.open": "打开",
@@ -110,14 +88,14 @@ export const settingsUi: Record<keyof typeof enSettingsUi, string> = {
 
   "settings.selfHost.intro": "使用你自己的基础设施——自托管搜索、网络搜索提供商和模型。",
   "settings.selfHost.enable": "启用自托管模式",
-  "settings.selfHost.enableDesc": "通过你自己的端点处理 LLM、嵌入和文档理解。",
+  "settings.selfHost.enableDesc": "优先使用本地 / 自托管模型，并配置你选用的网络搜索服务。",
   "settings.selfHost.enableDescTooltip": "使用你自己的基础设施，获得完全控制与离线使用能力。",
   "settings.selfHost.privacyTitle": "隐私优先。",
   "settings.selfHost.privacyBody":
-    "自托管开启期间，云端选项（Claude、Codex 和 BYOK 云提供商）会带有警告标记，并排在你的本地 / 自托管模型之后。它们仍可选择——是否使用由你决定。",
+    "自托管开启期间，已配置的云端模型会带有警告标记，并排在本地 / 自托管模型之后。它们仍可选择，是否使用由你决定。",
   "settings.selfHost.webSearchProviders": "网络搜索提供商",
   "settings.selfHost.selfHostedModels": "自托管模型",
-  "settings.selfHost.modelsTitle": "LLM 与嵌入模型",
+  "settings.selfHost.modelsTitle": "对话模型",
   "settings.selfHost.modelsDesc": "在 BYOK 中将本地 / 自托管模型添加为 OpenAI 兼容端点。",
   "settings.selfHost.openByok": "打开 BYOK",
   "settings.selfHost.searchProvider": "网络搜索提供商",
