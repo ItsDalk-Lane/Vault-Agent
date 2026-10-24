@@ -1,12 +1,16 @@
 import type { Meta, StoryObj } from "@/lib/story";
-import { Cog, Cpu, Sigma, Sparkle } from "lucide-react";
+import { Cog, Command, Cpu, Plug, ShieldCheck, Sparkle, Wrench } from "lucide-react";
 import * as React from "react";
 import { TabContent, TabItem, type TabVariant } from "./setting-tabs";
 
 const TABS = [
   { id: "basic", label: "Basic", icon: <Cog className="tw-size-5" /> },
   { id: "models", label: "Models", icon: <Cpu className="tw-size-5" /> },
-  { id: "miyo", label: "Miyo", icon: <Sigma className="tw-size-5" /> },
+  { id: "skills", label: "Skills", icon: <Sparkle className="tw-size-5" /> },
+  { id: "mcp", label: "MCP Servers", icon: <Plug className="tw-size-5" /> },
+  { id: "command", label: "Commands", icon: <Command className="tw-size-5" /> },
+  { id: "selfhost", label: "Self-Host", icon: <ShieldCheck className="tw-size-5" /> },
+  { id: "advanced", label: "Advanced", icon: <Wrench className="tw-size-5" /> },
 ];
 
 type TabItemProps = React.ComponentProps<typeof TabItem>;
@@ -79,8 +83,14 @@ export const WarningDot: StoryObj<TabItemProps> = {
 export const LongLabels: StoryObj<TabItemProps> = {
   render: () => (
     <div className="tw-flex tw-flex-col tw-gap-4">
-      <Strip variant="page" labels={["OpenCode", "Claude", "Codex", "Quick Chat"]} />
-      <Strip variant="inline" labels={["OpenCode", "Claude", "Codex", "Quick Chat"]} />
+      <Strip
+        variant="page"
+        labels={["Model Configuration", "MCP Servers", "Tool Permissions", "Vault Instructions"]}
+      />
+      <Strip
+        variant="inline"
+        labels={["Model Configuration", "MCP Servers", "Tool Permissions", "Vault Instructions"]}
+      />
     </div>
   ),
 };

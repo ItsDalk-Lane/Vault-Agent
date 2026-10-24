@@ -108,7 +108,7 @@ export function SettingItem(props: SettingItemProps) {
             }}
             placeholder={props.placeholder}
             disabled={disabled}
-            className="tw-w-full sm:tw-w-[200px]"
+            className="tw-w-full @[528px]/setting:tw-w-[200px]"
           />
         );
 
@@ -121,7 +121,7 @@ export function SettingItem(props: SettingItemProps) {
             }}
             placeholder={props.placeholder}
             disabled={disabled}
-            className="tw-w-full sm:tw-w-[200px]"
+            className="tw-w-full @[528px]/setting:tw-w-[200px]"
           />
         );
 
@@ -135,7 +135,7 @@ export function SettingItem(props: SettingItemProps) {
             placeholder={props.placeholder}
             rows={props.rows || 3}
             disabled={disabled}
-            className="tw-min-h-[80px] tw-w-full sm:tw-w-[300px]"
+            className="tw-min-h-[80px] tw-w-full @[528px]/setting:tw-w-[300px]"
           />
         );
 
@@ -150,7 +150,7 @@ export function SettingItem(props: SettingItemProps) {
 
       case "select":
         return (
-          <div className="tw-group tw-relative tw-w-full sm:tw-w-[200px]">
+          <div className="tw-group tw-relative tw-w-full @[528px]/setting:tw-w-[200px]">
             <select
               value={props.value?.toString()}
               onChange={(e) => props.onChange?.(e.target.value)}
@@ -197,7 +197,7 @@ export function SettingItem(props: SettingItemProps) {
             step={props.step}
             suffix={props.suffix}
             disabled={disabled}
-            className="tw-w-full sm:tw-w-[300px]"
+            className="tw-w-full @[528px]/setting:tw-w-[300px]"
           />
         );
 
@@ -207,18 +207,22 @@ export function SettingItem(props: SettingItemProps) {
   };
 
   return (
-    <div
-      className={cn(
-        "tw-flex tw-flex-col tw-items-start tw-justify-between tw-gap-4 tw-py-4 sm:tw-flex-row sm:tw-items-center",
-        "tw-w-full",
-        className
-      )}
-    >
-      <div className="tw-w-full tw-space-y-1.5 sm:tw-w-[300px]">
-        <div className="tw-text-sm tw-font-medium tw-leading-none">{title}</div>
-        {description && <div className="tw-text-xs tw-text-muted">{description}</div>}
+    <div className="tw-w-full tw-@container/setting">
+      <div
+        className={cn(
+          "tw-flex tw-flex-col tw-items-start tw-justify-between tw-gap-4 tw-py-4 @[528px]/setting:tw-flex-row @[528px]/setting:tw-items-center",
+          "tw-w-full",
+          className
+        )}
+      >
+        <div className="tw-w-full tw-min-w-0 tw-space-y-1.5 @[528px]/setting:tw-w-[300px]">
+          <div className="tw-text-sm tw-font-medium tw-leading-none">{title}</div>
+          {description && <div className="tw-text-xs tw-text-muted">{description}</div>}
+        </div>
+        <div className="tw-w-full tw-min-w-0 tw-flex-1 @[528px]/setting:tw-flex @[528px]/setting:tw-justify-end">
+          {renderControl()}
+        </div>
       </div>
-      <div className="tw-w-full tw-flex-1 sm:tw-flex sm:tw-justify-end">{renderControl()}</div>
     </div>
   );
 }

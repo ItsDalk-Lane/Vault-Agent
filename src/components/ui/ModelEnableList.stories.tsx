@@ -16,29 +16,26 @@ const LONG_GROUP: ModelEnableGroup = {
   })),
 };
 
-const PLUS_GROUP: ModelEnableGroup = {
-  key: "plus",
-  label: "Copilot Plus",
-  badge: "privacy",
-  destination: { kind: "lock", label: "Brevilabs servers (US)" },
-  highlight: true,
+const LOCAL_GROUP: ModelEnableGroup = {
+  key: "local",
+  label: "LM Studio",
+  destination: { kind: "local", label: "This computer" },
   rows: [
     {
-      id: "plus/flash",
-      label: "copilot-plus-flash",
+      id: "local/qwen",
+      label: "Qwen",
       enabled: true,
       capabilities: ["vision" as ModelCapability],
     },
-    { id: "plus/deepseek", label: "copilot-plus-deepseek-v4-pro", enabled: true, capabilities: [] },
-    { id: "plus/glm", label: "copilot-plus-glm-5.2", enabled: false, capabilities: [] },
+    { id: "local/deepseek", label: "DeepSeek", enabled: true, capabilities: [] },
+    { id: "local/glm", label: "GLM", enabled: false, capabilities: [] },
   ],
 };
 
-const FREE_GROUP: ModelEnableGroup = {
-  key: "agent",
-  label: "OpenCode",
-  badge: "Agent Provided",
-  rows: [{ id: "opencode/grok-code", label: "grok-code-fast-1", enabled: true, isFree: true }],
+const CLOUD_GROUP: ModelEnableGroup = {
+  key: "cloud",
+  label: "Anthropic",
+  rows: [{ id: "anthropic/sonnet", label: "Claude Sonnet", enabled: true }],
 };
 
 const Controlled: React.FC<{ groups: ModelEnableGroup[]; defaultOpenGroupKey?: string }> = ({
@@ -71,19 +68,19 @@ const meta = {
 export default meta;
 
 export const OverflowingCatalog: StoryObj<ModelEnableListProps> = {
-  render: () => <Controlled groups={[PLUS_GROUP, FREE_GROUP, LONG_GROUP]} />,
+  render: () => <Controlled groups={[LOCAL_GROUP, CLOUD_GROUP, LONG_GROUP]} />,
 };
 
 export const ShortCatalog: StoryObj<ModelEnableListProps> = {
-  render: () => <Controlled groups={[PLUS_GROUP, FREE_GROUP]} />,
+  render: () => <Controlled groups={[LOCAL_GROUP, CLOUD_GROUP]} />,
 };
 
 export const CollapsedWithSelections: StoryObj<ModelEnableListProps> = {
   render: () => (
     <Controlled
       groups={[
-        PLUS_GROUP,
-        FREE_GROUP,
+        LOCAL_GROUP,
+        CLOUD_GROUP,
         LONG_GROUP,
         {
           ...LONG_GROUP,
@@ -92,7 +89,7 @@ export const CollapsedWithSelections: StoryObj<ModelEnableListProps> = {
           rows: LONG_GROUP.rows.map((row) => ({ ...row, enabled: false })),
         },
       ]}
-      defaultOpenGroupKey={PLUS_GROUP.key}
+      defaultOpenGroupKey={LOCAL_GROUP.key}
     />
   ),
 };
@@ -114,5 +111,26 @@ export const Grouped: StoryObj<ModelEnableListProps> = {
         ],
       },
     ],
+  },
+};
+
+export const ConfiguredModels: StoryObj<ModelEnableListProps> = {
+  args: {
+    groups: [
+      {
+        key: "byok:anthropic",
+        label: "Anthropic",
+        rows: [
+          { id: "saved-claude", label: "Claude Sonnet", enabled: true },
+          { id: "saved-haiku", label: "Claude Haiku", enabled: false },
+        ],
+      },
+      {
+        key: "byok:google",
+        label: "Google",
+        rows: [{ id: "saved-gemini", label: "Gemini", enabled: true }],
+      },
+    ],
+    defaultOpenGroupKey: "byok:anthropic",
   },
 };

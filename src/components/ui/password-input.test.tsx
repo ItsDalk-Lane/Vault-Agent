@@ -42,6 +42,14 @@ describe("password-input", () => {
       expect(input.ownerDocument.activeElement).toBe(input);
     });
 
+    it("gives the password field an accessible name and keeps its visibility button keyboard focusable (https://github.com/ItsDalk-Lane/Vault-Agent/issues/2)", () => {
+      render(<PasswordInput value="secret" ariaLabel="API key" inputClassName="tw-font-mono" />);
+      const show = screen.getByRole("button", { name: "Show password" });
+      show.focus();
+      expect(document.activeElement).toBe(show);
+      expect(screen.getByLabelText("API key")).toHaveProperty("type", "password");
+    });
+
     it("toggles password visibility unless disabled", () => {
       const view = render(<PasswordInput value="secret" />);
       const input = view.container.querySelector("input") as HTMLInputElement;

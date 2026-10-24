@@ -811,14 +811,29 @@ const ChatSingleMessage: React.FC<ChatSingleMessageProps> = ({
                   </div>
                 );
               } else if (item.type === "image_url") {
+                const imageUrl = item.image_url?.url;
                 return (
                   // eslint-disable-next-line @eslint-react/no-array-index-key -- content array is fixed once message is rendered; items not reordered
                   <div key={index} className="message-image-content">
-                    <img
-                      src={item.image_url!.url}
-                      alt={t("ui.chat.userUploadedImage")}
-                      className="chat-message-image"
-                    />
+                    {typeof imageUrl === "string" && imageUrl.length > 0 ? (
+                      <img
+                        src={imageUrl}
+                        alt={t("ui.chat.userUploadedImage")}
+                        className="chat-message-image"
+                      />
+                    ) : (
+                      // A reopened chat can keep the image slot after its payload was dropped;
+                      // the placeholder must not turn the missing history into a crash.
+                      // https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+                      <div
+                        className="chat-message-image"
+                        data-testid="message-image-placeholder"
+                        role="img"
+                        aria-label={t("ui.chat.imageUnavailable")}
+                      >
+                        {t("ui.chat.imageUnavailable")}
+                      </div>
+                    )}
                   </div>
                 );
               }

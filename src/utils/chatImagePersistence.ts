@@ -74,12 +74,15 @@ export async function updateChatTranscript(
   app: App,
   path: string,
   render: (current: string) => string,
-  loaded = ""
+  loaded = "",
+  finalize?: (text: string) => string
 ): Promise<string> {
   let next = "";
   const update = (current: string) => {
     next = render(current);
-    return preserveChatImageReferences(next, current, loaded);
+    const preserved = preserveChatImageReferences(next, current, loaded);
+    if (finalize) next = finalize(preserved);
+    return finalize ? next : preserved;
   };
   const file = app.vault.getAbstractFileByPath(path);
   if (file instanceof TFile) {

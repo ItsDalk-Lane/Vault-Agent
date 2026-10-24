@@ -12,8 +12,8 @@ export const AssistantResponseFooter: React.FC<AssistantResponseFooterProps> = (
   actions,
 }) => {
   const hasLeading = leading !== undefined && leading !== null && leading !== false;
-  const hasTimestamp =
-    !hasLeading && timestamp !== undefined && timestamp !== null && timestamp !== false;
+  // 时长与时间戳同排展示，不再互斥。https://github.com/ItsDalk-Lane/Vault-Agent/issues/6
+  const hasTimestamp = timestamp !== undefined && timestamp !== null && timestamp !== false;
   const hasActions = actions !== undefined && actions !== null && actions !== false;
   const hasMetadata = hasLeading || hasTimestamp;
 

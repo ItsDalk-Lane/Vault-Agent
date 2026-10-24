@@ -73,6 +73,19 @@ export const UploadedImage: StoryObj<UserMessageProps> = {
     },
   },
 };
+// A reopened chat can keep the image slot after its payload was dropped; the card must show a
+// placeholder instead of a broken image or a crash:
+// https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+export const MissingImageAfterReload: StoryObj<UserMessageProps> = {
+  args: {
+    message: {
+      ...baseMessage,
+      message: "**Explain this diagram.**",
+      content: [{ type: "text", text: "**Explain this diagram.**" }, { type: "image_url" }],
+    },
+  },
+};
+
 export const LongMessage: StoryObj<UserMessageProps> = {
   args: {
     message: {

@@ -1,8 +1,6 @@
 import { err2String } from "@/errorFormat";
 import { formatBytes } from "@/utils/formatBytes";
-import { type ReportUploadAttempt } from "@/utils/reportUpload";
 import { zipSync } from "fflate";
-import { v4 as uuidv4 } from "uuid";
 import { redactLogText } from "@/utils/redactLog";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import {
@@ -16,7 +14,7 @@ import {
   withTruncationNote,
 } from "@/utils/logTail";
 
-const REPORT_REPO_PLACEHOLDER = "OWNER/vault-agent";
+const REPORT_REPO = "ItsDalk-Lane/Vault-Agent";
 const SCREENSHOT_NAME = "screenshot.png";
 const REPORT_NOTE_NAME = "report.md";
 const SCREENSHOT_SOURCE_ID = "screenshot";
@@ -69,7 +67,6 @@ export interface ReportIssueDraft {
 export interface ReportBundle {
   zip: Uint8Array;
   zipName: string;
-  uploadAttempt: ReportUploadAttempt;
   issueDraft: ReportIssueDraft;
   attachments: AttachmentResult[];
 }
@@ -129,8 +126,7 @@ export async function buildReportBundle(
 
   return {
     zip,
-    zipName: `copilot-report-${input.bundleId}.zip`,
-    uploadAttempt: { body: exactArrayBuffer(zip), idempotencyKey: uuidv4() },
+    zipName: `vault-agent-report-${input.bundleId}.zip`,
     issueDraft: { title: issueTitle(input.note), body: markdown },
     attachments,
   };
@@ -205,7 +201,7 @@ function issueTitle(note: string): string {
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line.length > 0);
-  return firstLine ? firstLine.slice(0, 80).trim() : "Copilot issue report";
+  return firstLine ? firstLine.slice(0, 80).trim() : "Vault Agent issue report";
 }
 
 export function buildReportMarkdown(input: ReportInput, attachments: AttachmentResult[]): string {
@@ -226,7 +222,7 @@ export function buildReportMarkdown(input: ReportInput, attachments: AttachmentR
     "",
     ...(listed.length > 0 ? listed.map(describeAttachment) : ["- (none captured)"]),
     "",
-    "> These files are bundled in the zip Copilot prepared for this report.",
+    "> These files are bundled in the zip Vault Agent prepared for this report.",
     "",
   ].join("\n");
 }
@@ -241,7 +237,7 @@ const BODY_TRUNCATION_NOTE =
   "\n\n_…report truncated. The full report is `report.md` inside the report zip._";
 
 function buildIssueUrl(title: string, prefix: string, body: string): string {
-  const base = `https://github.com/${REPORT_REPO_PLACEHOLDER}/issues/new?`;
+  const base = `https://github.com/${REPORT_REPO}/issues/new?`;
   const build = (b: string) =>
     base + new URLSearchParams({ title, body: prefix + b, labels: "bug" }).toString();
 
@@ -265,16 +261,6 @@ function buildIssueUrl(title: string, prefix: string, body: string): string {
 
 export function buildManualIssueUrl(draft: ReportIssueDraft): string {
   return buildIssueUrl(draft.title, "", draft.body);
-}
-
-export function buildLinkedReportIssueUrl(draft: ReportIssueDraft, reportId: string): string {
-  return buildIssueUrl(draft.title, `**Copilot report ID:** \`${reportId}\`\n\n`, draft.body);
-}
-
-function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength)
-    return bytes.buffer as ArrayBuffer;
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function describeOversizedZip(zippedBytes: number, attachments: AttachmentResult[]): string {

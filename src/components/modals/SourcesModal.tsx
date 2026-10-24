@@ -48,9 +48,7 @@ export class SourcesModal extends Modal {
 
       let link: HTMLElement;
       if (source.outsideVaultLabel) {
-        // A result from another Miyo folder is not a note in this vault, so it is shown
-        // as text with its folder or Chat label instead of a vault link.
-        // https://github.com/logancyang/obsidian-copilot/issues/3508
+        // 库外来源只展示文字，避免生成指向本库同名笔记的错误链接。https://github.com/logancyang/obsidian-copilot/issues/3508
         link = itemContainer.createSpan({ text: displayText });
         itemContainer.createSpan({
           text: source.outsideVaultLabel,

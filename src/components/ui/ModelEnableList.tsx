@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FreeModelWarningIcon } from "@/components/ui/FreeModelWarningIcon";
 import { DestinationIcon } from "@/components/ui/DestinationIcon";
 import { ModelCapabilityIcons, hasCapabilityIcons } from "@/components/ui/model-display";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -19,7 +18,6 @@ export interface ModelEnableRow {
   wireId?: string;
   enabled: boolean;
   capabilities?: ModelCapability[];
-  isFree?: boolean;
 }
 
 export interface ModelEnableGroup {
@@ -28,7 +26,6 @@ export interface ModelEnableGroup {
   badge?: string;
   destination?: Destination;
   destinationNote?: string;
-  highlight?: boolean;
   rows: ModelEnableRow[];
 }
 
@@ -95,7 +92,6 @@ export const ModelEnableList: React.FC<ModelEnableListProps> = ({
           <div className="tw-min-w-0">
             <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
               <span className="tw-truncate">{row.label}</span>
-              {row.isFree && <FreeModelWarningIcon />}
               {hasCapabilityIcons(row.capabilities) && (
                 <span className="tw-flex tw-shrink-0 tw-items-center tw-gap-0.5">
                   <ModelCapabilityIcons capabilities={row.capabilities} iconSize={14} />
@@ -148,14 +144,7 @@ export const ModelEnableList: React.FC<ModelEnableListProps> = ({
                           isOpen(group.key) && "tw-rotate-90"
                         )}
                       />
-                      <span
-                        className={cn(
-                          "tw-truncate",
-                          group.highlight && "tw-font-bold tw-text-accent"
-                        )}
-                      >
-                        {group.label}
-                      </span>
+                      <span className="tw-truncate">{group.label}</span>
                       <EnabledCountBadge rows={group.rows} />
                       {group.badge && (
                         <Badge variant="secondary" className="tw-shrink-0 tw-font-normal">

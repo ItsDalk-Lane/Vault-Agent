@@ -22,7 +22,6 @@ export type ModelSelectorEntry = CustomModel & {
   _group?: string;
   _backendId?: string;
   _subtitle?: string;
-  _isFree?: boolean;
   _needsSelfHostWarning?: boolean;
 };
 

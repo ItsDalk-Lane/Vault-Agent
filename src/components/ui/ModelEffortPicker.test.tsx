@@ -14,6 +14,27 @@ describe("ModelEffortPicker", () => {
     }));
   });
   describe("ModelEffortPicker()", () => {
+    it("shows and commits a configured custom reasoning level in the chat picker https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", async () => {
+      const onChange = jest.fn();
+      const declaredOptions = ["low", "custom-deep"].map((value) => ({ value, label: value }));
+      render(
+        <ModelEffortPicker
+          override={{
+            models,
+            value: "model|agent",
+            effort: { options: declaredOptions, value: "low", onChange },
+            effortOptionsByModelKey: { "model|agent": declaredOptions },
+            commitSelection: jest.fn(),
+          }}
+        />
+      );
+      fireEvent.click(screen.getByTitle("Model · effort"));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.keyDown(dialog, { key: "ArrowRight" });
+      expect(screen.getByText("custom-deep")).toBeTruthy();
+      fireEvent.keyDown(dialog, { key: "Escape" });
+      expect(onChange).toHaveBeenCalledWith("custom-deep");
+    });
     it("commits an available model only when dismissed", async () => {
       const commitSelection = jest.fn();
       render(

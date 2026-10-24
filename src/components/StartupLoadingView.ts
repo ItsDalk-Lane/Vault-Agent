@@ -2,15 +2,14 @@ import { t } from "@/i18n";
 import { logError } from "@/logger";
 import { ItemView, type View, type WorkspaceLeaf } from "obsidian";
 
-export const STARTUP_LOADING_TEXT = "Starting Copilot…";
+export const STARTUP_LOADING_TEXT = "Starting Vault Agent…";
 
 export interface VaultAgentStartup {
   whenStarted(): Promise<void>;
   createStartedView(viewType: string, leaf: WorkspaceLeaf): View | undefined;
 }
 
-// A tab restored while Copilot starts in the background would otherwise read "Plugin no longer
-// active", inviting users to close it. https://github.com/logancyang/obsidian-copilot/issues/3518
+// 后台启动时保留恢复中的标签，避免被误认为插件失效而关闭。https://github.com/logancyang/obsidian-copilot/issues/3518
 export class StartupLoadingView extends ItemView {
   private savedState: Record<string, unknown> = {};
 
@@ -27,7 +26,7 @@ export class StartupLoadingView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "Copilot";
+    return "Vault Agent";
   }
 
   getIcon(): string {
@@ -48,14 +47,13 @@ export class StartupLoadingView extends ItemView {
       text: t("ui.startup.loading"),
     });
     void this.replaceOnceStarted().catch((error) => {
-      logError("Copilot could not open a tab restored during startup.", error);
+      logError("Vault Agent could not open a tab restored during startup.", error);
     });
   }
 
   private async replaceOnceStarted(): Promise<void> {
     await this.startup.whenStarted();
-    // A tab closed or reused while Copilot starts, or a startup cut short by an unload, has no
-    // view to restore. https://github.com/logancyang/obsidian-copilot/issues/3518
+    // 启动期间标签可能已关闭或换用，不能覆盖新的页面。https://github.com/logancyang/obsidian-copilot/issues/3518
     if (this.leaf.view !== this) return;
     const view = this.startup.createStartedView(this.viewType, this.leaf);
     if (!view) return;

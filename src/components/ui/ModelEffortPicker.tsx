@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown } from "lucide-react";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Button } from "@/components/ui/button";
-import { FreeModelWarningIcon } from "@/components/ui/FreeModelWarningIcon";
 import { SelfHostCloudWarningIcon } from "@/components/ui/SelfHostCloudWarningIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ModelDisplay } from "@/components/ui/model-display";
@@ -251,7 +250,6 @@ export function ModelEffortPicker({ override, className }: ModelEffortPickerProp
                     <div className="tw-min-w-0">
                       <div className="tw-flex tw-min-w-0 tw-items-center tw-gap-1">
                         <ModelDisplay model={entry} iconSize={12} />
-                        {entry._isFree && <FreeModelWarningIcon />}
                         {entry._needsSelfHostWarning && <SelfHostCloudWarningIcon />}
                       </div>
                       {entry._subtitle && (

@@ -10,14 +10,14 @@ const renderFooter = (props: Partial<AssistantResponseFooterProps> = {}) =>
 
 describe("AssistantResponseFooter", () => {
   describe("AssistantResponseFooter()", () => {
-    it("prefers leading metadata over the timestamp and keeps actions at the trailing edge", () => {
+    it("shows leading metadata and the timestamp side by side with actions at the trailing edge https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", () => {
       const { container } = renderFooter({
         leading: <span>Worked for 24s</span>,
         timestamp: "2026/08/07 20:31:10",
       });
 
       expect(screen.getByText("Worked for 24s")).toBeTruthy();
-      expect(screen.queryByText("2026/08/07 20:31:10")).toBeNull();
+      expect(screen.getByText("2026/08/07 20:31:10")).toBeTruthy();
       expect(screen.getByText("Actions")).toBeTruthy();
       expect(container.querySelector("[data-response-footer-leading]")).not.toBeNull();
     });

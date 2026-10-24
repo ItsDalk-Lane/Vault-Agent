@@ -1,3 +1,4 @@
+import { AGENT_CHAT_MODE } from "@/constants";
 import type { ChatHistoryItem } from "@/components/chat-components/ChatHistoryPopover";
 import { sanitizeVaultPathSegment } from "@/projects/projectPaths";
 import { getCachedProjectRecords } from "@/projects/state";
@@ -66,6 +67,14 @@ export function extractChatTitle(app: App, file: TFile): string {
   if (frontmatter?.topic && typeof frontmatter.topic === "string" && frontmatter.topic.trim()) {
     return frontmatter.topic.trim();
   }
+
+  // 导入或重命名后的现有聊天标题来自已保存标签，文件名可能仍是内部来源包装，不能反向覆盖用户显示名称。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  if (
+    frontmatter?.mode === AGENT_CHAT_MODE &&
+    typeof frontmatter.agentLabel === "string" &&
+    frontmatter.agentLabel.trim()
+  )
+    return frontmatter.agentLabel.trim();
 
   let basename = file.basename;
   const rawProjectId = frontmatter?.projectId;

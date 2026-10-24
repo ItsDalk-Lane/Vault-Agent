@@ -6,19 +6,18 @@ type ModelSelectorProps = ComponentProps<typeof ModelSelector>;
 
 const OWN_MODELS: ModelSelectorEntry[] = [
   {
-    name: "grok-code",
-    provider: "opencode",
-    displayName: "opencode/grok-code",
+    name: "qwen",
+    provider: "lmstudio",
+    displayName: "Qwen",
     enabled: true,
-    _group: "OpenCode",
-    _isFree: true,
+    _group: "LM Studio",
   },
   {
     name: "claude-sonnet-4-6",
     provider: "anthropic",
     displayName: "anthropic/claude-sonnet-4-6",
     enabled: true,
-    _group: "OpenCode",
+    _group: "Anthropic",
   },
 ];
 
@@ -26,7 +25,7 @@ const meta = {
   title: "UI/Model Selector",
   component: ModelSelector,
   args: {
-    value: "grok-code|opencode",
+    value: "qwen|lmstudio",
     onChange: () => undefined,
     models: OWN_MODELS,
   },
@@ -34,7 +33,7 @@ const meta = {
 } satisfies Meta<ModelSelectorProps>;
 export default meta;
 
-export const Licensed: StoryObj<ModelSelectorProps> = {};
+export const Configured: StoryObj<ModelSelectorProps> = {};
 
 export const MixedDestinations: StoryObj<ModelSelectorProps> = {
   args: {

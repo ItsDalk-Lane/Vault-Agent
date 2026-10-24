@@ -1,5 +1,5 @@
 /* eslint-disable obsidianmd/no-tfile-tfolder-cast -- test fixtures; not real TFiles */
-import { fileToHistoryItem, parseChatPinnedAt } from "@/utils/chatHistoryUtils";
+import { extractChatTitle, fileToHistoryItem, parseChatPinnedAt } from "@/utils/chatHistoryUtils";
 import { RecentUsageManager } from "@/utils/recentUsageManager";
 import type { App, TFile } from "obsidian";
 
@@ -20,6 +20,25 @@ function makeFile(): TFile {
 }
 
 describe("chatHistoryUtils", () => {
+  describe("extractChatTitle()", () => {
+    it.each([
+      [{ mode: "agent", topic: " 自定义主题 ", agentLabel: "助手标题" }, "自定义主题"],
+      [{ mode: "agent", agentLabel: " Harness 复审 " }, "Harness 复审"],
+      [{ mode: "agent", topic: "   ", agentLabel: "恢复的聊天" }, "恢复的聊天"],
+      [{ mode: "agent", agentLabel: "   " }, "chat"],
+      [{ mode: "agent", agentLabel: 123 }, "chat"],
+      [{ mode: "other", agentLabel: "不适用的标题" }, "chat"],
+      [{ agentLabel: "没有聊天类型" }, "chat"],
+    ])(
+      "uses explicit topic before a valid agent chat label and otherwise retains filename fallback: %j https://github.com/ItsDalk-Lane/Vault-Agent/issues/1",
+      (frontmatter, expected) => {
+        const before = JSON.stringify(frontmatter);
+        expect(extractChatTitle(makeApp(frontmatter), makeFile())).toBe(expected);
+        expect(JSON.stringify(frontmatter)).toBe(before);
+      }
+    );
+  });
+
   describe("fileToHistoryItem()", () => {
     it("builds a history item from the note path and its frontmatter topic, epoch, last access and backend", () => {
       const app = makeApp({

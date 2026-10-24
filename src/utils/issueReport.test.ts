@@ -1,5 +1,4 @@
 import {
-  buildLinkedReportIssueUrl,
   buildManualIssueUrl,
   buildReportBundle,
   buildReportMarkdown,
@@ -34,7 +33,7 @@ const FEEDBACK_ISSUE_URL = "https://github.com/Brevilabs/obsidian-copilot-privat
 const SECRET_LOG = "log line for /Users/alice/vault key sk-abcdef0123456789\n";
 const ACTIVITY_PATH = "/tmp/acp-frames.ndjson";
 const ACTIVITY_NAME = "acp-frames.ndjson.txt";
-const OPENCODE_PATH = "/tmp/opencode/log/session.log";
+const PLUGIN_LOG_PATH = "/tmp/vault-agent/plugin.log";
 const INFLATING_LINE =
   "INFO service=file path=/Users/wy/vault/daily/2026-06-15.md secret=hunter22 read ok\n";
 
@@ -70,7 +69,7 @@ function runtimeWith(files: Record<string, string>): ReportRuntime {
   };
 }
 
-const runtime = runtimeWith({ [ACTIVITY_PATH]: SECRET_LOG, [OPENCODE_PATH]: SECRET_LOG });
+const runtime = runtimeWith({ [ACTIVITY_PATH]: SECRET_LOG, [PLUGIN_LOG_PATH]: SECRET_LOG });
 
 const rejecting = (err: Error): ReportRuntime => ({
   readLog: () => Promise.reject(err),
@@ -87,12 +86,12 @@ const baseInput: ReportInput = {
     pluginVersion: "1.2.3",
     platform: "darwin",
     obsidianVersion: "1.5.0",
-    activeBackend: "opencode",
+    activeBackend: "pi",
   },
   screenshotPng: new Uint8Array([1, 2, 3]),
   logs: [
     { id: "activityLog", name: ACTIVITY_NAME, path: ACTIVITY_PATH },
-    { id: "opencodeLog", name: "opencode.log", path: OPENCODE_PATH },
+    { id: "pluginLog", name: "plugin.log", path: PLUGIN_LOG_PATH },
   ],
 };
 
@@ -141,15 +140,15 @@ describe("issueReport", () => {
     it("packs report.md, the screenshot and every requested log into a zip named after the bundle id", async () => {
       const bundle = await build({});
 
-      expect(bundle.zipName).toBe("copilot-report-20260615-101500-abcd.zip");
+      expect(bundle.zipName).toBe("vault-agent-report-20260615-101500-abcd.zip");
       expect(Object.keys(entries(bundle)).sort()).toEqual(
-        [ACTIVITY_NAME, "opencode.log", "report.md", "screenshot.png"].sort()
+        [ACTIVITY_NAME, "plugin.log", "report.md", "screenshot.png"].sort()
       );
       expect(bundle.attachments.map((a) => a.id)).toEqual([
         "report",
         "screenshot",
         "activityLog",
-        "opencodeLog",
+        "pluginLog",
       ]);
       expect(bundle.attachments.every((a) => a.included)).toBe(true);
     });
@@ -158,7 +157,7 @@ describe("issueReport", () => {
       const bundle = await build({ screenshotPng: null });
 
       const packed = entries(bundle);
-      const names = ["report.md", "screenshot.png", ACTIVITY_NAME, "opencode.log"];
+      const names = ["report.md", "screenshot.png", ACTIVITY_NAME, "plugin.log"];
       expect(bundle.attachments).toHaveLength(names.length);
       bundle.attachments.forEach((a, i) => {
         expect([a.name, a.bytes]).toEqual([names[i], a.included ? packed[a.name].length : 0]);
@@ -167,28 +166,15 @@ describe("issueReport", () => {
       expect(packed["screenshot.png"]).toBeUndefined();
     });
 
-    it("stores every entry uncompressed, which is the upload endpoint's contract", async () => {
+    it("stores every entry uncompressed, which is the local report format", async () => {
       const methods = centralDirectoryMethods((await build({})).zip);
 
       expect(methods.length).toBe(4);
       expect(methods.every((m) => m === 0)).toBe(true);
     });
 
-    it("offers for upload exactly the bytes of the zip it returns", async () => {
-      const bundle = await build({});
-
-      expect(new Uint8Array(bundle.uploadAttempt.body)).toEqual(bundle.zip);
-      expect(bundle.uploadAttempt.body.byteLength).toBe(bundle.zip.length);
-    });
-
-    it("mints a fresh idempotency key for every bundle, so two bundles are two uploads", async () => {
-      const [first, second] = await Promise.all([build({}), build({})]);
-
-      expect(first.uploadAttempt.idempotencyKey).not.toBe(second.uploadAttempt.idempotencyKey);
-    });
-
     it.each([
-      ["read from disk", {}, [ACTIVITY_NAME, "opencode.log"]],
+      ["read from disk", {}, [ACTIVITY_NAME, "plugin.log"]],
       [
         "held in memory",
         { logs: [{ id: "chatLog", name: "chat.md", text: SECRET_LOG }] },
@@ -237,7 +223,7 @@ describe("issueReport", () => {
     it(`lists no screenshot at all when the source was never offered or selected (${ISSUE_URL})`, async () => {
       const bundle = await build({ screenshotPng: undefined });
 
-      expect(bundle.attachments.map((a) => a.id)).toEqual(["report", "activityLog", "opencodeLog"]);
+      expect(bundle.attachments.map((a) => a.id)).toEqual(["report", "activityLog", "pluginLog"]);
       expect(entries(bundle)["screenshot.png"]).toBeUndefined();
       expect(entryText(bundle, "report.md")).not.toContain("screenshot");
     });
@@ -302,12 +288,12 @@ describe("issueReport", () => {
       const bundle = await build({
         logs: [
           { id: "chatLog", name: "chat.md" },
-          { id: "opencodeLog", name: "opencode.log", unavailableReason: "No OpenCode log." },
+          { id: "pluginLog", name: "plugin.log", unavailableReason: "No OpenCode log." },
         ],
       });
 
       expect(attachment(bundle, "chatLog")).toMatchObject({ included: false, note: "not found" });
-      expect(attachment(bundle, "opencodeLog")).toMatchObject({
+      expect(attachment(bundle, "pluginLog")).toMatchObject({
         included: false,
         note: "No OpenCode log.",
       });
@@ -316,13 +302,13 @@ describe("issueReport", () => {
     it(`redacts and flattens a request's own unavailable reason before it reaches the note, report.md and the issue body (${ISSUE_URL})`, async () => {
       const unavailableReason = "opencode exited:\n  access_token=abc123secret";
       const bundle = await build({
-        logs: [{ id: "opencodeLog", name: "opencode.log", unavailableReason }],
+        logs: [{ id: "pluginLog", name: "plugin.log", unavailableReason }],
       });
 
       const note = "opencode exited: access_token=<redacted>";
-      expect(attachment(bundle, "opencodeLog").note).toBe(note);
+      expect(attachment(bundle, "pluginLog").note).toBe(note);
       for (const text of [entryText(bundle, "report.md"), bundle.issueDraft.body]) {
-        expect(text).toContain(`- opencode.log — not included: ${note}`);
+        expect(text).toContain(`- plugin.log — not included: ${note}`);
         expect(text).not.toContain("abc123secret");
       }
     });
@@ -367,7 +353,7 @@ describe("issueReport", () => {
           note,
         });
         expect(entries(bundle)[ACTIVITY_NAME]).toBeUndefined();
-        expect(attachment(bundle, "opencodeLog").included).toBe(true);
+        expect(attachment(bundle, "pluginLog").included).toBe(true);
         expect(entryText(bundle, "report.md")).toContain(note);
         expect(entryText(bundle, "report.md")).not.toContain("/Users/alice");
       }
@@ -591,19 +577,19 @@ describe("issueReport", () => {
     it(`still packs report.md alone when every source is left out, and says so in it (${ISSUE_URL})`, async () => {
       const bundle = await build({
         screenshotPng: null,
-        logs: [{ id: "opencodeLog", name: "opencode.log", unavailableReason: "not installed" }],
+        logs: [{ id: "pluginLog", name: "plugin.log", unavailableReason: "not installed" }],
       });
 
       expect(Object.keys(entries(bundle))).toEqual(["report.md"]);
       const md = entryText(bundle, "report.md");
       expect(md).toContain("- screenshot.png — not included: no screenshot was captured");
-      expect(md).toContain("- opencode.log — not included: not installed");
+      expect(md).toContain("- plugin.log — not included: not installed");
     });
 
     it("lists in report.md the same attachments and notes the bundle reports", async () => {
       const room = withRoom(2 * TAILABLE_BUDGET_BYTES, { text: "old\n".repeat(50_000) });
       const bundle = await build(
-        { ...room, logs: [...room.logs, { id: "o", name: "opencode.log", path: OPENCODE_PATH }] },
+        { ...room, logs: [...room.logs, { id: "o", name: "plugin.log", path: PLUGIN_LOG_PATH }] },
         rejecting(new Error("EACCES"))
       );
 
@@ -613,7 +599,7 @@ describe("issueReport", () => {
         if (a.note) expect(md).toContain(a.note);
       }
       expect(md).toContain(`- ${ACTIVITY_NAME} — truncated to the newest entries of`);
-      expect(md).toContain("- opencode.log — not included: failed: EACCES");
+      expect(md).toContain("- plugin.log — not included: failed: EACCES");
       expect(md).not.toContain("- report.md");
     });
 
@@ -643,7 +629,7 @@ describe("issueReport", () => {
       const bundle = await build({ note: "   " });
 
       expect(bundle.issueDraft.body).toContain("_No description provided._");
-      expect(bundle.issueDraft.title).toBe("Copilot issue report");
+      expect(bundle.issueDraft.title).toBe("Vault Agent issue report");
     });
 
     it(`refuses a report.md that overruns the room set aside for it (${ISSUE_URL})`, async () => {
@@ -662,7 +648,7 @@ describe("issueReport", () => {
       jest.mocked(zipSync).mockReturnValueOnce(new Uint8Array(26 * 1024 * 1024));
       const bigger = runtimeWith({
         [ACTIVITY_PATH]: SECRET_LOG.repeat(10),
-        [OPENCODE_PATH]: SECRET_LOG,
+        [PLUGIN_LOG_PATH]: SECRET_LOG,
       });
 
       const message = await build({}, bigger).then(
@@ -672,7 +658,7 @@ describe("issueReport", () => {
 
       expect(message).toMatch(/attachment limit/);
       expect(message).toContain(ACTIVITY_NAME);
-      expect(message).not.toContain("opencode.log");
+      expect(message).not.toContain("plugin.log");
       expect(message).not.toContain("report.md");
     });
   });
@@ -682,7 +668,7 @@ describe("issueReport", () => {
       const url = buildManualIssueUrl({ title: "it exploded", body: "## What went wrong\n\nboom" });
 
       const params = new URLSearchParams(url.split("?")[1]);
-      expect(url.startsWith("https://github.com/OWNER/vault-agent/issues/new?")).toBe(true);
+      expect(url.startsWith("https://github.com/ItsDalk-Lane/Vault-Agent/issues/new?")).toBe(true);
       expect(params.get("title")).toBe("it exploded");
       expect(params.get("labels")).toBe("bug");
       expect(bodyOf(url)).toBe("## What went wrong\n\nboom");
@@ -694,34 +680,6 @@ describe("issueReport", () => {
 
       expect(url.length).toBeLessThanOrEqual(1800);
       expect(bodyOf(url)).toContain("report truncated");
-    });
-  });
-
-  describe("buildLinkedReportIssueUrl()", () => {
-    const REPORT_ID = "9f3c1a7b2e4d5f60819a2b3c4d5e6f70";
-
-    it("opens the issue body with the report ID and labels the issue a bug", () => {
-      const url = buildLinkedReportIssueUrl({ title: "it exploded", body: "## What" }, REPORT_ID);
-
-      const params = new URLSearchParams(url.split("?")[1]);
-      expect(url.startsWith("https://github.com/OWNER/vault-agent/issues/new?")).toBe(true);
-      expect(params.get("title")).toBe("it exploded");
-      expect(params.get("labels")).toBe("bug");
-      expect(bodyOf(url)).toBe(`**Copilot report ID:** \`${REPORT_ID}\`\n\n## What`);
-    });
-
-    it("names the bundle by ID and never by a URL that would fetch it", () => {
-      const url = buildLinkedReportIssueUrl({ title: "leaky", body: "see attached" }, REPORT_ID);
-
-      expect(bodyOf(url)).not.toContain("http");
-    });
-
-    it("keeps the report ID when a long description has to be cut short", () => {
-      const url = buildLinkedReportIssueUrl({ title: "long", body: "x".repeat(50_000) }, REPORT_ID);
-
-      expect(bodyOf(url)).toContain(REPORT_ID);
-      expect(bodyOf(url)).toContain("report truncated");
-      expect(url.length).toBeLessThanOrEqual(1800);
     });
   });
 
@@ -742,7 +700,7 @@ describe("issueReport", () => {
 
       expect(md).toContain("Agent crashed when I clicked run");
       expect(md).toContain("- Plugin version: 1.2.3");
-      expect(md).toContain("- Active backend: opencode");
+      expect(md).toContain("- Active backend: pi");
       expect(md).toContain("- Platform: darwin");
       expect(md).toContain("- Obsidian: 1.5.0");
       expect(md).toContain("- screenshot.png");
@@ -752,11 +710,11 @@ describe("issueReport", () => {
     it("carries an attachment's note next to its name, marking the ones left out", () => {
       const md = buildReportMarkdown(baseInput, [
         included("activityLog", ACTIVITY_NAME, "truncated to the newest entries of 40.0 MB"),
-        { id: "opencodeLog", name: "opencode.log", bytes: 0, included: false, note: "empty" },
+        { id: "pluginLog", name: "plugin.log", bytes: 0, included: false, note: "empty" },
       ]);
 
       expect(md).toContain(`- ${ACTIVITY_NAME} — truncated to the newest entries of 40.0 MB`);
-      expect(md).toContain("- opencode.log — not included: empty");
+      expect(md).toContain("- plugin.log — not included: empty");
     });
 
     it("falls back to placeholders when the note is empty and nothing was captured", () => {
@@ -784,7 +742,7 @@ describe("issueReport", () => {
     let dir = "";
 
     beforeEach(async () => {
-      dir = await fs.mkdtemp(path.join(os.tmpdir(), "copilot-report-test-"));
+      dir = await fs.mkdtemp(path.join(os.tmpdir(), "vault-agent-report-test-"));
     });
 
     afterEach(async () => {

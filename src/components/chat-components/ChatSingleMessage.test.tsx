@@ -427,7 +427,7 @@ describe("ChatSingleMessage", () => {
       expect(messageSegment?.classList.contains("markdown-rendered")).toBe(true);
     });
 
-    it("shows supplied Agent Mode metadata instead of the timestamp in the response footer", async () => {
+    it("shows supplied Agent Mode metadata beside the timestamp in the response footer https://github.com/ItsDalk-Lane/Vault-Agent/issues/6", async () => {
       const timestamp = "2026/08/07 20:31:10";
       const { rerender } = render(
         <TooltipProvider>
@@ -448,7 +448,7 @@ describe("ChatSingleMessage", () => {
       const duration = screen.getByText("Worked for 24s");
       const footer = duration.closest(".tw-justify-between");
       expect(footer?.contains(screen.getByTitle("Copy"))).toBe(true);
-      expect(screen.queryByText(timestamp)).toBeNull();
+      expect(screen.getByText(timestamp)).toBeTruthy();
 
       rerender(
         <TooltipProvider>
@@ -463,6 +463,7 @@ describe("ChatSingleMessage", () => {
         </TooltipProvider>
       );
       expect(screen.getByText(timestamp)).toBeTruthy();
+      expect(screen.queryByText("Worked for 24s")).toBeNull();
     });
     it("collapses an oversized user message behind a Show more control (https://github.com/Brevilabs/obsidian-copilot-private/issues/151)", () => {
       const restoreContentHeight = stubContentDimensions(2000, 240);

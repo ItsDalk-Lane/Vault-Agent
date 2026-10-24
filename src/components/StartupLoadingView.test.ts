@@ -58,7 +58,7 @@ function openLoadingView(createView: VaultAgentStartup["createStartedView"]) {
 describe("StartupLoadingView", () => {
   describe("StartupLoadingView", () => {
     describe("getViewType()", () => {
-      it("reports the type of the Copilot tab it stands in for, so Obsidian saves the layout unchanged", () => {
+      it("reports the type of the Vault Agent tab it stands in for, so Obsidian saves the layout unchanged", () => {
         const { view } = openLoadingView(() => undefined);
 
         expect(view.getViewType()).toBe("vault-agent-chat-view");
@@ -76,7 +76,7 @@ describe("StartupLoadingView", () => {
     });
 
     describe("onOpen()", () => {
-      it("shows that Copilot is starting while startup runs", async () => {
+      it("shows that Vault Agent is starting while startup runs", async () => {
         const { view } = openLoadingView(() => undefined);
 
         await view.onOpen();
@@ -84,7 +84,7 @@ describe("StartupLoadingView", () => {
         expect(view.contentEl.textContent).toBe(STARTUP_LOADING_TEXT);
       });
 
-      it("swaps itself for the started view and hands over the restored state once Copilot starts https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
+      it("swaps itself for the started view and hands over the restored state once Vault Agent starts https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
         const started = createStartedView();
         const { view, leaf, started: startup } = openLoadingView(() => started.view);
         await view.setState({ chatId: "chat-1" });
@@ -97,7 +97,7 @@ describe("StartupLoadingView", () => {
         expect(leaf.view).toBe(started.view);
       });
 
-      it("stays in place when startup ends without a view because Copilot unloaded https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
+      it("stays in place when startup ends without a view because Vault Agent unloaded https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
         const { view, leaf, startup, started } = openLoadingView(() => undefined);
 
         await view.onOpen();
@@ -109,7 +109,7 @@ describe("StartupLoadingView", () => {
         expect(leaf.view).toBe(view);
       });
 
-      it("leaves a tab closed or reused before Copilot started untouched https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
+      it("leaves a tab closed or reused before Vault Agent started untouched https://github.com/logancyang/obsidian-copilot/issues/3518", async () => {
         const { view, leaf, startup, started } = openLoadingView(() => createStartedView().view);
 
         await view.onOpen();
@@ -133,7 +133,7 @@ describe("StartupLoadingView", () => {
         await logged.promise;
 
         expect(logError).toHaveBeenCalledWith(
-          "Copilot could not open a tab restored during startup.",
+          "Vault Agent could not open a tab restored during startup.",
           failure
         );
       });
