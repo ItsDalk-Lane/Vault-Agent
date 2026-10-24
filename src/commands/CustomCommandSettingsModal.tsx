@@ -30,10 +30,10 @@ function CustomCommandSettingsModalContent({
   onConfirm: (command: CustomCommand) => void;
   onCancel: () => void;
 }) {
-  const { options: activeModels, resolveSelectionId } = useChatBackendModelOptions(false);
+  const { options: activeModels, resolveSelectionId } = useChatBackendModelOptions(false, "pi");
   const [command, setCommand] = useState(() => ({
     ...initialCommand,
-    modelKey: resolveSelectionId(initialCommand.modelKey) ?? "",
+    modelKey: resolveSelectionId(initialCommand.modelKey) ?? initialCommand.modelKey,
   }));
   const [errors, setErrors] = useState<FormErrors>({});
 

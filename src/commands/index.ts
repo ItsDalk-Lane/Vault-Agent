@@ -4,10 +4,6 @@ import { CustomCommandManager } from "@/commands/customCommandManager";
 import { getCachedCustomCommands } from "@/commands/state";
 import { COMMAND_ICONS, COMMAND_IDS, COMMAND_NAME_KEYS, CommandId } from "@/constants";
 import { t } from "@/i18n";
-import {
-  clearRecordedPromptPayload,
-  flushRecordedPromptPayloadToLog,
-} from "@/LLMProviders/chainRunner/utils/promptPayloadRecorder";
 import { logError } from "@/logger";
 import { logFileManager } from "@/logFileManager";
 import type VaultAgentPlugin from "@/main";
@@ -35,7 +31,6 @@ export function registerCommands(plugin: VaultAgentPlugin) {
     void plugin.toggleAgentView();
   });
   addCommand(plugin, COMMAND_IDS.NEW_AGENT_CHAT, () => {
-    clearRecordedPromptPayload();
     void plugin.newAgentChat();
   });
 
@@ -55,7 +50,6 @@ export function registerCommands(plugin: VaultAgentPlugin) {
 
   addCommand(plugin, COMMAND_IDS.OPEN_LOG_FILE, async () => {
     try {
-      await flushRecordedPromptPayloadToLog();
       await logFileManager.openLogFile();
     } catch (error) {
       logError("Error creating Vault Agent log file:", error);

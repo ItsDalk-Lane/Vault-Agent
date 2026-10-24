@@ -9,3 +9,7 @@ const meta = {
 export default meta;
 export const DefaultModel: StoryObj<CommandModelSelectProps> = { args: { value: "" } };
 export const ExplicitModel: StoryObj<CommandModelSelectProps> = { args: { value: "gpt4o" } };
+
+export const UnavailableModel: StoryObj<CommandModelSelectProps> = {
+  args: { value: "saved-unavailable-model" },
+};

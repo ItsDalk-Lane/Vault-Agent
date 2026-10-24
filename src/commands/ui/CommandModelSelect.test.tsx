@@ -3,6 +3,10 @@ import React from "react";
 import { CommandModelSelect } from "./CommandModelSelect";
 describe("CommandModelSelect", () => {
   describe("CommandModelSelect()", () => {
+    it("keeps a removed command model visible as unavailable instead of showing Default model https://github.com/ItsDalk-Lane/Vault-Agent/issues/2", () => {
+      render(<CommandModelSelect value="saved-model" options={[]} onChange={jest.fn()} />);
+      expect(screen.getByDisplayValue("Unavailable: saved-model")).not.toBeNull();
+    });
     it("shows Default model and lets the user choose a command-specific model", () => {
       const onChange = jest.fn();
       render(
