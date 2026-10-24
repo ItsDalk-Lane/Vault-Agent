@@ -2,6 +2,7 @@ import {
   agentsFileIsUninitialized,
   captureInstructionFiles,
   restoreInstructionFiles,
+  isClaudeImportOnly,
   ensureAgentsFile,
   removeGeneratedInstructionFiles,
   ensureAgentsFileForDiscovery,
@@ -85,16 +86,16 @@ function makeApp(initialFiles: Record<string, string> = {}, folders: string[] = 
 
 describe("agentsFile", () => {
   describe("ensureAgentsFile()", () => {
-    it("creates root instruction files without changing the initial AGENTS content", async () => {
+    it("creates only AGENTS.md without generating a legacy backend file https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { app, state } = makeApp();
 
       await ensureAgentsFile(app, "", "");
 
       expect(state.files.get("AGENTS.md")).toBe("");
-      expect(state.files.get("CLAUDE.md")).toBe("@AGENTS.md\n");
+      expect(state.files.has("CLAUDE.md")).toBe(false);
     });
 
-    it("preserves existing files and appends only the missing Claude reference", async () => {
+    it("preserves both existing instruction bodies without appending a backend reference https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { app, state } = makeApp({
         "AGENTS.md": "User rules",
         "CLAUDE.md": "# Claude rules\n",
@@ -104,7 +105,8 @@ describe("agentsFile", () => {
       await ensureAgentsFile(app, "", "Different fallback");
 
       expect(state.files.get("AGENTS.md")).toBe("User rules");
-      expect(state.files.get("CLAUDE.md")).toBe("# Claude rules\n\n@AGENTS.md\n");
+      expect(state.files.get("CLAUDE.md")).toBe("# Claude rules\n");
+      expect(app.vault.modify).not.toHaveBeenCalled();
     });
 
     it("initializes a missing project AGENTS file from the supplied compatibility body", async () => {
@@ -115,7 +117,7 @@ describe("agentsFile", () => {
       expect(state.files.get("vault-agent/projects/Research/AGENTS.md")).toBe(
         "Legacy project rules"
       );
-      expect(state.files.get("vault-agent/projects/Research/CLAUDE.md")).toBe("@AGENTS.md\n");
+      expect(state.files.has("vault-agent/projects/Research/CLAUDE.md")).toBe(false);
     });
 
     it("converts a generated mirror back to the current project.md instruction body", async () => {
@@ -186,13 +188,13 @@ describe("agentsFile", () => {
   });
 
   describe("writeAgentsFile()", () => {
-    it("creates the instruction files for a folder that had none", async () => {
+    it("writes the requested AGENTS body without creating a legacy backend file https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { app, state } = makeApp();
 
       await writeAgentsFile(app, "", "Cite every source.");
 
       expect(state.files.get("AGENTS.md")).toBe("Cite every source.");
-      expect(state.files.get("CLAUDE.md")).toBe("@AGENTS.md\n");
+      expect(state.files.has("CLAUDE.md")).toBe(false);
     });
 
     it("replaces the body of a file the user already had", async () => {
@@ -242,7 +244,35 @@ describe("agentsFile", () => {
     });
   });
 
-  describe("captureInstructionFiles() / restoreInstructionFiles()", () => {
+  describe("captureInstructionFiles()", () => {
+    it("captures only the current instruction file rather than legacy backend files https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const { app } = makeApp({ "AGENTS.md": "Current rules", "CLAUDE.md": "Historical rules" });
+      expect(await captureInstructionFiles(app, "")).toEqual({ agents: "Current rules" });
+    });
+  });
+
+  describe("restoreInstructionFiles()", () => {
+    it("leaves a separately edited legacy file untouched while restoring AGENTS.md https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const { app, state } = makeApp({
+        "AGENTS.md": "Original rules",
+        "CLAUDE.md": "Initial historical rules",
+      });
+      const before = await captureInstructionFiles(app, "");
+      state.files.set("AGENTS.md", "Changed rules");
+      state.files.set("CLAUDE.md", "User-edited historical rules");
+      await restoreInstructionFiles(app, "", before);
+      expect(state.files.get("AGENTS.md")).toBe("Original rules");
+      expect(state.files.get("CLAUDE.md")).toBe("User-edited historical rules");
+    });
+
+    it("does not remove a legacy file created outside the current instruction edit https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
+      const { app, state } = makeApp();
+      const before = await captureInstructionFiles(app, "");
+      state.files.set("CLAUDE.md", "User-created historical rules");
+      await restoreInstructionFiles(app, "", before);
+      expect(state.files.get("CLAUDE.md")).toBe("User-created historical rules");
+    });
+
     it("removes files the edit created, rather than leaving them blank", async () => {
       const { app, state } = makeApp();
       const before = await captureInstructionFiles(app, "Projects/Research");
@@ -339,13 +369,13 @@ describe("agentsFile", () => {
       expect(state.files.size).toBe(0);
     });
 
-    it("adds the Claude import next to a user-authored AGENTS.md without a legacy body", async () => {
+    it("leaves a user-authored AGENTS.md unchanged and does not create a backend import https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
       const { app, state } = makeApp({ "AGENTS.md": "My vault rules" });
 
       await ensureAgentsFileForDiscovery(app, "");
 
       expect(state.files.get("AGENTS.md")).toBe("My vault rules");
-      expect(state.files.get("CLAUDE.md")).toBe("@AGENTS.md\n");
+      expect(state.files.has("CLAUDE.md")).toBe(false);
     });
 
     it("never rejects when the vault write fails", async () => {
@@ -358,18 +388,16 @@ describe("agentsFile", () => {
     });
   });
 
-  describe("claude import detection", () => {
-    it.each(["@AGENTS.md", "@./AGENTS.md", "# Rules\n\n@AGENTS.md\n\nmore"])(
-      "does not duplicate the import for %p",
-      async (claudeContent) => {
-        const { app, state } = makeApp({ "AGENTS.md": "rules", "CLAUDE.md": claudeContent });
-
-        await ensureAgentsFile(app, "", "");
-        await ensureAgentsFile(app, "", "");
-
-        expect(state.files.get("CLAUDE.md")).toBe(claudeContent);
+  describe("isClaudeImportOnly()", () => {
+    it.each(["", "@AGENTS.md", "@./AGENTS.md", "\n@AGENTS.md\n"])(
+      "recognizes an import-only historical file %p",
+      (content) => {
+        expect(isClaudeImportOnly(content)).toBe(true);
       }
     );
+    it("preserves historical files containing user-authored rules", () => {
+      expect(isClaudeImportOnly("# Rules\n\n@AGENTS.md\n\nmore")).toBe(false);
+    });
   });
 
   describe("openAgentsFile()", () => {

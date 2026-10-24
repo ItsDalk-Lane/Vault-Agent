@@ -173,7 +173,7 @@ export async function loadSettingsWithKeychain(
         details: ["Check that the vault is writable, then restart Obsidian to retry."],
       };
       showFallbackNotice(
-        "Copilot could not back up the API keys stored in data.json, so it left the file untouched. Check that the vault is writable, then restart Obsidian."
+        "Vault Agent could not back up the API keys stored in data.json, so it left the file untouched. Check that the vault is writable, then restart Obsidian."
       );
     } else {
       if (backup.status === "backed-up") {
@@ -188,8 +188,8 @@ export async function loadSettingsWithKeychain(
         );
         showFallbackNotice(
           backup.encrypted
-            ? `Copilot moved credential storage to the Obsidian Keychain. Your previous keys were copied to ${backup.path}, but some are encrypted and cannot be read back. Get fresh keys from those providers and enter them in Settings.`
-            : `Copilot moved credential storage to the Obsidian Keychain. Your previous keys were copied to ${backup.path}. Re-enter them in Settings, then delete that file.`,
+            ? `Vault Agent moved credential storage to the Obsidian Keychain. Your previous keys were copied to ${backup.path}, but some are encrypted and cannot be read back. Get fresh keys from those providers and enter them in Settings.`
+            : `Vault Agent moved credential storage to the Obsidian Keychain. Your previous keys were copied to ${backup.path}. Re-enter them in Settings, then delete that file.`,
           15000
         );
       }
@@ -201,7 +201,7 @@ export async function loadSettingsWithKeychain(
           "API keys were backed up, but could not be removed from data.json."
         );
         showFallbackNotice(
-          "Copilot could not remove API keys from data.json. Check that the vault is writable, then restart Obsidian."
+          "Vault Agent could not remove API keys from data.json. Check that the vault is writable, then restart Obsidian."
         );
       }
     }
@@ -220,7 +220,7 @@ export async function loadSettingsWithKeychain(
       "Obsidian Keychain is unavailable in this Obsidian build, so keys cannot be loaded or saved."
     );
     showFallbackNotice(
-      "Obsidian Keychain is unavailable. Copilot cannot load or save API keys in this Obsidian build."
+      "Obsidian Keychain is unavailable. Vault Agent cannot load or save API keys in this Obsidian build."
     );
     reportCredentialMigration();
     lastPersistedSettings = structuredClone(baseline);
@@ -248,7 +248,7 @@ async function persistKeychainSettings(
 ): Promise<void> {
   if (legacyCredentialsUnprotected) {
     throw new Error(
-      "Copilot cannot save settings until it can back up the API keys still in data.json. " +
+      "Vault Agent cannot save settings until it can back up the API keys still in data.json. " +
         "Check that the vault is writable, then restart Obsidian."
     );
   }

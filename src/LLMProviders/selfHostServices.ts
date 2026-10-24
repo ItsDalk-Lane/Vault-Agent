@@ -1,14 +1,6 @@
 import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
-import { safeFetchNoThrow } from "@/utils";
-import { requireNodeModule } from "@/utils/desktopRuntime";
-import {
-  readRequestText,
-  RequestBodyTooLargeError,
-  startLoopbackServer,
-  writeJson,
-  type LoopbackServer,
-} from "@/utils/loopbackServer";
+import { desktopProviderFetch } from "@/utils/desktopProviderFetch";
 
 const FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search";
 const PERPLEXITY_CHAT_URL = "https://api.perplexity.ai/chat/completions";
@@ -16,102 +8,9 @@ const PARALLEL_SEARCH_URL = "https://api.parallel.ai/v1/search";
 const PARALLEL_SEARCH_QUERY_MAX_LENGTH = 200;
 const PARALLEL_OBJECTIVE_MAX_LENGTH = 5000;
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
-/** Bounds agent-controlled input. https://github.com/Brevilabs/obsidian-copilot-private/issues/165 */
-const AGENT_SEARCH_REQUEST_MAX_BYTES = 64 * 1024;
-
-type IncomingMessage = import("node:http").IncomingMessage;
-type ServerResponse = import("node:http").ServerResponse;
-
 export interface SelfHostWebSearchResult {
   content: string;
   citations: string[];
-}
-
-export interface SelfHostWebSearchAgentChannel {
-  url: string;
-  token: string;
-}
-
-export interface SelfHostWebSearchAgentBridge {
-  getChannel(): Promise<Readonly<SelfHostWebSearchAgentChannel>>;
-  dispose(): void;
-}
-
-export function createSelfHostWebSearchAgentBridge(
-  isModeValid: () => boolean = () => getSettings().enableSelfHostMode === true,
-  hasSearchKey: () => boolean = hasSelfHostSearchKey,
-  search: (query: string) => Promise<SelfHostWebSearchResult> = selfHostWebSearch
-): Readonly<SelfHostWebSearchAgentBridge> {
-  let server: LoopbackServer | null = null;
-  let channelPromise: Promise<Readonly<SelfHostWebSearchAgentChannel>> | null = null;
-  let disposed = false;
-
-  const runSearch = async (query: string): Promise<SelfHostWebSearchResult> => {
-    // Fail closed rather than fall back to a native web tool when the entitlement is unavailable.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/165
-    if (!isModeValid()) {
-      throw new Error("Self-host web search is not available for this session.");
-    }
-    if (!hasSearchKey()) {
-      throw new Error("Add an API key for the selected self-host search provider.");
-    }
-    return search(query);
-  };
-
-  const startChannel = async (): Promise<Readonly<SelfHostWebSearchAgentChannel>> => {
-    const crypto = requireNodeModule<typeof import("node:crypto")>("crypto");
-    const token = crypto.randomBytes(32).toString("hex");
-    server = startLoopbackServer("self-host web search channel", (request, response) =>
-      handleAgentSearchRequest(request, response, token, runSearch)
-    );
-    return Object.freeze({ url: `${await server.origin}/search`, token });
-  };
-
-  return Object.freeze({
-    getChannel(): Promise<Readonly<SelfHostWebSearchAgentChannel>> {
-      if (disposed) {
-        return Promise.reject(new Error("Self-host web search channel is closed."));
-      }
-      channelPromise ??= startChannel();
-      return channelPromise;
-    },
-    dispose(): void {
-      disposed = true;
-      server?.close();
-      server = null;
-      channelPromise = null;
-    },
-  });
-}
-
-async function handleAgentSearchRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  token: string,
-  search: (query: string) => Promise<SelfHostWebSearchResult>
-): Promise<void> {
-  // Loopback only, per-lifecycle token, single route, so another vault or local webpage cannot select this instance.
-  // https://github.com/Brevilabs/obsidian-copilot-private/issues/165
-  if (request.method !== "POST" || request.url !== "/search") {
-    writeJson(response, 404, { error: "Not found." });
-    return;
-  }
-  if (request.headers.authorization !== `Bearer ${token}`) {
-    writeJson(response, 401, { error: "Unauthorized." });
-    return;
-  }
-
-  try {
-    const query = await readRequestText(request, AGENT_SEARCH_REQUEST_MAX_BYTES);
-    if (!query.trim()) {
-      writeJson(response, 400, { error: "A non-empty query is required." });
-      return;
-    }
-    writeJson(response, 200, await search(query));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    writeJson(response, error instanceof RequestBodyTooLargeError ? 413 : 500, { error: message });
-  }
 }
 
 interface FirecrawlSearchResult {
@@ -175,11 +74,16 @@ export function hasSelfHostSearchKey(): boolean {
   }
 }
 
-async function firecrawlSearch(query: string, apiKey: string): Promise<SelfHostWebSearchResult> {
+async function firecrawlSearch(
+  query: string,
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<SelfHostWebSearchResult> {
   const startTime = Date.now();
 
-  const response = await safeFetchNoThrow(FIRECRAWL_SEARCH_URL, {
+  const response = await desktopProviderFetch(FIRECRAWL_SEARCH_URL, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -224,10 +128,12 @@ async function firecrawlSearch(query: string, apiKey: string): Promise<SelfHostW
 
 async function perplexitySonarSearch(
   query: string,
-  apiKey: string
+  apiKey: string,
+  signal?: AbortSignal
 ): Promise<SelfHostWebSearchResult> {
-  const response = await safeFetchNoThrow(PERPLEXITY_CHAT_URL, {
+  const response = await desktopProviderFetch(PERPLEXITY_CHAT_URL, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -254,11 +160,16 @@ async function perplexitySonarSearch(
   return { content, citations };
 }
 
-async function parallelSearch(query: string, apiKey: string): Promise<SelfHostWebSearchResult> {
+async function parallelSearch(
+  query: string,
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<SelfHostWebSearchResult> {
   // Parallel rejects requests above these per-field limits.
   // https://github.com/Brevilabs/obsidian-copilot-private/issues/285
-  const response = await safeFetchNoThrow(PARALLEL_SEARCH_URL, {
+  const response = await desktopProviderFetch(PARALLEL_SEARCH_URL, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       "x-api-key": apiKey,
       "Content-Type": "application/json",
@@ -278,9 +189,14 @@ async function parallelSearch(query: string, apiKey: string): Promise<SelfHostWe
   return normalizeProviderResults(json?.results, "excerpts");
 }
 
-async function exaSearch(query: string, apiKey: string): Promise<SelfHostWebSearchResult> {
-  const response = await safeFetchNoThrow(EXA_SEARCH_URL, {
+async function exaSearch(
+  query: string,
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<SelfHostWebSearchResult> {
+  const response = await desktopProviderFetch(EXA_SEARCH_URL, {
     method: "POST",
+    ...(signal ? { signal } : {}),
     headers: {
       "x-api-key": apiKey,
       "Content-Type": "application/json",
@@ -301,17 +217,22 @@ async function exaSearch(query: string, apiKey: string): Promise<SelfHostWebSear
   return normalizeProviderResults(json?.results, "highlights");
 }
 
-export async function selfHostWebSearch(query: string): Promise<SelfHostWebSearchResult> {
+export async function selfHostWebSearch(
+  query: string,
+  signal?: AbortSignal
+): Promise<SelfHostWebSearchResult> {
+  if (!hasSelfHostSearchKey())
+    throw new Error("Add an API key for the selected web search provider.");
   const settings = getSettings();
   switch (settings.selfHostSearchProvider) {
     case "parallel":
-      return parallelSearch(query, settings.parallelApiKey);
+      return parallelSearch(query, settings.parallelApiKey, signal);
     case "exa":
-      return exaSearch(query, settings.exaApiKey);
+      return exaSearch(query, settings.exaApiKey, signal);
     case "perplexity":
-      return perplexitySonarSearch(query, settings.perplexityApiKey);
+      return perplexitySonarSearch(query, settings.perplexityApiKey, signal);
     case "firecrawl":
     default:
-      return firecrawlSearch(query, settings.firecrawlApiKey);
+      return firecrawlSearch(query, settings.firecrawlApiKey, signal);
   }
 }

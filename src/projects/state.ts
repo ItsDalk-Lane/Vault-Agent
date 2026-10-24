@@ -1,5 +1,5 @@
 import { atom, createStore } from "jotai";
-import { useAtomValue } from "jotai";
+import { useSyncExternalStore } from "react";
 import { ProjectConfig } from "@/aiParams";
 import { ProjectFileRecord } from "@/projects/type";
 import { normalizePath } from "obsidian";
@@ -13,7 +13,10 @@ const projectConfigsAtom = atom<ProjectConfig[]>((get) =>
 );
 
 export function useProjects(): ProjectConfig[] {
-  return useAtomValue(projectConfigsAtom, { store: projectsStore });
+  // 进入项目可能早于列表订阅通知，渲染必须读取当前快照，避免新项目被误判为已删除。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+  return useSyncExternalStore(subscribeToProjectRecords, () =>
+    projectsStore.get(projectConfigsAtom)
+  );
 }
 
 export function getCachedProjectRecords(): ProjectFileRecord[] {

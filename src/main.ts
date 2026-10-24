@@ -1,6 +1,8 @@
 import type { AgentSessionManager, SkillManager } from "@/agentMode";
 import { getSelectedTextContexts, setSelectedTextContexts } from "@/aiParams";
 import { registerCommands } from "@/commands";
+import type { CommandDraftContext } from "@/types/commandDraft";
+import { registerEditorCommandMenu } from "@/commands/editorCommandMenu";
 import { CustomCommandRegister } from "@/commands/customCommandRegister";
 import { CustomCommandManager } from "@/commands/customCommandManager";
 import { StartupLoadingView, type VaultAgentStartup } from "@/components/StartupLoadingView";
@@ -18,8 +20,6 @@ import {
 } from "@/constants";
 import { ContextProcessor } from "@/contextProcessor";
 import { applyLanguage, t } from "@/i18n";
-import { createSelfHostWebSearchAgentBridge } from "@/LLMProviders/selfHostServices";
-import type { SelfHostWebSearchAgentBridge } from "@/LLMProviders/selfHostServices";
 import { logError, logFatalError, logInfo, logWarn } from "@/logger";
 import { logFileManager } from "@/logFileManager";
 import { createModelManagement, type ModelManagementApi } from "@/modelManagement";
@@ -61,7 +61,8 @@ import {
   findChatFileByDeepLinkId,
   getSavedChatDeepLinkId,
 } from "@/utils/chatDeepLink";
-import { isDesktopRuntime } from "@/utils/desktopRuntime";
+import { isDesktopRuntime, requireNodeModule } from "@/utils/desktopRuntime";
+import { vaultAgentAppDataDir, getVaultId } from "@/utils/appPaths";
 import { getDeviceId } from "@/utils/deviceId";
 import { isNativeChatId, parseNativeChatId } from "@/utils/nativeChatId";
 import { disposeNotificationSound } from "@/utils/notificationSound";
@@ -95,7 +96,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
   modelManagement!: ModelManagementApi;
   agentSessionManager?: AgentSessionManager;
   skills?: SkillManager;
-  selfHostWebSearchAgentBridge?: Readonly<SelfHostWebSearchAgentBridge>;
   settingsUnsubscriber?: () => void;
   userMessageHistory: string[] = [];
   customCommandRegister!: CustomCommandRegister;
@@ -104,7 +104,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
   private VaultAgentView?: typeof import("@/agentMode").VaultAgentView;
   private PlanPreviewView?: typeof import("@/agentMode").PlanPreviewView;
   private TurnDiffView?: typeof import("@/agentMode").TurnDiffView;
-  private agentModelDiscoveryUnsubscriber?: () => void;
   private readonly chatHistoryLastAccessedAtManager = new RecentUsageManager<string>();
   private pluginLifecycleActive = true;
   private initialization: Promise<void> = Promise.resolve();
@@ -173,8 +172,11 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     KeychainService.getInstance(this.app);
     await this.loadSettings();
     if (!this.pluginLifecycleActive) return;
+    const agentMode = isDesktopRuntime() ? await import("@/agentMode") : null;
     this.modelManagement = createModelManagement({
       app: this.app,
+      resolveDeclaredModelCapabilities: agentMode?.lookupDeclaredModelCapabilities,
+      testModelConnection: agentMode?.testModelConnection,
     });
     this.settingsUnsubscriber = subscribeToSettingsChange((prev, next) => {
       applyLanguage(next.language);
@@ -187,40 +189,23 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
         }
       })();
     });
-    const agentMode = isDesktopRuntime()
-      ? await Promise.all([import("@/agentMode"), import("@/agentMode/agentModelDiscovery")])
-      : null;
 
     ContextProcessor.getInstance(this.app);
     CustomCommandManager.getInstance(this.app);
     logFileManager.setApp(this.app);
 
-    // Must precede Agent Chat: startup model discovery may spawn OpenCode.
-    // https://github.com/Brevilabs/obsidian-copilot-private/issues/165
-    const selfHostWebSearchAgentBridge = createSelfHostWebSearchAgentBridge();
-    this.selfHostWebSearchAgentBridge = selfHostWebSearchAgentBridge;
-    this.register(() => {
-      selfHostWebSearchAgentBridge.dispose();
-      if (this.selfHostWebSearchAgentBridge === selfHostWebSearchAgentBridge) {
-        this.selfHostWebSearchAgentBridge = undefined;
-      }
-    });
-
     if (agentMode) {
-      const [
-        {
-          VaultAgentView,
-          PlanPreviewView,
-          TurnDiffView,
-          closeRestoredTurnDiffs,
-          registerTurnDiffCommands,
-          acpFrameSink,
-          createAgentSessionManager,
-          setFrameSinkVaultBasePath,
-          SkillManager,
-        },
-        { wireAgentModelDiscovery },
-      ] = agentMode;
+      const {
+        VaultAgentView,
+        PlanPreviewView,
+        TurnDiffView,
+        closeRestoredTurnDiffs,
+        registerTurnDiffCommands,
+        acpFrameSink,
+        createAgentSessionManager,
+        setFrameSinkVaultBasePath,
+        SkillManager,
+      } = agentMode;
       this.VaultAgentView = VaultAgentView;
       this.PlanPreviewView = PlanPreviewView;
       this.TurnDiffView = TurnDiffView;
@@ -237,10 +222,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
 
       this.agentSessionManager = createAgentSessionManager(this.app, this);
       this.skills = SkillManager.getInstance();
-      this.agentModelDiscoveryUnsubscriber = wireAgentModelDiscovery(
-        this,
-        this.agentSessionManager
-      );
     }
 
     addIcon(VAULT_AGENT_ICON_ID, VAULT_AGENT_ICON_SVG);
@@ -280,6 +261,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     await this.systemPromptRegister.initialize();
 
     this.initSelectionHandler();
+    registerEditorCommandMenu(this);
     this.initWebSelectionWatcher();
 
     this.registerEvent(
@@ -338,7 +320,6 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
   }
 
   private async teardown(): Promise<void> {
-    this.agentModelDiscoveryUnsubscriber?.();
     await this.agentSessionManager?.shutdown();
 
     this.customCommandRegister?.cleanup();
@@ -611,11 +592,14 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     }
   }
 
-  async newAgentChatWithDraft(initialDraft: string): Promise<void> {
+  async newAgentChatWithDraft(
+    initialDraft: string,
+    commandContext?: CommandDraftContext
+  ): Promise<void> {
     const manager = this.requireAgentView();
     if (!manager) return;
     try {
-      await manager.createGlobalSessionWithDraft(initialDraft);
+      await manager.createGlobalSessionWithDraft(initialDraft, commandContext);
       await this.activateAgentView();
     } catch (error) {
       logWarn("[VaultAgentPlugin] Failed to create agent session with draft", error);
@@ -672,7 +656,7 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     // through `this.saveData` would read the absent flat fields as "cleared"
     // and delete this device's `deviceProfiles` segment
     // (https://github.com/logancyang/obsidian-copilot/issues/2539).
-    const settings = await loadSettingsWithKeychain(
+    let settings = await loadSettingsWithKeychain(
       this.app,
       rawData,
       (d) => super.saveData(d),
@@ -683,6 +667,30 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
           rename: (from, to) => this.app.vault.adapter.rename(from, to),
         })
     );
+    if (isDesktopRuntime()) {
+      const { migratePiSettingsAtStartup } = await import("@/agentMode");
+      const os = requireNodeModule<typeof import("node:os")>("node:os");
+      const path = requireNodeModule<typeof import("node:path")>("node:path");
+      const fs = requireNodeModule<typeof import("node:fs/promises")>("node:fs/promises");
+      const privateDir = path.join(
+        vaultAgentAppDataDir(os.homedir()),
+        "vaults",
+        getVaultId(this.app)
+      );
+      settings = await migratePiSettingsAtStartup({
+        settings,
+        backupDirectory: path.join(privateDir, "migration"),
+        saveSettings: (next) => super.saveData(next),
+        readSessionIndex: async () => {
+          try {
+            return await fs.readFile(path.join(privateDir, "agent-chat-index.json"), "utf8");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          }
+        },
+      });
+    }
     setSettings(hydrateDeviceProfile(settings, getDeviceId(this.app)));
     applyLanguage(getSettings().language);
   }
@@ -831,8 +839,14 @@ export default class VaultAgentPlugin extends Plugin implements VaultAgentStartu
     const leaf = await this.activateAgentView();
     if (!leaf) return;
 
-    await manager.loadSessionFromHistory(file);
-    void this.touchChatHistoryLastAccessedAt(file);
+    const session = await manager.loadSessionFromHistory(file);
+    // 导入与只读历史保留原件字节，访问时间写回会改变来源校验并破坏重复导入的幂等性。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
+    if (
+      !session.isHistoricalOnly() &&
+      manager.getSessionSourcePath(session.internalId) === file.path
+    )
+      await this.touchChatHistoryLastAccessedAt(file);
+    else this.chatHistoryLastAccessedAtManager.touch(file.path);
 
     if (this.isVaultAgentView(leaf.view)) {
       leaf.view.updateView();

@@ -43,7 +43,7 @@ describe("startupMigration", () => {
     it("formats statuses and recovery details as one readable message", () => {
       expect(formatStartupMigrationSummary([initial, failure, final])).toBe(
         [
-          "Copilot finished updating this vault.",
+          "Vault Agent finished updating this vault.",
           "API keys — Completed\nKeys migrated.",
           "Projects — Failed\nProjects failed.",
           "License — Action required\nRe-enter the license.\n• Open Vault Agent Settings.",

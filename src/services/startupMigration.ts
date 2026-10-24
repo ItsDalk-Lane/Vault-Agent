@@ -43,7 +43,7 @@ export function formatStartupMigrationSummary(items: readonly StartupMigrationIt
       ...(item.details ?? []).map((detail) => `• ${detail}`),
     ].join("\n")
   );
-  return ["Copilot finished updating this vault.", ...sections].join("\n\n");
+  return ["Vault Agent finished updating this vault.", ...sections].join("\n\n");
 }
 
 export function shouldClearCredentialRecovery(
