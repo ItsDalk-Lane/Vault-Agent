@@ -2,7 +2,9 @@ import type { BackendId } from "@/agentMode/session/types";
 
 export type { BackendId };
 
-export type SkillLocation = { kind: "canonical" } | { kind: "project"; agentDirs: BackendId[] };
+export interface SkillLocation {
+  kind: "canonical";
+}
 
 export interface Skill {
   builtin?: boolean;

@@ -59,7 +59,6 @@ export const SkillRow: React.FC<SkillRowProps> = ({
       );
     }
   };
-  // 历史来源只供查看，不能恢复旧代理目录的写入操作。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
   return (
     <SkillRowLayout
       name={formatSkillDisplayName(skill)}
@@ -70,19 +69,10 @@ export const SkillRow: React.FC<SkillRowProps> = ({
           {skill.userInvocable === false && (
             <Badge variant="secondary">{t("agentInfra.skills.chip.hiddenFromSlash")}</Badge>
           )}
-          {skill.location.kind === "project" && (
-            <span className="tw-truncate tw-text-ui-smaller tw-text-faint">{skill.dirPath}</span>
-          )}
         </>
       }
       controls={
         <SettingSwitch
-          disabled={skill.location.kind === "project"}
-          title={
-            skill.location.kind === "project"
-              ? t("agentInfra.skills.manager.legacyReadOnly")
-              : undefined
-          }
           checked={skill.enabledAgents.includes("pi")}
           aria-label={t("agentInfra.skills.row.enabled", { name: skill.name })}
           onCheckedChange={(enabled) => {
@@ -107,34 +97,27 @@ export const SkillRow: React.FC<SkillRowProps> = ({
             className="tw-min-w-[180px]"
             container={containerRef.current}
           >
-            {skill.location.kind === "canonical" && (
-              <>
-                <DropdownMenuItem className="tw-gap-2.5 tw-text-ui-small" onSelect={onEditSkillMd}>
-                  <Edit3 className="tw-size-3.5" aria-hidden="true" />
-                  {t("agentInfra.skills.row.editSkillMd")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="tw-gap-2.5 tw-text-ui-small"
-                  onSelect={onEditProperties}
-                >
-                  <Settings className="tw-size-3.5" aria-hidden="true" />
-                  {t("agentInfra.skills.row.properties")}
-                </DropdownMenuItem>
-              </>
-            )}
+            <>
+              <DropdownMenuItem className="tw-gap-2.5 tw-text-ui-small" onSelect={onEditSkillMd}>
+                <Edit3 className="tw-size-3.5" aria-hidden="true" />
+                {t("agentInfra.skills.row.editSkillMd")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="tw-gap-2.5 tw-text-ui-small" onSelect={onEditProperties}>
+                <Settings className="tw-size-3.5" aria-hidden="true" />
+                {t("agentInfra.skills.row.properties")}
+              </DropdownMenuItem>
+            </>
             <DropdownMenuItem className="tw-gap-2.5 tw-text-ui-small" onSelect={onRevealInVault}>
               <FolderSearch className="tw-size-3.5" aria-hidden="true" />
               {t("agentInfra.skills.row.reveal")}
             </DropdownMenuItem>
-            {skill.location.kind === "canonical" && (
-              <DropdownMenuItem
-                className="tw-gap-2.5 tw-text-ui-small tw-text-error focus:tw-bg-modifier-error-rgb/15 focus:tw-text-error"
-                onSelect={onDelete}
-              >
-                <Trash2 className="tw-size-3.5" aria-hidden="true" />
-                {t("agentInfra.skills.row.delete")}
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem
+              className="tw-gap-2.5 tw-text-ui-small tw-text-error focus:tw-bg-modifier-error-rgb/15 focus:tw-text-error"
+              onSelect={onDelete}
+            >
+              <Trash2 className="tw-size-3.5" aria-hidden="true" />
+              {t("agentInfra.skills.row.delete")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       }

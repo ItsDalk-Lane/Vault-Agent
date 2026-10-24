@@ -99,22 +99,6 @@ describe("SkillRow", () => {
       expect(reveal).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps legacy project sources read-only and offers no migration or deletion actions https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
-      const skill: Skill = {
-        ...canonicalSkill,
-        dirPath: "/vault/.claude/skills/writing-helper",
-        location: { kind: "project", agentDirs: ["claude", "codex"] },
-      };
-      renderRow(skill);
-      expect(screen.getByRole("switch").getAttribute("aria-disabled")).toBe("true");
-      fireEvent.click(screen.getByRole("switch"));
-      expect(mockSetSkillEnabled).not.toHaveBeenCalled();
-      openMenu();
-      expect(screen.getAllByRole("menuitem")).toHaveLength(1);
-      expect(screen.getByRole("menuitem", { name: "Reveal in vault" })).toBeTruthy();
-      expect(screen.queryByText(/Migrate|Properties|Delete|Edit SKILL/)).toBeNull();
-    });
-
     it("shows the effective slash-menu preference without claiming unused Claude behavior https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", () => {
       renderRow({
         ...canonicalSkill,

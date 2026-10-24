@@ -16,9 +16,7 @@ const DeleteConfirmBody: React.FC<{
   onConfirm: () => void;
 }> = ({ skill, skillsFolderRel, onCancel, onConfirm }) => {
   const folder = skillsFolderRel.replace(/\/+$/, "");
-  const path =
-    skill.location.kind === "canonical" ? `${folder}/${skill.name}/` : `${skill.dirPath}/`;
-  const isProject = skill.location.kind === "project";
+  const path = `${folder}/${skill.name}/`;
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-3">
@@ -33,9 +31,7 @@ const DeleteConfirmBody: React.FC<{
           aria-hidden="true"
         />
         <p className="tw-m-0 tw-text-ui-smaller tw-leading-relaxed tw-text-normal">
-          {isProject
-            ? t("agentInfra.skills.delete.projectWarningFolder")
-            : t("agentInfra.skills.delete.canonicalWarning")}
+          {t("agentInfra.skills.delete.canonicalWarning")}
         </p>
       </div>
 

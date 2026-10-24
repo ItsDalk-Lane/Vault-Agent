@@ -1,7 +1,7 @@
 import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
 import { ALL_MANAGED_SKILLS, isBuiltinSkillEnabledFor } from "@/builtinSkills/builtinSkills";
 import { t } from "@/i18n";
-import { logError, logInfo, logWarn } from "@/logger";
+import { logError, logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import { getEffectiveSkillsFolder } from "@/settings/vaultAgentFolder";
 import { publishSkillLoadErrorCount } from "@/settings/skillLoadErrorState";
@@ -11,9 +11,7 @@ import { normalizeAbsPath } from "@/utils/pathUtils";
 import { requireNodeModule } from "@/utils/desktopRuntime";
 import { DEFAULT_SKILLS_FOLDER } from "@/constants";
 import { discoverManagedSkills, type SkillsFsAdapter } from "./discoverManagedSkills";
-import { discoverProjectSkills, type ProjectSkillCandidate } from "./discoverProjectSkills";
-import { compareSkills, mergeDiscovery } from "./mergeDiscovery";
-import { createNodeProjectDiscoveryFs } from "./nodeFsAdapters";
+import { compareSkills } from "./mergeDiscovery";
 import type { SkillFrontmatterPatch } from "./skillFormat";
 import { runDeleteSkill, runToggleAgent } from "./toggleAgent";
 import type { BackendId, RejectedSkill, Skill } from "./types";
@@ -172,7 +170,6 @@ export class SkillManager {
   private async runOnce(folder: string): Promise<RefreshResult> {
     const absRoot = resolveAbsolutePath(this.app, folder);
     const adapter = createFsAdapter(this.app);
-    const vaultRoot = resolveVaultRootAbs(this.app);
 
     try {
       let builtinError: string | undefined;
@@ -187,26 +184,9 @@ export class SkillManager {
         adapter,
       });
 
-      let projectCandidates: ProjectSkillCandidate[] = [];
-      let rejectedProjectSkills: RejectedSkill[] = [];
-      if (vaultRoot !== null) {
-        try {
-          const projectDiscovery = await discoverProjectSkills({
-            vaultRootAbsPath: vaultRoot,
-            fs: createNodeProjectDiscoveryFs(),
-          });
-          projectCandidates = projectDiscovery.accepted;
-          rejectedProjectSkills = projectDiscovery.rejected;
-        } catch (err) {
-          logWarn(
-            `[skills] Project-skill walk failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-      }
-
       const settings = getSettings();
       const availableAgents = this.builtinRuntime?.availableAgents();
-      const skills = mergeDiscovery(canonicalDiscovery.accepted, projectCandidates).map((skill) => {
+      const skills = [...canonicalDiscovery.accepted].sort(compareSkills).map((skill) => {
         // Failed cleanup must not reactivate an opted-out skill through stale metadata. https://github.com/logancyang/obsidian-copilot/issues/3022
         if (!skill.builtin || !availableAgents) return skill;
         return {
@@ -217,11 +197,9 @@ export class SkillManager {
         };
       });
       const rejectedSkills =
-        canonicalDiscovery.rejected.length === 0 && rejectedProjectSkills.length === 0
+        canonicalDiscovery.rejected.length === 0
           ? EMPTY_REJECTED_SKILLS
-          : canonicalDiscovery.rejected
-              .concat(rejectedProjectSkills)
-              .sort((a, b) => a.dirPath.localeCompare(b.dirPath));
+          : [...canonicalDiscovery.rejected].sort((a, b) => a.dirPath.localeCompare(b.dirPath));
 
       const reconcileErrorCount = builtinError ? 1 : 0;
       const reconcileError: string | undefined = builtinError;
@@ -301,9 +279,6 @@ export class SkillManager {
   }
 
   async setSkillEnabled(skill: Skill, enabled: boolean): Promise<ToggleAgentResult> {
-    // 旧来源只供读取，启用与编辑只写当前技能库。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    if (skill.location.kind === "project")
-      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
     if (skill.builtin) return this.setBuiltinSkillEnabled(skill.name, enabled);
     const agent = "pi";
     const vaultRoot = resolveVaultRootAbs(this.app);
@@ -329,9 +304,6 @@ export class SkillManager {
 
   async deleteSkill(skill: Skill): Promise<DeleteSkillResult> {
     if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
-    // 旧来源保持只读，不能通过列表操作修改或删除原文件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    if (skill.location.kind === "project")
-      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
     const vaultRoot = resolveVaultRootAbs(this.app);
     if (vaultRoot === null) {
       return noVaultPathFailure();
@@ -354,9 +326,6 @@ export class SkillManager {
     }
   ): Promise<SavePropertiesResult> {
     if (skill.builtin) return fsFailure(t("agentInfra.skills.manager.builtinImmutable"));
-    // 旧来源保持只读，不能通过列表操作修改或删除原文件。https://github.com/ItsDalk-Lane/Vault-Agent/issues/1
-    if (skill.location.kind === "project")
-      return fsFailure(t("agentInfra.skills.manager.legacyReadOnly"));
     const fs = createSkillFs();
     const newName =
       req.newName !== undefined && req.newName !== skill.name ? req.newName : undefined;

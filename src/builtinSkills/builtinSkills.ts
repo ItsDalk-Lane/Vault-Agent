@@ -11,22 +11,6 @@ export interface BuiltinSkill {
   readonly files: ReadonlyArray<{ readonly path: string; readonly content: string }>;
 }
 
-/**
- * Retain retired names so Copilot can remove their managed folders and preferences.
- * https://github.com/logancyang/obsidian-copilot/issues/3022
- */
-export const RETIRED_BUILTIN_SKILLS: readonly Pick<BuiltinSkill, "name">[] = [
-  { name: "symposium-publish" },
-  { name: "copilot-read-pdf" },
-  { name: "copilot-web-search" },
-  { name: "copilot-web-fetch" },
-  { name: "copilot-youtube-transcript" },
-  { name: "copilot-fetch-x" },
-  { name: "openartifacts-publish" },
-  { name: "miyo-search" },
-  { name: "miyo-parse" },
-];
-
 export const BUILTIN_SKILLS: readonly BuiltinSkill[] = [...OBSIDIAN_SKILLS];
 
 export const ALL_MANAGED_SKILLS: readonly BuiltinSkill[] = [...BUILTIN_SKILLS];

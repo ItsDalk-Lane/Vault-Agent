@@ -1,4 +1,4 @@
-import { BUILTIN_SKILLS, RETIRED_BUILTIN_SKILLS } from "@/builtinSkills/builtinSkills";
+import { BUILTIN_SKILLS } from "@/builtinSkills/builtinSkills";
 import { sanitizeBuiltinPreferences } from "@/settings/model";
 import type { BuiltinPreferences } from "./builtin/reconcileBuiltinSkills";
 import { act, renderHook } from "@testing-library/react";
@@ -45,14 +45,6 @@ jest.mock("@/settings/vaultAgentFolder", () => ({
 
 jest.mock("./discoverManagedSkills", () => ({
   discoverManagedSkills: jest.fn(),
-}));
-
-jest.mock("./nodeFsAdapters", () => ({
-  createNodeProjectDiscoveryFs: jest.fn(() => ({})),
-}));
-
-jest.mock("./discoverProjectSkills", () => ({
-  discoverProjectSkills: jest.fn(async () => ({ accepted: [], rejected: [] })),
 }));
 
 jest.mock("./toggleAgent", () => ({
@@ -205,16 +197,6 @@ describe("SkillManager", () => {
         expect(result.reconcileError).toBe("cleanup failed");
         expect(getManagedSkills()[0].enabledAgents).toEqual([]);
       });
-      it(`keeps retired skills disabled when file cleanup fails ${ISSUE}`, async () => {
-        const f = builtinFixture();
-        mockedDiscoverManagedSkills.mockResolvedValue(
-          discoveryResult([{ ...builtinSkill, name: RETIRED_BUILTIN_SKILLS[0].name }])
-        );
-        f.prepare.mockRejectedValue(new Error("retirement failed"));
-        const result = await f.manager.refresh();
-        expect(result.reconcileError).toBe("retirement failed");
-        expect(getManagedSkills()[0].enabledAgents).toEqual([]);
-      });
       it(`seeds before discovery on every refresh entry point ${ISSUE}`, async () => {
         const f = builtinFixture();
         await f.manager.refresh();
@@ -262,15 +244,6 @@ describe("SkillManager", () => {
         expect(getManagedSkills()[0].enabledAgents).toEqual(["pi"]);
       });
 
-      it("refuses to rewrite legacy skill metadata through the current enable control https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const manager = SkillManager.initialize(makeApp());
-        const skill = makeSkill({ location: { kind: "project", agentDirs: ["claude"] } });
-        expect(await manager.setSkillEnabled(skill, true)).toMatchObject({
-          ok: false,
-          message: expect.stringContaining("read-only"),
-        });
-        expect(runToggleAgent).not.toHaveBeenCalled();
-      });
       it(`routes built-ins through saved settings rather than file metadata ${ISSUE}`, async () => {
         const f = builtinFixture();
         await f.manager.setSkillEnabled(builtinSkill, false);
@@ -295,13 +268,6 @@ describe("SkillManager", () => {
         expect(getManagedSkills().map((s) => s.name)).toEqual(["bar"]);
       });
 
-      it("keeps legacy source folders read-only without deleting user files https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const manager = SkillManager.initialize(makeApp());
-        const skill = makeSkill({ location: { kind: "project", agentDirs: ["claude"] } });
-        mockedRunDeleteSkill.mockResolvedValue({ ok: true });
-        expect(await manager.deleteSkill(skill)).toMatchObject({ ok: false });
-        expect(runDeleteSkill).not.toHaveBeenCalled();
-      });
       it(`rejects deletion of bundled content ${ISSUE}`, async () => {
         expect(await builtinFixture().manager.deleteSkill(builtinSkill)).toMatchObject({
           ok: false,
@@ -457,18 +423,6 @@ describe("SkillManager", () => {
         });
       });
 
-      it("refuses to rename or patch legacy source files through properties https://github.com/ItsDalk-Lane/Vault-Agent/issues/1", async () => {
-        const manager = SkillManager.initialize(makeApp());
-        const skill = makeSkill({ location: { kind: "project", agentDirs: ["codex"] } });
-        expect(
-          await manager.saveProperties(skill, {
-            newName: "updated",
-            patch: { description: "Updated" },
-          })
-        ).toMatchObject({ ok: false, message: expect.stringContaining("read-only") });
-        expect(runRenameSkill).not.toHaveBeenCalled();
-        expect(runUpdateProperties).not.toHaveBeenCalled();
-      });
       it(`rejects combined edits to bundled content ${ISSUE}`, async () => {
         expect(
           await builtinFixture().manager.saveProperties(builtinSkill, {

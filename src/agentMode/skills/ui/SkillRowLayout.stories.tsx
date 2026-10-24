@@ -35,22 +35,3 @@ export const WithChips: StoryObj<SkillRowLayoutProps> = {
     ),
   },
 };
-export const LegacySource: StoryObj<SkillRowLayoutProps> = {
-  args: {
-    ...args,
-    annotations: (
-      <span className="tw-truncate tw-text-ui-smaller tw-text-faint">Imported source folder</span>
-    ),
-  },
-};
-export const ChipsAndLocation: StoryObj<SkillRowLayoutProps> = {
-  args: {
-    ...args,
-    annotations: (
-      <>
-        <Badge variant="secondary">hidden from /</Badge>
-        <span className="tw-truncate tw-text-ui-smaller tw-text-faint">Imported source folder</span>
-      </>
-    ),
-  },
-};

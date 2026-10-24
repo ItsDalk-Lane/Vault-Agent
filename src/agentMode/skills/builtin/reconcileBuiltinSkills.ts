@@ -1,11 +1,7 @@
 import { t } from "@/i18n";
 import type { VaultAgentSettings } from "@/settings/model";
 import { joinPosix } from "@/utils/pathUtils";
-import {
-  ALL_MANAGED_SKILLS,
-  RETIRED_BUILTIN_SKILLS,
-  isBuiltinSkillEnabledFor,
-} from "@/builtinSkills/builtinSkills";
+import { ALL_MANAGED_SKILLS, isBuiltinSkillEnabledFor } from "@/builtinSkills/builtinSkills";
 import {
   inspectBuiltinSkill,
   removeSeededBuiltin,
@@ -26,12 +22,6 @@ export interface ReconcileBuiltinOptions {
 export async function reconcileBuiltinSkills(options: ReconcileBuiltinOptions): Promise<void> {
   const { folder, fs, settings, availableAgents, registeredAgents } = options;
   const errors: string[] = [];
-  // Retired skills are removed regardless of user overrides so cleanup can retry. https://github.com/logancyang/obsidian-copilot/issues/3022
-  for (const skill of RETIRED_BUILTIN_SKILLS) {
-    const result = await removeSeededBuiltin(folder, skill.name, fs);
-    if (result === "failed")
-      errors.push(t("agentInfra.skills.builtin.removeRetiredFailed", { name: skill.name }));
-  }
   const enabledAgents: Record<string, string[]> = {};
   for (const skill of ALL_MANAGED_SKILLS) {
     enabledAgents[skill.name] = registeredAgents.filter((agent) =>
