@@ -38,6 +38,7 @@ import {
 	childChoicesOf,
 	clearEmptyFormatFlag,
 	dedupeChoicesById,
+	findChoiceWithPath,
 	isChoiceLike,
 	resolveChoiceIcon,
 	rootChoicesOf,
@@ -348,7 +349,7 @@ export default class QuickAdd extends Plugin {
 	 * Start the pending debounced settings write now. Returns the queued
 	 * settings work, or null when there is none to wait for.
 	 */
-	private flushPendingSave(): Promise<void> | null {
+	flushPendingSave(): Promise<void> | null {
 		this.requestSave.run();
 		return this.persistChain;
 	}
@@ -643,29 +644,8 @@ export default class QuickAdd extends Plugin {
 		return choice;
 	}
 
-	private getChoice(
-		by: "name" | "id",
-		targetPropertyValue: string,
-		choices: IChoice[] = this.settings.choices,
-	): IChoice | null {
-		for (const choice of rootChoicesOf(choices)) {
-			if (!isChoiceLike(choice)) continue;
-			if (choice[by] === targetPropertyValue) {
-				return choice;
-			}
-			if (choice.type === "Multi") {
-				const subChoice = this.getChoice(
-					by,
-					targetPropertyValue,
-					childChoicesOf(choice),
-				);
-				if (subChoice) {
-					return subChoice;
-				}
-			}
-		}
-
-		return null;
+	private getChoice(by: "name" | "id", value: string): IChoice | null {
+		return findChoiceWithPath(this.settings.choices, by, value)?.choice ?? null;
 	}
 
 	/** Count how many choices anywhere in the tree carry `name` (names aren't unique).

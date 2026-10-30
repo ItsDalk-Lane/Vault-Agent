@@ -10,8 +10,9 @@ import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/a
 import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import { handledIfCancelled, reportError } from "./utils/errorUtils";
 import { getDate } from "./utils/dates";
-import type IChoice from "./types/choices/IChoice";
 import type { InputPromptOptions } from "./types/inputPrompt";
+import type { ChoiceRef, ChoiceSummary } from "./api/choiceApi";
+import { findChoice, importPackage, pickChoice, summarizeChoice } from "./api/choiceApi";
 import { PromptApi } from "./api/promptApi";
 import { requestInputs } from "./api/requestInputs";
 import { createAiApi } from "./api/aiApi";
@@ -81,30 +82,26 @@ export class QuickAddApi {
 			}
 		};
 		const executeChoice = async (
-			choiceName: string,
+			ref: ChoiceRef,
 			variables?: Record<string, unknown>,
 			options?: { date?: string | Date },
 		) => {
-			// getChoiceByName THROWS when the name doesn't match a choice, so
-			// look it up defensively: report + return (don't abort the macro)
-			// to honor the documented "reports an error, does not throw"
-			// contract. The `!choice` fallback also covers any non-throwing
-			// lookup that yields a falsy result.
-			let choice: IChoice | undefined;
-			try {
-				choice = plugin.getChoiceByName(choiceName);
-			} catch {
-				choice = undefined;
-			}
-
+			// Report and return rather than throw: a missing choice must not
+			// abort the calling macro.
+			const choice = findChoice(plugin.settings.choices, ref)?.choice;
 			if (!choice) {
 				reportError(
-					new Error(`Choice named '${choiceName}' not found`),
+					new Error(
+						typeof ref === "object" && ref !== null
+							? `Choice with id '${String(ref.id)}' not found`
+							: `Choice named '${String(ref)}' not found`,
+					),
 					"API executeChoice error",
 				);
 				return;
 			}
 
+			const { clocks, pickDate } = choiceExecutor;
 			if (!applyInvocationDate(choiceExecutor, options?.date)) {
 				reportError(
 					new Error(`Could not parse date origin '${String(options?.date)}'`),
@@ -125,7 +122,13 @@ export class QuickAddApi {
 			// cancelled sub-choice and carries on must not lose them. The cost is
 			// the long-standing quirk that variables seeded into a cancelled call
 			// linger until the next completed one.
-			await choiceExecutor.execute(choice, chain);
+			try {
+				await choiceExecutor.execute(choice, chain);
+			} finally {
+				// options.date is this call's day, not the calling script's.
+				choiceExecutor.clocks = clocks;
+				choiceExecutor.pickDate = pickDate;
+			}
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
 			restoreDateVariableFormats(choiceExecutor.variables, new Map());
@@ -233,6 +236,13 @@ export class QuickAddApi {
 			// Escape there must not show up as an error.
 			executeChoice: (...args: Parameters<typeof executeChoice>) =>
 				handledIfCancelled(executeChoice(...args)),
+			getChoice: (ref: ChoiceRef): ChoiceSummary | null => {
+				const found = findChoice(plugin.settings.choices, ref);
+				return found ? summarizeChoice(found) : null;
+			},
+			pickChoice: (options?: { placeholder?: string }) =>
+				handledIfCancelled(pickChoice(plugin, options)),
+			importPackage: (packageJson: string) => importPackage(plugin, packageJson),
 			applyTemplateToActiveFile: async (
 				templatePath: string,
 				options?: { mode?: TemplateInsertModeId },

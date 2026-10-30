@@ -36,7 +36,7 @@ export class InputPromptPeek {
 	constructor(private readonly host: InputPromptPeekHost) {}
 
 	peek(): void {
-		if (this.peeking) return;
+		if (this.peeking || isOverAnotherModal(this.host.containerEl)) return;
 		const field = this.host.getField();
 		if (field) this.host.setValue(field.value);
 		this.host.persistDraft();
@@ -78,6 +78,9 @@ export class InputPromptPeek {
 
 	private showModal(): void {
 		this.host.app.keymap.pushScope(this.host.scope);
+		// Modals stack in DOM order, so one another plugin opened during the
+		// peek would otherwise cover the prompt that now has the keyboard.
+		this.host.containerEl.parentElement?.appendChild(this.host.containerEl);
 		this.host.containerEl.removeClass(PEEK_HIDDEN_CLASS);
 		markPromptVisible(this.host);
 		// The field kept its selection while hidden; focus restores it.
@@ -119,6 +122,15 @@ export class InputPromptPeek {
 		this.host.app.keymap.pushScope(this.host.scope);
 		this.host.close();
 	}
+}
+
+/** Mirrors the styles.css rule that hides the Peek button over another modal. */
+function isOverAnotherModal(containerEl: HTMLElement): boolean {
+	return (
+		containerEl.ownerDocument.body.querySelector(
+			":scope > .modal-container:not(.quickAddModal)",
+		) !== null
+	);
 }
 
 function focusActiveEditor(app: App): void {

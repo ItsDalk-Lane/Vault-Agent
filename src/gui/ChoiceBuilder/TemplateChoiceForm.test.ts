@@ -244,16 +244,27 @@ describe("TemplateChoiceForm", () => {
 		expect(settingNames(container)).toContain("File opening location");
 	});
 
-	it("shows the file-exists mode row only for update/create categories", () => {
+	it("shows the file-exists mode row for every category except Ask every time", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("New file naming");
+		const modeRows = ["Update action", "New file naming", "Keep action"];
+		expect(settingNames(container).filter((name) => modeRows.includes(name))).toEqual([]);
 
 		props.choice.fileExistsBehavior = { kind: "apply", mode: "increment" };
 		flushSync();
-		const names = settingNames(container);
-		expect(
-			names.includes("New file naming") || names.includes("Update action"),
-		).toBe(true);
+		expect(settingNames(container).filter((name) => modeRows.includes(name))).toEqual(["New file naming"]);
+	});
+
+	it("keeps a saved Keep existing file choice on Open existing file and offers Do nothing", async () => {
+		const { container, props } = mountForm();
+		props.choice.fileExistsBehavior = { kind: "apply", mode: "doNothing" };
+		flushSync();
+		const select = settingItem(container, "Keep action").querySelector("select")!;
+		expect(select.value).toBe("doNothing");
+		expect(Array.from(select.options, (option) => option.text)).toEqual(["Open existing file", "Do nothing"]);
+
+		await fireEvent.change(select, { target: { value: "leaveUnchanged" } });
+		flushSync();
+		expect(props.choice.fileExistsBehavior).toEqual({ kind: "apply", mode: "leaveUnchanged" });
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
@@ -275,23 +286,17 @@ describe("TemplateChoiceForm", () => {
 		const input = choiceIconInput(container);
 
 		expect(input.placeholder).toBe("file-text");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "file-text");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("file-text");
 
 		await fireEvent.input(input, { target: { value: "star" } });
 		flushSync();
 		expect(props.choice.icon).toBe("star");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "star");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("star");
 
 		await fireEvent.input(input, { target: { value: "   " } });
 		flushSync();
 		expect(props.choice.icon).toBeUndefined();
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "file-text");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("file-text");
 	});
 
 	it("keeps the optional icon override at the bottom of the form", () => {

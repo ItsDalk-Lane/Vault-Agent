@@ -26,7 +26,7 @@ describe("effectivePropertyValueFormat", () => {
 	const makeChoice = (format: { enabled: boolean; format: string }): ICaptureChoice =>
 		({ format }) as ICaptureChoice;
 	const row = (valueFormat?: string): PropertyCapture =>
-		({ property: { kind: "named", format: "p" }, action: "set", createIfMissing: true, valueFormat });
+		({ property: { kind: "named", format: "p" }, action: "set", createIfMissing: true, sort: "none", valueFormat });
 
 	it("prefers the row's own value format", () => {
 		const choice = makeChoice({ enabled: true, format: "{{VALUE:body}}" });

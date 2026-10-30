@@ -107,12 +107,22 @@ function toggleCollapse(event: MouseEvent) {
 	<p class="qa-property-capture-value-format-desc">{t("choiceBuilder.propertyCapture.valueFormatDesc")}</p>
 
 	<SettingItem name={t("choiceBuilder.propertyCapture.action")} desc={config.action === "addToList"
-		? t("choiceBuilder.propertyCapture.actionDescAddToList")
+		? config.sort === "none"
+			? t("choiceBuilder.propertyCapture.actionDescAddToList")
+			: t("choiceBuilder.propertyCapture.actionDescAddToListSorted")
 		: t("choiceBuilder.propertyCapture.actionDescSet")}>
 		{#snippet control()}
 			<Dropdown value={config.action}
 				options={[{ value: "set", label: t("choiceBuilder.propertyCapture.actionSet") }, { value: "addToList", label: t("choiceBuilder.propertyCapture.actionAddToList") }]}
 				onchange={(value) => { config.action = value === "addToList" ? "addToList" : "set"; }} />
+		{/snippet}
+	</SettingItem>
+
+	<SettingItem name={t("choiceBuilder.propertyCapture.sort")}>
+		{#snippet control()}
+			<Dropdown value={config.sort}
+				options={[{ value: "none", label: t("choiceBuilder.propertyCapture.sortNone") }, { value: "asc", label: t("choiceBuilder.propertyCapture.sortAsc") }, { value: "desc", label: t("choiceBuilder.propertyCapture.sortDesc") }]}
+				onchange={(value) => { config.sort = value === "asc" || value === "desc" ? value : "none"; }} />
 		{/snippet}
 	</SettingItem>
 

@@ -9,7 +9,6 @@ import type {
 } from "../../template/fileExistsPolicy";
 import {
 	fileExistsBehaviorCategoryOptions,
-	getBehaviorCategory,
 	getDefaultBehaviorForCategory,
 	getFileExistsMode,
 	getModesForCategory,
@@ -179,18 +178,23 @@ commitPending = addPendingFolder;
 onDestroy(addPendingFolder);
 
 // --- File already exists -------------------------------------------------
-const behaviorCategory = $derived(getBehaviorCategory(choice.fileExistsBehavior));
-const showModeRow = $derived(
-	behaviorCategory !== "prompt" && behaviorCategory !== "keep",
-);
-const modeOptions = $derived(
-	getModesForCategory(behaviorCategory === "update" ? "update" : "create"),
-);
+/** Row title per category: names what the mode dropdown actually picks. */
+function modeRowName(category: "update" | "create" | "keep"): string {
+	switch (category) {
+		case "update":
+			return t("choiceBuilder.templateForm.updateAction");
+		case "create":
+			return t("choiceBuilder.templateForm.newFileNaming");
+		case "keep":
+			return t("choiceBuilder.templateForm.keepAction");
+	}
+}
 const selectedMode = $derived(
 	choice.fileExistsBehavior.kind === "apply"
-		? choice.fileExistsBehavior.mode
-		: modeOptions[0].id,
+		? getFileExistsMode(choice.fileExistsBehavior.mode)
+		: null,
 );
+const behaviorCategory = $derived(selectedMode?.category ?? "prompt");
 
 function onCategoryChange(value: string) {
 	choice.fileExistsBehavior = getDefaultBehaviorForCategory(
@@ -375,15 +379,15 @@ function onModeChange(value: string) {
 		{/snippet}
 	</SettingItem>
 
-	{#if showModeRow}
+	{#if selectedMode}
 		<SettingItem
-			name={behaviorCategory === "update" ? t("choiceBuilder.templateForm.updateAction") : t("choiceBuilder.templateForm.newFileNaming")}
-			desc={getFileExistsMode(selectedMode).description}
+			name={modeRowName(selectedMode.category)}
+			desc={selectedMode.description}
 		>
 			{#snippet control()}
 				<Dropdown
-					value={selectedMode}
-					options={modeOptions.map((mode) => ({
+					value={selectedMode.id}
+					options={getModesForCategory(selectedMode.category).map((mode) => ({
 						value: mode.id,
 						label: mode.label,
 					}))}

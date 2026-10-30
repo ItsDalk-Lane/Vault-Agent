@@ -34,6 +34,7 @@ function addRow() {
 			property: { kind: "named", format: "" },
 			action: "set",
 			createIfMissing: true,
+			sort: "none",
 		},
 	]);
 }

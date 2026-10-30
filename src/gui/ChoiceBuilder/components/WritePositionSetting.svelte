@@ -55,7 +55,12 @@ function onWritePositionChange(value: string) {
 			// per-row value falls back to the capture format until a valueFormat
 			// is typed (no valueFormat on the persisted object).
 			setPropertyCaptures(choice, [
-				{ property: { kind: "named", format: "" }, action: "set", createIfMissing: true },
+				{
+					property: { kind: "named", format: "" },
+					action: "set",
+					createIfMissing: true,
+					sort: "none",
+				},
 			]);
 		}
 		return;

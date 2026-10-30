@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Notice, prepareFuzzySearch } from "obsidian";
+import { App, MarkdownRenderer, Notice, prepareFuzzySearch } from "obsidian";
 
 // Spy on the engine entry while keeping hasConfiguredTemplateFolders real (the
 // constructor's injection gate depends on it).
@@ -819,15 +819,27 @@ describe("ChoiceSuggester", () => {
 			expect(el.textContent).toBe("Top note");
 		});
 
+		it("renders plain names without running other plugins' markdown post processors (#2251)", async () => {
+			const renderSpy = vi.spyOn(MarkdownRenderer, "render");
+			const styled = choice("**Bold** note");
+			const suggester = makeSuggester([topNote, styled]);
+
+			const plainEl = await render(suggester, topNote);
+			const styledEl = await render(suggester, styled);
+
+			expect(plainEl.textContent).toBe("Top note");
+			expect(styledEl.querySelector("strong")?.textContent).toBe("Bold");
+			expect(renderSpy.mock.calls.map(([, source]) => source)).toEqual([
+				"**Bold** note",
+			]);
+		});
+
 		it("renders the default choice-type icon", async () => {
 			const suggester = makeSuggester(rootChoices);
 
 			const el = await render(suggester, topNote);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"file-text",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("file-text");
 		});
 
 		it("renders a per-choice icon override", async () => {
@@ -836,10 +848,7 @@ describe("ChoiceSuggester", () => {
 
 			const el = await render(suggester, starred);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"star",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("star");
 		});
 
 		it("styles the sentinel back item but not a Multi named '← Back'", async () => {
@@ -971,10 +980,7 @@ describe("ChoiceSuggester", () => {
 
 			const el = await render(suggester, row);
 
-			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
-				"data-icon",
-				"file-plus",
-			);
+			expect(el.querySelector(".quickadd-choice-icon svg")?.getAttribute("data-icon")).toBe("file-plus");
 		});
 	});
 
@@ -1020,15 +1026,22 @@ describe("ChoiceSuggester", () => {
 			expect(completion).toHaveBeenCalledWith();
 		});
 
-		it("holds Shift to pick a day on a Today choice", () => {
-			const suggester = makeSuggester(rootChoices);
-			suggester.onChooseItem(
-				topNote,
-				new MouseEvent("click", { shiftKey: true }),
-			);
-			expect(executor.pickDate).toBe(true);
-			expect(executed).toEqual([topNote]);
-		});
+		it.each([false, true])(
+			"holds Shift to pick a day for the chosen run only (enclosing pickDate: %s)",
+			async (enclosing) => {
+				let pickDateDuringRun: boolean | undefined;
+				executor.pickDate = enclosing;
+				executor.executeWithFocusedProperty = async () => { pickDateDuringRun = executor.pickDate; };
+				const suggester = makeSuggester(rootChoices);
+				suggester.onChooseItem(
+					topNote,
+					new MouseEvent("click", { shiftKey: true }),
+				);
+				await flushMicrotasks();
+				expect(pickDateDuringRun).toBe(true);
+				expect(executor.pickDate).toBe(enclosing);
+			},
+		);
 
 		it("rejects with the leaf's own error instance", async () => {
 			const leafError = new Error("leaf blew up");

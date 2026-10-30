@@ -122,21 +122,27 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.input(getByLabelText("Property"), { target: { value: "{{VALUE:property}}" } });
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
 		flushSync();
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true, sort: "none" });
+		await fireEvent.change(selectUnderSetting(container, "Sort list"), { target: { value: "asc" } });
+		flushSync();
+		expect(props.choice.propertyCapture?.sort).toBe("asc");
+		// A sorted list says only "each line is one item": there is no position
+		// for {{PROPERTY}} to name.
+		expect(settingItem(container, "Action").querySelector(".setting-item-description")?.textContent).toBe("Each line is one item.");
 		// A named row with a typed name wears that name as its row label.
 		await fireEvent.change(selectUnderSetting(container, "{{VALUE:property}}"), { target: { value: "prompt" } });
 		flushSync();
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "prompt" }, action: "addToList", createIfMissing: true });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "prompt" }, action: "addToList", createIfMissing: true, sort: "asc" });
 		// "Choose when capturing" has no name, so the row falls back to "Property".
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("{{VALUE:property}}")).toHaveValue("{{VALUE:property}}");
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
+		expect((getByLabelText("{{VALUE:property}}") as HTMLInputElement).value).toBe("{{VALUE:property}}");
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true, sort: "asc" });
 		await fireEvent.input(getByLabelText("{{VALUE:property}}"), { target: { value: "status" } });
 		await fireEvent.change(selectUnderSetting(container, "status"), { target: { value: "prompt" } });
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
-		expect(getByLabelText("status")).toHaveValue("status");
+		expect((getByLabelText("status") as HTMLInputElement).value).toBe("status");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();
@@ -148,21 +154,21 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
 		// Entering property mode starts as ONE canonical row (no valueFormat key).
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "" }, action: "set", createIfMissing: true });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "" }, action: "set", createIfMissing: true, sort: "none" });
 		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
 		await fireEvent.input(getByLabelText("Value format (optional)"), { target: { value: "{{VALUE:rowOne}}" } });
 		flushSync();
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowOne}}" });
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none", valueFormat: "{{VALUE:rowOne}}" });
 
 		await fireEvent.click(getByText("Add property"));
 		flushSync();
 		// Row titles follow typed property names; only nameless rows keep the
 		// numbered label, and the config persists as an array.
-		expect(getByLabelText("status")).toHaveValue("status");
-		expect(getByLabelText("Property 2")).toHaveValue("");
+		expect((getByLabelText("status") as HTMLInputElement).value).toBe("status");
+		expect((getByLabelText("Property 2") as HTMLInputElement).value).toBe("");
 		expect(props.choice.propertyCapture).toEqual([
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:rowOne}}" },
-			{ property: { kind: "named", format: "" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none", valueFormat: "{{VALUE:rowOne}}" },
+			{ property: { kind: "named", format: "" }, action: "set", createIfMissing: true, sort: "none" },
 		]);
 		await fireEvent.input(getByLabelText("Property 2"), { target: { value: "project" } });
 		flushSync();
@@ -179,13 +185,13 @@ describe("CaptureChoiceForm", () => {
 		expect(container.textContent).toContain("project");
 		await fireEvent.click(getByLabelText("Expand property"));
 		flushSync();
-		expect(getByLabelText("project")).toHaveValue("project");
+		expect((getByLabelText("project") as HTMLInputElement).value).toBe("project");
 
 		// Removing a row folds a 2-row list back into the single-object shape.
 		await fireEvent.click(getAllByLabelText("Remove property")[0]);
 		flushSync();
-		expect(getByLabelText("project")).toHaveValue("project");
-		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true });
+		expect((getByLabelText("project") as HTMLInputElement).value).toBe("project");
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none" });
 
 		// Removing the last row leaves property mode entirely — never an empty array.
 		await fireEvent.click(getByLabelText("Remove property"));
@@ -217,7 +223,7 @@ describe("CaptureChoiceForm", () => {
 		expect(queryAllByLabelText("Expand property")).toHaveLength(0);
 		await fireEvent.input(nameInput, { target: { value: "status" } });
 		flushSync();
-		expect(getByLabelText("status")).toHaveValue("status");
+		expect((getByLabelText("status") as HTMLInputElement).value).toBe("status");
 
 		// The name/dead-space toggle still works: clicking the row title folds it.
 		const title = Array.from(container.querySelectorAll(".setting-item-name"))
@@ -329,17 +335,13 @@ describe("CaptureChoiceForm", () => {
 		const input = choiceIconInput(container);
 
 		expect(input.placeholder).toBe("pencil");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "pencil");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("pencil");
 
 		await fireEvent.input(input, { target: { value: "inbox" } });
 		flushSync();
 
 		expect(props.choice.icon).toBe("inbox");
-		expect(
-			container.querySelector(".qa-choice-icon-setting-preview svg"),
-		).toHaveAttribute("data-icon", "inbox");
+		expect(container.querySelector(".qa-choice-icon-setting-preview svg")?.getAttribute("data-icon")).toBe("inbox");
 	});
 
 	it("keeps the optional icon override at the bottom of the form", () => {

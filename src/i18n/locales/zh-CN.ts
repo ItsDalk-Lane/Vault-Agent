@@ -691,6 +691,11 @@ const zhCN = {
 			actionDescSet: "替换原有值。对列表而言，每行是一项。把 {{PROPERTY}} 放在希望保留当前值的位置。Text 类型属性会把所有行保留为一个值。尚未设置类型的属性会拒绝多行——请改用「Add to list」，或先在 Obsidian 中把属性类型设为 Text。",
 			actionSet: "设置值",
 			actionAddToList: "添加到列表",
+			actionDescAddToListSorted: "每行是一项。",
+			sort: "列表排序",
+			sortNone: "保持顺序",
+			sortAsc: "升序",
+			sortDesc: "降序",
 			createIfMissing: "属性不存在时创建",
 			addRow: "添加属性",
 			removeRow: "删除此属性",
@@ -729,6 +734,7 @@ const zhCN = {
 			fileExistsDesc: "选择 QuickAdd 应如何处理：询问操作、更新现有文件、创建另一个文件，还是保留现有文件。",
 			updateAction: "更新操作",
 			newFileNaming: "新文件命名",
+			keepAction: "保留处理",
 			openFileDesc: "打开新建的文件。",
 		},
 		fileOpening: {
@@ -977,6 +983,7 @@ const zhCN = {
 		couldNotSaveNoun: "无法保存{noun}「{name}」",
 		editedDeletedElsewhere: "QuickAdd：「{name}」已在别处被删除，因此你的更改未保存。",
 		renamedDeletedElsewhere: "QuickAdd：「{name}」已在别处被删除，因此未重命名。",
+		toggleAria: "展开或折叠「{name}」",
 		newChoice: "新建选项",
 		addChoice: "添加选项",
 		newFolder: "新建文件夹",
@@ -1501,8 +1508,13 @@ const zhCN = {
 					"保留原名称并添加副本标记。例如：Project Plan.md -> Project Plan (1).md。",
 			},
 			doNothing: {
+				label: "打开现有文件",
+				description:
+					"不修改现有文件并打开它，即使没有开启“打开”。",
+			},
+			leaveUnchanged: {
 				label: "什么都不做",
-				description: "保持文件不变并打开现有文件。",
+				description: "不修改现有文件。仅在开启“打开”时才会打开它。",
 			},
 		},
 		existingNoteAction: {
@@ -1554,6 +1566,7 @@ const zhCN = {
 		capturedTo: "已捕获到「{name}」的「{key}」",
 		capturedToMulti: "已捕获 {keys} 到「{name}」",
 		created: "已创建「{name}」。",
+		alreadyExists: "「{name}」已存在。",
 		currentLine: "已捕获到 {fileName} 的当前行",
 		newLineAbove: "已捕获到 {fileName} 中光标上方的行",
 		newLineBelow: "已捕获到 {fileName} 中光标下方的行",

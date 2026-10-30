@@ -3,7 +3,6 @@ import type { FuzzyMatch } from "obsidian";
 import {
 	Component,
 	FuzzySuggestModal,
-	MarkdownRenderer,
 	Notice,
 	prepareFuzzySearch,
 	setIcon,
@@ -33,6 +32,7 @@ import {
 } from "../../engine/runTemplateFromFolder";
 import { resolveChoiceIcon } from "../../utils/choiceUtils";
 import { createOwnedElement } from "../../utils/activeWindow";
+import { renderChoiceName } from "../choiceList/renderChoiceName";
 
 const backLabel = "← Back";
 
@@ -189,6 +189,14 @@ type ChoiceSuggesterOptions = {
 	 * the top-level launcher.
 	 */
 	ancestry?: ChoiceChain;
+	/**
+	 * Pick mode, for the API's pickChoice: a picked Template, Capture or Macro is
+	 * handed here and nothing runs. Folders still open, and typing searches nested
+	 * choices whatever Search nested choices says, since the caller wants any leaf.
+	 * Threaded through folder levels like `completion`, which still settles a
+	 * dismissal.
+	 */
+	onPick?: (choice: IChoice) => void;
 };
 
 /**
@@ -217,6 +225,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private currentPlaceholder?: string;
 	private readonly completion?: ChoiceSuggesterOptions["completion"];
 	private readonly ancestry?: ChoiceChain;
+	private readonly onPick?: ChoiceSuggesterOptions["onPick"];
 	/**
 	 * Set the moment an activation is accepted (selectSuggestion, BEFORE the
 	 * modal closes), so onClose can tell a dismissal from a pick:
@@ -273,6 +282,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.completion = options?.completion;
 		this.ancestry = options?.ancestry;
+		this.onPick = options?.onPick;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
@@ -313,7 +323,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	getSuggestions(query: string): FuzzyMatch<IChoice>[] {
 		const trimmed = query.trim();
-		if (!trimmed || !settingsStore.getState().searchNestedChoices) {
+		const searchNested = this.onPick !== undefined || settingsStore.getState().searchNestedChoices;
+		if (!trimmed || !searchNested) {
 			return super.getSuggestions(trimmed);
 		}
 
@@ -425,7 +436,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				cls: "quickadd-choice-suggestion-title quickadd-choice-suggestion-text",
 			});
 		}
-		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.markdownComponent)
+		void renderChoiceName(item.item.name, nameEl, this.markdownComponent, this.app)
 			.catch((error) => {
 				nameEl.textContent = item.item.name;
 				// renderSuggestion runs per row and re-runs on every keystroke, so a
@@ -528,6 +539,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
+		else if (this.onPick)
+			this.onPick(item);
 		else {
 			// Route through executeWithFocusedProperty whenever it exists so the
 			// captured focusedProperty AND triggerContext (issue #1429) are both
@@ -537,10 +550,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// leaf inherits the executor's still-live context, which holds the same
 			// values this level was handed. Falls back to execute() only for stub
 			// executors without the method.
+			const enclosingPickDate = this.choiceExecutor.pickDate;
 			if ("shiftKey" in evt && evt.shiftKey) {
 				this.choiceExecutor.pickDate = true;
 			}
-			const execute = this.choiceExecutor.executeWithFocusedProperty
+			const run = this.choiceExecutor.executeWithFocusedProperty
 				? this.choiceExecutor.executeWithFocusedProperty(
 						item,
 						this.focusedProperty,
@@ -548,7 +562,14 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						this.ancestry,
 					)
 				: this.choiceExecutor.execute(item, this.ancestry);
-			this.settleCompletion(execute, t("errors.couldNotRunChoice", { name: item.name }));
+			// Shift picks a day for this choice, not for the Macro steps after it.
+			const execute = run.finally(() => {
+				this.choiceExecutor.pickDate = enclosingPickDate;
+			});
+			this.settleCompletion(
+				execute,
+				t("errors.couldNotRunChoice", { name: item.name }),
+			);
 		}
 	}
 
@@ -597,6 +618,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// the terminal action settles it.
 			completion: this.completion,
 			ancestry: this.ancestry,
+			onPick: this.onPick,
 		});
 	}
 }

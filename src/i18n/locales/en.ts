@@ -726,6 +726,11 @@ const en = {
 			actionDescSet: "Replaces the value. For a list, each line is one item. Put {{PROPERTY}} where the current value should stay. A Text property keeps all lines as one value. A property with no type yet rejects several lines. Use Add to list, or set the type to Text in Obsidian first.",
 			actionSet: "Set value",
 			actionAddToList: "Add to list",
+			actionDescAddToListSorted: "Each line is one item.",
+			sort: "Sort list",
+			sortNone: "Keep order",
+			sortAsc: "Ascending",
+			sortDesc: "Descending",
 			createIfMissing: "Create property if missing",
 			addRow: "Add property",
 			removeRow: "Remove property",
@@ -764,6 +769,7 @@ const en = {
 			fileExistsDesc: "Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.",
 			updateAction: "Update action",
 			newFileNaming: "New file naming",
+			keepAction: "Keep action",
 			openFileDesc: "Open the created file.",
 		},
 		fileOpening: {
@@ -1027,6 +1033,7 @@ const en = {
 		defaultNewMacro: "New macro",
 		defaultNewFolder: "New folder",
 		duplicated: "Duplicated \"{name}\".",
+		toggleAria: "Toggle {name}",
 	},
 
 	contextMenu: {
@@ -1561,8 +1568,14 @@ const en = {
 					"Keeps the original name and adds a duplicate marker. Example: Project Plan.md -> Project Plan (1).md.",
 			},
 			doNothing: {
+				label: "Open existing file",
+				description:
+					"Leaves the existing file unchanged and opens it, even when Open is off.",
+			},
+			leaveUnchanged: {
 				label: "Do nothing",
-				description: "Leaves the file unchanged and opens the existing file.",
+				description:
+					"Leaves the existing file unchanged. It opens only when Open is on.",
 			},
 		},
 		existingNoteAction: {
@@ -1615,6 +1628,7 @@ const en = {
 		appliedTemplate: "Applied template to '{name}'.",
 		capturedTo: "Captured to '{key}' in '{name}'",
 		created: "Created '{name}'.",
+		alreadyExists: "'{name}' already exists.",
 		capturedToMulti: "Captured {keys} to '{name}'",
 		currentLine: "Captured to current line in {fileName}",
 		newLineAbove: "Captured on a new line above cursor in {fileName}",

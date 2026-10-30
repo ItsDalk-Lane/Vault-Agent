@@ -104,6 +104,8 @@ export const fileExistsModes = [
 		resolutionKind: "createNew",
 	},
 	{
+		// Saved choices store this id from when it was the only keep mode, so it
+		// keeps its id and its behavior: it opens the note even with Open off.
 		id: "doNothing",
 		category: "keep",
 		get label() {
@@ -114,6 +116,20 @@ export const fileExistsModes = [
 		},
 		requiresExistingFile: true,
 		resolutionKind: "reuseExisting",
+		opensExistingFile: true,
+	},
+	{
+		id: "leaveUnchanged",
+		category: "keep",
+		get label() {
+			return t("fileExists.mode.leaveUnchanged.label");
+		},
+		get description() {
+			return t("fileExists.mode.leaveUnchanged.description");
+		},
+		requiresExistingFile: true,
+		resolutionKind: "reuseExisting",
+		opensExistingFile: false,
 	},
 ] as const;
 
@@ -212,6 +228,7 @@ const legacyFileExistsModeMap: Record<string, FileExistsModeId> = {
 	increment: "increment",
 	duplicateSuffix: "duplicateSuffix",
 	doNothing: "doNothing",
+	leaveUnchanged: "leaveUnchanged",
 };
 
 const createNewPathResolvers: Record<
@@ -242,18 +259,11 @@ function getCategoryForMode(
 	return getFileExistsMode(modeId).category;
 }
 
+// The prompt's Do nothing item used to open the note, so its slot now reads Open
+// existing file with the same behavior. Leaving the note alone from the prompt is
+// what Escape already does.
 export function getPromptModes(): FileExistsModeDefinition[] {
-	return [...fileExistsModes];
-}
-
-export function getBehaviorCategory(
-	behavior: TemplateFileExistsBehavior,
-): FileExistsBehaviorCategoryId {
-	if (behavior.kind === "prompt") {
-		return "prompt";
-	}
-
-	return getCategoryForMode(behavior.mode);
+	return fileExistsModes.filter((mode) => mode.id !== "leaveUnchanged");
 }
 
 export function getDefaultBehaviorForCategory(

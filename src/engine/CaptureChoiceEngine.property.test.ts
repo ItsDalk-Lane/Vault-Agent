@@ -72,7 +72,12 @@ vi.mock("../utils/templaterIntegration", () => ({
 function fixture(content?: string) {
 	const choice = new CaptureChoice("Set status");
 	choice.captureTo = "Inbox.md";
-	choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+	choice.propertyCapture = {
+		property: { kind: "named", format: "status" },
+		action: "set",
+		createIfMissing: true,
+		sort: "none",
+	};
 	// Typed handle on the single row (propertyCapture itself is a union now).
 	const propertyRow = choice.propertyCapture as PropertyCapture;
 	const executor = { ...createChoiceExecutor(), interactive: false, recordExecutionResult: vi.fn(), signalAbort: vi.fn() };
@@ -194,7 +199,7 @@ describe("Capture property writes", () => {
 
 	it("seeds property variables and compose-writes when the format contains {{PROPERTY}}", async () => {
 		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
-		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		test.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
 		mocks.value.mockImplementation(async () => {
 			expect(test.executor.variables.get("propertyKey")).toBe("tags");
@@ -211,7 +216,7 @@ describe("Capture property writes", () => {
 
 	it("restores seeds so a second property Capture on the same executor can run", async () => {
 		const first = fixture("---\ntags: [old]\n---\nBody\n");
-		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		first.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
 		mocks.value.mockResolvedValueOnce("work\nold");
 		await first.run();
@@ -219,7 +224,7 @@ describe("Capture property writes", () => {
 		expect(first.executor.variables.has("list")).toBe(false);
 
 		first.overwrite("---\ntags: [work, old]\nstatus: Draft\n---\nBody\n");
-		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" };
 		first.choice.format = { enabled: true, format: "{{PROPERTY}} → Ready" };
 		mocks.value.mockResolvedValueOnce("Draft → Ready");
 		await first.run();
@@ -229,7 +234,7 @@ describe("Capture property writes", () => {
 
 	it("still appends when {{PROPERTY}} is absent from the format", async () => {
 		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
-		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" };
 		test.choice.format = { enabled: true, format: "work" };
 		mocks.value.mockResolvedValue("work");
 		await test.run();
@@ -347,8 +352,8 @@ describe("Capture multi-property writes", () => {
 	it("writes every configured property in a single frontmatter pass", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
-			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		mocks.value.mockResolvedValueOnce("done").mockResolvedValueOnce("P");
 		await test.run();
@@ -362,8 +367,8 @@ describe("Capture multi-property writes", () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:first}}" },
-			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:second}}" },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none", valueFormat: "{{VALUE:first}}" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none", valueFormat: "{{VALUE:second}}" },
 		];
 		mocks.value.mockResolvedValueOnce("A").mockResolvedValueOnce("B");
 		await test.run();
@@ -376,8 +381,8 @@ describe("Capture multi-property writes", () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		mocks.value.mockResolvedValueOnce("first").mockResolvedValueOnce("second");
 		await test.run();
@@ -387,8 +392,8 @@ describe("Capture multi-property writes", () => {
 	it("skips an empty list-add row while still writing the other rows", async () => {
 		const test = fixture("---\nstatus: [old]\n---\nBody\n");
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true },
-			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		mocks.value.mockResolvedValueOnce("").mockResolvedValueOnce("P");
 		await test.run();
@@ -400,8 +405,8 @@ describe("Capture multi-property writes", () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true },
-			{ property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "addToList", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true, sort: "none" },
 		];
 		mocks.value.mockResolvedValue("");
 		await test.run();
@@ -413,8 +418,8 @@ describe("Capture multi-property writes", () => {
 	it("prompts for each row's property in list order against the initial snapshot", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
 		test.choice.propertyCapture = [
-			{ property: { kind: "prompt" }, action: "set", createIfMissing: true },
-			{ property: { kind: "prompt" }, action: "set", createIfMissing: true },
+			{ property: { kind: "prompt" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "prompt" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		test.executor.interactive = true;
 		const suggester = vi.fn(async (_labels: string[], handles: string[]) => handles[0]);
@@ -433,8 +438,8 @@ describe("Capture multi-property writes", () => {
 	it("cancels with zero partial writes when a later row's value input is cancelled", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
-			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		mocks.value.mockResolvedValueOnce("A").mockRejectedValueOnce(new UserCancelError("Input cancelled by user"));
 		await test.run();
@@ -447,8 +452,8 @@ describe("Capture multi-property writes", () => {
 	it("fails before writing when a later row's property is missing and creation is off", async () => {
 		const test = fixture("---\nstatus: active\n---\nBody\n");
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
-			{ property: { kind: "named", format: "missing" }, action: "set", createIfMissing: false },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "missing" }, action: "set", createIfMissing: false, sort: "none" },
 		];
 		await test.run();
 		expect(test.processFrontMatter).not.toHaveBeenCalled();
@@ -462,8 +467,8 @@ describe("Capture multi-property writes", () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist = { enabled: true, createWithTemplate: true, template: "Template.md" };
 		test.choice.propertyCapture = [
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true },
-			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none" },
+			{ property: { kind: "named", format: "project" }, action: "set", createIfMissing: true, sort: "none" },
 		];
 		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app: unknown, file: TFile) => {
 			expect(test.executor.recordExecutionResult).not.toHaveBeenCalled();

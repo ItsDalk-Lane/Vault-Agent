@@ -11,6 +11,7 @@
     import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
     import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
+    import { t } from "../../i18n";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -59,7 +60,7 @@
 
 	$effect(() => {
 		if (nameElement) {
-			renderChoiceName(choice.name, nameElement, cmp, app);
+			void renderChoiceName(choice.name, nameElement, cmp, app);
 		}
 	});
 
@@ -140,7 +141,7 @@
             type="button"
             class="multiChoiceListItemName"
             aria-expanded={!choice.collapsed}
-            aria-label={`Toggle ${choice.name}`}
+            aria-label={t("choiceList.toggleAria", { name: choice.name })}
             use:stopDragInit
             onclick={toggleCollapsed}
         >

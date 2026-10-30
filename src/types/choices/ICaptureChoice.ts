@@ -5,6 +5,8 @@ import { t } from "../../i18n";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
+export type PropertyListSort = "none" | "asc" | "desc";
+
 export interface PropertyCapture {
 	property: { kind: "named"; format: string } | { kind: "prompt" };
 	action: "set" | "addToList";
@@ -15,6 +17,8 @@ export interface PropertyCapture {
 	 * single-property choices byte-identical. See effectivePropertyValueFormat.
 	 */
 	valueFormat?: string;
+	/** Order of the written list items. `none` keeps the composed order. */
+	sort: PropertyListSort;
 }
 
 /**
@@ -126,29 +130,35 @@ export default interface ICaptureChoice extends IChoice {
 }
 
 export function parsePropertyCapture(input: unknown): PropertyCapture {
+	const sort = input && typeof input === "object" && "sort" in input ? input.sort : "none";
 	if (
 		!input || typeof input !== "object" ||
 		!("property" in input) || !input.property ||
 		typeof input.property !== "object" || !("kind" in input.property) ||
 		!("action" in input) || (input.action !== "set" && input.action !== "addToList") ||
-		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean"
+		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean" ||
+		(sort !== "none" && sort !== "asc" && sort !== "desc")
 	) {
 		throw new Error(t("errors.invalidPropertyCaptureSettings"));
 	}
 	const property = input.property;
-	// valueFormat survives only as a non-empty string: empty/absent both mean
-	// "fall back to the capture format", so they are indistinguishable on disk.
 	const valueFormat =
 		"valueFormat" in input &&
 		typeof (input as { valueFormat?: unknown }).valueFormat === "string" &&
 		(input as { valueFormat: string }).valueFormat.trim().length > 0
 			? (input as { valueFormat: string }).valueFormat
 			: undefined;
+	const options: Omit<PropertyCapture, "property"> = {
+		action: input.action,
+		createIfMissing: input.createIfMissing,
+		sort,
+		...(valueFormat === undefined ? {} : { valueFormat }),
+	};
 	if (property.kind === "prompt") {
-		return { property: { kind: "prompt" }, action: input.action, createIfMissing: input.createIfMissing, valueFormat };
+		return { property: { kind: "prompt" }, ...options };
 	}
 	if (property.kind === "named" && "format" in property && typeof property.format === "string") {
-		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing, valueFormat };
+		return { property: { kind: "named", format: property.format }, ...options };
 	}
 	throw new Error(t("errors.invalidPropertyCaptureSelector"));
 }

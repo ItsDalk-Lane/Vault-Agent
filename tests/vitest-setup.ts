@@ -1,5 +1,4 @@
-// Global test setup. Under jsdom it adds jest-dom matchers (toBeInTheDocument,
-// toHaveAttribute, ...) to expect() and Obsidian's DOM helpers.
+// Global test setup. Under jsdom it adds Obsidian's DOM helpers.
 import { afterEach } from "vitest";
 
 // Pin the i18n module to English for the whole test run. Without this, every
@@ -134,9 +133,8 @@ export function installObsidianDomHelpers(window: Window): void {
 // Node 26+ exposes a partial `window`/`navigator` global in the node
 // environment (userAgent "Node.js/x") without a DOM: document and the element
 // constructors are absent there. Gate on window.document, not just window, so
-// those workers take the node branch instead of crashing on HTMLElement.
+// those node workers take the branch below instead of crashing on HTMLElement.
 if (typeof window !== "undefined" && typeof window.document !== "undefined") {
-	await import("@testing-library/jest-dom/vitest");
 	installObsidianDomHelpers(window);
 	// Obsidian's globals for the document and window that have focus.
 	if (!("activeDocument" in globalThis)) {

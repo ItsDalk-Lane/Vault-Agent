@@ -139,21 +139,21 @@ describe("CaptureChoice.Load", () => {
 		];
 		const imported = CaptureChoice.Load(JSON.parse(JSON.stringify(multi)));
 		expect(imported.propertyCapture).toEqual([
-			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, valueFormat: "{{VALUE:a}}" },
-			{ property: { kind: "prompt" }, action: "addToList", createIfMissing: false },
+			{ property: { kind: "named", format: "status" }, action: "set", createIfMissing: true, sort: "none", valueFormat: "{{VALUE:a}}" },
+			{ property: { kind: "prompt" }, action: "addToList", createIfMissing: false, sort: "none" },
 		]);
 
 		// A one-row list folds back to the legacy single object on load.
 		const single = new CaptureChoice("One") as any;
 		single.propertyCapture = [{ property: { kind: "named", format: "x" }, action: "set", createIfMissing: true }];
 		expect(CaptureChoice.Load(JSON.parse(JSON.stringify(single))).propertyCapture)
-			.toEqual({ property: { kind: "named", format: "x" }, action: "set", createIfMissing: true });
+			.toEqual({ property: { kind: "named", format: "x" }, action: "set", createIfMissing: true, sort: "none" });
 
 		// A blank valueFormat means "fall back" and is dropped, not persisted.
 		const blank = new CaptureChoice("Blank") as any;
 		blank.propertyCapture = { property: { kind: "named", format: "x" }, action: "set", createIfMissing: true, valueFormat: "  " };
 		expect(CaptureChoice.Load(blank).propertyCapture)
-			.toEqual({ property: { kind: "named", format: "x" }, action: "set", createIfMissing: true });
+			.toEqual({ property: { kind: "named", format: "x" }, action: "set", createIfMissing: true, sort: "none" });
 
 		// An empty array collapses to the field being absent entirely.
 		const empty = new CaptureChoice("Empty") as any;
