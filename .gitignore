@@ -40,3 +40,8 @@ coverage/
 
 # Overlays from svelte-check --tsgo or --incremental runs
 .svelte-check/
+
+# Fork-only: this checkout's pnpm content-addressable store sits in the repo
+# root instead of the global store, so keep its files out of git status.
+.pnpm-store/
+
